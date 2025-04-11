@@ -265,6 +265,8 @@ bool RunIdeWriter(const std::string& ide,
       version = VisualStudioWriter::Version::Vs2015;
     else if (ide == kSwitchIdeValueVs2017)
       version = VisualStudioWriter::Version::Vs2017;
+    else if (ide == kSwitchIdeValueVs2019)
+      version = VisualStudioWriter::Version::Vs2019;
     else if (ide == kSwitchIdeValueVs2022)
       version = VisualStudioWriter::Version::Vs2022;
 
