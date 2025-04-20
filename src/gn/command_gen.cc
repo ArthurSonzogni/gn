@@ -76,6 +76,7 @@ const char kSwitchJsonIdeScript[] = "json-ide-script";
 const char kSwitchJsonIdeScriptArgs[] = "json-ide-script-args";
 const char kSwitchExportCompileCommands[] = "export-compile-commands";
 const char kSwitchExportRustProject[] = "export-rust-project";
+const char kSwitchFilterWithData[] = "filter-with-data";
 
 // A map type used to implement --ide=ninja_outputs
 using NinjaOutputsMap = NinjaOutputsWriter::MapType;
@@ -359,10 +360,11 @@ bool RunIdeWriter(const std::string& ide,
     std::string exec_script_extra_args =
         command_line->GetSwitchValueString(kSwitchJsonIdeScriptArgs);
     std::string filters = command_line->GetSwitchValueString(kSwitchFilters);
+    bool filter_with_data = command_line->HasSwitch(kSwitchFilterWithData);
 
     bool res = JSONProjectWriter::RunAndWriteFiles(
         build_settings, builder, file_name, exec_script, exec_script_extra_args,
-        filters, quiet, err);
+        filters, filter_with_data, quiet, err);
     if (res && !quiet) {
       OutputString("Generating JSON projects took " +
                    base::Int64ToString(timer.Elapsed().InMilliseconds()) +
@@ -676,6 +678,10 @@ Generic JSON Output
 
   --json-ide-script-args=<argument>
       Optional second argument that will be passed to executed script.
+
+  --filter-with-data
+      Additionally follows data deps when filtering. Without this flag, only
+      public and private linked deps will be followed. Only used with --filters.
 
 Ninja Outputs
 

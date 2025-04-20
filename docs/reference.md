@@ -919,6 +919,10 @@
 
   --json-ide-script-args=<argument>
       Optional second argument that will be passed to executed script.
+
+  --filter-with-data
+      Additionally follows data deps when filtering. Without this flag, only
+      public and private linked deps will be followed. Only used with --filters.
 ```
 
 #### **Ninja Outputs**
