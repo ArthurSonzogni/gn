@@ -90,8 +90,9 @@ std::optional<TargetXcodePlatformType> GetTargetXcodePlatform(
     const Args& args,
     const ParseNode* node,
     Err* err) {
-  const Value* target_xcode_platform_value =
-      args.GetArgOverride(variables::kTargetXcodePlatform);
+  std::optional<Value> target_xcode_platform_value =
+      args.GetArgFromAllArguments(variables::kTargetXcodePlatform);
+
   if (!target_xcode_platform_value) {
     return WRITER_TARGET_XCODE_PLATFORM_IPHONEOS;
   }
