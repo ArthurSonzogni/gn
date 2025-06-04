@@ -104,6 +104,7 @@ ci_builder("win", "Windows-10", caches = [swarming.cache("windows_sdk")])
 luci.cq(
     submit_max_burst = 4,
     submit_burst_delay = 8 * time.minute,
+    gerrit_listener_type = cq.GERRIT_LISTENER_TYPE_LEGACY_POLLER,
 )
 
 luci.cq_group(
