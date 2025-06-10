@@ -15,7 +15,6 @@
 #include "gn/source_file.h"
 #include "gn/substitution_list.h"
 #include "gn/target.h"
-#include "gn/test_with_scheduler.h"
 #include "gn/tool.h"
 #include "gn/toolchain.h"
 #include "util/test/test.h"
@@ -44,7 +43,7 @@ class MockLoader : public Loader {
   ~MockLoader() override = default;
 };
 
-class AnalyzerTest : public TestWithScheduler {
+class AnalyzerTest : public testing::Test {
  public:
   AnalyzerTest()
       : loader_(new MockLoader),
