@@ -138,16 +138,16 @@ bool EnsureFileIsGeneratedByDependency(const Target* target,
   // Only check private deps if requested.
   if (check_private_deps) {
     for (const auto& pair : target->private_deps()) {
-      if (EnsureFileIsGeneratedByDependency(pair.ptr, file, false,
-                                            consider_object_files,
-                                            check_data_deps, seen_targets, cursor))
+      if (EnsureFileIsGeneratedByDependency(
+              pair.ptr, file, false, consider_object_files, check_data_deps,
+              seen_targets, cursor))
         return true;  // Found a path.
     }
     if (target->output_type() == Target::CREATE_BUNDLE) {
       for (const auto* dep : target->bundle_data().bundle_deps()) {
-        if (EnsureFileIsGeneratedByDependency(dep, file, false,
-                                              consider_object_files,
-                                              check_data_deps, seen_targets, cursor))
+        if (EnsureFileIsGeneratedByDependency(
+                dep, file, false, consider_object_files, check_data_deps,
+                seen_targets, cursor))
           return true;  // Found a path.
       }
     }
@@ -156,9 +156,9 @@ bool EnsureFileIsGeneratedByDependency(const Target* target,
   if (check_data_deps) {
     check_data_deps = false;  // Consider only direct data_deps.
     for (const auto& pair : target->data_deps()) {
-      if (EnsureFileIsGeneratedByDependency(pair.ptr, file, false,
-                                            consider_object_files,
-                                            check_data_deps, seen_targets, cursor))
+      if (EnsureFileIsGeneratedByDependency(
+              pair.ptr, file, false, consider_object_files, check_data_deps,
+              seen_targets, cursor))
         return true;  // Found a path.
     }
   }
@@ -166,9 +166,9 @@ bool EnsureFileIsGeneratedByDependency(const Target* target,
   // Check all public dependencies (don't do data ones since those are
   // runtime-only).
   for (const auto& pair : target->public_deps()) {
-    if (EnsureFileIsGeneratedByDependency(pair.ptr, file, false,
-                                          consider_object_files,
-                                          check_data_deps, seen_targets, cursor))
+    if (EnsureFileIsGeneratedByDependency(
+            pair.ptr, file, false, consider_object_files, check_data_deps,
+            seen_targets, cursor))
       return true;  // Found a path.
   }
 

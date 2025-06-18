@@ -86,10 +86,8 @@ TargetOsType GetTargetOs(const Args& args) {
   return WRITER_TARGET_OS_MACOS;
 }
 
-std::optional<TargetXcodePlatformType> GetTargetXcodePlatform(
-    const Args& args,
-    const ParseNode* node,
-    Err* err) {
+std::optional<TargetXcodePlatformType>
+GetTargetXcodePlatform(const Args& args, const ParseNode* node, Err* err) {
   std::optional<Value> target_xcode_platform_value =
       args.GetArgFromAllArguments(variables::kTargetXcodePlatform);
 
@@ -99,7 +97,7 @@ std::optional<TargetXcodePlatformType> GetTargetXcodePlatform(
 
   if (target_xcode_platform_value->type() != Value::STRING) {
     *err = Err(node, "target_xcode_platform value should be a string",
-        target_xcode_platform_value->ToString(false));
+               target_xcode_platform_value->ToString(false));
     return std::nullopt;
   }
 
@@ -114,8 +112,8 @@ std::optional<TargetXcodePlatformType> GetTargetXcodePlatform(
     return WRITER_TARGET_XCODE_PLATFORM_IPHONEOS;
   }
 
-  *err = Err(node, "Unknown target_xcode_platform value",
-      target_xcode_platform);
+  *err =
+      Err(node, "Unknown target_xcode_platform value", target_xcode_platform);
   return std::nullopt;
 }
 
@@ -442,19 +440,18 @@ PBXAttributes ProjectAttributesFromBuildSettings(
   PBXAttributes attributes;
   switch (target_os) {
     case WRITER_TARGET_OS_IOS: {
-        const std::optional<TargetXcodePlatformType> target_xcode_platform =
+      const std::optional<TargetXcodePlatformType> target_xcode_platform =
           GetTargetXcodePlatform(build_settings->build_args(), node, err);
-        if (!target_xcode_platform)
-          return {};
-        if (*target_xcode_platform == WRITER_TARGET_XCODE_PLATFORM_TVOS) {
-          attributes["SDKROOT"] = "appletvos";
-          attributes["TARGETED_DEVICE_FAMILY"] = "3";
-        } else {
-          attributes["SDKROOT"] = "iphoneos";
-          attributes["TARGETED_DEVICE_FAMILY"] = "1,2";
-        }
+      if (!target_xcode_platform)
+        return {};
+      if (*target_xcode_platform == WRITER_TARGET_XCODE_PLATFORM_TVOS) {
+        attributes["SDKROOT"] = "appletvos";
+        attributes["TARGETED_DEVICE_FAMILY"] = "3";
+      } else {
+        attributes["SDKROOT"] = "iphoneos";
+        attributes["TARGETED_DEVICE_FAMILY"] = "1,2";
       }
-      break;
+    } break;
     case WRITER_TARGET_OS_MACOS:
       attributes["SDKROOT"] = "macosx";
       break;

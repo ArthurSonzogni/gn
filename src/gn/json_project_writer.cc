@@ -40,7 +40,8 @@
 
 namespace {
 
-void AddTargetDependencies(const Target* target, TargetSet* deps,
+void AddTargetDependencies(const Target* target,
+                           TargetSet* deps,
                            Target::DepsIterationType iteration_type) {
   for (const auto& pair : target->GetDeps(iteration_type)) {
     if (deps->add(pair.ptr)) {
@@ -53,13 +54,12 @@ void AddTargetDependencies(const Target* target, TargetSet* deps,
 
 // Filters targets according to filter string; Will also recursively
 // add dependent targets.
-bool JSONProjectWriter::FilterTargets(
-    const BuildSettings* build_settings,
-    std::vector<const Target*>& all_targets,
-    std::vector<const Target*>* targets,
-    const std::string& dir_filter_string,
-    bool filter_with_data_deps,
-    Err* err) {
+bool JSONProjectWriter::FilterTargets(const BuildSettings* build_settings,
+                                      std::vector<const Target*>& all_targets,
+                                      std::vector<const Target*>* targets,
+                                      const std::string& dir_filter_string,
+                                      bool filter_with_data_deps,
+                                      Err* err) {
   if (dir_filter_string.empty()) {
     *targets = all_targets;
   } else {
@@ -110,7 +110,8 @@ bool JSONProjectWriter::RunAndWriteFiles(
 
   std::vector<const Target*> all_targets = builder.GetAllResolvedTargets();
   std::vector<const Target*> targets;
-  if (!JSONProjectWriter::FilterTargets(build_settings, all_targets, &targets, dir_filter_string,
+  if (!JSONProjectWriter::FilterTargets(build_settings, all_targets, &targets,
+                                        dir_filter_string,
                                         filter_with_data_deps, err)) {
     return false;
   }

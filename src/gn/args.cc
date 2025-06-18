@@ -169,10 +169,10 @@ std::optional<Value> Args::GetArgFromAllArguments(const char* name) const {
   std::lock_guard<std::mutex> lock(lock_);
 
   for (const Settings* toolchain : GetSortedToolchainsLocked()) {
-     const auto& value_map = declared_arguments_per_toolchain_[toolchain];
-     auto it = value_map.find(name);
-     if (it != value_map.end())
-       return std::make_optional(it->second);
+    const auto& value_map = declared_arguments_per_toolchain_[toolchain];
+    auto it = value_map.find(name);
+    if (it != value_map.end())
+      return std::make_optional(it->second);
   }
 
   // No match

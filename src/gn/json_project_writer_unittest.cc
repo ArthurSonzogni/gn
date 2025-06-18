@@ -815,8 +815,8 @@ TEST_F(JSONWriter, FilterTargetsWithDataDeps) {
 
   // Only DEPS_LINKED (should include :a and :b, but not :c)
   ASSERT_TRUE(JSONProjectWriter::FilterTargets(
-      setup.build_settings(), all_targets, &filtered,
-      "//foo:a", /*filter_with_data_deps=*/false, &err));
+      setup.build_settings(), all_targets, &filtered, "//foo:a",
+      /*filter_with_data_deps=*/false, &err));
   std::set<Label> labels_linked;
   for (const Target* t : filtered)
     labels_linked.insert(t->label());
@@ -826,8 +826,8 @@ TEST_F(JSONWriter, FilterTargetsWithDataDeps) {
 
   // DEPS_ALL (should include :a, :b, :c)
   ASSERT_TRUE(JSONProjectWriter::FilterTargets(
-      setup.build_settings(), all_targets, &filtered,
-      "//foo:a", /*filter_with_data_deps=*/true, &err));
+      setup.build_settings(), all_targets, &filtered, "//foo:a",
+      /*filter_with_data_deps=*/true, &err));
   std::set<Label> labels_all;
   for (const Target* t : filtered)
     labels_all.insert(t->label());
