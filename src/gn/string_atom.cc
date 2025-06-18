@@ -101,7 +101,7 @@ struct KeySet : public HashTableBase<KeyNode> {
   void Insert(Node* node, size_t hash, KeyType key) {
     node->hash = hash;
     node->key = key;
-    BaseType::UpdateAfterInsert();
+    BaseType::UpdateAfterInsert(false);
   }
 };
 
