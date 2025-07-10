@@ -269,9 +269,7 @@ void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
     EscapeOptions options;
     options.mode = ESCAPE_NINJA_COMMAND;
 
-    out_ << substitution->ninja_name << " = -Xclang ";
-    EscapeStringToStream(out_, "-fmodules-embed-all-files", options);
-
+    out_ << substitution->ninja_name << " =";
     for (const auto& module_dep : module_dep_info) {
       if (!module_dep.is_self || include_self) {
         out_ << " ";
