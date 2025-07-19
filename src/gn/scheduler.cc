@@ -30,10 +30,10 @@ bool Scheduler::Run() {
 
   // Ensure there is at least one task, (or else this will wait forever).
   if (is_failed_ || (work_count_.IsZero() && pool_work_count_.IsZero())) {
-     // Flush any posted tasks (that were posted from the UI thread).
-     main_thread_run_loop_->PostQuit();
-     main_thread_run_loop_->Run();
-     return is_failed_;
+    // Flush any posted tasks (that were posted from the UI thread).
+    main_thread_run_loop_->PostQuit();
+    main_thread_run_loop_->Run();
+    return is_failed_;
   }
 
   has_been_shutdown_ = false;

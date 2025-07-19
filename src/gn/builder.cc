@@ -537,14 +537,12 @@ void Builder::ScheduleTargetOnResolve(BuilderRecord* record) {
     DCHECK(success == !err.has_error());
 
     g_scheduler->task_runner()->PostTask(
-        [this, record, err]() {
-          CompleteAsyncTargetResolution(record, err);
-        });
+        [this, record, err]() { CompleteAsyncTargetResolution(record, err); });
   });
 }
 
-void Builder::CompleteAsyncTargetResolution(
-    BuilderRecord* record, const Err& err) {
+void Builder::CompleteAsyncTargetResolution(BuilderRecord* record,
+                                            const Err& err) {
   if (err.has_error()) {
     g_scheduler->FailWithError(err);
   } else {

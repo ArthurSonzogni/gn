@@ -339,7 +339,7 @@ TEST_F(BuilderTest, GenDepsCircle) {
   Target* a = new Target(&settings_, a_label);
   a->gen_deps().push_back(LabelTargetPair(b_label));
   a->set_output_type(Target::EXECUTABLE);
-  a->visibility().SetPublic(); // Allow 'b' to depend on 'a'
+  a->visibility().SetPublic();  // Allow 'b' to depend on 'a'
   builder_.ItemDefined(std::unique_ptr<Item>(a));
 
   Target* b = new Target(&settings2, b_label);
