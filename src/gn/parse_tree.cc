@@ -996,6 +996,14 @@ void ListNode::SortList(Comparator comparator) {
   }
 }
 
+void ListNode::ShortenTargets() {
+  for (auto& cur : contents_) {
+    if (cur->AsLiteral()) {
+      const_cast<LiteralNode*>(cur->AsLiteral())->ShortenTarget();
+    }
+  }
+}
+
 void ListNode::SortAsStringsList() {
   // Sorts alphabetically.
   SortList([](const ParseNode* a, const ParseNode* b) {
@@ -1145,6 +1153,48 @@ std::unique_ptr<LiteralNode> LiteralNode::NewFromJSON(
 void LiteralNode::SetNewLocation(int line_number) {
   Location old = value_.location();
   value_.set_location(Location(old.file(), line_number, old.column_number()));
+}
+
+void LiteralNode::ShortenTarget() {
+  std::string_view str = value_.value();
+  DepsCategory category = GetDepsCategory(str);
+  if (category != DEPS_CATEGORY_RELATIVE &&
+      category != DEPS_CATEGORY_ABSOLUTE) {
+    return;
+  }
+
+  str = str.substr(1, str.length() - 2);  // Remove quotes.
+
+  // Slashes may not exist in relative paths.
+  size_t last_slash = str.rfind('/');
+  if (last_slash != std::string::npos) {
+    str = str.substr(last_slash + 1);
+  }
+
+  // Split on the last colon.
+  size_t last_separator = str.rfind(':');
+  if (last_separator == std::string::npos) {
+    return;
+  }
+
+  std::string_view lhs = str.substr(0, last_separator);
+  std::string_view rhs = str.substr(last_separator + 1);
+  if (lhs != rhs) {
+    return;
+  }
+
+  // Even if the two sides match, sanity check there are no other colons.
+  last_separator = lhs.rfind(':');
+  if (last_separator != std::string::npos) {
+    return;
+  }
+
+  // Accounts for ':' and '"'.
+  size_t new_length = value_.value().length() - lhs.length() - 2;
+  shortened_value_ = value_.value().substr(0, new_length);
+  // Then put the '"' back.
+  shortened_value_.push_back('"');
+  value_ = Token(value_.location(), value_.type(), shortened_value_);
 }
 
 // UnaryOpNode ----------------------------------------------------------------
