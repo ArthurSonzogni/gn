@@ -116,6 +116,14 @@ int CountLines(const std::string& str) {
                               .size());
 }
 
+bool IsAssignment(std::string_view op) {
+  return op == "=" || op == "+=" || op == "-=";
+}
+
+bool IsTargetsList(std::string_view ident) {
+  return ident.ends_with("deps") || ident == "visibility";
+}
+
 class Printer {
  public:
   Printer();
@@ -402,19 +410,20 @@ bool Printer::HaveBlankLine() {
 
 void Printer::ShortenIfApplicable(const BinaryOpNode* binop) {
   const IdentifierNode* ident = binop->left()->AsIdentifier();
-  if ((binop->op().value() == "=" || binop->op().value() == "+=" ||
-       binop->op().value() == "-=") &&
-      ident) {
-    const std::string_view lhs = ident->value().value();
-    if (lhs.ends_with("deps") || lhs == "visibility") {
-      TraverseBinaryOpNode(binop->right(), [](const ParseNode* node) {
-        const ListNode* list = node->AsList();
-        if (list) {
-          const_cast<ListNode*>(list)->ShortenTargets();
-        }
-      });
-    }
+  if (!ident || !IsAssignment(binop->op().value())) {
+    return;
   }
+
+  if (!IsTargetsList(ident->value().value())) {
+    return;
+  }
+
+  TraverseBinaryOpNode(binop->right(), [](const ParseNode* node) {
+    const ListNode* list = node->AsList();
+    if (list) {
+      const_cast<ListNode*>(list)->ShortenTargets();
+    }
+  });
 }
 
 void Printer::SortIfApplicable(const BinaryOpNode* binop) {
@@ -428,23 +437,23 @@ void Printer::SortIfApplicable(const BinaryOpNode* binop) {
     }
   }
   const IdentifierNode* ident = binop->left()->AsIdentifier();
-  if ((binop->op().value() == "=" || binop->op().value() == "+=" ||
-       binop->op().value() == "-=") &&
-      ident) {
-    const std::string_view lhs = ident->value().value();
-    if (lhs.ends_with("sources") || lhs == "public") {
-      TraverseBinaryOpNode(binop->right(), [](const ParseNode* node) {
-        const ListNode* list = node->AsList();
-        if (list)
-          const_cast<ListNode*>(list)->SortAsStringsList();
-      });
-    } else if (lhs.ends_with("deps") || lhs == "visibility") {
-      TraverseBinaryOpNode(binop->right(), [](const ParseNode* node) {
-        const ListNode* list = node->AsList();
-        if (list)
-          const_cast<ListNode*>(list)->SortAsTargetsList();
-      });
-    }
+  if (!ident || !IsAssignment(binop->op().value())) {
+    return;
+  }
+
+  const std::string_view lhs = ident->value().value();
+  if (lhs.ends_with("sources") || lhs == "public") {
+    TraverseBinaryOpNode(binop->right(), [](const ParseNode* node) {
+      const ListNode* list = node->AsList();
+      if (list)
+        const_cast<ListNode*>(list)->SortAsStringsList();
+    });
+  } else if (IsTargetsList(lhs)) {
+    TraverseBinaryOpNode(binop->right(), [](const ParseNode* node) {
+      const ListNode* list = node->AsList();
+      if (list)
+        const_cast<ListNode*>(list)->SortAsTargetsList();
+    });
   }
 }
 
@@ -806,9 +815,7 @@ int Printer::Expr(const ParseNode* root,
 
     int start_line = CurrentLine();
     int start_column = CurrentColumn();
-    bool is_assignment = binop->op().value() == "=" ||
-                         binop->op().value() == "+=" ||
-                         binop->op().value() == "-=";
+    bool is_assignment = IsAssignment(binop->op().value());
 
     int indent_column = start_column;
     if (is_assignment) {
