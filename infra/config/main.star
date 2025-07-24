@@ -98,7 +98,7 @@ def ci_builder(name, os, caches = None):
     )
 
 ci_builder("linux", "Ubuntu-22.04")
-ci_builder("mac", "Mac-10.15", caches = [swarming.cache("macos_sdk")])
+ci_builder("mac", "Mac-13", caches = [swarming.cache("macos_sdk")])
 ci_builder("win", "Windows-10", caches = [swarming.cache("windows_sdk")])
 
 luci.cq(
@@ -153,5 +153,5 @@ def try_builder(name, os, caches = None):
     )
 
 try_builder("linux", "Ubuntu-22.04")
-try_builder("mac", "Mac-10.15", caches = [swarming.cache("macos_sdk")])
+try_builder("mac", "Mac-13", caches = [swarming.cache("macos_sdk")])
 try_builder("win", "Windows-10", caches = [swarming.cache("windows_sdk")])
