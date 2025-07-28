@@ -89,6 +89,28 @@ luci.bucket(name = "ci", acls = [
     ),
 ])
 
+# Shadow bucket for led.
+luci.bucket(
+    name = "ci.shadow",
+    shadows = "ci",
+    constraints = luci.bucket_constraints(
+        pools = ["luci.flex.ci"],
+        service_accounts = [
+            "gn-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
+        ],
+    ),
+    bindings = [
+        # for led permissions.
+        luci.binding(
+            roles = "role/buildbucket.creator",
+            groups = [
+                "project-gn-committers",
+            ],
+        ),
+    ],
+    dynamic = True,
+)
+
 def ci_builder(name, os, caches = None):
     builder(name, "ci", os, caches, triggered_by = ["gn-trigger"])
     luci.console_view_entry(
@@ -138,6 +160,28 @@ luci.bucket(name = "try", acls = [
         groups = ["project-gn-tryjob-access", "service-account-cq"],
     ),
 ])
+
+# Shadow bucket for led.
+luci.bucket(
+    name = "try.shadow",
+    shadows = "try",
+    constraints = luci.bucket_constraints(
+        pools = ["luci.flex.try"],
+        service_accounts = [
+            "gn-try-builder@chops-service-accounts.iam.gserviceaccount.com",
+        ],
+    ),
+    bindings = [
+        # for led permissions.
+        luci.binding(
+            roles = "role/buildbucket.creator",
+            groups = [
+                "project-gn-committers",
+            ],
+        ),
+    ],
+    dynamic = True,
+)
 
 luci.binding(
     realm = "try",
