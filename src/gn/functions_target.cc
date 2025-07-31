@@ -402,13 +402,6 @@ Post-processing
   `post_processing_args` will be passed as is to the script (so path have to be
   rebased) and additional inputs may be listed via `post_processing_sources`.
 
-Migration
-
-  The post-processing step used to be limited to code-signing. The properties
-  used to be named `code_signing_$name` instead of `post_processing_$name`. The
-  old names are still accepted as alias to facilitate migration but a warning
-  will be emitted and the alias eventually be removed.
-
 Variables
 
 )" DEPENDENT_CONFIG_VARS DEPS_VARS GENERAL_TARGET_VARS

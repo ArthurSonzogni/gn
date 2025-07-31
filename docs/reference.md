@@ -109,10 +109,6 @@
     *   [cflags_objc: [string list] Flags passed to the Objective C compiler.](#var_cflags_objc)
     *   [cflags_objcc: [string list] Flags passed to the Objective C++ compiler.](#var_cflags_objcc)
     *   [check_includes: [boolean] Controls whether a target's files are checked.](#var_check_includes)
-    *   [code_signing_args: [string list] [deprecated] Args for the post-processing script.](#var_code_signing_args)
-    *   [code_signing_outputs: [file list] [deprecated] Outputs of the post-processing step.](#var_code_signing_outputs)
-    *   [code_signing_script: [file name] [deprecated] Script for the post-processing step.](#var_code_signing_script)
-    *   [code_signing_sources: [file list] [deprecated] Sources for the post-processing step.](#var_code_signing_sources)
     *   [complete_static_lib: [boolean] Links all deps into a static library.](#var_complete_static_lib)
     *   [configs: [label list] Configs applying to this target or config.](#var_configs)
     *   [contents: Contents to write to file.](#var_contents)
@@ -1773,15 +1769,6 @@
   be defined and non-empty to inform when the script needs to be re-run. The
   `post_processing_args` will be passed as is to the script (so path have to be
   rebased) and additional inputs may be listed via `post_processing_sources`.
-```
-
-#### **Migration**
-
-```
-  The post-processing step used to be limited to code-signing. The properties
-  used to be named `code_signing_$name` instead of `post_processing_$name`. The
-  old names are still accepted as alias to facilitate migration but a warning
-  will be emitted and the alias eventually be removed.
 ```
 
 #### **Variables**
@@ -5430,56 +5417,6 @@
     check_includes = false
     ...
   }
-```
-### <a name="var_code_signing_args"></a>**code_signing_args**: [string list] [deprecated] Args for the post-processing script.&nbsp;[Back to Top](#gn-reference)
-
-```
-  For create_bundle targets, post_processing_args is the list of arguments to
-  pass to the post-processing script. Typically you would use source expansion
-  (see "gn help source_expansion") to insert the source file names.
-
-  Deprecated: this is an old name for the "post_processing_args" property of
-  the "create_bundle" target. It is still supported to avoid breaking existing
-  build rules, but a warning will be emitted when it is used.
-
-  See also "gn help create_bundle" and "gn help post_processing_args".
-```
-### <a name="var_code_signing_outputs"></a>**code_signing_outputs**: [file list] [deprecated] Outputs of the post-processing step.&nbsp;[Back to Top](#gn-reference)
-
-```
-  Outputs from the post-processing step of a create_bundle target. Must refer to
-  files in the build directory.
-
-  Deprecated: this is an old name for the "post_processing_outputs" property of
-  the "create_bundle" target. It is still supported to avoid breaking existing
-  build rules, but a warning will be emitted when it is used.
-
-  See also "gn help create_bundle" and "gn help post_processing_args".
-```
-### <a name="var_code_signing_script"></a>**code_signing_script**: [file name] [deprecated] Script for the post-processing step."&nbsp;[Back to Top](#gn-reference)
-
-```
-  An absolute or buildfile-relative file name of a Python script to run for a
-  create_bundle target to perform the post-processing step.
-
-  Deprecated: this is an old name for the "post_processing_script" property of
-  the "create_bundle" target. It is still supported to avoid breaking existing
-  build rules, but a warning will be emitted when it is used.
-
-  See also "gn help create_bundle" and "gn help post_processing_args".
-```
-### <a name="var_code_signing_sources"></a>**code_signing_sources**: [file list] [deprecated] Sources for the post-processing step.&nbsp;[Back to Top](#gn-reference)
-
-```
-  A list of files used as input for the post-processing step of a create_bundle
-  target. Non-absolute paths will be resolved relative to the current build
-  file.
-
-  Deprecated: this is an old name for the "post_processing_sources" property of
-  the "create_bundle" target. It is still supported to avoid breaking existing
-  build rules, but a warning will be emitted when it is used.
-
-  See also "gn help create_bundle" and "gn help post_processing_args".
 ```
 ### <a name="var_complete_static_lib"></a>**complete_static_lib**: [boolean] Links all deps into a static library.&nbsp;[Back to Top](#gn-reference)
 

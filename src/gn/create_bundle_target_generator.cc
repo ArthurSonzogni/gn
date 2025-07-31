@@ -18,34 +18,6 @@
 #include "gn/value_extractors.h"
 #include "gn/variables.h"
 
-namespace {
-
-// Retrieves value from `scope` named `name` or `old_name`. If the value comes
-// from the `old_name` a warning is emitted to inform the name is obsolete.
-const Value* GetValueFromScope(Scope* scope,
-                               std::string_view name,
-                               std::string_view old_name) {
-  const Value* value = scope->GetValue(name, true);
-  if (value)
-    return value;
-
-  value = scope->GetValue(old_name, true);
-  if (value) {
-    // If there is a value found with the old name, print a warning to the
-    // console and use that value. This is to avoid breaking the existing
-    // build rules in the wild.
-    Err err(*value, "Deprecated variable name",
-            base::StringPrintf(
-                "The name \"%s\" is deprecated, use \"%s\" instead.",
-                std::string(old_name).c_str(), std::string(name).c_str()));
-    err.PrintNonfatalToStdout();
-  }
-
-  return value;
-}
-
-}  // namespace
-
 CreateBundleTargetGenerator::CreateBundleTargetGenerator(
     Target* target,
     Scope* scope,
@@ -219,8 +191,7 @@ bool CreateBundleTargetGenerator::FillXcodeTestApplicationName() {
 }
 
 bool CreateBundleTargetGenerator::FillPostProcessingScript() {
-  const Value* value = GetValueFromScope(
-      scope_, variables::kPostProcessingScript, variables::kCodeSigningScript);
+  const Value* value = scope_->GetValue(variables::kPostProcessingScript, true);
   if (!value)
     return true;
 
@@ -238,8 +209,7 @@ bool CreateBundleTargetGenerator::FillPostProcessingScript() {
 
 bool CreateBundleTargetGenerator::FillPostProcessingSources() {
   const Value* value =
-      GetValueFromScope(scope_, variables::kPostProcessingSources,
-                        variables::kCodeSigningSources);
+      scope_->GetValue(variables::kPostProcessingSources, true);
   if (!value)
     return true;
 
@@ -262,8 +232,7 @@ bool CreateBundleTargetGenerator::FillPostProcessingSources() {
 
 bool CreateBundleTargetGenerator::FillPostProcessingOutputs() {
   const Value* value =
-      GetValueFromScope(scope_, variables::kPostProcessingOutputs,
-                        variables::kCodeSigningOutputs);
+      scope_->GetValue(variables::kPostProcessingOutputs, true);
   if (!value)
     return true;
 
@@ -300,8 +269,7 @@ bool CreateBundleTargetGenerator::FillPostProcessingOutputs() {
 }
 
 bool CreateBundleTargetGenerator::FillPostProcessingArgs() {
-  const Value* value = GetValueFromScope(scope_, variables::kPostProcessingArgs,
-                                         variables::kCodeSigningArgs);
+  const Value* value = scope_->GetValue(variables::kPostProcessingArgs, true);
   if (!value)
     return true;
 
