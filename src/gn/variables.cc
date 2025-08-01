@@ -1673,6 +1673,19 @@ const char kPostProcessingArgs_Help[] =
   See also "gn help create_bundle".
 )";
 
+const char kPostProcessingManifest[] = "post_processing_manifest";
+const char kPostProcessingManifest_HelpShort[] =
+    "post_processing_manifest: [file] Name of the generated bundle manifest.";
+const char kPostProcessingManifest_Help[] =
+    R"(post_processing_manifest: [file] Name of the generated bundle manifest.
+
+  Path where a manifest listing all the files found in the bundle will be
+  written for the post processing step. The path must be outside of the
+  bundle_root_dir.
+
+  See also "gen help create_bundle".
+)";
+
 const char kPostProcessingOutputs[] = "post_processing_outputs";
 const char kPostProcessingOutputs_HelpShort[] =
     "post_processing_outputs: [file list] Outputs of the post-processing step.";
@@ -2424,6 +2437,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(PartialInfoPlist)
     INSERT_VARIABLE(Pool)
     INSERT_VARIABLE(PostProcessingArgs)
+    INSERT_VARIABLE(PostProcessingManifest)
     INSERT_VARIABLE(PostProcessingOutputs)
     INSERT_VARIABLE(PostProcessingScript)
     INSERT_VARIABLE(PostProcessingSources)

@@ -59,6 +59,9 @@ void CreateBundleTargetGenerator::DoRun() {
   if (!FillPostProcessingScript())
     return;
 
+  if (!FillPostProcessingManifest())
+    return;
+
   if (!FillPostProcessingSources())
     return;
 
@@ -204,6 +207,31 @@ bool CreateBundleTargetGenerator::FillPostProcessingScript() {
     return false;
 
   target_->bundle_data().set_post_processing_script(script_file);
+  return true;
+}
+
+bool CreateBundleTargetGenerator::FillPostProcessingManifest() {
+  const Value* value =
+      scope_->GetValue(variables::kPostProcessingManifest, true);
+  if (!value)
+    return true;
+
+  if (target_->bundle_data().post_processing_script().is_null()) {
+    *err_ = Err(function_call_, "No post-processing script.",
+                "You must define post_processing_script if you use "
+                "post_processing_manifest.");
+    return false;
+  }
+
+  if (!value->VerifyTypeIs(Value::STRING, err_))
+    return false;
+
+  SourceFile manifest_file = scope_->GetSourceDir().ResolveRelativeFile(
+      *value, err_, scope_->settings()->build_settings()->root_path_utf8());
+  if (err_->has_error())
+    return false;
+
+  target_->bundle_data().set_post_processing_manifest(manifest_file);
   return true;
 }
 

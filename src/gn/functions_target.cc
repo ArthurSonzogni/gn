@@ -402,16 +402,22 @@ Post-processing
   `post_processing_args` will be passed as is to the script (so path have to be
   rebased) and additional inputs may be listed via `post_processing_sources`.
 
+  If `post_processing_manifest` is defined, then gn will write a file listing
+  the expected content of the generated bundle (one file per line). The file
+  can then be passed as a parameter to `post_processing_script` via the
+  `post_processing_args` array. This can only be set if `post_processing_script`
+  is set.
+
 Variables
 
 )" DEPENDENT_CONFIG_VARS DEPS_VARS GENERAL_TARGET_VARS
 
     R"(  Bundle vars: bundle_root_dir, bundle_contents_dir, bundle_resources_dir,
                bundle_executable_dir, bundle_deps_filter, product_type,
-               post_processing_args, post_processing_script,
-               post_processing_sources, post_processing_outputs,
-               xcode_extra_attributes, xcode_test_application_name,
-               partial_info_plist
+               post_processing_args, post_processing_manifest,
+               post_processing_script, post_processing_sources,
+               post_processing_outputs, xcode_extra_attributes,
+               xcode_test_application_name, partial_info_plist
 
 Example
 
@@ -484,6 +490,7 @@ Example
         if (is_ios && code_signing) {
           deps += [ ":${app_name}_generate_executable" ]
           post_processing_script = "//build/config/ios/codesign.py"
+          post_processing_manifest = "$target_out_dir/$target_name.manifest"
           post_processing_sources = [
             invoker.entitlements_path,
             "$target_gen_dir/$app_name",
@@ -502,6 +509,7 @@ Example
                 invoker.entitlements_path, root_build_dir),
             "-e=" + rebase_path(
                 "$target_gen_dir/$app_name.xcent", root_build_dir),
+            "-m=" + rebase_path(post_processing_manifest, root_build_dir),
             rebase_path(bundle_root_dir, root_build_dir),
           ]
         } else {

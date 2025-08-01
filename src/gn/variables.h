@@ -262,6 +262,10 @@ extern const char kPostProcessingArgs[];
 extern const char kPostProcessingArgs_HelpShort[];
 extern const char kPostProcessingArgs_Help[];
 
+extern const char kPostProcessingManifest[];
+extern const char kPostProcessingManifest_HelpShort[];
+extern const char kPostProcessingManifest_Help[];
+
 extern const char kPostProcessingOutputs[];
 extern const char kPostProcessingOutputs_HelpShort[];
 extern const char kPostProcessingOutputs_Help[];
