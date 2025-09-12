@@ -53,6 +53,7 @@
     *   [getenv: Get an environment variable.](#func_getenv)
     *   [import: Import a file into the current scope.](#func_import)
     *   [label_matches: Returns whether a label matches any of a list of patterns.](#func_label_matches)
+    *   [len: Returns the length of a string or a list.](#func_len)
     *   [not_needed: Mark variables from scope as not needed.](#func_not_needed)
     *   [path_exists: Returns whether the given path exists.](#func_path_exists)
     *   [pool: Defines a pool object.](#func_pool)
@@ -3047,6 +3048,24 @@
   result = label_matches("//baz:bar", [ "//foo/bar/*", "//baz:*" ])
   # result will be true
 ```
+
+### <a name="func_len"></a>**len**: Returns the length of a string or a list.&nbsp;[Back to Top](#gn-reference)
+
+```
+  len(item)
+```
+
+#### **Argument**
+
+  The argument can be a string or a list.
+
+#### **Examples**
+
+```
+  len("foo")  # 3
+  len([ "a", "b", "c" ])  # 3
+```
+
 ### <a name="func_not_needed"></a>**not_needed**: Mark variables from scope as not needed.&nbsp;[Back to Top](#gn-reference)
 
 ```
