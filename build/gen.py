@@ -736,6 +736,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/ninja_create_bundle_target_writer.cc',
         'src/gn/ninja_generated_file_target_writer.cc',
         'src/gn/ninja_group_target_writer.cc',
+        'src/gn/ninja_module_writer_util.cc',
         'src/gn/ninja_outputs_writer.cc',
         'src/gn/ninja_rust_binary_target_writer.cc',
         'src/gn/ninja_target_command_util.cc',
