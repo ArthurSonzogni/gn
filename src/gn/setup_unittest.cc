@@ -360,3 +360,53 @@ toolchain("toolchain") {
   EXPECT_FALSE(qux_record->should_generate());
   EXPECT_FALSE(zoo_record->should_generate());
 }
+
+TEST_F(SetupTest, ArgsGnRelativeAndAbsoluteImports) {
+  base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+
+  const char kDotfileContents[] = R"(
+    buildconfig = "//BUILDCONFIG.gn"
+    script_executable = ""
+  )";
+
+  // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
+  // pass it as --root.
+  base::ScopedTempDir in_temp_dir;
+  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
+  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
+  WriteFile(dot_gn_name, kDotfileContents);
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  cmdline.AppendSwitchPath(switches::kRoot, in_path);
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("build_defines.gni")),
+            "variable1 = true");
+
+  // Create another temp dir and write the args.gn with imports.
+  base::ScopedTempDir build_temp_dir;
+  ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
+  WriteFile(build_temp_dir.GetPath().Append(FILE_PATH_LITERAL("args.gn")), R"(
+    import("//build_defines.gni")
+    import("params.gni")
+  )");
+  WriteFile(build_temp_dir.GetPath().Append(FILE_PATH_LITERAL("params.gni")),
+            "variable2 = true");
+
+  // Run setup and check that the args.gn imports are in dependency files.
+  Setup setup;
+  Err err;
+  EXPECT_TRUE(setup.DoSetupWithErr(FilePathToUTF8(build_temp_dir.GetPath()),
+                                   true, cmdline, &err));
+
+  const auto& dependency_files =
+      setup.build_settings().build_args().build_args_dependency_files();
+  ASSERT_EQ(2u, dependency_files.size());
+  const auto dependency_includes_file = [&](std::string_view file_name) {
+    return std::any_of(
+        dependency_files.begin(), dependency_files.end(),
+        [&](const SourceFile& file) { return file.GetName() == file_name; });
+  };
+  EXPECT_TRUE(dependency_includes_file("build_defines.gni"));
+  EXPECT_TRUE(dependency_includes_file("params.gni"));
+}

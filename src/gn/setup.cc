@@ -625,10 +625,8 @@ bool Setup::FillArgsFromArgsInputFile(Err* err) {
   }
 
   Scope arg_scope(&dotfile_settings_);
-  // Set soure dir so relative imports in args work.
-  SourceDir root_source_dir =
-      SourceDirForCurrentDirectory(build_settings_.root_path());
-  arg_scope.set_source_dir(root_source_dir);
+  // Set source dir so relative imports in args work.
+  arg_scope.set_source_dir(args_input_file_->dir());
   args_root_->Execute(&arg_scope, err);
   if (err->has_error()) {
     return false;
