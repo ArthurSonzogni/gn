@@ -666,7 +666,7 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"file\": \"../../foo/dep.cc\",\r\n"
       "    \"directory\": \"out/Debug\",\r\n"
       "    \"command\": \"c++ ../../foo/dep.cc    "
-      "-fmodule-file=withmodules/obj/foo/module.foo.pcm   -o  "
+      "-fmodule-file=module=withmodules/obj/foo/module.foo.pcm   -o  "
       "withmodules/obj/foo/dep.dep.o\"\r\n"
       "  }\r\n"
       "]\r\n";
@@ -677,7 +677,7 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"file\": \"../../foo/dep.cc\",\n"
       "    \"directory\": \"out/Debug\",\n"
       "    \"command\": \"c++ ../../foo/dep.cc    "
-      "-fmodule-file=withmodules/obj/foo/module.foo.pcm   -o  "
+      "-fmodule-file=module=withmodules/obj/foo/module.foo.pcm   -o  "
       "withmodules/obj/foo/dep.dep.o\"\n"
       "  }\n"
       "]\n";

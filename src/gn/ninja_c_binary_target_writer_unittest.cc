@@ -2584,7 +2584,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
 include_dirs =
 cflags =
 cflags_cc =
-module_deps = -fmodule-file=obj/blah/liba.a.pcm
+module_deps = -fmodule-file=a=obj/blah/liba.a.pcm
 module_deps_no_self =
 label = //blah$:a
 root_out_dir = withmodules
@@ -2630,8 +2630,8 @@ build obj/blah/liba.a: alink obj/blah/liba.a.o
 include_dirs =
 cflags =
 cflags_cc =
-module_deps = -fmodule-file=obj/blah/liba.a.pcm -fmodule-file=obj/stuff/libb.b.pcm
-module_deps_no_self = -fmodule-file=obj/blah/liba.a.pcm
+module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm
 label = //stuff$:b
 root_out_dir = withmodules
 target_out_dir = obj/stuff
@@ -2674,8 +2674,8 @@ build obj/stuff/libb.a: alink obj/stuff/libb.b.o || obj/blah/liba.a
 include_dirs =
 cflags =
 cflags_cc =
-module_deps = -fmodule-file=obj/blah/liba.a.pcm -fmodule-file=obj/stuff/libb.b.pcm -fmodule-file=obj/stuff/libc.c.pcm
-module_deps_no_self = -fmodule-file=obj/blah/liba.a.pcm -fmodule-file=obj/stuff/libb.b.pcm
+module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-file=c=obj/stuff/libc.c.pcm
+module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
 label = //things$:c
 root_out_dir = withmodules
 target_out_dir = obj/things
@@ -2714,8 +2714,8 @@ build obj/things/libc.a: alink || obj/stuff/libb.a obj/blah/liba.a
 include_dirs =
 cflags =
 cflags_cc =
-module_deps = -fmodule-file=obj/blah/liba.a.pcm -fmodule-file=obj/stuff/libb.b.pcm
-module_deps_no_self = -fmodule-file=obj/blah/liba.a.pcm -fmodule-file=obj/stuff/libb.b.pcm
+module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
 label = //zap$:c
 root_out_dir = withmodules
 target_out_dir = obj/zap

@@ -195,6 +195,8 @@ void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
       if (!module_dep.is_self || include_self) {
         out_ << " ";
         EscapeStringToStream(out_, "-fmodule-file=", options);
+        EscapeStringToStream(out_, module_dep.module_name, options);
+        out_ << "=";
         path_output_.WriteFile(out_, module_dep.pcm);
       }
     }

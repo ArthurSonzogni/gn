@@ -105,7 +105,7 @@ void SetupCompileFlags(const Target* target,
   if (!module_dep_info.empty()) {
     std::ostringstream module_deps_out;
     for (const auto& module_dep : module_dep_info) {
-      module_deps_out << " -fmodule-file=";
+      module_deps_out << " -fmodule-file=" << module_dep.module_name << "=";
       path_output.WriteFile(module_deps_out, module_dep.pcm);
     }
     base::EscapeJSONString(module_deps_out.str(), false,
@@ -114,7 +114,8 @@ void SetupCompileFlags(const Target* target,
     std::ostringstream module_deps_no_self_out;
     for (const auto& module_dep : module_dep_info) {
       if (!module_dep.is_self) {
-        module_deps_no_self_out << " -fmodule-file=";
+        module_deps_no_self_out << " -fmodule-file=" << module_dep.module_name
+                                << "=";
         path_output.WriteFile(module_deps_no_self_out, module_dep.pcm);
       }
     }

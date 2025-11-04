@@ -46,10 +46,6 @@ std::vector<ClangModuleDep> GetModuleDepsInformation(
     if (!modulemap)  // Not a module or no .modulemap file.
       return;
 
-    std::string label;
-    CHECK(SubstitutionWriter::GetTargetSubstitution(
-        t, &SubstitutionLabelNoToolchain, &label));
-
     const char* tool_type;
     std::vector<OutputFile> modulemap_outputs;
     CHECK(
@@ -58,7 +54,8 @@ std::vector<ClangModuleDep> GetModuleDepsInformation(
     const OutputFile& pcm_file = modulemap_outputs[0];
 
     if (added_pcms.insert(pcm_file).second) {
-      ret.emplace_back(modulemap, label, pcm_file, is_self);
+      // GN sets the module name to the name of the target.
+      ret.emplace_back(modulemap, t->label().name(), pcm_file, is_self);
     }
   };
 
