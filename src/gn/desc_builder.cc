@@ -722,8 +722,10 @@ class TargetDescBuilder : public BaseDescBuilder {
   ValuePtr RenderGenDeps() {
     auto res = std::make_unique<base::ListValue>();
     Label default_tc = target_->settings()->default_toolchain_label();
+    const auto& gen_deps_pairs = target_->gen_deps();
     std::vector<std::string> gen_deps;
-    for (const auto& pair : target_->gen_deps())
+    gen_deps.reserve(gen_deps_pairs.size());
+    for (const auto& pair : gen_deps_pairs)
       gen_deps.push_back(pair.label.GetUserVisibleName(default_tc));
     std::sort(gen_deps.begin(), gen_deps.end());
     for (const auto& dep : gen_deps)
