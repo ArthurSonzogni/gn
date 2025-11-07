@@ -1322,6 +1322,11 @@
           source_set|static_library)
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed.
+
+  --relation=(source|public|input|data|script|output)
+      Restricts output to targets which refer to input files by a specific
+      relation. Defaults to any relation. Can be provided multiple times to
+      include multiple relations.
 ```
 
 #### **Examples (target input)**
