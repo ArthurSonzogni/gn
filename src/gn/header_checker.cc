@@ -5,6 +5,7 @@
 #include "gn/header_checker.h"
 
 #include <algorithm>
+#include <unordered_map>
 
 #include "base/containers/queue.h"
 #include "base/files/file_util.h"
@@ -561,7 +562,7 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
   // a shortest dependency chain (in reverse order) from search_from to
   // search_for.
 
-  std::map<const Target*, ChainLink> breadcrumbs;
+  std::unordered_map<const Target*, ChainLink> breadcrumbs;
   base::queue<ChainLink> work_queue;
   work_queue.push(ChainLink(search_from, true));
 
@@ -585,7 +586,7 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
 
     // Always consider public dependencies as possibilities.
     for (const auto& dep : target->public_deps()) {
-      if (breadcrumbs.insert(std::make_pair(dep.ptr, cur_link)).second)
+      if (breadcrumbs.emplace(dep.ptr, cur_link).second)
         work_queue.push(ChainLink(dep.ptr, true));
     }
 
@@ -596,7 +597,7 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
       // public/private-ness.
       first_time = false;
       for (const auto& dep : target->private_deps()) {
-        if (breadcrumbs.insert(std::make_pair(dep.ptr, cur_link)).second)
+        if (breadcrumbs.emplace(dep.ptr, cur_link).second)
           work_queue.push(ChainLink(dep.ptr, false));
       }
     }
