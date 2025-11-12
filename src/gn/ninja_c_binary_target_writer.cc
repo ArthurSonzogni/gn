@@ -611,8 +611,6 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
   }
 
   // Append data dependencies as order-only dependencies.
-  // If `async_non_linkable_deps` flag is set, it uses
-  // validations instead.
   //
   // This will include data dependencies and input dependencies (like when
   // this target depends on an action). Having the data dependencies in this
@@ -625,11 +623,7 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
   // on the sources, there is already an implicit order-only dependency.
   // However, it's extra work to separate these out and there's no disadvantage
   // to listing them again.
-  if (settings_->build_settings()->async_non_linkable_deps()) {
-    WriteValidations(classified_deps.non_linkable_deps);
-  } else {
-    WriteOrderOnlyDependencies(classified_deps.non_linkable_deps);
-  }
+  WriteOrderOnlyDependencies(classified_deps.non_linkable_deps);
 
   // End of the link "build" line.
   out_ << std::endl;
@@ -698,32 +692,15 @@ void NinjaCBinaryTargetWriter::WriteLibsList(
 
 void NinjaCBinaryTargetWriter::WriteOrderOnlyDependencies(
     const UniqueVector<const Target*>& non_linkable_deps) {
-  if (non_linkable_deps.empty())
-    return;
+  if (!non_linkable_deps.empty()) {
+    out_ << " ||";
 
-  out_ << " ||";
-
-  // Non-linkable targets.
-  for (auto* non_linkable_dep : non_linkable_deps) {
-    if (non_linkable_dep->has_dependency_output()) {
-      out_ << " ";
-      path_output_.WriteFile(out_, non_linkable_dep->dependency_output());
-    }
-  }
-}
-
-void NinjaCBinaryTargetWriter::WriteValidations(
-    const UniqueVector<const Target*>& non_linkable_deps) {
-  if (non_linkable_deps.empty())
-    return;
-
-  out_ << " |@";
-
-  // Non-linkable targets.
-  for (auto* non_linkable_dep : non_linkable_deps) {
-    if (non_linkable_dep->has_dependency_output()) {
-      out_ << " ";
-      path_output_.WriteFile(out_, non_linkable_dep->dependency_output());
+    // Non-linkable targets.
+    for (auto* non_linkable_dep : non_linkable_deps) {
+      if (non_linkable_dep->has_dependency_output()) {
+        out_ << " ";
+        path_output_.WriteFile(out_, non_linkable_dep->dependency_output());
+      }
     }
   }
 }
