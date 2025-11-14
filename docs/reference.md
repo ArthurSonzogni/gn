@@ -167,6 +167,7 @@
     *   [visibility: [label list] A list of labels that can depend on a target.](#var_visibility)
     *   [walk_keys: [string list] Key(s) for managing the metadata collection walk.](#var_walk_keys)
     *   [weak_frameworks: [name list] Name of frameworks that must be weak linked.](#var_weak_frameworks)
+    *   [weak_libraries: [file list] File of libraries that must be weak linked.](#var_weak_libraries)
     *   [write_runtime_deps: Writes the target's runtime_deps to the given path.](#var_write_runtime_deps)
     *   [xcasset_compiler_flags: [string list] Flags passed to xcassets compiler](#var_xcasset_compiler_flags)
     *   [xcode_extra_attributes: [scope] Extra attributes for Xcode projects.](#var_xcode_extra_attributes)
@@ -7036,6 +7037,42 @@
 
 ```
   weak_frameworks = [ "OnlyOnNewerOSes.framework" ]
+```
+### <a name="var_weak_libraries"></a>**weak_libraries**: [file list] File of libraries that must be weak linked.&nbsp;[Back to Top](#gn-reference)
+
+```
+  A list of library files.
+
+  The library files in that list will be weak linked with any dynamic link
+  type target. Weak linking instructs the dynamic loader to attempt to load
+  the library, but if it is not able to do so, it leaves any imported symbols
+  unresolved. This is typically used when a library is present in a new
+  version of an SDK but not on older versions of the OS that the software runs
+  on.
+```
+
+#### **Ordering of flags and values**
+
+```
+  1. Those set on the current target (not in a config).
+  2. Those set on the "configs" on the target in order that the
+     configs appear in the list.
+  3. Those set on the "all_dependent_configs" on the target in order
+     that the configs appear in the list.
+  4. Those set on the "public_configs" on the target in order that
+     those configs appear in the list.
+  5. all_dependent_configs pulled from dependencies, in the order of
+     the "deps" list. This is done recursively. If a config appears
+     more than once, only the first occurrence will be used.
+  6. public_configs pulled from dependencies, in the order of the
+     "deps" list. If a dependency is public, they will be applied
+     recursively.
+```
+
+#### **Example**
+
+```
+  weak_libraries = [ rebase_path("//path/to/libOnlyOnNewerOSes.dylib") ]
 ```
 ### <a name="var_write_runtime_deps"></a>**write_runtime_deps**: Writes the target's runtime_deps to the given path.&nbsp;[Back to Top](#gn-reference)
 

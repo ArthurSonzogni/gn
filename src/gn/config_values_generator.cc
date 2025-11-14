@@ -7,6 +7,7 @@
 #include "base/strings/string_util.h"
 #include "gn/build_settings.h"
 #include "gn/config_values.h"
+#include "gn/filesystem_utils.h"
 #include "gn/frameworks_utils.h"
 #include "gn/scope.h"
 #include "gn/settings.h"
@@ -70,6 +71,34 @@ void GetFrameworksList(Scope* scope,
   }
 
   (config_values->*accessor)().swap(frameworks);
+}
+
+void GetWeakLibrariesList(Scope* scope,
+                          const char* var_name,
+                          ConfigValues* config_values,
+                          std::vector<std::string>& (ConfigValues::*accessor)(),
+                          Err* err) {
+  const Value* value = scope->GetValue(var_name, true);
+  if (!value)
+    return;
+
+  std::vector<std::string> weak_libraries;
+  if (!ExtractListOfStringValues(*value, &weak_libraries, err))
+    return;
+
+  // All strings must end with ".dylib".
+  for (const std::string& weak_library : weak_libraries) {
+    std::string_view extension = FindExtension(&weak_library);
+    if (extension != "dylib") {
+      *err = Err(
+          *value,
+          "This weak_libraries value is wrong. "
+          "All listed weak_libraries files must have \".dylib\" extension.");
+      return;
+    }
+  }
+
+  (config_values->*accessor)().swap(weak_libraries);
 }
 
 }  // namespace
@@ -138,6 +167,8 @@ void ConfigValuesGenerator::Run() {
                     &ConfigValues::frameworks, err_);
   GetFrameworksList(scope_, variables::kWeakFrameworks, config_values_,
                     &ConfigValues::weak_frameworks, err_);
+  GetWeakLibrariesList(scope_, variables::kWeakLibraries, config_values_,
+                       &ConfigValues::weak_libraries, err_);
 
   // Precompiled headers.
   const Value* precompiled_header_value =

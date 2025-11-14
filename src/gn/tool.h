@@ -137,6 +137,14 @@ class Tool {
     weak_framework_switch_ = std::move(s);
   }
 
+  const std::string& weak_library_switch() const {
+    return weak_library_switch_;
+  }
+  void set_weak_library_switch(std::string s) {
+    DCHECK(!complete_);
+    weak_library_switch_ = std::move(s);
+  }
+
   const std::string& framework_dir_switch() const {
     return framework_dir_switch_;
   }
@@ -281,6 +289,7 @@ class Tool {
   SubstitutionPattern description_;
   std::string framework_switch_;
   std::string weak_framework_switch_;
+  std::string weak_library_switch_;
   std::string framework_dir_switch_;
   std::string lib_switch_;
   std::string lib_dir_switch_;

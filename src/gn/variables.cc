@@ -2296,6 +2296,27 @@ Example
   weak_frameworks = [ "OnlyOnNewerOSes.framework" ]
 )";
 
+const char kWeakLibraries[] = "weak_libraries";
+const char kWeakLibraries_HelpShort[] =
+    "weak_libraries: [file list] File of libraries that must be weak linked.";
+const char kWeakLibraries_Help[] =
+    R"(weak_libraries: [file list] File of libraries that must be weak linked.
+
+  A list of library files.
+
+  The library files in that list will be weak linked with any dynamic link
+  type target. Weak linking instructs the dynamic loader to attempt to load
+  the library, but if it is not able to do so, it leaves any imported symbols
+  unresolved. This is typically used when a library is present in a new
+  version of an SDK but not on older versions of the OS that the software runs
+  on.
+)" COMMON_ORDERING_HELP
+    R"(
+Example
+
+  weak_libraries = [ rebase_path("//path/to/libOnlyOnNewerOSes.dylib") ]
+)";
+
 const char kWriteValueContents[] = "contents";
 const char kWriteValueContents_HelpShort[] =
     "contents: Contents to write to file.";
@@ -2459,6 +2480,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(Visibility)
     INSERT_VARIABLE(WalkKeys)
     INSERT_VARIABLE(WeakFrameworks)
+    INSERT_VARIABLE(WeakLibraries)
     INSERT_VARIABLE(WriteOutputConversion)
     INSERT_VARIABLE(WriteValueContents)
     INSERT_VARIABLE(WriteRuntimeDeps)

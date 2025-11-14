@@ -405,6 +405,14 @@ void NinjaBinaryTargetWriter::WriteFrameworks(std::ostream& out,
   for (size_t i = 0; i < all_weak_frameworks.size(); i++) {
     weak_writer(all_weak_frameworks[i], out);
   }
+
+  if (!tool->weak_library_switch().empty()) {
+    WeakLibrariesWriter weak_library_writer(tool->weak_library_switch());
+    const auto& all_weak_libraries = resolved().GetLinkedWeakLibraries(target_);
+    for (const auto& weak_library : all_weak_libraries) {
+      weak_library_writer(weak_library, out);
+    }
+  }
 }
 
 void NinjaBinaryTargetWriter::WriteSwiftModules(

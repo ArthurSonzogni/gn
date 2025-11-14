@@ -346,6 +346,10 @@ extern const char kWeakFrameworks[];
 extern const char kWeakFrameworks_HelpShort[];
 extern const char kWeakFrameworks_Help[];
 
+extern const char kWeakLibraries[];
+extern const char kWeakLibraries_HelpShort[];
+extern const char kWeakLibraries_Help[];
+
 extern const char kWriteValueContents[];
 extern const char kWriteValueContents_HelpShort[];
 extern const char kWriteValueContents_Help[];

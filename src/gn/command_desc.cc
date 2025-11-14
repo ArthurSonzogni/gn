@@ -303,6 +303,7 @@ std::map<std::string, DescHandlerFunc> GetHandlers() {
           {variables::kRebase, DefaultHandler},
           {variables::kWalkKeys, DefaultHandler},
           {variables::kWeakFrameworks, DefaultHandler},
+          {variables::kWeakLibraries, DefaultHandler},
           {variables::kWriteOutputConversion, DefaultHandler},
           {variables::kRustCrateName, DefaultHandler},
           {variables::kRustCrateRoot, DefaultHandler},
@@ -403,6 +404,7 @@ bool PrintTarget(const Target* target,
   HandleProperty(variables::kRustflags, handler_map, v, dict);
   HandleProperty(variables::kWalkKeys, handler_map, v, dict);
   HandleProperty(variables::kWeakFrameworks, handler_map, v, dict);
+  HandleProperty(variables::kWeakLibraries, handler_map, v, dict);
   HandleProperty(variables::kWriteOutputConversion, handler_map, v, dict);
 
 #undef HandleProperty
@@ -467,6 +469,7 @@ bool PrintConfig(const Config* config,
   HandleProperty(variables::kPrecompiledSource, handler_map, v, dict);
   HandleProperty(variables::kRustflags, handler_map, v, dict);
   HandleProperty(variables::kWeakFrameworks, handler_map, v, dict);
+  HandleProperty(variables::kWeakLibraries, handler_map, v, dict);
 
 #undef HandleProperty
 
@@ -529,6 +532,7 @@ Possibilities for <what to show>
   visibility
   walk_keys
   weak_frameworks
+  weak_libraries
 
   runtime_deps
       Compute all runtime deps for the given target. This is a computed list

@@ -44,6 +44,7 @@ class ConfigValues {
   DIR_VALUES_ACCESSOR(framework_dirs)
   STRING_VALUES_ACCESSOR(frameworks)
   STRING_VALUES_ACCESSOR(weak_frameworks)
+  STRING_VALUES_ACCESSOR(weak_libraries)
   DIR_VALUES_ACCESSOR(include_dirs)
   STRING_VALUES_ACCESSOR(ldflags)
   DIR_VALUES_ACCESSOR(lib_dirs)
@@ -90,6 +91,7 @@ class ConfigValues {
   std::vector<SourceDir> framework_dirs_;
   std::vector<std::string> frameworks_;
   std::vector<std::string> weak_frameworks_;
+  std::vector<std::string> weak_libraries_;
   std::vector<SourceFile> inputs_;
   std::vector<std::string> ldflags_;
   std::vector<SourceDir> lib_dirs_;

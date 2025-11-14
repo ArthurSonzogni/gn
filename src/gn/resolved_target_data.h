@@ -96,6 +96,13 @@ class ResolvedTargetData {
     return GetTargetFrameworkInfo(target)->weak_frameworks;
   }
 
+  // The list of weak library files to use at link time when generating macOS
+  // or iOS linkable binaries.
+  const std::vector<std::string>& GetLinkedWeakLibraries(
+      const Target* target) const {
+    return GetTargetFrameworkInfo(target)->weak_libraries;
+  }
+
   // Retrieves a set of hard dependencies for this target.
   // All hard deps from this target and all dependencies, but not the
   // target itself.
@@ -165,6 +172,7 @@ class ResolvedTargetData {
     std::vector<SourceDir> framework_dirs;
     std::vector<std::string> frameworks;
     std::vector<std::string> weak_frameworks;
+    std::vector<std::string> weak_libraries;
 
     // Only valid if |has_hard_deps| is true.
     TargetSet hard_deps;
