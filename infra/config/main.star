@@ -102,6 +102,7 @@ luci.bucket(
             roles = "role/buildbucket.creator",
             groups = [
                 "project-gn-committers",
+                "mdb/chrome-build-access-sphinx",
             ],
         ),
     ],
@@ -177,6 +178,7 @@ luci.bucket(
             roles = "role/buildbucket.creator",
             groups = [
                 "project-gn-committers",
+                "mdb/chrome-build-access-sphinx",
             ],
         ),
     ],
