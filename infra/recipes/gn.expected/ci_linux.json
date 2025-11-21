@@ -323,7 +323,7 @@
   },
   {
     "cmd": [
-      "[START_DIR]/cipd_tool/infra/3pp/tools/autoconf/79821582576f6f08410b2d2f2c0658c2be62aae6ca2df4ab28cc6b4d75002f20/autoconf"
+      "[START_DIR]/cipd_tool/infra/3pp/tools/autoconf/79821582576f6f08410b2d2f2c0658c2be62aae6ca2df4ab28cc6b4d75002f20/bin/autoconf"
     ],
     "cwd": "[START_DIR]/jemalloc",
     "infra_step": true,
