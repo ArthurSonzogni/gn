@@ -200,18 +200,7 @@ def RunSteps(api, repository):
               'fetch',
               ['git', 'fetch', JEMALLOC_GIT_URL, 'refs/tags/' + JEMALLOC_TAG, '--depth=1'])
           api.step('checkout', ['git', 'checkout', 'FETCH_HEAD'])
-
-          # TODO: We can rely on pre-installed autoconf after the following
-          # change gets rolled out. https://crrev.com/c/7172045
-          autoconf_path = api.cipd.ensure_tool(
-              'infra/3pp/tools/autoconf/${platform}',
-              "version:3@2.71.chromium.1",
-              executable_path='bin/autoconf')
-          # Add the autoconf bin directory to be able to find other
-          # executables.
-          with api.context(
-              env_prefixes={'PATH': [api.path.dirname(autoconf_path)]}):
-            api.step('autoconf', [autoconf_path])
+          api.step('autoconf', ['autoconf'])
 
         for platform in all_config_platforms:
           # Convert target architecture and os to jemalloc format.
