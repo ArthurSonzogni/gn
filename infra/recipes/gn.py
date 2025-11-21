@@ -207,7 +207,11 @@ def RunSteps(api, repository):
               'infra/3pp/tools/autoconf/${platform}',
               "version:3@2.71.chromium.1",
               executable_path='bin/autoconf')
-          api.step('autoconf', [autoconf_path])
+          # Add the autoconf bin directory to be able to find other
+          # executables.
+          with api.context(
+              env_prefixes={'PATH': [api.path.dirname(autoconf_path)]}):
+            api.step('autoconf', [autoconf_path])
 
         for platform in all_config_platforms:
           # Convert target architecture and os to jemalloc format.
