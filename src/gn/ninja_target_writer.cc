@@ -571,10 +571,12 @@ std::vector<OutputFile> NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
            GeneralTool::kGeneralToolStamp;
   }
 
+  // These are not real outputs, so do not use WriteOutput() here.
+  // See https://gn.issues.chromium.org/448860851.
   out_ << "build ";
-  WriteOutput(input_stamp_or_phony);
+  path_output_.WriteFile(out_, input_stamp_or_phony);
   out_ << ": " << tool;
-  WriteOutputs(outs);
+  path_output_.WriteFiles(out_, outs);
   out_ << "\n";
   return std::vector<OutputFile>{input_stamp_or_phony};
 }
