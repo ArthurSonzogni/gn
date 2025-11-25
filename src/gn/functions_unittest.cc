@@ -200,6 +200,50 @@ TEST(Functions, SplitList) {
       setup.print_output());
 }
 
+TEST(Functions, StringHash) {
+  TestWithScope setup;
+
+  // Verify output when string_hash() is called correctly.
+  {
+    TestParseInput input(R"gn(
+        print("<" + string_hash("abc") + ">")
+
+        # Empty string
+        print("<" + string_hash("") + ">")
+        )gn");
+    ASSERT_FALSE(input.has_error());
+
+    Err err;
+    input.parsed()->Execute(setup.scope(), &err);
+    ASSERT_FALSE(err.has_error()) << err.message();
+
+    EXPECT_EQ(
+        "<90015098>\n"
+        "<d41d8cd9>\n",
+        setup.print_output())
+        << setup.print_output();
+  }
+
+  // Verify usage errors are detected.
+  std::vector<std::string> bad_usage_examples = {
+      // Number of arguments.
+      R"gn(string_hash())gn",
+      R"gn(string_hash(1,2))gn",
+
+      // Argument type.
+      R"gn(string_hash(1))gn",
+      R"gn(string_hash(["oops"]))gn",
+  };
+  for (const auto& bad_usage_example : bad_usage_examples) {
+    TestParseInput input(bad_usage_example);
+    ASSERT_FALSE(input.has_error());
+
+    Err err;
+    input.parsed()->Execute(setup.scope(), &err);
+    ASSERT_TRUE(err.has_error()) << bad_usage_example;
+  }
+}
+
 TEST(Functions, StringJoin) {
   TestWithScope setup;
 

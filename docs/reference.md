@@ -65,6 +65,7 @@
     *   [set_default_toolchain: Sets the default toolchain name.](#func_set_default_toolchain)
     *   [set_defaults: Set default values for a target type.](#func_set_defaults)
     *   [split_list: Splits a list into N different sub-lists.](#func_split_list)
+    *   [string_hash: Calculates a stable hash of the given string.](#func_string_hash)
     *   [string_join: Concatenates a list of strings with a separator.](#func_string_join)
     *   [string_replace: Replaces substring in the given string.](#func_string_replace)
     *   [string_split: Split string into a list of strings.](#func_string_split)
@@ -3454,6 +3455,33 @@
 
   Will print:
     [[1, 2], [3, 4], [5, 6]
+```
+### <a name="func_string_hash"></a>**string_hash**: Calculates a stable hash of the given string.&nbsp;[Back to Top](#gn-reference)
+
+```
+  hash = string_hash(long_string)
+
+  `string_hash` returns a string that contains a hash of the argument.  The hash
+  is computed by first calculating an MD5 hash of the argument, and then
+  returning the first 8 characters of the lowercase-ASCII, hexadecimal encoding
+  of the MD5 hash.
+
+  `string_hash` is intended to be used when it is desirable to translate,
+  globally unique strings (such as GN labels) into short filenames that are
+  still globally unique.  This is useful when supporting filesystems and build
+  systems which impose limits on the length of the supported filenames and/or on
+  the total path length.
+
+  Warning: This hash should never be used for cryptographic purposes.
+  Unique inputs can be assumed to result in unique hashes if the inputs
+  are trustworthy, but malicious inputs may be able to trigger collisions.
+  Directories and names of GN labels are usually considered trustworthy.
+```
+
+#### **Examples**
+
+```
+    string_hash("abc")  -->  "90015098"
 ```
 ### <a name="func_string_join"></a>**string_join**: Concatenates a list of strings with a separator.&nbsp;[Back to Top](#gn-reference)
 
