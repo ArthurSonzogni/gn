@@ -358,18 +358,19 @@ int RunRefs(const std::vector<std::string>& args) {
   bool tree = cmdline->HasSwitch("tree");
   bool all = cmdline->HasSwitch("all");
   UniqueVector<HowTargetContainsFile> include_relations;
-  for (const std::string& relation : cmdline->GetSwitchValueStrings("relation")){
-    if (relation == "source"){
+  for (const std::string& relation :
+       cmdline->GetSwitchValueStrings("relation")) {
+    if (relation == "source") {
       include_relations.push_back(HowTargetContainsFile::kSources);
-    } else if (relation == "public"){
+    } else if (relation == "public") {
       include_relations.push_back(HowTargetContainsFile::kPublic);
-    } else if (relation == "input"){
+    } else if (relation == "input") {
       include_relations.push_back(HowTargetContainsFile::kInputs);
-    } else if (relation == "data"){
+    } else if (relation == "data") {
       include_relations.push_back(HowTargetContainsFile::kData);
-    } else if (relation == "script"){
+    } else if (relation == "script") {
       include_relations.push_back(HowTargetContainsFile::kScript);
-    } else if (relation == "output"){
+    } else if (relation == "output") {
       include_relations.push_back(HowTargetContainsFile::kOutput);
     } else {
       Err(Location(), "Unknown relation: " + relation).PrintToStdout();

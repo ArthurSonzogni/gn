@@ -1179,8 +1179,7 @@ Value RunStringHash(Scope* scope,
 
   // Check usage: argument is a string.
   if (!args[0].VerifyTypeIs(Value::STRING, err)) {
-    *err = Err(function,
-               "argument of string_hash is not a string",
+    *err = Err(function, "argument of string_hash is not a string",
                "Expecting argument to be a string.");
     return Value();
   }
