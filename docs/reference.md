@@ -571,6 +571,7 @@
   visibility
   walk_keys
   weak_frameworks
+  weak_libraries
 
   runtime_deps
       Compute all runtime deps for the given target. This is a computed list
@@ -1329,6 +1330,7 @@
       Restricts output to targets which refer to input files by a specific
       relation. Defaults to any relation. Can be provided multiple times to
       include multiple relations.
+    
 ```
 
 #### **Examples (target input)**
@@ -3478,7 +3480,7 @@
   Directories and names of GN labels are usually considered trustworthy.
 ```
 
-#### **Examples**
+#### **Examples**:
 
 ```
     string_hash("abc")  -->  "90015098"
@@ -4117,6 +4119,9 @@
     {{cflags_cc}}
     {{cflags_objc}}
     {{cflags_objcc}}
+    {{cc_module_name}}
+        The C++ module name for the current target, if one is being built.
+        This is used when compiling C++ modules.
     {{defines}}
     {{include_dirs}}
         Strings correspond that to the processed flags/defines/include
@@ -4133,7 +4138,6 @@
         modules referenced by the current target. The "_no_self" version doesn't
         include the module for the current target, and can be used to compile
         the pcm itself.
-
     {{source}}
         The relative path and name of the current input file.
         Example: "../../base/my_file.cc"

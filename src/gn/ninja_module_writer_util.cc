@@ -55,7 +55,7 @@ std::vector<ClangModuleDep> GetModuleDepsInformation(
 
     if (added_pcms.insert(pcm_file).second) {
       // GN sets the module name to the name of the target.
-      ret.emplace_back(modulemap, t->label().name(), pcm_file, is_self);
+      ret.emplace_back(modulemap, t->module_name(), pcm_file, is_self);
     }
   };
 

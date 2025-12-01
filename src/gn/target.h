@@ -410,6 +410,9 @@ class Target : public Item {
     return runtime_outputs_;
   }
 
+  // The module name for the target.
+  std::string module_name() const { return label().name(); }
+
   // Computes and returns the outputs of this target expressed as SourceFiles.
   //
   // For binary target this depends on the tool for this target so the toolchain

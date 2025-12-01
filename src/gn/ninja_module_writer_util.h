@@ -23,7 +23,7 @@ struct ClangModuleDep {
   // The input module.modulemap source file.
   const SourceFile* modulemap;
 
-  // The internal module name, in GN this is the target's label.
+  // The internal module name.
   std::string module_name;
 
   // The compiled version of the module.

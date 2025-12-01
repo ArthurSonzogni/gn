@@ -34,6 +34,9 @@ class NinjaCBinaryTargetWriter : public NinjaBinaryTargetWriter {
       const std::vector<ClangModuleDep>& module_dep_info,
       bool include_self);
 
+  // Writes module_name substitution for clang modulemaps.
+  void WriteModuleNameSubstitution();
+
   // Writes build lines required for precompiled headers. Any generated
   // object files will be appended to the |object_files|. Any generated
   // non-object files (for instance, .gch files from a GCC toolchain, are

@@ -2532,7 +2532,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
       Tool::CreateTool(CTool::kCToolCxxModule);
   TestWithScope::SetCommandForTool(
       "c++ {{source}} {{cflags}} {{cflags_cc}} {{module_deps_no_self}} "
-      "{{defines}} {{include_dirs}} -fmodule-name={{label}} -c -x c++ "
+      "{{defines}} {{include_dirs}} -fmodule-name={{cc_module_name}} -c -x c++ "
       "-Xclang -emit-module -o {{output}}",
       cxx_module_tool.get());
   cxx_module_tool->set_outputs(SubstitutionList::MakeForTest(
@@ -2584,9 +2584,9 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
 include_dirs =
 cflags =
 cflags_cc =
+cc_module_name = a
 module_deps = -fmodule-file=a=obj/blah/liba.a.pcm
 module_deps_no_self =
-label = //blah$:a
 root_out_dir = withmodules
 target_out_dir = obj/blah
 target_output_name = liba
@@ -2630,9 +2630,9 @@ build obj/blah/liba.a: alink obj/blah/liba.a.o
 include_dirs =
 cflags =
 cflags_cc =
+cc_module_name = b
 module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
 module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm
-label = //stuff$:b
 root_out_dir = withmodules
 target_out_dir = obj/stuff
 target_output_name = libb
@@ -2674,9 +2674,9 @@ build obj/stuff/libb.a: alink obj/stuff/libb.b.o || obj/blah/liba.a
 include_dirs =
 cflags =
 cflags_cc =
+cc_module_name = c
 module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-file=c=obj/stuff/libc.c.pcm
 module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
-label = //things$:c
 root_out_dir = withmodules
 target_out_dir = obj/things
 target_output_name = libc
@@ -2714,9 +2714,9 @@ build obj/things/libc.a: alink || obj/stuff/libb.a obj/blah/liba.a
 include_dirs =
 cflags =
 cflags_cc =
+cc_module_name = c
 module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
 module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
-label = //zap$:c
 root_out_dir = withmodules
 target_out_dir = obj/zap
 target_output_name = c

@@ -168,6 +168,8 @@ void NinjaCBinaryTargetWriter::WriteCompilerVars(
   WriteCCompilerVars(subst, /*indent=*/false,
                      /*respect_source_types_used=*/true);
 
+  WriteModuleNameSubstitution();
+
   if (!module_dep_info.empty()) {
     // TODO(scottmg): Currently clang modules only working for C++.
     if (target_->source_types_used().Get(SourceFile::SOURCE_CPP) ||
@@ -180,6 +182,17 @@ void NinjaCBinaryTargetWriter::WriteCompilerVars(
   }
 
   WriteSharedVars(subst);
+}
+
+void NinjaCBinaryTargetWriter::WriteModuleNameSubstitution() {
+  if (target_->toolchain()->substitution_bits().used.count(
+          &CSubstitutionModuleName)) {
+    out_ << CSubstitutionModuleName.ninja_name << " = ";
+    EscapeOptions options;
+    options.mode = ESCAPE_NINJA_COMMAND;
+    EscapeStringToStream(out_, target_->module_name(), options);
+    out_ << std::endl;
+  }
 }
 
 void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
