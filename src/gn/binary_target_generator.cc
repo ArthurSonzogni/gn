@@ -70,6 +70,9 @@ void BinaryTargetGenerator::DoRun() {
   if (!ValidateSources())
     return;
 
+  if (!FillModuleName())
+    return;
+
   if (target_->source_types_used().RustSourceUsed()) {
     RustValuesGenerator rustgen(target_, scope_, function_call_, err_);
     rustgen.Run();
@@ -269,5 +272,15 @@ bool BinaryTargetGenerator::ValidateSources() {
             "compilation-compatible (e.g. Objective C and C++).");
     return false;
   }
+  return true;
+}
+
+bool BinaryTargetGenerator::FillModuleName() {
+  const Value* value = scope_->GetValue(variables::kModuleName, true);
+  if (!value)
+    return true;
+  if (!value->VerifyTypeIs(Value::STRING, err_))
+    return false;
+  target_->set_module_name(value->string_value());
   return true;
 }

@@ -2565,6 +2565,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
 
   Target target(&module_settings, Label(SourceDir("//blah/"), "a"));
   target.set_output_type(Target::STATIC_LIBRARY);
+  target.set_module_name("blah_a");
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//blah/a.modulemap"));
   target.sources().push_back(SourceFile("//blah/a.cc"));
@@ -2584,8 +2585,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
 include_dirs =
 cflags =
 cflags_cc =
-cc_module_name = a
-module_deps = -fmodule-file=a=obj/blah/liba.a.pcm
+cc_module_name = blah_a
+module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm
 module_deps_no_self =
 root_out_dir = withmodules
 target_out_dir = obj/blah
@@ -2631,8 +2632,8 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = b
-module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
-module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm
+module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps_no_self = -fmodule-file=blah_a=obj/blah/liba.a.pcm
 root_out_dir = withmodules
 target_out_dir = obj/stuff
 target_output_name = libb
@@ -2675,8 +2676,8 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = c
-module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-file=c=obj/stuff/libc.c.pcm
-module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-file=c=obj/stuff/libc.c.pcm
+module_deps_no_self = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
 root_out_dir = withmodules
 target_out_dir = obj/things
 target_output_name = libc
@@ -2715,8 +2716,8 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = c
-module_deps = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
-module_deps_no_self = -fmodule-file=a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps_no_self = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
 root_out_dir = withmodules
 target_out_dir = obj/zap
 target_output_name = c

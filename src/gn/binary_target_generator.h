@@ -32,6 +32,7 @@ class BinaryTargetGenerator : public TargetGenerator {
   bool FillAllowCircularIncludesFrom();
   bool FillPool();
   bool ValidateSources();
+  bool FillModuleName();
 
   Target::OutputType output_type_;
 

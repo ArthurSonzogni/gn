@@ -230,6 +230,10 @@ extern const char kMetadata[];
 extern const char kMetadata_HelpShort[];
 extern const char kMetadata_Help[];
 
+extern const char kModuleName[];
+extern const char kModuleName_HelpShort[];
+extern const char kModuleName_Help[];
+
 extern const char kOutputDir[];
 extern const char kOutputDir_HelpShort[];
 extern const char kOutputDir_Help[];

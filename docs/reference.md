@@ -4138,6 +4138,7 @@
         modules referenced by the current target. The "_no_self" version doesn't
         include the module for the current target, and can be used to compile
         the pcm itself.
+
     {{source}}
         The relative path and name of the current input file.
         Example: "../../base/my_file.cc"
@@ -6270,7 +6271,7 @@
 ### <a name="var_module_name"></a>**module_name**: [string] The name for the compiled module.&nbsp;[Back to Top](#gn-reference)
 
 ```
-  Valid for binary targets that contain Swift sources.
+  Valid for binary targets that contain Swift sources, and for C++ modules.
 
   If module_name is not set, then this rule will use the target name.
 ```

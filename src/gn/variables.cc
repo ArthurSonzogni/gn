@@ -1476,6 +1476,17 @@ Example
   }
 )";
 
+const char kModuleName[] = "module_name";
+const char kModuleName_HelpShort[] =
+    "module_name: [string] The name for the compiled module.";
+const char kModuleName_Help[] =
+    R"(module_name: [string] The name for the compiled module.
+
+  Valid for binary targets that contain Swift sources, and for C++ modules.
+
+  If module_name is not set, then this rule will use the target name.
+)";
+
 const char kOutputExtension[] = "output_extension";
 const char kOutputExtension_HelpShort[] =
     "output_extension: [string] Value to use for the output's file extension.";
@@ -2450,6 +2461,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(Libs)
     INSERT_VARIABLE(LibDirs)
     INSERT_VARIABLE(Metadata)
+    INSERT_VARIABLE(ModuleName)
     INSERT_VARIABLE(OutputDir)
     INSERT_VARIABLE(OutputExtension)
     INSERT_VARIABLE(OutputName)
