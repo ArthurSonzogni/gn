@@ -22,6 +22,7 @@
 #include "gn/string_output_buffer.h"
 #include "gn/substitution_list.h"
 #include "gn/substitution_writer.h"
+#include "gn/unique_vector.h"
 
 // Structure of JSON output file
 // [
@@ -440,16 +441,17 @@ std::vector<const Target*> CompileCommandsWriter::CollectDepsOfMatches(
 std::vector<const Target*> CompileCommandsWriter::FilterLegacyTargets(
     const std::vector<const Target*>& all_targets,
     const std::string& target_filter_string) {
-  std::set<std::string> target_filters_set;
-  for (auto& target :
-       base::SplitString(target_filter_string, ",", base::TRIM_WHITESPACE,
-                         base::SPLIT_WANT_NONEMPTY)) {
-    target_filters_set.insert(target);
-  }
+  std::vector<std::string> target_filters =
+      base::SplitString(target_filter_string, ",", base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_NONEMPTY);
+  UniqueVector<std::string> target_filters_set;
+  target_filters_set.reserve(target_filters.size());
+  target_filters_set.Append(std::move(target_filters));
 
   std::vector<const Target*> result;
+  result.reserve(all_targets.size());
   for (auto& target : all_targets) {
-    if (target_filters_set.count(target->label().name()))
+    if (target_filters_set.Contains(target->label().name()))
       result.push_back(target);
   }
 
