@@ -218,8 +218,8 @@ TEST(Functions, StringHash) {
     ASSERT_FALSE(err.has_error()) << err.message();
 
     EXPECT_EQ(
-        "<90015098>\n"
-        "<d41d8cd9>\n",
+        "<ba7816bf>\n"
+        "<e3b0c442>\n",
         setup.print_output())
         << setup.print_output();
   }

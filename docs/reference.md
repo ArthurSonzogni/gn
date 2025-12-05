@@ -1330,7 +1330,7 @@
       Restricts output to targets which refer to input files by a specific
       relation. Defaults to any relation. Can be provided multiple times to
       include multiple relations.
-    
+
 ```
 
 #### **Examples (target input)**
@@ -3464,9 +3464,9 @@
   hash = string_hash(long_string)
 
   `string_hash` returns a string that contains a hash of the argument.  The hash
-  is computed by first calculating an MD5 hash of the argument, and then
+  is computed by first calculating a SHA256 hash of the argument, and then
   returning the first 8 characters of the lowercase-ASCII, hexadecimal encoding
-  of the MD5 hash.
+  of the SHA256 hash.
 
   `string_hash` is intended to be used when it is desirable to translate,
   globally unique strings (such as GN labels) into short filenames that are
@@ -3483,7 +3483,7 @@
 #### **Examples**:
 
 ```
-    string_hash("abc")  -->  "90015098"
+    string_hash("abc")  -->  "ba7816bf"
 ```
 ### <a name="func_string_join"></a>**string_join**: Concatenates a list of strings with a separator.&nbsp;[Back to Top](#gn-reference)
 
@@ -8473,4 +8473,3 @@
     *   -v: Verbose logging.
     *   --version: Prints the GN version number and exits.
 ```
-

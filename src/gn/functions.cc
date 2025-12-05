@@ -10,7 +10,8 @@
 #include <utility>
 
 #include "base/environment.h"
-#include "base/md5.h"
+#include "base/sha2.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "gn/build_settings.h"
 #include "gn/config.h"
@@ -1146,9 +1147,9 @@ const char kStringHash_Help[] =
   hash = string_hash(long_string)
 
   `string_hash` returns a string that contains a hash of the argument.  The hash
-  is computed by first calculating an MD5 hash of the argument, and then
+  is computed by first calculating the SHA256 hash of the argument, and then
   returning the first 8 characters of the lowercase-ASCII, hexadecimal encoding
-  of the MD5 hash.
+  of the SHA256 hash.
 
   `string_hash` is intended to be used when it is desirable to translate,
   globally unique strings (such as GN labels) into short filenames that are
@@ -1163,7 +1164,7 @@ const char kStringHash_Help[] =
 
 Examples:
 
-    string_hash("abc")  -->  "90015098"
+    string_hash("abc")  -->  "ba7816bf"
 )";
 
 Value RunStringHash(Scope* scope,
@@ -1186,25 +1187,12 @@ Value RunStringHash(Scope* scope,
   const std::string& arg = args[0].string_value();
 
   // Arguments looks good; do the hash.
-
-  // MD5 has been chosen as the hash algorithm, because:
-  //
-  // 1. MD5 implementation has been readily available in GN repo.
-  // 2. It fits the requirements of the motivating scenario
-  //    (see https://crbug.com/463302946).  In particular:
-  //     2.1. This scenario doesn't require cryptographic-strength hashing.
-  //     2.2. MD5 produces slightly shorter hashes than SHA1 and this scenario
-  //          cares about keeping the filenames short, and somewhat ergonomic.
-  //     2.3. MD5 is a well-known hashing algorithm and this scenario needs
-  //          to replicate the same hash outside of GN.
-  std::string md5 = base::MD5String(arg);
+  std::array<uint8_t, base::kSha256Length> hash = base::Sha256(arg);
 
   // Trimming to 32 bits for improved ergonomics.  Probability of collisions
   // should still be sufficiently low (see https://crbug.com/46330294 for more
   // discussion).
-  std::string trimmed = md5.substr(0, 8);
-
-  return Value(function, trimmed);
+  return Value(function, base::ToLowerASCII(base::HexEncode(hash.data(), 4)));
 }
 
 // string_join -----------------------------------------------------------------

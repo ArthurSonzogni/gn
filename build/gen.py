@@ -629,6 +629,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/base/memory/ref_counted.cc',
         'src/base/memory/weak_ptr.cc',
         'src/base/sha1.cc',
+        'src/base/sha2.cc',
         'src/base/strings/string_number_conversions.cc',
         'src/base/strings/string_split.cc',
         'src/base/strings/string_util.cc',
@@ -813,6 +814,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
       'gn': {'sources': [ 'src/gn/gn_main.cc' ], 'libs': []},
 
       'gn_unittests': { 'sources': [
+        'src/base/sha2_unittest.cc',
         'src/gn/action_target_generator_unittest.cc',
         'src/gn/analyzer_unittest.cc',
         'src/gn/args_unittest.cc',
