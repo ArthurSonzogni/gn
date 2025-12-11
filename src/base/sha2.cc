@@ -77,9 +77,11 @@ class Sha256Hasher {
 
     // From section 6.2.2, step 1: "Prepare the message schedule"
     memcpy(w_.data(), chunk.data(), chunk.size());
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
     for (int t = 0; t < 16; ++t) {
       w_[t] = ByteSwap(w_[t]);
     }
+#endif
     for (int t = 16; t < 64; ++t) {
       w_[t] = Sigma1(w_[t - 2]) + w_[t - 7] + Sigma0(w_[t - 15]) + w_[t - 16];
     }
@@ -145,9 +147,11 @@ class Sha256Hasher {
     Update(std::string_view(padding_chunk.data(), padding_chunk.size()));
 
     std::array<uint8_t, kSha256Length> result;
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
     for (uint32_t& word : hash_) {
       word = ByteSwap(word);
     }
+#endif
     memcpy(result.data(), hash_.data(), sizeof(result));
     return result;
   }
