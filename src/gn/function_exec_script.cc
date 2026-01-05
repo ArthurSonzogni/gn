@@ -182,11 +182,17 @@ Value RunExecScript(Scope* scope,
   // that the arguments will be passed through exactly as specified.
   cmdline.SetParseSwitches(false);
 
+  base::FilePath startup_dir =
+      build_settings->GetFullPath(build_settings->build_dir());
+
   // If an interpreter path is set, initialize it as the first entry and
   // pass script_path as the first argument. Otherwise, set the
   // program to script_path directly.
-  const base::FilePath& interpreter_path = build_settings->python_path();
+  base::FilePath interpreter_path = build_settings->python_path();
   if (!interpreter_path.empty()) {
+    if (build_settings->python_path_is_relative_to_build_dir()) {
+      interpreter_path = startup_dir.Append(interpreter_path);
+    }
     cmdline.SetProgram(interpreter_path);
     cmdline.AppendArgPath(script_path);
   } else {
@@ -218,8 +224,6 @@ Value RunExecScript(Scope* scope,
     begin_exec = TicksNow();
   }
 
-  base::FilePath startup_dir =
-      build_settings->GetFullPath(build_settings->build_dir());
   // The first time a build is run, no targets will have been written so the
   // build output directory won't exist. We need to make sure it does before
   // running any scripts with this as its startup directory, although it will

@@ -36,7 +36,7 @@ TEST_F(JSONWriter, ActionWithResponseFile) {
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/output1.out");
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
   std::vector<const Target*> targets;
   targets.push_back(&target);
@@ -539,7 +539,7 @@ TEST_F(JSONWriter, ForEachWithResponseFile) {
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.out");
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
   std::vector<const Target*> targets;
   targets.push_back(&target);

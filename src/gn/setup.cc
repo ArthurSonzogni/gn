@@ -829,7 +829,7 @@ bool Setup::FillPythonPath(const base::CommandLine& cmdline, Err* err) {
   if (cmdline.HasSwitch(switches::kScriptExecutable)) {
     auto script_executable =
         cmdline.GetSwitchValuePath(switches::kScriptExecutable);
-    build_settings_.set_python_path(ProcessFileExtensions(script_executable));
+    build_settings_.SetPythonPath(ProcessFileExtensions(script_executable));
   } else if (value) {
     if (!value->VerifyTypeIs(Value::STRING, err)) {
       return false;
@@ -846,7 +846,7 @@ bool Setup::FillPythonPath(const base::CommandLine& cmdline, Err* err) {
         return false;
       }
     }
-    build_settings_.set_python_path(python_path);
+    build_settings_.SetPythonPath(std::move(python_path));
   } else {
 #if defined(OS_WIN)
     base::FilePath python_path =
@@ -857,9 +857,9 @@ bool Setup::FillPythonPath(const base::CommandLine& cmdline, Err* err) {
                      "just \"python.exe\"");
       python_path = base::FilePath(u"python.exe");
     }
-    build_settings_.set_python_path(python_path);
+    build_settings_.SetPythonPath(std::move(python_path));
 #else
-    build_settings_.set_python_path(base::FilePath("python"));
+    build_settings_.SetPythonPath(base::FilePath("python"));
 #endif
   }
   return true;

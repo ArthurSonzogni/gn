@@ -54,7 +54,7 @@ TEST(NinjaActionTargetWriter, ActionNoSources) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   std::ostringstream out;
@@ -96,7 +96,7 @@ TEST(NinjaActionTargetWriter, ActionNoSourcesConsole) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   std::ostringstream out;
@@ -138,7 +138,7 @@ TEST(NinjaActionTargetWriter, ActionWithSources) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   std::ostringstream out;
@@ -195,7 +195,7 @@ TEST(NinjaActionTargetWriter, ActionWithOrderOnlyDeps) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   std::ostringstream out;
@@ -266,7 +266,7 @@ TEST(NinjaActionTargetWriter, ForEach) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   std::ostringstream out;
@@ -333,7 +333,7 @@ TEST(NinjaActionTargetWriter, ForEachWithDepfile) {
 
   target.config_values().inputs().push_back(SourceFile("//foo/included.txt"));
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
   setup.build_settings()->set_ninja_required_version(Version{1, 9, 0});
 
@@ -391,7 +391,7 @@ TEST(NinjaActionTargetWriter, ForEachWithResponseFile) {
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.out");
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   std::ostringstream out;
@@ -449,7 +449,7 @@ TEST(NinjaActionTargetWriter, ForEachWithPool) {
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.out");
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   std::ostringstream out;
@@ -478,7 +478,7 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
   Err err;
   TestWithScope setup;
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"));
@@ -552,7 +552,7 @@ TEST(NinjaActionTargetWriter, SeesConfig) {
   Err err;
   TestWithScope setup;
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
   Config farcfg(setup.settings(), Label(SourceDir("//foo/"), "farcfg"));
@@ -626,7 +626,7 @@ TEST(NinjaActionTargetWriter, ActionWithSpaces) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  setup.build_settings()->set_python_path(
+  setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/Program Files/python")));
 
   std::ostringstream out;
