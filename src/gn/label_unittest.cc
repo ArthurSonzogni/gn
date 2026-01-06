@@ -12,22 +12,16 @@
 #include "util/build_config.h"
 #include "util/test/test.h"
 
-namespace {
-
-struct ParseDepStringCase {
-  const char* cur_dir;
-  const char* str;
-  bool success;
-  const char* expected_dir;
-  const char* expected_name;
-  const char* expected_toolchain_dir;
-  const char* expected_toolchain_name;
-};
-
-}  // namespace
-
 TEST(Label, Resolve) {
-  ParseDepStringCase cases[] = {
+  const struct TestCase {
+    const char* cur_dir;
+    const char* str;
+    bool success;
+    const char* expected_dir;
+    const char* expected_name;
+    const char* expected_toolchain_dir;
+    const char* expected_toolchain_name;
+  } test_cases[] = {
       {"//chrome/", "", false, "", "", "", ""},
       {"//chrome/", "/", false, "", "", "", ""},
       {"//chrome/", ":", false, "", "", "", ""},
@@ -78,23 +72,23 @@ TEST(Label, Resolve) {
 
   Label default_toolchain(SourceDir("//t/"), "d");
 
-  for (size_t i = 0; i < std::size(cases); i++) {
-    const ParseDepStringCase& cur = cases[i];
-
+  for (const auto& test_case : test_cases) {
     std::string location, name;
     Err err;
     Value v(nullptr, Value::STRING);
-    v.string_value() = cur.str;
-    Label result = Label::Resolve(SourceDir(cur.cur_dir), std::string_view(),
-                                  default_toolchain, v, &err);
-    EXPECT_EQ(cur.success, !err.has_error()) << i << " " << cur.str;
-    if (!err.has_error() && cur.success) {
-      EXPECT_EQ(cur.expected_dir, result.dir().value()) << i << " " << cur.str;
-      EXPECT_EQ(cur.expected_name, result.name()) << i << " " << cur.str;
-      EXPECT_EQ(cur.expected_toolchain_dir, result.toolchain_dir().value())
-          << i << " " << cur.str;
-      EXPECT_EQ(cur.expected_toolchain_name, result.toolchain_name())
-          << i << " " << cur.str;
+    v.string_value() = test_case.str;
+    Label result =
+        Label::Resolve(SourceDir(test_case.cur_dir), std::string_view(),
+                       default_toolchain, v, &err);
+    EXPECT_EQ(test_case.success, !err.has_error()) << test_case.str;
+    if (!err.has_error() && test_case.success) {
+      EXPECT_EQ(test_case.expected_dir, result.dir().value()) << test_case.str;
+      EXPECT_EQ(test_case.expected_name, result.name()) << test_case.str;
+      EXPECT_EQ(test_case.expected_toolchain_dir,
+                result.toolchain_dir().value())
+          << test_case.str;
+      EXPECT_EQ(test_case.expected_toolchain_name, result.toolchain_name())
+          << test_case.str;
     }
   }
 }
