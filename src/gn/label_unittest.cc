@@ -135,3 +135,84 @@ TEST(Label, ResolveAboveRootBuildDir) {
   EXPECT_EQ("/foo/", result.dir().value()) << result.dir().value();
   EXPECT_EQ("foo", result.name());
 }
+
+TEST(Label, GetUserVisibleName) {
+  const struct TestCase {
+    const SourceDir dir;
+    const char* name;
+    const SourceDir toolchain_dir;
+    const char* toolchain_name;
+    bool include_toolchain;
+    const char* expected;
+  } test_cases[] = {
+      // Label in root.
+      {SourceDir("//"), "name", SourceDir("//t/"), "tn", false, "//:name"},
+      {SourceDir("//"), "name", SourceDir("//t/"), "tn", true,
+       "//:name(//t:tn)"},
+      // Label in subdir.
+      {SourceDir("//dir/"), "name", SourceDir("//t/"), "tn", false,
+       "//dir:name"},
+      {SourceDir("//dir/"), "name", SourceDir("//t/"), "tn", true,
+       "//dir:name(//t:tn)"},
+      // Toolchain dir is null.
+      {SourceDir("//dir/"), "name", SourceDir(), "", false, "//dir:name"},
+      {SourceDir("//dir/"), "name", SourceDir(), "", true, "//dir:name()"},
+      // Label dir is null hence label is null.
+      {SourceDir(), "name", SourceDir("//t/"), "tn", false, ""},
+      {SourceDir(), "name", SourceDir("//t/"), "tn", true, ""},
+  };
+
+  for (const auto& test_case : test_cases) {
+    Label l(test_case.dir, test_case.name, test_case.toolchain_dir,
+            test_case.toolchain_name);
+    EXPECT_EQ(test_case.expected,
+              l.GetUserVisibleName(test_case.include_toolchain))
+        << "dir: " << test_case.dir.value();
+  }
+
+  // Also test empty label case.
+  EXPECT_EQ("", Label().GetUserVisibleName(false));
+  EXPECT_EQ("", Label().GetUserVisibleName(true));
+}
+
+TEST(Label, GetUserVisibleNameDefaultToolchain) {
+  const struct TestCase {
+    const SourceDir dir;
+    const char* name;
+    const SourceDir toolchain_dir;
+    const char* toolchain_name;
+    const SourceDir default_toolchain_dir;
+    const char* default_toolchain_name;
+    const char* expected;
+  } test_cases[] = {
+      // Matches the default toolchain, so omitted.
+      {SourceDir("//d/"), "n", SourceDir("//t/"), "tn", SourceDir("//t/"), "tn",
+       "//d:n"},
+      // Different (dir doesn't match), so toolchain is printed.
+      {SourceDir("//d/"), "n", SourceDir("//t/"), "tn", SourceDir("//x/"), "tn",
+       "//d:n(//t:tn)"},
+      // Different (name doesn't match), so toolchain is printed.
+      {SourceDir("//d/"), "n", SourceDir("//t/"), "tn", SourceDir("//x/"), "yz",
+       "//d:n(//t:tn)"},
+      // Different (label's toolchain dir is null), so toolchain is printed.
+      {SourceDir("//d/"), "n", SourceDir(), "tn", SourceDir("//t/"), "tn",
+       "//d:n()"},
+      // Different (default toolchain dir is null), so toolchain is printed.
+      {SourceDir("//d/"), "n", SourceDir("//t/"), "tn", SourceDir(), "tn",
+       "//d:n(//t:tn)"},
+      // Label dir is null hence label is null.
+      {SourceDir(), "n", SourceDir("//t/"), "tn", SourceDir("//t/"), "tn", ""},
+  };
+
+  for (const auto& test_case : test_cases) {
+    Label l(test_case.dir, test_case.name, test_case.toolchain_dir,
+            test_case.toolchain_name);
+    Label dt(test_case.default_toolchain_dir, test_case.default_toolchain_name);
+    EXPECT_EQ(test_case.expected, l.GetUserVisibleName(dt))
+        << "label: " << l.GetUserVisibleName(true) << " "
+        << "default toolchain: " << dt.GetUserVisibleName(true);
+  }
+
+  // Also test empty label case.
+  EXPECT_EQ("", Label().GetUserVisibleName(Label(SourceDir("//t/"), "tn")));
+}
