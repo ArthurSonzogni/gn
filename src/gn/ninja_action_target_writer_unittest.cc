@@ -653,3 +653,47 @@ build phony/foo/bar: phony foo.out
 )";
   EXPECT_EQ(expected, out.str()) << expected << "--" << out.str();
 }
+
+// Tests that validation dependencies are correctly written for an action
+// target.
+TEST(NinjaActionTargetWriter, ActionWithValidations) {
+  Err err;
+  TestWithScope setup;
+
+  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"));
+  validation_target.set_output_type(Target::ACTION);
+  validation_target.visibility().SetPublic();
+  validation_target.action_values().set_script(SourceFile("//foo/script.py"));
+  validation_target.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/val.out");
+  validation_target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(validation_target.OnResolved(&err));
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.set_output_type(Target::ACTION);
+  target.action_values().set_script(SourceFile("//foo/script.py"));
+  target.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/foo.out");
+  target.validations().push_back(LabelTargetPair(&validation_target));
+  target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target.OnResolved(&err)) << err.message();
+
+  setup.build_settings()->SetPythonPath(
+      base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
+
+  std::ostringstream out;
+  NinjaActionTargetWriter writer(&target, out);
+  writer.Run();
+
+  const char expected[] =
+      "rule __foo_bar___rule\n"
+      "  command = /usr/bin/python ../../foo/script.py\n"
+      "  description = ACTION //foo:bar()\n"
+      "  restat = 1\n"
+      "\n"
+      "build foo.out: __foo_bar___rule | ../../foo/script.py |@ phony/foo/val\n"
+      "\n"
+      "build phony/foo/bar: phony foo.out |@ phony/foo/val\n";
+
+  EXPECT_EQ(expected, out.str());
+}

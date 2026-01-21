@@ -82,20 +82,34 @@ class BuilderRecord {
   // as a list sorted by label.
   std::vector<const BuilderRecord*> GetSortedUnresolvedDeps() const;
 
-  // Call this method to notify the record that its dependency |dep| was
-  // just resolved. This returns true to indicate that the current record
-  // should now be resolved.
-  bool OnResolvedDep(const BuilderRecord* dep);
+  // Records that are waiting on this one to be defined. This is used for
+  // "validations" dependencies which don't require the target to be fully
+  // resolved, only defined.
+  BuilderRecordSet& waiting_on_definition() { return waiting_on_definition_; }
+  const BuilderRecordSet& waiting_on_definition() const {
+    return waiting_on_definition_;
+  }
 
   // Records that are waiting on this one to be resolved. This is the other
-  // end of the "unresolved deps" arrow.
+  // end of the "unresolved deps" arrow for standard dependencies.
   BuilderRecordSet& waiting_on_resolution() { return waiting_on_resolution_; }
   const BuilderRecordSet& waiting_on_resolution() const {
     return waiting_on_resolution_;
   }
 
-  void AddGenDep(BuilderRecord* record);
   void AddDep(BuilderRecord* record);
+  void AddGenDep(BuilderRecord* record);
+  void AddValidationDep(BuilderRecord* record);
+
+  // Call this method to notify the record that its dependency |dep| was
+  // just defined. This returns true to indicate that the current record
+  // should now be resolved.
+  bool OnDefinedDep(const BuilderRecord* dep);
+
+  // Call this method to notify the record that its dependency |dep| was
+  // just resolved. This returns true to indicate that the current record
+  // should now be resolved.
+  bool OnResolvedDep(const BuilderRecord* dep);
 
   // Comparator function used to sort records from their label.
   static bool LabelCompare(const BuilderRecord* a, const BuilderRecord* b) {
@@ -113,6 +127,7 @@ class BuilderRecord {
   size_t unresolved_count_ = 0;
   BuilderRecordSet all_deps_;
   BuilderRecordSet waiting_on_resolution_;
+  BuilderRecordSet waiting_on_definition_;
 
   BuilderRecord(const BuilderRecord&) = delete;
   BuilderRecord& operator=(const BuilderRecord&) = delete;

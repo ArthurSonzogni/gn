@@ -1158,6 +1158,10 @@ bool Target::CheckVisibility(Err* err) const {
     if (!Visibility::CheckItemVisibility(this, pair.ptr, err))
       return false;
   }
+  for (const auto& pair : validations_) {
+    if (!Visibility::CheckItemVisibility(this, pair.ptr, err))
+      return false;
+  }
   return true;
 }
 
@@ -1189,6 +1193,14 @@ bool Target::CheckTestonly(Err* err) const {
 
   // Verify no deps have "testonly" set.
   for (const auto& pair : GetDeps(DEPS_ALL)) {
+    if (pair.ptr->testonly()) {
+      *err = MakeTestOnlyError(this, pair.ptr);
+      return false;
+    }
+  }
+
+  // Verify no validations have "testonly" set.
+  for (const auto& pair : validations_) {
     if (pair.ptr->testonly()) {
       *err = MakeTestOnlyError(this, pair.ptr);
       return false;

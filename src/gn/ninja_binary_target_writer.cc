@@ -295,6 +295,7 @@ void NinjaBinaryTargetWriter::WriteCompilerBuildLine(
     out_ << " ||";
     path_output_.WriteFiles(out_, order_only_deps);
   }
+  WriteValidations();
   out_ << std::endl;
 
   if (!sources.empty() && can_write_source_info) {

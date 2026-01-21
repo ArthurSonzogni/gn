@@ -165,6 +165,7 @@
     *   [target_xcode_platform: [string] The desired platform for the build.](#var_target_xcode_platform)
     *   [testonly: [boolean] Declares a target must only be used for testing.](#var_testonly)
     *   [transparent: [bool] True if the bundle is transparent.](#var_transparent)
+    *   [validations: [label list] Validation dependencies.](#var_validations)
     *   [visibility: [label list] A list of labels that can depend on a target.](#var_visibility)
     *   [walk_keys: [string list] Key(s) for managing the metadata collection walk.](#var_walk_keys)
     *   [weak_frameworks: [name list] Name of frameworks that must be weak linked.](#var_weak_frameworks)
@@ -6965,6 +6966,31 @@
   not package the "bundle_data" deps but will forward them to all targets that
   depends on it (unless the "bundle_data" target sets "product_type" to the
   same value as the "create_bundle" target).
+```
+### <a name="var_validations"></a>**validations**: Validation dependencies.&nbsp;[Back to Top](#gn-reference)
+
+```
+  A list of target labels.
+
+  "Validations" are a list of targets that should be built if the current
+  target is built, but which do not effect the result of the current target.
+  This is used to declare things like static analysis, style checking, or
+  other checks that should run in parallel with the build.
+```
+
+#### **Example**
+
+```
+  executable("my_program") {
+    sources = [ "my_program.cc" ]
+    validations = [ ":my_program_style_check" ]
+  }
+
+  action("my_program_style_check") {
+    script = "//tools/style_checker.py"
+    sources = [ "my_program.cc" ]
+    outputs = [ "$target_gen_dir/my_program_style_check.stamp" ]
+  }
 ```
 ### <a name="var_visibility"></a>**visibility**: A list of labels that can depend on a target.&nbsp;[Back to Top](#gn-reference)
 

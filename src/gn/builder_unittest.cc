@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <memory>
 
 #include "gn/builder.h"
 #include "gn/config.h"
@@ -373,6 +374,61 @@ TEST_F(BuilderTest, ConfigLoad) {
 
   // Should have requested that B is loaded.
   EXPECT_TRUE(loader_->HasLoadedOne(SourceFile("//b/BUILD.gn")));
+}
+
+// Tests that "validations" dependencies behave correctly:
+// 1. They trigger the loading of the validated target's build file (simulating
+// cross-directory deps).
+// 2. The validator waits for the validation target to be DEFINED, not RESOLVED.
+// 3. This allows cycles (A validates B, B depends on A) to resolve without
+// error.
+TEST_F(BuilderTest, Validations) {
+  DefineToolchain();
+  SourceDir toolchain_dir = settings_.toolchain_label().dir();
+  std::string toolchain_name = settings_.toolchain_label().name();
+
+  Label a_label(SourceDir("//a/"), "a", toolchain_dir, toolchain_name);
+  Label b_label(SourceDir("//b/"), "b", toolchain_dir, toolchain_name);
+
+  // Define A with validatation B.
+  auto a = std::make_unique<Target>(&settings_, a_label);
+  Target* a_ptr = a.get();
+  a_ptr->set_output_type(Target::ACTION);
+  a_ptr->visibility().SetPublic();
+  a_ptr->validations().push_back(LabelTargetPair(b_label));
+  builder_.ItemDefined(std::move(a));
+
+  // Should have requested that B is loaded.
+  EXPECT_TRUE(loader_->HasLoadedOne(SourceFile("//b/BUILD.gn")));
+
+  // A should NOT be resolved yet (waiting for B definition).
+  BuilderRecord* a_record = builder_.GetRecord(a_label);
+  EXPECT_TRUE(a_record);
+  EXPECT_FALSE(a_record->resolved());
+
+  // Define B. B depends on A.
+  auto b = std::make_unique<Target>(&settings_, b_label);
+  Target* b_ptr = b.get();
+  b_ptr->set_output_type(Target::ACTION);
+  b_ptr->visibility().SetPublic();
+  b_ptr->private_deps().push_back(LabelTargetPair(a_label));
+  builder_.ItemDefined(std::move(b));
+
+  scheduler().Run();
+
+  // Now both should be resolved.
+  EXPECT_TRUE(a_record->resolved());
+  BuilderRecord* b_record = builder_.GetRecord(b_label);
+  EXPECT_TRUE(b_record->resolved());
+
+  // There should be no cycle.
+  Err err;
+  EXPECT_TRUE(builder_.CheckForBadItems(&err));
+  EXPECT_FALSE(err.has_error()) << "CheckForBadItems error: " << err.message();
+
+  // A should have B in its validations.
+  ASSERT_EQ(1u, a_ptr->validations().size());
+  EXPECT_EQ(b_ptr, a_ptr->validations()[0].ptr);
 }
 
 }  // namespace gn_builder_unittest

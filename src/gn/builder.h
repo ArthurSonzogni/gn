@@ -103,6 +103,9 @@ class Builder {
                   Err* err);
   bool AddPoolDep(BuilderRecord* record, const Target* target, Err* err);
   bool AddToolchainDep(BuilderRecord* record, const Target* target, Err* err);
+  bool AddValidationDeps(BuilderRecord* record,
+                         const LabelTargetVector& targets,
+                         Err* err);
 
   // Given a target, sets the "should generate" bit and pushes it through the
   // dependency tree. Any time the bit it set, we ensure that the given item is

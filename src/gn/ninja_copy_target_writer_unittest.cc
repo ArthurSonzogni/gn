@@ -223,3 +223,38 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
     EXPECT_EQ(ninja_outputs[2].value(), "phony/foo/bar");
   }
 }
+
+// Tests that validation dependencies are correctly written for a copy target.
+TEST(NinjaCopyTargetWriter, CopyWithValidations) {
+  Err err;
+  TestWithScope setup;
+
+  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"));
+  validation_target.set_output_type(Target::ACTION);
+  validation_target.visibility().SetPublic();
+  validation_target.action_values().set_script(SourceFile("//foo/script.py"));
+  validation_target.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/val.out");
+  validation_target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(validation_target.OnResolved(&err));
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.set_output_type(Target::COPY_FILES);
+  target.sources().push_back(SourceFile("//foo/input1.txt"));
+  target.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.out");
+  target.validations().push_back(LabelTargetPair(&validation_target));
+  target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target.OnResolved(&err));
+
+  std::ostringstream out;
+  NinjaCopyTargetWriter writer(&target, out);
+  writer.Run();
+
+  const char expected_linux[] =
+      "build input1.out: copy ../../foo/input1.txt |@ phony/foo/val\n"
+      "\n"
+      "build phony/foo/bar: phony input1.out |@ phony/foo/val\n";
+  std::string out_str = out.str();
+  EXPECT_EQ(expected_linux, out_str);
+}

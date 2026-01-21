@@ -338,6 +338,10 @@ extern const char kTestonly[];
 extern const char kTestonly_HelpShort[];
 extern const char kTestonly_Help[];
 
+extern const char kValidations[];
+extern const char kValidations_HelpShort[];
+extern const char kValidations_Help[];
+
 extern const char kVisibility[];
 extern const char kVisibility_HelpShort[];
 extern const char kVisibility_Help[];

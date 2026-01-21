@@ -260,6 +260,8 @@ bool TargetGenerator::FillDependencies() {
     return false;
   if (!FillGenericDeps(variables::kDataDeps, &target_->data_deps()))
     return false;
+  if (!FillGenericDeps(variables::kValidations, &target_->validations()))
+    return false;
   if (!FillGenericDeps(variables::kGenDeps, &target_->gen_deps()))
     return false;
 

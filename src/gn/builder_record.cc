@@ -62,10 +62,30 @@ BuilderRecord::ItemType BuilderRecord::TypeOfItem(const Item* item) {
   return ITEM_UNKNOWN;
 }
 
+void BuilderRecord::AddDep(BuilderRecord* record) {
+  if (all_deps_.add(record) && !record->resolved()) {
+    unresolved_count_ += 1;
+    record->waiting_on_resolution_.add(this);
+  }
+}
+
 void BuilderRecord::AddGenDep(BuilderRecord* record) {
   // Records don't have to wait on resolution of their gen deps, since all they
   // need to do is propagate should_generate to them.
   all_deps_.insert(record);
+}
+
+void BuilderRecord::AddValidationDep(BuilderRecord* record) {
+  if (all_deps_.add(record) && !record->item()) {
+    unresolved_count_ += 1;
+    record->waiting_on_definition_.add(this);
+  }
+}
+
+bool BuilderRecord::OnDefinedDep(const BuilderRecord* dep) {
+  DCHECK(all_deps_.contains(const_cast<BuilderRecord*>(dep)));
+  DCHECK(unresolved_count_ > 0);
+  return --unresolved_count_ == 0;
 }
 
 bool BuilderRecord::OnResolvedDep(const BuilderRecord* dep) {
@@ -79,16 +99,11 @@ std::vector<const BuilderRecord*> BuilderRecord::GetSortedUnresolvedDeps()
   std::vector<const BuilderRecord*> result;
   for (auto it = all_deps_.begin(); it.valid(); ++it) {
     BuilderRecord* dep = *it;
-    if (dep->waiting_on_resolution_.contains(const_cast<BuilderRecord*>(this)))
+    if (dep->waiting_on_resolution_.contains(
+            const_cast<BuilderRecord*>(this)) ||
+        dep->waiting_on_definition_.contains(const_cast<BuilderRecord*>(this)))
       result.push_back(dep);
   }
   std::sort(result.begin(), result.end(), LabelCompare);
   return result;
-}
-
-void BuilderRecord::AddDep(BuilderRecord* record) {
-  if (all_deps_.add(record) && !record->resolved()) {
-    unresolved_count_ += 1;
-    record->waiting_on_resolution_.add(this);
-  }
 }

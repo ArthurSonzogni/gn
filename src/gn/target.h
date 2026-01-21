@@ -261,6 +261,10 @@ class Target : public Item {
   const LabelTargetVector& data_deps() const { return data_deps_; }
   LabelTargetVector& data_deps() { return data_deps_; }
 
+  // Validation dependencies.
+  const LabelTargetVector& validations() const { return validations_; }
+  LabelTargetVector& validations() { return validations_; }
+
   // gen_deps only propagate the "should_generate" flag. These dependencies can
   // have cycles so care should be taken if iterating over them recursively.
   const LabelTargetVector& gen_deps() const { return gen_deps_; }
@@ -522,6 +526,7 @@ class Target : public Item {
   LabelTargetVector private_deps_;
   LabelTargetVector public_deps_;
   LabelTargetVector data_deps_;
+  LabelTargetVector validations_;
   LabelTargetVector gen_deps_;
 
   // See getters for more info.

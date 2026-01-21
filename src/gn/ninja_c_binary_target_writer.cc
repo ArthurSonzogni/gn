@@ -640,6 +640,8 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
   // to listing them again.
   WriteOrderOnlyDependencies(classified_deps.non_linkable_deps);
 
+  WriteValidations();
+
   // End of the link "build" line.
   out_ << std::endl;
 
