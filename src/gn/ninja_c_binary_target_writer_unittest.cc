@@ -2336,7 +2336,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInSourceSet) {
       "  source_file_part = bar.modulemap\n"
       "  source_name_part = bar\n"
       "\n"
-      "build phony/foo/bar: phony obj/foo/bar.bar.o\n";
+      "build phony/foo/bar: phony obj/foo/bar.bar.o obj/foo/bar.bar.pcm\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
 }

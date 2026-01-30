@@ -82,6 +82,7 @@ class NinjaCBinaryTargetWriter : public NinjaBinaryTargetWriter {
                     const std::vector<OutputFile>& order_only_deps,
                     const std::vector<ClangModuleDep>& module_dep_info,
                     std::vector<OutputFile>* object_files,
+                    std::vector<OutputFile>* extra_files,
                     std::vector<SourceFile>* other_files);
   void WriteSwiftSources(const std::vector<OutputFile>& input_deps,
                          const std::vector<OutputFile>& order_only_deps,

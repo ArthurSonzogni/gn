@@ -134,7 +134,7 @@ void NinjaCBinaryTargetWriter::Run() {
   std::vector<OutputFile>* stamp_files = &obj_files;  // default
   if (!target_->source_types_used().SwiftSourceUsed()) {
     WriteSources(*pch_files, input_deps, order_only_deps, module_dep_info,
-                 &obj_files, &other_files);
+                 &obj_files, &extra_files, &other_files);
   } else {
     stamp_files = &extra_files;  // Swift generates more than object files
     WriteSwiftSources(input_deps, order_only_deps, &obj_files, &extra_files);
@@ -146,7 +146,6 @@ void NinjaCBinaryTargetWriter::Run() {
     return;
 
   if (target_->output_type() == Target::SOURCE_SET) {
-    WriteSourceSetStamp(*stamp_files);
 #ifndef NDEBUG
     // Verify that the function that separately computes a source set's object
     // files match the object files just computed.
@@ -156,6 +155,12 @@ void NinjaCBinaryTargetWriter::Run() {
     for (const auto& obj : obj_files)
       DCHECK(computed_obj.Contains(obj));
 #endif
+
+    if (!target_->source_types_used().SwiftSourceUsed()) {
+      // Add extra files like pre compiled module to stamp files for phony targets.
+      stamp_files->insert(stamp_files->end(), extra_files.begin(), extra_files.end());
+    }
+    WriteSourceSetStamp(*stamp_files);
   } else {
     WriteLinkerStuff(obj_files, other_files, input_deps);
   }
@@ -380,6 +385,7 @@ void NinjaCBinaryTargetWriter::WriteSources(
     const std::vector<OutputFile>& order_only_deps,
     const std::vector<ClangModuleDep>& module_dep_info,
     std::vector<OutputFile>* object_files,
+    std::vector<OutputFile>* extra_files,
     std::vector<SourceFile>* other_files) {
   DCHECK(!target_->source_types_used().SwiftSourceUsed());
   object_files->reserve(object_files->size() + target_->sources().size());
@@ -444,6 +450,8 @@ void NinjaCBinaryTargetWriter::WriteSources(
     // output, but we'll only link to the first output.
     if (!source.IsModuleMapType()) {
       object_files->push_back(tool_outputs[0]);
+    } else {
+      extra_files->push_back(tool_outputs[0]);
     }
   }
 
