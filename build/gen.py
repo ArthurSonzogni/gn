@@ -827,6 +827,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/compile_commands_writer_unittest.cc',
         'src/gn/config_unittest.cc',
         'src/gn/config_values_extractors_unittest.cc',
+        'src/gn/desc_builder_unittest.cc',
         'src/gn/escape_unittest.cc',
         'src/gn/exec_process_unittest.cc',
         'src/gn/filesystem_utils_unittest.cc',

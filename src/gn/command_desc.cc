@@ -266,6 +266,7 @@ using DescHandlerFunc = void (*)(const std::string& name,
 std::map<std::string, DescHandlerFunc> GetHandlers() {
   return {{"type", LabelHandler},
           {"toolchain", LabelHandler},
+          {variables::kValidations, DefaultHandler},
           {variables::kVisibility, VisibilityHandler},
           {variables::kMetadata, MetadataHandler},
           {variables::kTestonly, DefaultHandler},
@@ -397,6 +398,7 @@ bool PrintTarget(const Target* target,
   HandleProperty(variables::kPrecompiledHeader, handler_map, v, dict);
   HandleProperty(variables::kPrecompiledSource, handler_map, v, dict);
   HandleProperty(variables::kDeps, handler_map, v, dict);
+  HandleProperty(variables::kValidations, handler_map, v, dict);
   HandleProperty(variables::kLibs, handler_map, v, dict);
   HandleProperty(variables::kLibDirs, handler_map, v, dict);
   HandleProperty(variables::kDataKeys, handler_map, v, dict);
@@ -529,6 +531,7 @@ Possibilities for <what to show>
   script
   sources
   testonly
+  validations
   visibility
   walk_keys
   weak_frameworks

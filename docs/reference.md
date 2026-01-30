@@ -569,6 +569,7 @@
   script
   sources
   testonly
+  validations
   visibility
   walk_keys
   weak_frameworks
@@ -1331,7 +1332,7 @@
       Restricts output to targets which refer to input files by a specific
       relation. Defaults to any relation. Can be provided multiple times to
       include multiple relations.
-
+    
 ```
 
 #### **Examples (target input)**
@@ -3465,7 +3466,7 @@
   hash = string_hash(long_string)
 
   `string_hash` returns a string that contains a hash of the argument.  The hash
-  is computed by first calculating a SHA256 hash of the argument, and then
+  is computed by first calculating the SHA256 hash of the argument, and then
   returning the first 8 characters of the lowercase-ASCII, hexadecimal encoding
   of the SHA256 hash.
 
@@ -8499,3 +8500,4 @@
     *   -v: Verbose logging.
     *   --version: Prints the GN version number and exits.
 ```
+

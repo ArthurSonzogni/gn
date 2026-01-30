@@ -575,6 +575,10 @@ class TargetDescBuilder : public BaseDescBuilder {
     if (what(variables::kGenDeps) && !target_->gen_deps().empty())
       res->SetWithoutPathExpansion(variables::kGenDeps, RenderGenDeps());
 
+    if (what(variables::kValidations) && !target_->validations().empty())
+      res->SetWithoutPathExpansion(variables::kValidations,
+                                   RenderValidations());
+
     // Runtime deps are special, print only when explicitly asked for and not in
     // overview mode.
     if (what_.find("runtime_deps") != what_.end())
@@ -739,6 +743,20 @@ class TargetDescBuilder : public BaseDescBuilder {
       gen_deps.push_back(pair.label.GetUserVisibleName(default_tc));
     std::sort(gen_deps.begin(), gen_deps.end());
     for (const auto& dep : gen_deps)
+      res->AppendString(dep);
+    return res;
+  }
+
+  ValuePtr RenderValidations() {
+    auto res = std::make_unique<base::ListValue>();
+    Label default_tc = target_->settings()->default_toolchain_label();
+    const auto& validation_pairs = target_->validations();
+    std::vector<std::string> validations;
+    validations.reserve(validation_pairs.size());
+    for (const auto& pair : validation_pairs)
+      validations.push_back(pair.label.GetUserVisibleName(default_tc));
+    std::sort(validations.begin(), validations.end());
+    for (const auto& dep : validations)
       res->AppendString(dep);
     return res;
   }

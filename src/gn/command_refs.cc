@@ -38,6 +38,8 @@ void FillDepMap(Setup* setup, DepMap* dep_map) {
   for (auto* target : setup->builder().GetAllResolvedTargets()) {
     for (const auto& dep_pair : target->GetDeps(Target::DEPS_ALL))
       dep_map->insert(std::make_pair(dep_pair.ptr, target));
+    for (const auto& validation_pair : target->validations())
+      dep_map->insert(std::make_pair(validation_pair.ptr, target));
   }
 }
 
