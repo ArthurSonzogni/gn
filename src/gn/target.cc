@@ -913,6 +913,12 @@ bool Target::HasRealInputs() const {
     }
   }
 
+  // Targets with validations must be written to ensure the validations run,
+  // even if they have no other inputs or dependencies.
+  if (!validations_.empty()) {
+    return true;
+  }
+
   if (output_type() == BUNDLE_DATA) {
     return !sources().empty();
   }

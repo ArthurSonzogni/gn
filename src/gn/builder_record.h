@@ -73,6 +73,10 @@ class BuilderRecord {
 
   bool can_resolve() const { return item_ && unresolved_count_ == 0; }
 
+  bool can_write() const {
+    return resolved_ && unresolved_validation_count_ == 0;
+  }
+
   // All records this one is depending on. Note that this includes gen_deps for
   // targets, which can have cycles.
   BuilderRecordSet& all_deps() { return all_deps_; }
@@ -97,6 +101,19 @@ class BuilderRecord {
     return waiting_on_resolution_;
   }
 
+  // Records that are waiting on this one to be resolved before they can be
+  // written to the ninja file. This is used for "validations" dependencies.
+  BuilderRecordSet& waiting_on_resolution_for_writing() {
+    return waiting_on_resolution_for_writing_;
+  }
+  const BuilderRecordSet& waiting_on_resolution_for_writing() const {
+    return waiting_on_resolution_for_writing_;
+  }
+
+  // Validation dependencies.
+  BuilderRecordSet& validation_deps() { return validation_deps_; }
+  const BuilderRecordSet& validation_deps() const { return validation_deps_; }
+
   void AddDep(BuilderRecord* record);
   void AddGenDep(BuilderRecord* record);
   void AddValidationDep(BuilderRecord* record);
@@ -110,6 +127,11 @@ class BuilderRecord {
   // just resolved. This returns true to indicate that the current record
   // should now be resolved.
   bool OnResolvedDep(const BuilderRecord* dep);
+
+  // Call this method to notify the record that its validation dependency |dep|
+  // was just resolved. This returns true to indicate that the current record
+  // is now ready to be written.
+  bool OnResolvedValidationDep(const BuilderRecord* dep);
 
   // Comparator function used to sort records from their label.
   static bool LabelCompare(const BuilderRecord* a, const BuilderRecord* b) {
@@ -125,9 +147,12 @@ class BuilderRecord {
   const ParseNode* originally_referenced_from_ = nullptr;
 
   size_t unresolved_count_ = 0;
+  size_t unresolved_validation_count_ = 0;
   BuilderRecordSet all_deps_;
+  BuilderRecordSet validation_deps_;
   BuilderRecordSet waiting_on_resolution_;
   BuilderRecordSet waiting_on_definition_;
+  BuilderRecordSet waiting_on_resolution_for_writing_;
 
   BuilderRecord(const BuilderRecord&) = delete;
   BuilderRecord& operator=(const BuilderRecord&) = delete;

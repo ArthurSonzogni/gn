@@ -132,6 +132,7 @@ class Builder {
   // that everything should be resolved by this point, so will return an error
   // if anything isn't found or if the type doesn't match.
   bool ResolveDeps(LabelTargetVector* deps, Err* err);
+  bool ResolveValidationDeps(LabelTargetVector* deps, Err* err);
   bool ResolveConfigs(UniqueVector<LabelConfigPair>* configs, Err* err);
   bool ResolvePool(Target* target, Err* err);
   bool ResolveToolchain(Target* target, Err* err);
