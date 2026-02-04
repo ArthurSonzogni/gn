@@ -1313,6 +1313,14 @@ bool Target::GetMetadata(const std::vector<std::string>& keys_to_extract,
             return false;
         }
       }
+      for (const auto& dep : validations_) {
+        // If we haven't walked this dep yet, go down into it.
+        if (targets_walked->add(dep.ptr)) {
+          if (!dep.ptr->GetMetadata(keys_to_extract, keys_to_walk, rebase_dir,
+                                    false, result, targets_walked, err))
+            return false;
+        }
+      }
 
       // Any other walk keys are superfluous, as they can only be a subset of
       // all deps.
@@ -1343,6 +1351,22 @@ bool Target::GetMetadata(const std::vector<std::string>& keys_to_extract,
         // We found it, so we can exit this search now.
         found_next = true;
         break;
+      }
+    }
+    if (!found_next) {
+      for (const auto& dep : validations_) {
+        // Match against the label with the toolchain.
+        if (dep.label.GetUserVisibleName(true) == canonicalize_next_label) {
+          // If we haven't walked this dep yet, go down into it.
+          if (targets_walked->add(dep.ptr)) {
+            if (!dep.ptr->GetMetadata(keys_to_extract, keys_to_walk, rebase_dir,
+                                      false, result, targets_walked, err))
+              return false;
+          }
+          // We found it, so we can exit this search now.
+          found_next = true;
+          break;
+        }
       }
     }
     // If we didn't find the specified dep in the target, that's an error.
