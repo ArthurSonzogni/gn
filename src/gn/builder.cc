@@ -500,8 +500,7 @@ void Builder::RecursiveSetShouldGenerate(BuilderRecord* record, bool force) {
     record->set_should_generate(true);
 
     // This may have caused the item to go into "resolved and generated" state.
-    if (record->resolved() && resolved_and_generated_callback_)
-      resolved_and_generated_callback_(record);
+    CheckAndTriggerWrite(record);
   } else if (!force) {
     return;  // Already set and we're not required to iterate dependencies.
   }
@@ -586,10 +585,7 @@ void Builder::CompleteAsyncTargetResolution(BuilderRecord* record,
 bool Builder::CompleteItemResolution(BuilderRecord* record, Err* err) {
   record->set_resolved(true);
 
-  if (record->should_generate() && record->can_write() &&
-      resolved_and_generated_callback_) {
-    resolved_and_generated_callback_(record);
-  }
+  CheckAndTriggerWrite(record);
 
   // Recursively update everybody waiting on this item to be resolved.
   const BuilderRecordSet waiting_deps = record->waiting_on_resolution();
@@ -608,10 +604,7 @@ bool Builder::CompleteItemResolution(BuilderRecord* record, Err* err) {
   for (auto it = waiting_for_writing.begin(); it.valid(); ++it) {
     BuilderRecord* waiting = *it;
     if (waiting->OnResolvedValidationDep(record)) {
-      if (waiting->can_write() && waiting->should_generate() &&
-          resolved_and_generated_callback_) {
-        resolved_and_generated_callback_(waiting);
-      }
+      CheckAndTriggerWrite(waiting);
     }
   }
   record->waiting_on_resolution_for_writing().clear();
@@ -724,6 +717,13 @@ bool Builder::ResolvePools(Toolchain* toolchain, Err* err) {
   }
 
   return true;
+}
+
+void Builder::CheckAndTriggerWrite(BuilderRecord* record) {
+  if (record->resolved() && record->should_generate() && record->can_write() &&
+      resolved_and_generated_callback_) {
+    resolved_and_generated_callback_(record);
+  }
 }
 
 std::string Builder::CheckForCircularDependencies(

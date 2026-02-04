@@ -138,6 +138,10 @@ class Builder {
   bool ResolveToolchain(Target* target, Err* err);
   bool ResolvePools(Toolchain* toolchain, Err* err);
 
+  // Checks if the given record is ready to be written (resolved, generated,
+  // and writable) and calls the callback if so.
+  void CheckAndTriggerWrite(BuilderRecord* record);
+
   // Given a list of unresolved records, tries to find any circular
   // dependencies and returns the string describing the problem. If no circular
   // deps were found, returns the empty string.
