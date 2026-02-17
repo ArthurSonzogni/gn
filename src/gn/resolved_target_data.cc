@@ -8,6 +8,15 @@
 
 ResolvedTargetData::TargetInfo* ResolvedTargetData::GetTargetInfo(
     const Target* target) const {
+  {
+    std::shared_lock<std::shared_mutex> lock(map_mutex_);
+    size_t index = targets_.IndexOf(target);
+    if (index != UniqueVector<const Target*>::kIndexNone) {
+      return infos_[index].get();
+    }
+  }
+
+  std::unique_lock<std::shared_mutex> lock(map_mutex_);
   auto ret = targets_.PushBackWithIndex(target);
   if (ret.first) {
     infos_.push_back(std::make_unique<TargetInfo>(target));

@@ -91,23 +91,19 @@ struct TargetWriteInfo {
 
   NinjaOutputsMap ninja_outputs_map;
 
-  using ResolvedMap = std::unordered_map<std::thread::id, ResolvedTargetData>;
-  std::unique_ptr<ResolvedMap> resolved_map = std::make_unique<ResolvedMap>();
+  std::unique_ptr<ResolvedTargetData> resolved =
+      std::make_unique<ResolvedTargetData>();
 
-  void LeakOnPurpose() { (void)resolved_map.release(); }
+  void LeakOnPurpose() { (void)resolved.release(); }
 };
 
 // Called on worker thread to write the ninja file.
 void BackgroundDoWrite(TargetWriteInfo* write_info, const Target* target) {
-  ResolvedTargetData* resolved;
+  ResolvedTargetData* resolved = write_info->resolved.get();
   std::vector<OutputFile> target_ninja_outputs;
   std::vector<OutputFile>* ninja_outputs =
       write_info->want_ninja_outputs ? &target_ninja_outputs : nullptr;
 
-  {
-    std::lock_guard<std::mutex> lock(write_info->lock);
-    resolved = &((*write_info->resolved_map)[std::this_thread::get_id()]);
-  }
   std::string rule =
       NinjaTargetWriter::RunAndWriteFile(target, resolved, ninja_outputs);
 
