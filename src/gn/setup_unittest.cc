@@ -28,7 +28,7 @@ TEST_F(SetupTest, DotGNFileIsGenDep) {
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, "buildconfig = \"//BUILDCONFIG.gn\"\n");
   WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
@@ -59,7 +59,7 @@ script_executable = ""
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, kDotfileContents);
 
@@ -90,7 +90,7 @@ script_executable = "this_does_not_exist"
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, kDotfileContents);
 
@@ -119,7 +119,7 @@ static void RunExtensionCheckTest(std::string extension,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name,
             "buildconfig = \"//BUILDCONFIG.gn\"\n\
@@ -168,7 +168,7 @@ export_compile_commands = [ "//base/*" ]
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, kDotfileContents);
 
@@ -210,7 +210,7 @@ root_patterns = [ "//:*" ]
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
 
   WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
   WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")), kDotfileContents);
@@ -245,7 +245,7 @@ root_patterns = [ "//:foo" ]
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
 
   WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
   WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")), kDotfileContents);
@@ -310,7 +310,7 @@ toolchain("toolchain") {
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
 
   WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILD.gn")), kBuildGnContents);
   WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
@@ -373,7 +373,7 @@ TEST_F(SetupTest, ArgsGnRelativeAndAbsoluteImports) {
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, kDotfileContents);
 
@@ -423,7 +423,7 @@ script_executable = ""
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, kDotfileContents);
 
@@ -460,7 +460,7 @@ script_executable = ""
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, kDotfileContents);
 
@@ -500,7 +500,7 @@ script_executable = ""
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
   ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = in_temp_dir.GetPath();
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
   WriteFile(dot_gn_name, kDotfileContents);
 
