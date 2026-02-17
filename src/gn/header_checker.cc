@@ -186,7 +186,7 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files, bool force_check) {
   task_count_.Decrement();
 
   // Wait for all tasks posted by this method to complete.
-  std::unique_lock<std::mutex> auto_lock(lock_);
+  std::unique_lock<std::mutex> auto_lock(task_count_lock_);
   while (!task_count_.IsZero())
     task_count_cv_.wait(auto_lock);
 }
@@ -194,13 +194,13 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files, bool force_check) {
 void HeaderChecker::DoWork(const Target* target, const SourceFile& file) {
   std::vector<Err> errors;
   if (!CheckFile(target, file, &errors)) {
-    std::lock_guard<std::mutex> lock(lock_);
+    std::lock_guard<std::shared_mutex> lock(lock_);
     errors_.insert(errors_.end(), errors.begin(), errors.end());
   }
 
   if (!task_count_.Decrement()) {
     // Signal |task_count_cv_| when |task_count_| becomes zero.
-    std::unique_lock<std::mutex> auto_lock(lock_);
+    std::unique_lock<std::mutex> auto_lock(task_count_lock_);
     task_count_cv_.notify_one();
   }
 }
@@ -528,19 +528,48 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
     return false;
   }
 
+  {
+    std::shared_lock<std::shared_mutex> lock(lock_);
+    auto it = dependency_cache_.find(std::make_pair(search_for, search_from));
+    if (it != dependency_cache_.end()) {
+      if (it->second == DependencyState::kNotADependency) {
+        *is_permitted = false;
+        return false;
+      }
+      *is_permitted = (it->second == DependencyState::kPermittedDependency);
+      if (*is_permitted) {
+        // For permitted chains, we often don't need the chain itself (it's
+        // only used for error reporting). If the caller provided a null
+        // chain, we can return immediately.
+        if (!chain)
+          return true;
+      }
+      // If we need the chain, we have to re-run the BFS.
+    }
+  }
+
   // Find the shortest public dependency chain.
   if (IsDependencyOf(search_for, search_from, true, chain)) {
     *is_permitted = true;
+    std::unique_lock<std::shared_mutex> lock(lock_);
+    dependency_cache_[std::make_pair(search_for, search_from)] =
+        DependencyState::kPermittedDependency;
     return true;
   }
 
   // If not, try to find any dependency chain at all.
   if (IsDependencyOf(search_for, search_from, false, chain)) {
     *is_permitted = false;
+    std::unique_lock<std::shared_mutex> lock(lock_);
+    dependency_cache_[std::make_pair(search_for, search_from)] =
+        DependencyState::kNonPermittedDependency;
     return true;
   }
 
   *is_permitted = false;
+  std::unique_lock<std::shared_mutex> lock(lock_);
+  dependency_cache_[std::make_pair(search_for, search_from)] =
+      DependencyState::kNotADependency;
   return false;
 }
 
