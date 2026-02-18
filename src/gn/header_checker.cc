@@ -124,6 +124,7 @@ HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
     : build_settings_(build_settings),
       check_generated_(check_generated),
       check_system_(check_system),
+      targets_count_(targets.size()),
       lock_(),
       task_count_cv_() {
   for (auto* target : targets)
@@ -592,6 +593,9 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
   // search_for.
 
   std::unordered_map<const Target*, ChainLink> breadcrumbs;
+  if (targets_count_ > 0) {
+    breadcrumbs.reserve(std::min(targets_count_, static_cast<size_t>(1024)));
+  }
   base::queue<ChainLink> work_queue;
   work_queue.push(ChainLink(search_from, true));
 
