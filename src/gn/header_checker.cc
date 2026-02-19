@@ -5,8 +5,6 @@
 #include "gn/header_checker.h"
 
 #include <algorithm>
-#include <unordered_map>
-
 #include "base/containers/queue.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_util.h"
@@ -17,6 +15,7 @@
 #include "gn/config_values_extractors.h"
 #include "gn/err.h"
 #include "gn/filesystem_utils.h"
+#include "gn/hash_table_base.h"
 #include "gn/scheduler.h"
 #include "gn/swift_values.h"
 #include "gn/target.h"
@@ -114,6 +113,59 @@ bool FriendMatches(const Target* annotation_on,
   return LabelPattern::VectorMatches(annotation_on->friends(),
                                      is_marked_friend->label());
 }
+
+// Data for BreadcrumbNode.
+//
+// This class is a trivial type so it can be used in HashTableBase.
+struct BreadcrumbNode {
+  const Target* target;
+  const Target* src_target;
+  bool is_public;
+
+  bool is_null() const { return !target; }
+  static bool is_tombstone() { return false; }
+  bool is_valid() const { return !is_null(); }
+  size_t hash_value() const { return std::hash<const Target*>()(target); }
+};
+
+struct BreadcrumbTable : public HashTableBase<BreadcrumbNode> {
+  using Base = HashTableBase<BreadcrumbNode>;
+  using Node = Base::Node;
+
+  // Since we only insert, we don't need to return success/failure.
+  // We can also assume that key uniqueness is checked before insertion if necessary,
+  // or that we simply overwrite (though BFS usually checks existence first).
+  //
+  // In IsDependencyOf, we use the return value checking if it was already there.
+  // So we need an Insert that returns whether it was new.
+  bool Insert(const Target* target, const Target* src_target, bool is_public) {
+    size_t hash = std::hash<const Target*>()(target);
+    Node* node = NodeLookup(hash, [target](const Node* n) {
+      return n->target == target;
+    });
+
+    if (node->is_valid())
+      return false;
+
+    node->target = target;
+    node->src_target = src_target;
+    node->is_public = is_public;
+    UpdateAfterInsert(false);
+    return true;
+  }
+
+  // Returns the ChainLink for the given target, or a null-target ChainLink if not found.
+  HeaderChecker::ChainLink GetLink(const Target* target) const {
+    size_t hash = std::hash<const Target*>()(target);
+    const Node* node = NodeLookup(hash, [target](const Node* n) {
+      return n->target == target;
+    });
+
+    if (node->is_valid())
+      return HeaderChecker::ChainLink(node->src_target, node->is_public);
+    return HeaderChecker::ChainLink();
+  }
+};
 
 }  // namespace
 
@@ -592,10 +644,8 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
   // a shortest dependency chain (in reverse order) from search_from to
   // search_for.
 
-  std::unordered_map<const Target*, ChainLink> breadcrumbs;
-  if (targets_count_ > 0) {
-    breadcrumbs.reserve(std::min(targets_count_, static_cast<size_t>(1024)));
-  }
+  BreadcrumbTable breadcrumbs;
+
   base::queue<ChainLink> work_queue;
   work_queue.push(ChainLink(search_from, true));
 
@@ -610,7 +660,8 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
       chain->clear();
       while (target != search_from) {
         chain->push_back(cur_link);
-        cur_link = breadcrumbs[target];
+        ChainLink next_link = breadcrumbs.GetLink(target);
+        cur_link = next_link;
         target = cur_link.target;
       }
       chain->push_back(ChainLink(search_from, true));
@@ -619,7 +670,7 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
 
     // Always consider public dependencies as possibilities.
     for (const auto& dep : target->public_deps()) {
-      if (breadcrumbs.emplace(dep.ptr, cur_link).second)
+      if (breadcrumbs.Insert(dep.ptr, target, cur_link.is_public))
         work_queue.push(ChainLink(dep.ptr, true));
     }
 
@@ -630,7 +681,7 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
       // public/private-ness.
       first_time = false;
       for (const auto& dep : target->private_deps()) {
-        if (breadcrumbs.emplace(dep.ptr, cur_link).second)
+        if (breadcrumbs.Insert(dep.ptr, target, cur_link.is_public))
           work_queue.push(ChainLink(dep.ptr, false));
       }
     }
