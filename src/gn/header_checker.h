@@ -5,6 +5,7 @@
 #ifndef TOOLS_GN_HEADER_CHECKER_H_
 #define TOOLS_GN_HEADER_CHECKER_H_
 
+#include <array>
 #include <condition_variable>
 #include <functional>
 #include <map>
@@ -203,15 +204,21 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   using DependencyCache =
       std::map<std::pair<const Target*, const Target*>, DependencyState>;
 
+  static constexpr size_t kNumShards = 64;
+  struct DependencyCacheShard {
+    mutable std::shared_mutex lock;
+    DependencyCache cache;
+  };
+
   // Locked variables ----------------------------------------------------------
   //
   // These are mutable during runtime and require locking.
 
-  mutable std::shared_mutex lock_;
+  mutable std::mutex errors_lock_;
 
   std::vector<Err> errors_;
 
-  mutable DependencyCache dependency_cache_;
+  mutable std::array<DependencyCacheShard, kNumShards> dependency_cache_;
 
   // Separate lock for task count synchronization since std::condition_variable
   // only works with std::unique_lock<std::mutex>.

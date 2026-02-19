@@ -24,6 +24,12 @@ int GetThreadCount() {
     return result;
   }
 
+#if defined(OS_MACOSX) && defined(ARCH_CPU_ARM64)
+  // On Apple Silicon, we want to use only the high-performance cores.
+  // These cores are not hyperthreaded.
+  return NumberOfPerformanceProcessors();
+#endif
+
   // Almost all CPUs now are hyperthreaded.
   int num_cores = NumberOfProcessors() / 2;
 

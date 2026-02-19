@@ -912,6 +912,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/xcode_object_unittest.cc',
         'src/gn/xml_element_writer_unittest.cc',
         'src/util/atomic_write_unittest.cc',
+        'src/util/sys_info_unittest.cc',
         'src/util/test/gn_test.cc',
       ], 'libs': []},
   }

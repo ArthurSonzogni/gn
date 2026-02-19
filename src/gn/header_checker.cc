@@ -177,7 +177,7 @@ HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
       check_generated_(check_generated),
       check_system_(check_system),
       targets_count_(targets.size()),
-      lock_(),
+      errors_lock_(),
       task_count_cv_() {
   for (auto* target : targets)
     AddTargetToFileMap(target, &file_map_);
@@ -247,7 +247,7 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files, bool force_check) {
 void HeaderChecker::DoWork(const Target* target, const SourceFile& file) {
   std::vector<Err> errors;
   if (!CheckFile(target, file, &errors)) {
-    std::lock_guard<std::shared_mutex> lock(lock_);
+    std::lock_guard<std::mutex> lock(errors_lock_);
     errors_.insert(errors_.end(), errors.begin(), errors.end());
   }
 
@@ -581,10 +581,15 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
     return false;
   }
 
+  size_t hash_for = search_for->label().hash();
+  size_t hash_from = search_from->label().hash();
+  size_t shard_index = (hash_for ^ hash_from) % kNumShards;
+  auto& shard = dependency_cache_[shard_index];
+
   {
-    std::shared_lock<std::shared_mutex> lock(lock_);
-    auto it = dependency_cache_.find(std::make_pair(search_for, search_from));
-    if (it != dependency_cache_.end()) {
+    std::shared_lock<std::shared_mutex> lock(shard.lock);
+    auto it = shard.cache.find(std::make_pair(search_for, search_from));
+    if (it != shard.cache.end()) {
       if (it->second == DependencyState::kNotADependency) {
         *is_permitted = false;
         return false;
@@ -604,8 +609,8 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
   // Find the shortest public dependency chain.
   if (IsDependencyOf(search_for, search_from, true, chain)) {
     *is_permitted = true;
-    std::unique_lock<std::shared_mutex> lock(lock_);
-    dependency_cache_[std::make_pair(search_for, search_from)] =
+    std::unique_lock<std::shared_mutex> lock(shard.lock);
+    shard.cache[std::make_pair(search_for, search_from)] =
         DependencyState::kPermittedDependency;
     return true;
   }
@@ -613,15 +618,15 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
   // If not, try to find any dependency chain at all.
   if (IsDependencyOf(search_for, search_from, false, chain)) {
     *is_permitted = false;
-    std::unique_lock<std::shared_mutex> lock(lock_);
-    dependency_cache_[std::make_pair(search_for, search_from)] =
+    std::unique_lock<std::shared_mutex> lock(shard.lock);
+    shard.cache[std::make_pair(search_for, search_from)] =
         DependencyState::kNonPermittedDependency;
     return true;
   }
 
   *is_permitted = false;
-  std::unique_lock<std::shared_mutex> lock(lock_);
-  dependency_cache_[std::make_pair(search_for, search_from)] =
+  std::unique_lock<std::shared_mutex> lock(shard.lock);
+  shard.cache[std::make_pair(search_for, search_from)] =
       DependencyState::kNotADependency;
   return false;
 }
