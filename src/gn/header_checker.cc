@@ -176,7 +176,6 @@ HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
     : build_settings_(build_settings),
       check_generated_(check_generated),
       check_system_(check_system),
-      targets_count_(targets.size()),
       errors_lock_(),
       task_count_cv_() {
   for (auto* target : targets)

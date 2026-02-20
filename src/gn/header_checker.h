@@ -193,8 +193,6 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // execution.
   base::AtomicRefCount task_count_;
 
-  size_t targets_count_ = 0;
-
   // Maps (target_to, target_from) -> is_permitted.
   enum class DependencyState {
     kNotADependency,
