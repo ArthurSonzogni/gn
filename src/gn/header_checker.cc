@@ -133,16 +133,16 @@ struct BreadcrumbTable : public HashTableBase<BreadcrumbNode> {
   using Node = Base::Node;
 
   // Since we only insert, we don't need to return success/failure.
-  // We can also assume that key uniqueness is checked before insertion if necessary,
-  // or that we simply overwrite (though BFS usually checks existence first).
+  // We can also assume that key uniqueness is checked before insertion if
+  // necessary, or that we simply overwrite (though BFS usually checks existence
+  // first).
   //
-  // In IsDependencyOf, we use the return value checking if it was already there.
-  // So we need an Insert that returns whether it was new.
+  // In IsDependencyOf, we use the return value checking if it was already
+  // there. So we need an Insert that returns whether it was new.
   bool Insert(const Target* target, const Target* src_target, bool is_public) {
     size_t hash = std::hash<const Target*>()(target);
-    Node* node = NodeLookup(hash, [target](const Node* n) {
-      return n->target == target;
-    });
+    Node* node = NodeLookup(
+        hash, [target](const Node* n) { return n->target == target; });
 
     if (node->is_valid())
       return false;
@@ -154,12 +154,12 @@ struct BreadcrumbTable : public HashTableBase<BreadcrumbNode> {
     return true;
   }
 
-  // Returns the ChainLink for the given target, or a null-target ChainLink if not found.
+  // Returns the ChainLink for the given target, or a null-target ChainLink if
+  // not found.
   HeaderChecker::ChainLink GetLink(const Target* target) const {
     size_t hash = std::hash<const Target*>()(target);
-    const Node* node = NodeLookup(hash, [target](const Node* n) {
-      return n->target == target;
-    });
+    const Node* node = NodeLookup(
+        hash, [target](const Node* n) { return n->target == target; });
 
     if (node->is_valid())
       return HeaderChecker::ChainLink(node->src_target, node->is_public);

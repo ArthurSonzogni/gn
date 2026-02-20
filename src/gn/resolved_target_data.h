@@ -265,7 +265,8 @@ class ResolvedTargetData {
       std::lock_guard<std::mutex> lock(info->mutex);
       if (!info->has_module_deps_information.load(std::memory_order_relaxed)) {
         ComputeModuleDepsInformation(info);
-        info->has_module_deps_information.store(true, std::memory_order_release);
+        info->has_module_deps_information.store(true,
+                                                std::memory_order_release);
       }
     }
     return info;

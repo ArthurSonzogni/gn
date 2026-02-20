@@ -4,8 +4,9 @@
 
 #include <stddef.h>
 
-#include "gn/build_settings.h"
 #include <utility>
+
+#include "gn/build_settings.h"
 #include "gn/filesystem_utils.h"
 #include "gn/functions.h"
 #include "gn/parse_tree.h"
@@ -57,7 +58,8 @@ bool ValueLooksLikeDir(const std::string& value) {
 void AddCallLocationToError(const ParseNode* blame_node, Err* err) {
   if (blame_node && err->has_error()) {
     Err new_err(blame_node, err->message(), err->help_text());
-    new_err.AppendSubErr(Err(err->location(), "The value that caused the error."));
+    new_err.AppendSubErr(
+        Err(err->location(), "The value that caused the error."));
     *err = std::move(new_err);
   }
 }
@@ -107,9 +109,9 @@ Value ConvertOnePath(const Scope* scope,
     if (err->has_error()) {
       return Value();
     }
-    result.string_value() = RebasePath(
-        resolved.value(),
-        to_dir, scope->settings()->build_settings()->root_path_utf8());
+    result.string_value() =
+        RebasePath(resolved.value(), to_dir,
+                   scope->settings()->build_settings()->root_path_utf8());
     MakeSlashEndingMatchInput(string_value, &result.string_value());
   } else {
     SourceFile resolved_file = from_dir.ResolveRelativeFile(
@@ -239,7 +241,8 @@ Value RunRebasePath(Scope* scope,
   }
   const Value& inputs = args[kArgIndexInputs];
   const ParseNode* inputs_origin = nullptr;
-  if (function->args() && function->args()->contents().size() > kArgIndexInputs) {
+  if (function->args() &&
+      function->args()->contents().size() > kArgIndexInputs) {
     inputs_origin = function->args()->contents()[kArgIndexInputs].get();
   }
 

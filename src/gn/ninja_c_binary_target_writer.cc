@@ -157,8 +157,10 @@ void NinjaCBinaryTargetWriter::Run() {
 #endif
 
     if (!target_->source_types_used().SwiftSourceUsed()) {
-      // Add extra files like pre compiled module to stamp files for phony targets.
-      stamp_files->insert(stamp_files->end(), extra_files.begin(), extra_files.end());
+      // Add extra files like pre compiled module to stamp files for phony
+      // targets.
+      stamp_files->insert(stamp_files->end(), extra_files.begin(),
+                          extra_files.end());
     }
     WriteSourceSetStamp(*stamp_files);
   } else {

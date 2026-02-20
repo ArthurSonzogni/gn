@@ -14,7 +14,8 @@ TEST(SysInfoTest, NumberOfProcessors) {
 
 TEST(SysInfoTest, NumberOfPerformanceProcessors) {
   int num_perf_processors = NumberOfPerformanceProcessors();
-  // On all platforms this should be at least 1 (if implemented) or same as NumberOfProcessors
+  // On all platforms this should be at least 1 (if implemented) or same as
+  // NumberOfProcessors
   EXPECT_GT(num_perf_processors, 0);
 
 #if defined(OS_MACOSX) && defined(ARCH_CPU_ARM64)

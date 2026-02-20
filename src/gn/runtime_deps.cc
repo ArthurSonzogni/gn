@@ -42,10 +42,11 @@ std::string SourceAsOutputFile(const std::string& str, const Target* source) {
 // as a regular dep. `on_file` may be called more than once for the same output
 // file.
 template <typename F>
-void RecursiveCollectRuntimeDeps(const Target* target,
-                                 bool is_target_data_dep,
-                                 F&& on_file,
-                                 std::unordered_map<const Target*, bool>* seen_targets) {
+void RecursiveCollectRuntimeDeps(
+    const Target* target,
+    bool is_target_data_dep,
+    F&& on_file,
+    std::unordered_map<const Target*, bool>* seen_targets) {
   auto [found_seen_target, inserted] =
       seen_targets->try_emplace(target, is_target_data_dep);
   if (!inserted) {
