@@ -194,14 +194,18 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files, bool force_check) {
         continue;
     }
 
+    std::vector<const Target*> targets_to_check;
     for (const auto& vect_i : file.second) {
       if (vect_i.target->check_includes()) {
-        task_count_.Increment();
-        pool.PostTask([this, target = vect_i.target, file = file.first]() {
-          DoWork(target, file);
-        });
+        targets_to_check.push_back(vect_i.target);
       }
     }
+    if (targets_to_check.empty())
+      continue;
+
+    task_count_.Increment();
+    pool.PostTask([this, targets = std::move(targets_to_check),
+                   file = file.first]() { DoWork(targets, file); });
   }
 
   task_count_.Decrement();
@@ -212,9 +216,10 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files, bool force_check) {
     task_count_cv_.wait(auto_lock);
 }
 
-void HeaderChecker::DoWork(const Target* target, const SourceFile& file) {
+void HeaderChecker::DoWork(const std::vector<const Target*>& targets,
+                           const SourceFile& file) {
   std::vector<Err> errors;
-  if (!CheckFile(target, file, &errors)) {
+  if (!CheckFile(targets, file, &errors)) {
     std::lock_guard<std::mutex> lock(errors_lock_);
     errors_.insert(errors_.end(), errors.begin(), errors.end());
   }
@@ -407,7 +412,7 @@ bool HeaderChecker::ReachabilityCache::SearchBreadcrumbs(
   return true;
 }
 
-bool HeaderChecker::CheckFile(const Target* from_target,
+bool HeaderChecker::CheckFile(const std::vector<const Target*>& targets,
                               const SourceFile& file,
                               std::vector<Err>* errors) const {
   ScopedTrace trace(TraceItem::TRACE_CHECK_HEADER, file.value());
@@ -427,44 +432,54 @@ bool HeaderChecker::CheckFile(const Target* from_target,
     if (IsFileInOuputDir(file))
       return true;
 
-    errors->emplace_back(from_target->defined_from(), "Source file not found.",
-                         "The target:\n  " +
-                             from_target->label().GetUserVisibleName(false) +
-                             "\nhas a source file:\n  " + file.value() +
-                             "\nwhich was not found.");
+    for (const Target* from_target : targets) {
+      errors->emplace_back(
+          from_target->defined_from(), "Source file not found.",
+          "The target:\n  " + from_target->label().GetUserVisibleName(false) +
+              "\nhas a source file:\n  " + file.value() +
+              "\nwhich was not found.");
+    }
     return false;
   }
 
   InputFile input_file(file);
   input_file.SetContents(contents);
 
-  std::vector<SourceDir> include_dirs;
-  for (ConfigValuesIterator iter(from_target); !iter.done(); iter.Next()) {
-    const std::vector<SourceDir>& target_include_dirs =
-        iter.cur().include_dirs();
-    include_dirs.insert(include_dirs.end(), target_include_dirs.begin(),
-                        target_include_dirs.end());
-  }
-
-  size_t error_count_before = errors->size();
+  std::vector<IncludeStringWithLocation> includes;
   CIncludeIterator iter(&input_file);
-
   IncludeStringWithLocation include;
-
-  // Get the cache for the source target once for the whole file.
-  ReachabilityCache& from_target_cache =
-      GetReachabilityCacheForTarget(from_target);
-
   while (iter.GetNextIncludeString(&include)) {
     if (include.system_style_include && !check_system_)
       continue;
+    includes.push_back(include);
+  }
 
-    Err err;
-    SourceFile included_file =
-        SourceFileForInclude(include, include_dirs, input_file, &err);
-    if (!included_file.is_null()) {
-      CheckInclude(from_target_cache, input_file, included_file,
-                   include.location, errors);
+  if (includes.empty())
+    return true;
+
+  size_t error_count_before = errors->size();
+
+  for (const Target* from_target : targets) {
+    std::vector<SourceDir> include_dirs;
+    for (ConfigValuesIterator target_iter(from_target); !target_iter.done();
+         target_iter.Next()) {
+      const std::vector<SourceDir>& target_include_dirs =
+          target_iter.cur().include_dirs();
+      include_dirs.insert(include_dirs.end(), target_include_dirs.begin(),
+                          target_include_dirs.end());
+    }
+
+    ReachabilityCache& from_target_cache =
+        GetReachabilityCacheForTarget(from_target);
+
+    for (const auto& inc : includes) {
+      Err err;
+      SourceFile included_file =
+          SourceFileForInclude(inc, include_dirs, input_file, &err);
+      if (!included_file.is_null()) {
+        CheckInclude(from_target_cache, input_file, included_file, inc.location,
+                     errors);
+      }
     }
   }
 

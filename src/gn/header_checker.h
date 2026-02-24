@@ -244,7 +244,8 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // will be populate on failure.
   void RunCheckOverFiles(const FileMap& flies, bool force_check);
 
-  void DoWork(const Target* target, const SourceFile& file);
+  void DoWork(const std::vector<const Target*>& targets,
+              const SourceFile& file);
 
   // Adds the sources and public files from the given target to the given map.
   static void AddTargetToFileMap(const Target* target, FileMap* dest);
@@ -258,9 +259,9 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
                                   const InputFile& source_file,
                                   Err* err) const;
 
-  // from_target is the target the file was defined from. It will be used in
+  // targets is a list of targets using the source file. They will be used in
   // error messages.
-  bool CheckFile(const Target* from_target,
+  bool CheckFile(const std::vector<const Target*>& targets,
                  const SourceFile& file,
                  std::vector<Err>* errors) const;
 
