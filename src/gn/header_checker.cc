@@ -5,6 +5,7 @@
 #include "gn/header_checker.h"
 
 #include <algorithm>
+
 #include "base/containers/queue.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_util.h"
@@ -22,6 +23,27 @@
 #include "gn/trace.h"
 #include "util/worker_pool.h"
 
+// This class includes a list of all known files in the build and which targets
+// they are in. When CheckFile is called, it identifies which targets the file
+// is in. If it is in at least one binary target (like a static or shared
+// library, but not a config or an action), then the toolchain is following
+// the rules.
+//
+// The rules are:
+//    1. A target lists a header as public (the default) or private (detected
+//       properly).
+//
+//    2. A target lists a header as private. Then another target depends on the
+//       first target. The second target cannot include the private header.
+//       This is the more advanced check.
+//
+//    3. A target lists a header as public (the default). Then another target
+//       depends on the first target. The second target can include the public
+//       header.
+//
+//    4. A target lists a header. Another target that does not depend on the
+//       first target cannot include the header.
+//
 namespace {
 
 struct PublicGeneratedPair {
@@ -113,59 +135,6 @@ bool FriendMatches(const Target* annotation_on,
   return LabelPattern::VectorMatches(annotation_on->friends(),
                                      is_marked_friend->label());
 }
-
-// Data for BreadcrumbNode.
-//
-// This class is a trivial type so it can be used in HashTableBase.
-struct BreadcrumbNode {
-  const Target* target;
-  const Target* src_target;
-  bool is_public;
-
-  bool is_null() const { return !target; }
-  static bool is_tombstone() { return false; }
-  bool is_valid() const { return !is_null(); }
-  size_t hash_value() const { return std::hash<const Target*>()(target); }
-};
-
-struct BreadcrumbTable : public HashTableBase<BreadcrumbNode> {
-  using Base = HashTableBase<BreadcrumbNode>;
-  using Node = Base::Node;
-
-  // Since we only insert, we don't need to return success/failure.
-  // We can also assume that key uniqueness is checked before insertion if
-  // necessary, or that we simply overwrite (though BFS usually checks existence
-  // first).
-  //
-  // In IsDependencyOf, we use the return value checking if it was already
-  // there. So we need an Insert that returns whether it was new.
-  bool Insert(const Target* target, const Target* src_target, bool is_public) {
-    size_t hash = std::hash<const Target*>()(target);
-    Node* node = NodeLookup(
-        hash, [target](const Node* n) { return n->target == target; });
-
-    if (node->is_valid())
-      return false;
-
-    node->target = target;
-    node->src_target = src_target;
-    node->is_public = is_public;
-    UpdateAfterInsert(false);
-    return true;
-  }
-
-  // Returns the ChainLink for the given target, or a null-target ChainLink if
-  // not found.
-  HeaderChecker::ChainLink GetLink(const Target* target) const {
-    size_t hash = std::hash<const Target*>()(target);
-    const Node* node = NodeLookup(
-        hash, [target](const Node* n) { return n->target == target; });
-
-    if (node->is_valid())
-      return HeaderChecker::ChainLink(node->src_target, node->is_public);
-    return HeaderChecker::ChainLink();
-  }
-};
 
 }  // namespace
 
@@ -352,6 +321,92 @@ SourceFile HeaderChecker::SourceFileForInclude(
   return SourceFile();
 }
 
+void HeaderChecker::ReachabilityCache::PerformDependencyWalk(bool permitted) {
+  // Conduct the actual BFS.
+  BreadcrumbTable& breadcrumbs =
+      permitted ? permitted_breadcrumbs_ : any_breadcrumbs_;
+  bool& complete = permitted ? permitted_complete_ : any_complete_;
+
+  if (complete)
+    return;
+
+  // work_queue maintains a queue of targets which need to be considered as part
+  // of dependency chain, in the order they were first traversed. Each time a
+  // new transitive dependency of source_target_ is discovered for the first
+  // time, it is added to work_queue and a "breadcrumb" is added, indicating
+  // which target it was reached from when first discovered.
+  base::queue<const Target*> work_queue;
+  work_queue.push(source_target_);
+  breadcrumbs.Insert(source_target_, nullptr, true);
+
+  while (!work_queue.empty()) {
+    const Target* target = work_queue.front();
+    work_queue.pop();
+
+    for (const auto& dep : target->public_deps()) {
+      if (breadcrumbs.Insert(dep.ptr, target, true))
+        work_queue.push(dep.ptr);
+    }
+
+    if (!permitted || target == source_target_) {
+      // Consider all dependencies since all target paths are allowed, so add
+      // in private ones. Also do this the first time through the loop, since
+      // a target can include headers from its direct deps regardless of
+      // public/private-ness.
+      for (const auto& dep : target->private_deps()) {
+        if (breadcrumbs.Insert(dep.ptr, target, false))
+          work_queue.push(dep.ptr);
+      }
+    }
+  }
+  complete = true;
+}
+
+bool HeaderChecker::ReachabilityCache::SearchForDependencyTo(
+    const Target* search_for,
+    bool permitted,
+    Chain* chain) {
+  {
+    std::shared_lock<std::shared_mutex> read_lock(lock_);
+    if (permitted ? permitted_complete_ : any_complete_) {
+      return SearchBreadcrumbs(search_for, permitted, chain);
+    }
+  }
+
+  {
+    std::unique_lock<std::shared_mutex> write_lock(lock_);
+    if (!(permitted ? permitted_complete_ : any_complete_)) {
+      PerformDependencyWalk(permitted);
+    }
+  }
+
+  std::shared_lock<std::shared_mutex> read_lock(lock_);
+  return SearchBreadcrumbs(search_for, permitted, chain);
+}
+
+bool HeaderChecker::ReachabilityCache::SearchBreadcrumbs(
+    const Target* search_for,
+    bool permitted,
+    Chain* chain) const {
+  const BreadcrumbTable& breadcrumbs =
+      permitted ? permitted_breadcrumbs_ : any_breadcrumbs_;
+  ChainLink incoming_link = breadcrumbs.GetLink(search_for);
+  if (!incoming_link.target)
+    return false;
+
+  // Found it! Reconstruct the chain.
+  chain->clear();
+  const Target* cur = search_for;
+  while (cur != source_target_) {
+    ChainLink link = breadcrumbs.GetLink(cur);
+    chain->push_back(ChainLink(cur, link.is_public));
+    cur = link.target;
+  }
+  chain->push_back(ChainLink(source_target_, true));
+
+  return true;
+}
+
 bool HeaderChecker::CheckFile(const Target* from_target,
                               const SourceFile& file,
                               std::vector<Err>* errors) const {
@@ -396,7 +451,9 @@ bool HeaderChecker::CheckFile(const Target* from_target,
 
   IncludeStringWithLocation include;
 
-  std::set<std::pair<const Target*, const Target*>> no_dependency_cache;
+  // Get the cache for the source target once for the whole file.
+  ReachabilityCache& from_target_cache =
+      GetReachabilityCacheForTarget(from_target);
 
   while (iter.GetNextIncludeString(&include)) {
     if (include.system_style_include && !check_system_)
@@ -406,8 +463,8 @@ bool HeaderChecker::CheckFile(const Target* from_target,
     SourceFile included_file =
         SourceFileForInclude(include, include_dirs, input_file, &err);
     if (!included_file.is_null()) {
-      CheckInclude(from_target, input_file, included_file, include.location,
-                   &no_dependency_cache, errors);
+      CheckInclude(from_target_cache, input_file, included_file,
+                   include.location, errors);
     }
   }
 
@@ -420,13 +477,11 @@ bool HeaderChecker::CheckFile(const Target* from_target,
 //  - The dependency path to the included target must follow only public_deps.
 //  - If there are multiple targets with the header in it, only one need be
 //    valid for the check to pass.
-void HeaderChecker::CheckInclude(
-    const Target* from_target,
-    const InputFile& source_file,
-    const SourceFile& include_file,
-    const LocationRange& range,
-    std::set<std::pair<const Target*, const Target*>>* no_dependency_cache,
-    std::vector<Err>* errors) const {
+void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
+                                 const InputFile& source_file,
+                                 const SourceFile& include_file,
+                                 const LocationRange& range,
+                                 std::vector<Err>* errors) const {
   // Assume if the file isn't declared in our sources that we don't need to
   // check it. It would be nice if we could give an error if this happens, but
   // our include finder is too primitive and returns all includes, even if
@@ -438,6 +493,8 @@ void HeaderChecker::CheckInclude(
 
   const TargetVector& targets = found->second;
   Chain chain;  // Prevent reallocating in the loop.
+
+  const Target* from_target = from_target_cache.source_target();
 
   // If the file is unknown in the current toolchain (rather than being private
   // or in a target not visible to the current target), ignore it. This is a
@@ -485,21 +542,11 @@ void HeaderChecker::CheckInclude(
       return;
 
     bool is_permitted_chain = false;
-
-    bool cached_no_dependency =
-        no_dependency_cache->find(std::make_pair(to_target, from_target)) !=
-        no_dependency_cache->end();
-
-    bool add_to_cache = !cached_no_dependency;
-
-    if (!cached_no_dependency &&
-        IsDependencyOf(to_target, from_target, &chain, &is_permitted_chain)) {
-      add_to_cache = false;
-
+    if (IsDependencyOf(to_target, from_target_cache, &chain,
+                       &is_permitted_chain)) {
       DCHECK(chain.size() >= 2);
       DCHECK(chain[0].target == to_target);
       DCHECK(chain[chain.size() - 1].target == from_target);
-
       found_dependency = true;
 
       bool effectively_public =
@@ -532,10 +579,6 @@ void HeaderChecker::CheckInclude(
       found_dependency = true;
       last_error = Err();
       break;
-    }
-
-    if (add_to_cache) {
-      no_dependency_cache->emplace(to_target, from_target);
     }
   }
 
@@ -570,125 +613,41 @@ void HeaderChecker::CheckInclude(
   //    have the annoying false positive problem, but is complex to write.
 }
 
+HeaderChecker::ReachabilityCache& HeaderChecker::GetReachabilityCacheForTarget(
+    const Target* target) const {
+  size_t shard_index = target->label().hash() % kNumShards;
+  auto& shard = dependency_cache_[shard_index];
+  std::unique_lock<std::shared_mutex> lock(shard.lock);
+  auto it = shard.cache.find(target);
+  if (it == shard.cache.end()) {
+    it =
+        shard.cache.emplace(target, std::make_unique<ReachabilityCache>(target))
+            .first;
+  }
+  return *it->second;
+}
+
 bool HeaderChecker::IsDependencyOf(const Target* search_for,
-                                   const Target* search_from,
+                                   ReachabilityCache& from_target_cache,
                                    Chain* chain,
                                    bool* is_permitted) const {
+  const Target* search_from = from_target_cache.source_target();
   if (search_for == search_from) {
     // A target is always visible from itself.
     *is_permitted = true;
     return false;
   }
 
-  size_t hash_for = search_for->label().hash();
-  size_t hash_from = search_from->label().hash();
-  size_t shard_index = (hash_for ^ hash_from) % kNumShards;
-  auto& shard = dependency_cache_[shard_index];
-
-  {
-    std::shared_lock<std::shared_mutex> lock(shard.lock);
-    auto it = shard.cache.find(std::make_pair(search_for, search_from));
-    if (it != shard.cache.end()) {
-      if (it->second == DependencyState::kNotADependency) {
-        *is_permitted = false;
-        return false;
-      }
-      *is_permitted = (it->second == DependencyState::kPermittedDependency);
-      if (*is_permitted) {
-        // For permitted chains, we often don't need the chain itself (it's
-        // only used for error reporting). If the caller provided a null
-        // chain, we can return immediately.
-        if (!chain)
-          return true;
-      }
-      // If we need the chain, we have to re-run the BFS.
-    }
-  }
-
-  // Find the shortest public dependency chain.
-  if (IsDependencyOf(search_for, search_from, true, chain)) {
+  // 1. Try permitted dependency.
+  if (from_target_cache.SearchForDependencyTo(search_for, true, chain)) {
     *is_permitted = true;
-    std::unique_lock<std::shared_mutex> lock(shard.lock);
-    shard.cache[std::make_pair(search_for, search_from)] =
-        DependencyState::kPermittedDependency;
     return true;
   }
 
-  // If not, try to find any dependency chain at all.
-  if (IsDependencyOf(search_for, search_from, false, chain)) {
+  // 2. Try any dependency.
+  if (from_target_cache.SearchForDependencyTo(search_for, false, chain)) {
     *is_permitted = false;
-    std::unique_lock<std::shared_mutex> lock(shard.lock);
-    shard.cache[std::make_pair(search_for, search_from)] =
-        DependencyState::kNonPermittedDependency;
     return true;
-  }
-
-  *is_permitted = false;
-  std::unique_lock<std::shared_mutex> lock(shard.lock);
-  shard.cache[std::make_pair(search_for, search_from)] =
-      DependencyState::kNotADependency;
-  return false;
-}
-
-bool HeaderChecker::IsDependencyOf(const Target* search_for,
-                                   const Target* search_from,
-                                   bool require_permitted,
-                                   Chain* chain) const {
-  // This method conducts a breadth-first search through the dependency graph
-  // to find a shortest chain from search_from to search_for.
-  //
-  // work_queue maintains a queue of targets which need to be considered as
-  // part of this chain, in the order they were first traversed.
-  //
-  // Each time a new transitive dependency of search_from is discovered for
-  // the first time, it is added to work_queue and a "breadcrumb" is added,
-  // indicating which target it was reached from when first discovered.
-  //
-  // Once this search finds search_for, the breadcrumbs are used to reconstruct
-  // a shortest dependency chain (in reverse order) from search_from to
-  // search_for.
-
-  BreadcrumbTable breadcrumbs;
-
-  base::queue<ChainLink> work_queue;
-  work_queue.push(ChainLink(search_from, true));
-
-  bool first_time = true;
-  while (!work_queue.empty()) {
-    ChainLink cur_link = work_queue.front();
-    const Target* target = cur_link.target;
-    work_queue.pop();
-
-    if (target == search_for) {
-      // Found it! Reconstruct the chain.
-      chain->clear();
-      while (target != search_from) {
-        chain->push_back(cur_link);
-        ChainLink next_link = breadcrumbs.GetLink(target);
-        cur_link = next_link;
-        target = cur_link.target;
-      }
-      chain->push_back(ChainLink(search_from, true));
-      return true;
-    }
-
-    // Always consider public dependencies as possibilities.
-    for (const auto& dep : target->public_deps()) {
-      if (breadcrumbs.Insert(dep.ptr, target, cur_link.is_public))
-        work_queue.push(ChainLink(dep.ptr, true));
-    }
-
-    if (first_time || !require_permitted) {
-      // Consider all dependencies since all target paths are allowed, so add
-      // in private ones. Also do this the first time through the loop, since
-      // a target can include headers from its direct deps regardless of
-      // public/private-ness.
-      first_time = false;
-      for (const auto& dep : target->private_deps()) {
-        if (breadcrumbs.Insert(dep.ptr, target, cur_link.is_public))
-          work_queue.push(ChainLink(dep.ptr, false));
-      }
-    }
   }
 
   return false;
