@@ -6,6 +6,7 @@
 #define TOOLS_GN_HEADER_CHECKER_H_
 
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <functional>
 #include <map>
@@ -28,6 +29,7 @@ class BuildSettings;
 class InputFile;
 class SourceFile;
 class Target;
+class WorkerPool;
 
 namespace base {
 class FilePath;
@@ -196,19 +198,18 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
                                bool permitted,
                                Chain* chain);
 
+    // Conducts a breadth-first search through the dependency graph to find a
+    // shortest chain from source_target_.
+    void PerformDependencyWalk(bool permitted);
+
     const Target* source_target() const { return source_target_; }
 
    private:
     // Reconstructs the shortest dependency chain to the given target if it was
     // found during a previous walk of the given type. Returns true on success.
-    // Assumes the lock is held.
     bool SearchBreadcrumbs(const Target* search_for,
                            bool permitted,
                            Chain* chain) const;
-
-    // Conducts a breadth-first search through the dependency graph to find a
-    // shortest chain from source_target_. Assumes unique lock is held.
-    void PerformDependencyWalk(bool permitted);
 
     const Target* source_target_;
 
@@ -218,8 +219,8 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
     // Breadcrumbs for the shortest path of any type.
     BreadcrumbTable any_breadcrumbs_;
 
-    bool permitted_complete_ = false;
-    bool any_complete_ = false;
+    std::atomic<bool> permitted_complete_ = false;
+    std::atomic<bool> any_complete_ = false;
   };
 
   struct TargetInfo {
@@ -242,7 +243,9 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
 
   // Backend for Run() that takes the list of files to check. The errors_ list
   // will be populate on failure.
-  void RunCheckOverFiles(const FileMap& flies, bool force_check);
+  void RunCheckOverFiles(const FileMap& files,
+                         bool force_check,
+                         WorkerPool* pool);
 
   void DoWork(const std::vector<const Target*>& targets,
               const SourceFile& file);

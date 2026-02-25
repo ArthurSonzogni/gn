@@ -163,7 +163,46 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
     if (check->IsBinary())
       AddTargetToFileMap(check, &files_to_check);
   }
-  RunCheckOverFiles(files_to_check, force_check);
+
+  WorkerPool pool;
+  {
+    ScopedTrace precompute_trace(TraceItem::TRACE_CHECK_HEADERS,
+                                 "Precompute reachability");
+    std::set<const Target*> targets_to_precompute;
+    for (const auto& file : files_to_check) {
+      for (const auto& target_info : file.second) {
+        if (target_info.target->check_includes())
+          targets_to_precompute.insert(target_info.target);
+      }
+    }
+
+    if (!targets_to_precompute.empty()) {
+      task_count_.Increment();
+      for (const auto* target : targets_to_precompute) {
+        task_count_.Increment();
+        pool.PostTask([this, target]() {
+          ReachabilityCache& cache = GetReachabilityCacheForTarget(target);
+          cache.PerformDependencyWalk(true);
+          cache.PerformDependencyWalk(false);
+          if (!task_count_.Decrement()) {
+            std::unique_lock<std::mutex> lock(task_count_lock_);
+            task_count_cv_.notify_one();
+          }
+        });
+      }
+
+      if (!task_count_.Decrement()) {
+        std::unique_lock<std::mutex> lock(task_count_lock_);
+        task_count_cv_.notify_one();
+      }
+
+      std::unique_lock<std::mutex> lock(task_count_lock_);
+      while (!task_count_.IsZero())
+        task_count_cv_.wait(lock);
+    }
+  }
+
+  RunCheckOverFiles(files_to_check, force_check, &pool);
 
   if (errors_.empty())
     return true;
@@ -171,8 +210,9 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
   return false;
 }
 
-void HeaderChecker::RunCheckOverFiles(const FileMap& files, bool force_check) {
-  WorkerPool pool;
+void HeaderChecker::RunCheckOverFiles(const FileMap& files,
+                                      bool force_check,
+                                      WorkerPool* pool) {
   task_count_.Increment();
 
   for (const auto& file : files) {
@@ -204,11 +244,14 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files, bool force_check) {
       continue;
 
     task_count_.Increment();
-    pool.PostTask([this, targets = std::move(targets_to_check),
-                   file = file.first]() { DoWork(targets, file); });
+    pool->PostTask([this, targets = std::move(targets_to_check),
+                    file = file.first]() { DoWork(targets, file); });
   }
 
-  task_count_.Decrement();
+  if (!task_count_.Decrement()) {
+    std::unique_lock<std::mutex> lock(task_count_lock_);
+    task_count_cv_.notify_one();
+  }
 
   // Wait for all tasks posted by this method to complete.
   std::unique_lock<std::mutex> auto_lock(task_count_lock_);
@@ -328,12 +371,13 @@ SourceFile HeaderChecker::SourceFileForInclude(
 
 void HeaderChecker::ReachabilityCache::PerformDependencyWalk(bool permitted) {
   // Conduct the actual BFS.
+  if (permitted ? permitted_complete_.load(std::memory_order_relaxed)
+                : any_complete_.load(std::memory_order_relaxed)) {
+    return;
+  }
+
   BreadcrumbTable& breadcrumbs =
       permitted ? permitted_breadcrumbs_ : any_breadcrumbs_;
-  bool& complete = permitted ? permitted_complete_ : any_complete_;
-
-  if (complete)
-    return;
 
   // work_queue maintains a queue of targets which need to be considered as part
   // of dependency chain, in the order they were first traversed. Each time a
@@ -364,28 +408,30 @@ void HeaderChecker::ReachabilityCache::PerformDependencyWalk(bool permitted) {
       }
     }
   }
-  complete = true;
+  if (permitted) {
+    permitted_complete_.store(true, std::memory_order_release);
+  } else {
+    any_complete_.store(true, std::memory_order_release);
+  }
 }
 
 bool HeaderChecker::ReachabilityCache::SearchForDependencyTo(
     const Target* search_for,
     bool permitted,
     Chain* chain) {
-  {
-    std::shared_lock<std::shared_mutex> read_lock(lock_);
-    if (permitted ? permitted_complete_ : any_complete_) {
-      return SearchBreadcrumbs(search_for, permitted, chain);
-    }
+  if (permitted ? permitted_complete_.load(std::memory_order_acquire)
+                : any_complete_.load(std::memory_order_acquire)) {
+    return SearchBreadcrumbs(search_for, permitted, chain);
   }
 
   {
     std::unique_lock<std::shared_mutex> write_lock(lock_);
-    if (!(permitted ? permitted_complete_ : any_complete_)) {
+    if (!(permitted ? permitted_complete_.load(std::memory_order_relaxed)
+                    : any_complete_.load(std::memory_order_relaxed))) {
       PerformDependencyWalk(permitted);
     }
   }
 
-  std::shared_lock<std::shared_mutex> read_lock(lock_);
   return SearchBreadcrumbs(search_for, permitted, chain);
 }
 
