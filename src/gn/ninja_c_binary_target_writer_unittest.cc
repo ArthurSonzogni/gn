@@ -2586,7 +2586,7 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = blah_a
-module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm
+module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 module_deps_no_self =
 root_out_dir = withmodules
 target_out_dir = obj/blah
@@ -2632,8 +2632,8 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = b
-module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
-module_deps_no_self = -fmodule-file=blah_a=obj/blah/liba.a.pcm
+module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 root_out_dir = withmodules
 target_out_dir = obj/stuff
 target_output_name = libb
@@ -2676,8 +2676,8 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = c
-module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-file=c=obj/stuff/libc.c.pcm
-module_deps_no_self = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-map-file=../../stuff/c.modulemap -fmodule-file=c=obj/stuff/libc.c.pcm
+module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
 root_out_dir = withmodules
 target_out_dir = obj/things
 target_output_name = libc
@@ -2716,8 +2716,8 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = c
-module_deps = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
-module_deps_no_self = -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
 root_out_dir = withmodules
 target_out_dir = obj/zap
 target_output_name = c

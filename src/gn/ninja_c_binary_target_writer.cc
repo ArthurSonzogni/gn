@@ -213,6 +213,10 @@ void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
     out_ << substitution->ninja_name << " =";
     for (const auto& module_dep : module_dep_info) {
       if (!module_dep.is_self || include_self) {
+        if (module_dep.modulemap) {
+          out_ << " -fmodule-map-file=";
+          path_output_.WriteFile(out_, *module_dep.modulemap);
+        }
         out_ << " ";
         EscapeStringToStream(out_, "-fmodule-file=", options);
         EscapeStringToStream(out_, module_dep.module_name, options);

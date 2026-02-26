@@ -115,6 +115,10 @@ void SetupCompileFlags(const Target* target,
     std::ostringstream module_deps_no_self_out;
     for (const auto& module_dep : module_dep_info) {
       if (!module_dep.is_self) {
+        if (module_dep.modulemap) {
+          module_deps_no_self_out << " -fmodule-map-file=";
+          path_output.WriteFile(module_deps_no_self_out, *module_dep.modulemap);
+        }
         module_deps_no_self_out << " -fmodule-file=" << module_dep.module_name
                                 << "=";
         path_output.WriteFile(module_deps_no_self_out, module_dep.pcm);
