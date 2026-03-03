@@ -229,6 +229,8 @@ void WriteCommand(const Target* target,
     } else if (range.type == &CSubstitutionCFlagsObjCc) {
       if (source_type == SourceFile::SOURCE_MM)
         out << flags.cflags_objcc;
+    } else if (range.type == &CSubstitutionModuleName) {
+      EscapeStringToStream(out, target->module_name(), opts);
     } else if (range.type == &SubstitutionLabel ||
                range.type == &SubstitutionLabelName ||
                range.type == &SubstitutionLabelNoToolchain ||
@@ -295,7 +297,8 @@ void OutputJSON(const BuildSettings* build_settings,
       if (source_type != SourceFile::SOURCE_CPP &&
           source_type != SourceFile::SOURCE_C &&
           source_type != SourceFile::SOURCE_M &&
-          source_type != SourceFile::SOURCE_MM)
+          source_type != SourceFile::SOURCE_MM &&
+          source_type != SourceFile::SOURCE_MODULEMAP)
         continue;
 
       const char* tool_name = Tool::kToolNone;

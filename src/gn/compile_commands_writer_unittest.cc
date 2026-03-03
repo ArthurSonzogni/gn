@@ -626,8 +626,8 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       Tool::CreateTool(CTool::kCToolCxxModule);
   TestWithScope::SetCommandForTool(
       "c++ {{source}} {{cflags}} {{cflags_cc}} {{module_deps_no_self}} "
-      "{{defines}} {{include_dirs}} -fmodule-name={{label}} -c -x c++ "
-      "-Xclang -emit-module -o {{output}}",
+      "{{defines}} {{include_dirs}} -fmodule-name={{cc_module_name}} -c "
+      "-x c++ -Xclang -emit-module -o {{output}}",
       cxx_module_tool.get());
   cxx_module_tool->set_outputs(SubstitutionList::MakeForTest(
       "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.pcm"));
@@ -663,6 +663,13 @@ TEST_F(CompileCommandsTest, ModuleMap) {
   const char expected[] =
       "[\r\n"
       "  {\r\n"
+      "    \"file\": \"../../foo/foo.modulemap\",\r\n"
+      "    \"directory\": \"out/Debug\",\r\n"
+      "    \"command\": \"c++ ../../foo/foo.modulemap      "
+      "-fmodule-name=module -c -x c++ -Xclang -emit-module -o  "
+      "withmodules/obj/foo/module.foo.pcm\"\r\n"
+      "  },\r\n"
+      "  {\r\n"
       "    \"file\": \"../../foo/dep.cc\",\r\n"
       "    \"directory\": \"out/Debug\",\r\n"
       "    \"command\": \"c++ ../../foo/dep.cc    "
@@ -673,6 +680,13 @@ TEST_F(CompileCommandsTest, ModuleMap) {
 #else
   const char expected[] =
       "[\n"
+      "  {\n"
+      "    \"file\": \"../../foo/foo.modulemap\",\n"
+      "    \"directory\": \"out/Debug\",\n"
+      "    \"command\": \"c++ ../../foo/foo.modulemap      "
+      "-fmodule-name=module -c -x c++ -Xclang -emit-module -o  "
+      "withmodules/obj/foo/module.foo.pcm\"\n"
+      "  },\n"
       "  {\n"
       "    \"file\": \"../../foo/dep.cc\",\n"
       "    \"directory\": \"out/Debug\",\n"
