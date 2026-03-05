@@ -273,8 +273,6 @@ bool Value::operator==(const Value& other) const {
     case Value::LIST:
       if (list_ptr_ == other.list_ptr_)
         return true;
-      if (!list_ptr_ || !other.list_ptr_)
-        return false;
       return list_value() == other.list_value();
     case Value::SCOPE:
       return scope_value()->CheckCurrentScopeValuesEqual(other.scope_value());
