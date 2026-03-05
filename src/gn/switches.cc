@@ -65,6 +65,17 @@ const char kDotfile_Help[] =
   use a different file.
 )";
 
+const char kErrorLimit[] = "error-limit";
+const char kErrorLimit_HelpShort[] =
+    "--error-limit: Limit the number of errors or warnings to print.";
+const char kErrorLimit_Help[] =
+    R"(--error-limit: Limit the number of errors or warnings to print.
+
+  By default, GN limits the number of printed errors or warnings to 10.
+  Setting this will change the limit. Passing -1 will print all errors
+  and warnings without any limit.
+)";
+
 const char kFailOnUnusedArgs[] = "fail-on-unused-args";
 const char kFailOnUnusedArgs_HelpShort[] =
     "--fail-on-unused-args: Treat unused build args as fatal errors.";
@@ -333,6 +344,7 @@ const SwitchInfoMap& GetSwitches() {
     INSERT_VARIABLE(Args)
     INSERT_VARIABLE(Color)
     INSERT_VARIABLE(Dotfile)
+    INSERT_VARIABLE(ErrorLimit)
     INSERT_VARIABLE(FailOnUnusedArgs)
     INSERT_VARIABLE(Markdown)
     INSERT_VARIABLE(NinjaExecutable)

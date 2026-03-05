@@ -8484,6 +8484,7 @@
     *   --args: Specifies build arguments overrides.
     *   --color: Force colored output.
     *   --dotfile: Override the name of the ".gn" file.
+    *   --error-limit: Limit the number of errors or warnings to print.
     *   --fail-on-unused-args: Treat unused build args as fatal errors.
     *   --markdown: Write help output in the Markdown format.
     *   --ninja-executable: Set the Ninja executable.
