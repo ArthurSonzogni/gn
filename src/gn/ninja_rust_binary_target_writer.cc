@@ -139,6 +139,12 @@ void NinjaRustBinaryTargetWriter::Run() {
   implicit_deps.Append(classified_deps.extra_object_files.begin(),
                        classified_deps.extra_object_files.end());
 
+  if (auto phony = tool_->inputs_phony_or_file(rule_prefix_,
+                                               *settings_->build_settings());
+      phony) {
+    implicit_deps.emplace_back(std::move(*phony));
+  }
+
   std::vector<OutputFile> rustdeps;
   std::vector<OutputFile> nonrustdeps;
   std::vector<OutputFile> swiftmodules;
@@ -213,7 +219,7 @@ void NinjaRustBinaryTargetWriter::Run() {
   SubstitutionWriter::ApplyListToLinkerAsOutputFile(
       target_, tool_, tool_->outputs(), &tool_outputs);
   WriteCompilerBuildLine({target_->rust_values().crate_root()},
-                         implicit_deps.vector(), order_only_deps, tool_->name(),
+                         implicit_deps.vector(), order_only_deps, tool_,
                          tool_outputs);
 
   std::vector<const Target*> extern_deps(

@@ -56,7 +56,7 @@ class NinjaBinaryTargetWriter : public NinjaTargetWriter {
   void WriteCompilerBuildLine(const std::vector<SourceFile>& sources,
                               const std::vector<OutputFile>& extra_deps,
                               const std::vector<OutputFile>& order_only_deps,
-                              const char* tool_name,
+                              const Tool* tool,
                               const std::vector<OutputFile>& outputs,
                               bool can_write_source_info = true,
                               bool restat_output_allowed = false);

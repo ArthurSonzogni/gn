@@ -2847,3 +2847,67 @@ TEST_F(NinjaCBinaryTargetWriterTest, Pool) {
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
 }
+
+TEST_F(NinjaCBinaryTargetWriterTest, ToolInputs) {
+  Err err;
+  TestWithScope setup;
+
+  Toolchain toolchain_with_inputs(
+      setup.settings(),
+      Label(SourceDir("//toolchain_with_inputs/"), "with_inputs"));
+
+  std::unique_ptr<Tool> cxx_tool = Tool::CreateTool(CTool::kCToolCxx);
+  TestWithScope::SetCommandForTool(
+      "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} "
+      "-o {{output}}",
+      cxx_tool.get());
+  cxx_tool->set_outputs(SubstitutionList::MakeForTest(
+      "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o"));
+  cxx_tool->set_inputs({SourceFile("//bin/clang++")});
+  toolchain_with_inputs.SetTool(std::move(cxx_tool));
+
+  std::unique_ptr<Tool> link = Tool::CreateTool(CTool::kCToolLink);
+  TestWithScope::SetCommandForTool(
+      "ld -o {{target_output_name}} {{source}} {{ldflags}} {{libs}}",
+      link.get());
+  link->set_outputs(
+      SubstitutionList::MakeForTest("{{root_out_dir}}/{{target_output_name}}"));
+  link->set_inputs(
+      {SourceFile("//bin/lld"), SourceFile("//bin/link_wrapper.py")});
+  toolchain_with_inputs.SetTool(std::move(link));
+
+  toolchain_with_inputs.ToolchainSetupComplete();
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.sources().push_back(SourceFile("//foo/source.cc"));
+  target.set_output_type(Target::EXECUTABLE);
+  target.visibility().SetPublic();
+  target.SetToolchain(&toolchain_with_inputs);
+  ASSERT_TRUE(target.OnResolved(&err));
+
+  std::ostringstream out;
+  NinjaBinaryTargetWriter writer(&target, out);
+  writer.Run();
+
+  const char expected[] =
+      "defines =\n"
+      "include_dirs =\n"
+      "root_out_dir = .\n"
+      "target_output_name = bar\n"
+      "\n"
+      "build obj/foo/bar.source.o: cxx ../../foo/source.cc | "
+      "../../bin/clang++\n"
+      "  source_file_part = source.cc\n"
+      "  source_name_part = source\n"
+      "\n"
+      "build ./bar: link obj/foo/bar.source.o | "
+      "phony/link_inputs\n"
+      "  ldflags =\n"
+      "  libs =\n"
+      "  frameworks =\n"
+      "  swiftmodules =\n"
+      "  output_extension =\n"
+      "  output_dir =\n";
+  std::string out_str = out.str();
+  EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+}

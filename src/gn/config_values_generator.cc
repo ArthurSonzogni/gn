@@ -34,8 +34,9 @@ void GetStringList(Scope* scope,
   for (size_t i = 0; i < strings.size(); i++) {
     if (strings[i].find('\n') != std::string::npos) {
       *err = Err(value->list_value()[i],
-                 "Newlines in " + std::string(var_name) + " values are not "
-                 "supported.",
+                 "Newlines in " + std::string(var_name) +
+                     " values are not "
+                     "supported.",
                  "The value `" + strings[i] + "` contains a newline.");
       return;
     }

@@ -4477,6 +4477,11 @@
 
     This concept is somewhat inefficient to express in Ninja (it requires a lot
     of duplicate of rules) so should only be used when absolutely necessary.
+
+  inputs [string list]
+    A list of files needed to execute the tool.
+    For example, if your tool command is "python3 foo.py", and foo.py imports
+    bar.py, you should set inputs to [ "foo.py", "bar.py" ].
 ```
 
 #### **Example of defining a toolchain**

@@ -160,8 +160,8 @@ TEST(ConfigValuesGenerator, DefinesWithNewlineError) {
   setup.scope()->SetValue("defines", defines_value, nullptr);
 
   ConfigValues config_values;
-  ConfigValuesGenerator gen(&config_values, setup.scope(),
-                            SourceDir("//foo/"), &err);
+  ConfigValuesGenerator gen(&config_values, setup.scope(), SourceDir("//foo/"),
+                            &err);
   gen.Run();
   EXPECT_TRUE(err.has_error());
   EXPECT_EQ(err.message(), "Newlines in defines values are not supported.");
@@ -177,8 +177,8 @@ TEST(ConfigValuesGenerator, CflagsWithNewlineError) {
   setup.scope()->SetValue("cflags", cflags_value, nullptr);
 
   ConfigValues config_values;
-  ConfigValuesGenerator gen(&config_values, setup.scope(),
-                            SourceDir("//foo/"), &err);
+  ConfigValuesGenerator gen(&config_values, setup.scope(), SourceDir("//foo/"),
+                            &err);
   gen.Run();
   EXPECT_TRUE(err.has_error());
   EXPECT_EQ(err.message(), "Newlines in cflags values are not supported.");
