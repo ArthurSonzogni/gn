@@ -27,6 +27,19 @@ void GetStringList(Scope* scope,
     return;  // No value, empty input and succeed.
 
   ExtractListOfStringValues(*value, &(config_values->*accessor)(), err);
+  if (err->has_error())
+    return;
+
+  const auto& strings = (config_values->*accessor)();
+  for (size_t i = 0; i < strings.size(); i++) {
+    if (strings[i].find('\n') != std::string::npos) {
+      *err = Err(value->list_value()[i],
+                 "Newlines in " + std::string(var_name) + " values are not "
+                 "supported.",
+                 "The value `" + strings[i] + "` contains a newline.");
+      return;
+    }
+  }
 }
 
 void GetDirList(Scope* scope,
