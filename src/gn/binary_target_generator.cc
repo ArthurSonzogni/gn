@@ -14,7 +14,9 @@
 #include "gn/rust_variables.h"
 #include "gn/scope.h"
 #include "gn/settings.h"
+#include "gn/source_file.h"
 #include "gn/swift_values_generator.h"
+#include "gn/target.h"
 #include "gn/value_extractors.h"
 #include "gn/variables.h"
 
@@ -71,6 +73,9 @@ void BinaryTargetGenerator::DoRun() {
     return;
 
   if (!FillModuleName())
+    return;
+
+  if (!FillModuleType())
     return;
 
   if (target_->source_types_used().RustSourceUsed()) {
@@ -282,5 +287,42 @@ bool BinaryTargetGenerator::FillModuleName() {
   if (!value->VerifyTypeIs(Value::STRING, err_))
     return false;
   target_->set_module_name(value->string_value());
+  return true;
+}
+
+bool BinaryTargetGenerator::FillModuleType() {
+  // Put this first so it gets marked as used even if it's unnecessary.
+  const Value* generate_modulemap_val =
+      scope_->GetValue(variables::kGenerateModulemap, true);
+
+  if (target_->source_types_used().Get(SourceFile::SOURCE_MODULEMAP)) {
+    target_->set_module_type(Target::EXPLICIT_MODULEMAP);
+    return true;
+  }
+
+  if (target_->all_headers_public()
+          ? !target_->source_types_used().Get(SourceFile::SOURCE_H)
+          : target_->public_headers().empty()) {
+    target_->set_module_type(Target::UNNECESSARY_MODULEMAP);
+    return true;
+  }
+
+  if (!generate_modulemap_val) {
+    return true;
+  }
+
+  generate_modulemap_val->VerifyTypeIs(Value::STRING, err_);
+  if (err_->has_error()) {
+    return false;
+  }
+  auto value = generate_modulemap_val->string_value();
+  if (value == "textual") {
+    target_->set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  } else if (value != "none") {
+    *err_ = Err(*generate_modulemap_val,
+                "Invalid value for generate_modulemap. Expected \"textual\" or "
+                "\"none\"");
+    return false;
+  }
   return true;
 }

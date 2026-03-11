@@ -2271,6 +2271,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInStaticLibrary) {
   target.sources().push_back(SourceFile("//foo/bar.modulemap"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
   target.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
+  target.set_module_type(Target::EXPLICIT_MODULEMAP);
   ASSERT_TRUE(target.OnResolved(&err));
 
   std::ostringstream out;
@@ -2312,6 +2313,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInSourceSet) {
   target.sources().push_back(SourceFile("//foo/bar.modulemap"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
   target.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
+  target.set_module_type(Target::EXPLICIT_MODULEMAP);
   ASSERT_TRUE(target.OnResolved(&err));
 
   std::ostringstream out;
@@ -2572,6 +2574,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
   target.sources().push_back(SourceFile("//blah/a.h"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
   target.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
+  target.set_module_type(Target::EXPLICIT_MODULEMAP);
   target.SetToolchain(&module_toolchain);
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -2617,6 +2620,7 @@ build obj/blah/liba.a: alink obj/blah/liba.a.o
   target2.sources().push_back(SourceFile("//stuff/b.h"));
   target2.source_types_used().Set(SourceFile::SOURCE_CPP);
   target2.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
+  target2.set_module_type(Target::EXPLICIT_MODULEMAP);
   target2.public_deps().push_back(LabelTargetPair(&target));
   target2.SetToolchain(&module_toolchain);
   ASSERT_TRUE(target2.OnResolved(&err));
@@ -2632,7 +2636,7 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = b
-module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 root_out_dir = withmodules
 target_out_dir = obj/stuff
@@ -2641,7 +2645,7 @@ target_output_name = libb
 build obj/stuff/libb.b.pcm: cxx_module ../../stuff/b.modulemap | obj/blah/liba.a.pcm
   source_file_part = b.modulemap
   source_name_part = b
-build obj/stuff/libb.b.o: cxx ../../stuff/b.cc | obj/blah/liba.a.pcm obj/stuff/libb.b.pcm
+build obj/stuff/libb.b.o: cxx ../../stuff/b.cc | obj/stuff/libb.b.pcm obj/blah/liba.a.pcm
   source_file_part = b.cc
   source_name_part = b
 
@@ -2660,6 +2664,7 @@ build obj/stuff/libb.a: alink obj/stuff/libb.b.o || obj/blah/liba.a
   target3.visibility().SetPublic();
   target3.sources().push_back(SourceFile("//stuff/c.modulemap"));
   target3.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
+  target3.set_module_type(Target::EXPLICIT_MODULEMAP);
   target3.public_deps().push_back(LabelTargetPair(&target2));
   target3.SetToolchain(&module_toolchain);
   ASSERT_TRUE(target3.OnResolved(&err));
@@ -2676,13 +2681,13 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = c
-module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-map-file=../../stuff/c.modulemap -fmodule-file=c=obj/stuff/libc.c.pcm
-module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/c.modulemap -fmodule-file=c=obj/stuff/libc.c.pcm
+module_deps_no_self = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 root_out_dir = withmodules
 target_out_dir = obj/things
 target_output_name = libc
 
-build obj/stuff/libc.c.pcm: cxx_module ../../stuff/c.modulemap | obj/blah/liba.a.pcm obj/stuff/libb.b.pcm
+build obj/stuff/libc.c.pcm: cxx_module ../../stuff/c.modulemap | obj/stuff/libb.b.pcm obj/blah/liba.a.pcm
   source_file_part = c.modulemap
   source_name_part = c
 
@@ -2716,16 +2721,16 @@ include_dirs =
 cflags =
 cflags_cc =
 cc_module_name = c
-module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
-module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm
+module_deps = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
+module_deps_no_self = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=b=obj/stuff/libb.b.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 root_out_dir = withmodules
 target_out_dir = obj/zap
 target_output_name = c
 
-build obj/zap/c.x.o: cxx ../../zap/x.cc | obj/blah/liba.a.pcm obj/stuff/libb.b.pcm
+build obj/zap/c.x.o: cxx ../../zap/x.cc | obj/stuff/libb.b.pcm obj/blah/liba.a.pcm
   source_file_part = x.cc
   source_name_part = x
-build obj/zap/c.y.o: cxx ../../zap/y.cc | obj/blah/liba.a.pcm obj/stuff/libb.b.pcm
+build obj/zap/c.y.o: cxx ../../zap/y.cc | obj/stuff/libb.b.pcm obj/blah/liba.a.pcm
   source_file_part = y.cc
   source_name_part = y
 
@@ -2910,4 +2915,89 @@ TEST_F(NinjaCBinaryTargetWriterTest, ToolInputs) {
       "  output_dir =\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+}
+
+TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
+  Err err;
+  TestWithScope setup;
+
+  // Let's create a target and give it public headers.
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.set_output_type(Target::SOURCE_SET);
+  target.visibility().SetPublic();
+  target.sources().push_back(SourceFile("//foo/source1.cc"));
+  target.public_headers().push_back(SourceFile("//foo/public_header.h"));
+  target.source_types_used().Set(SourceFile::SOURCE_CPP);
+  target.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target.OnResolved(&err));
+
+  std::ostringstream ninja_out;
+  NinjaCBinaryTargetWriter writer(&target, ninja_out);
+
+  std::ostringstream modulemap_out;
+  SourceDir out_dir("//out/Debug/gen/");
+
+  writer.WriteModuleMap(modulemap_out, out_dir);
+
+  const char expected_modulemap[] =
+      "module \"bar\" {\n"
+      "  textual header \"../../../foo/public_header.h\"\n"
+      "  export *\n"
+      "}\n";
+
+  std::string modulemap_str = modulemap_out.str();
+  EXPECT_EQ(expected_modulemap, modulemap_str) << expected_modulemap << "\n"
+                                               << modulemap_str;
+
+  const char expected_ninja[] =
+      "defines =\n"
+      "include_dirs =\n"
+      "cflags =\n"
+      "cflags_cc =\n"
+      "root_out_dir = .\n"
+      "target_gen_dir = gen/foo\n"
+      "target_out_dir = obj/foo\n"
+      "target_output_name = bar\n"
+      "\n"
+      "build obj/foo/bar.source1.o: cxx ../../foo/source1.cc\n"
+      "  source_file_part = source1.cc\n"
+      "  source_name_part = source1\n"
+      "\n"
+      "build phony/foo/bar: phony obj/foo/bar.source1.o\n";
+  writer.Run();
+  std::string ninja_str = ninja_out.str();
+  EXPECT_EQ(expected_ninja, ninja_str) << expected_ninja << "\n" << ninja_str;
+
+  // Test generation without explicit public headers (uses sources instead)
+  Target target_no_public(setup.settings(),
+                          Label(SourceDir("//foo/"), "no_public"));
+  target_no_public.set_output_type(Target::SOURCE_SET);
+  target_no_public.visibility().SetPublic();
+  target_no_public.sources().push_back(SourceFile("//foo/source1.cc"));
+  target_no_public.sources().push_back(SourceFile("//foo/header1.h"));
+  target_no_public.source_types_used().Set(SourceFile::SOURCE_CPP);
+  target_no_public.source_types_used().Set(SourceFile::SOURCE_H);
+  target_no_public.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  target_no_public.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target_no_public.OnResolved(&err));
+
+  std::ostringstream ninja_out_no_public;
+  NinjaCBinaryTargetWriter writer_no_public(&target_no_public,
+                                            ninja_out_no_public);
+
+  std::ostringstream modulemap_out_no_public;
+
+  writer_no_public.WriteModuleMap(modulemap_out_no_public, out_dir);
+
+  const char expected_modulemap_no_public[] =
+      "module \"no_public\" {\n"
+      "  textual header \"../../../foo/header1.h\"\n"
+      "  export *\n"
+      "}\n";
+
+  std::string modulemap_str_no_public = modulemap_out_no_public.str();
+  EXPECT_EQ(expected_modulemap_no_public, modulemap_str_no_public)
+      << expected_modulemap_no_public << "\n"
+      << modulemap_str_no_public;
 }

@@ -640,6 +640,7 @@ TEST_F(CompileCommandsTest, ModuleMap) {
   module_target.visibility().SetPublic();
   module_target.sources().push_back(SourceFile("//foo/foo.modulemap"));
   module_target.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
+  module_target.set_module_type(Target::EXPLICIT_MODULEMAP);
   module_target.SetToolchain(&module_toolchain);
   ASSERT_TRUE(module_target.OnResolved(&err));
 
@@ -673,6 +674,7 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"file\": \"../../foo/dep.cc\",\r\n"
       "    \"directory\": \"out/Debug\",\r\n"
       "    \"command\": \"c++ ../../foo/dep.cc    "
+      "-fmodule-map-file=../../foo/foo.modulemap "
       "-fmodule-file=module=withmodules/obj/foo/module.foo.pcm   -o  "
       "withmodules/obj/foo/dep.dep.o\"\r\n"
       "  }\r\n"
@@ -691,6 +693,7 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"file\": \"../../foo/dep.cc\",\n"
       "    \"directory\": \"out/Debug\",\n"
       "    \"command\": \"c++ ../../foo/dep.cc    "
+      "-fmodule-map-file=../../foo/foo.modulemap "
       "-fmodule-file=module=withmodules/obj/foo/module.foo.pcm   -o  "
       "withmodules/obj/foo/dep.dep.o\"\n"
       "  }\n"

@@ -21,6 +21,7 @@ class NinjaBinaryTargetWriter : public NinjaTargetWriter {
   ~NinjaBinaryTargetWriter() override;
 
   void Run() override;
+  void WriteModuleMap(std::ostream& out, const SourceDir& out_dir);
 
  protected:
   // Structure used to return the classified deps from |GetDeps| method.

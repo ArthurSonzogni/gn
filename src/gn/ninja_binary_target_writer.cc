@@ -18,6 +18,7 @@
 #include "gn/ninja_utils.h"
 #include "gn/pool.h"
 #include "gn/settings.h"
+#include "gn/string_output_buffer.h"
 #include "gn/string_utils.h"
 #include "gn/substitution_writer.h"
 #include "gn/target.h"
@@ -54,6 +55,28 @@ void NinjaBinaryTargetWriter::Run() {
   writer.SetResolvedTargetData(GetResolvedTargetData());
   writer.SetNinjaOutputs(ninja_outputs_);
   writer.Run();
+}
+
+void NinjaBinaryTargetWriter::WriteModuleMap(std::ostream& out,
+                                             const SourceDir& out_dir) {
+  out << "module \"" << target_->module_name() << "\" {\n";
+  if (target_->all_headers_public()) {
+    for (const auto& header : target_->sources()) {
+      if (header.GetType() == SourceFile::SOURCE_H) {
+        out << "  textual header \"";
+        out << RebasePath(header.value(), out_dir,
+                          settings_->build_settings()->root_path_utf8());
+        out << "\"\n";
+      }
+    }
+  }
+  for (const auto& header : target_->public_headers()) {
+    out << "  textual header \"";
+    out << RebasePath(header.value(), out_dir,
+                      settings_->build_settings()->root_path_utf8());
+    out << "\"\n";
+  }
+  out << "  export *\n}\n";
 }
 
 std::vector<OutputFile>

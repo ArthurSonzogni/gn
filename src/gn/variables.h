@@ -80,6 +80,10 @@ extern const char kTargetOutDir[];
 extern const char kTargetOutDir_HelpShort[];
 extern const char kTargetOutDir_Help[];
 
+extern const char kGenerateModulemap[];
+extern const char kGenerateModulemap_HelpShort[];
+extern const char kGenerateModulemap_Help[];
+
 // Target vars -----------------------------------------------------------------
 
 extern const char kAllDependentConfigs[];

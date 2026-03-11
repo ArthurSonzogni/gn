@@ -405,6 +405,18 @@ Example
   }
 )";
 
+const char kGenerateModulemap[] = "generate_modulemap";
+const char kGenerateModulemap_HelpShort[] =
+    "generate_modulemap: [string] Mode for generating modulemaps.";
+const char kGenerateModulemap_Help[] =
+    R"(generate_modulemap: [string] Mode for generating modulemaps.
+
+Possible values:
+  "none" (default): Don't generate a modulemap file for the target.
+  "textual": Generate a modulemap file for the target.
+    All public headers will be marked as textual.
+)";
+
 // Target variables ------------------------------------------------------------
 
 #define COMMON_ORDERING_HELP                                                 \
@@ -2429,6 +2441,7 @@ const VariableInfoMap& GetBuiltinVariables() {
     INSERT_VARIABLE(CurrentOs)
     INSERT_VARIABLE(CurrentToolchain)
     INSERT_VARIABLE(DefaultToolchain)
+    INSERT_VARIABLE(GenerateModulemap)
     INSERT_VARIABLE(GnVersion)
     INSERT_VARIABLE(HostCpu)
     INSERT_VARIABLE(HostOs)

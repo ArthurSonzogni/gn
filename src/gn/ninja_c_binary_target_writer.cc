@@ -63,7 +63,7 @@ NinjaCBinaryTargetWriter::NinjaCBinaryTargetWriter(const Target* target,
 NinjaCBinaryTargetWriter::~NinjaCBinaryTargetWriter() = default;
 
 void NinjaCBinaryTargetWriter::Run() {
-  std::vector<ClangModuleDep> module_dep_info =
+  std::set<ClangModuleDep> module_dep_info =
       GetModuleDepsInformation(target_, resolved());
 
   WriteCompilerVars(module_dep_info);
@@ -169,7 +169,7 @@ void NinjaCBinaryTargetWriter::Run() {
 }
 
 void NinjaCBinaryTargetWriter::WriteCompilerVars(
-    const std::vector<ClangModuleDep>& module_dep_info) {
+    const std::set<ClangModuleDep>& module_dep_info) {
   const SubstitutionBits& subst = target_->toolchain()->substitution_bits();
 
   WriteCCompilerVars(subst, /*indent=*/false,
@@ -204,7 +204,7 @@ void NinjaCBinaryTargetWriter::WriteModuleNameSubstitution() {
 
 void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
     const Substitution* substitution,
-    const std::vector<ClangModuleDep>& module_dep_info,
+    const std::set<ClangModuleDep>& module_dep_info,
     bool include_self) {
   if (target_->toolchain()->substitution_bits().used.count(substitution)) {
     EscapeOptions options;
@@ -213,15 +213,7 @@ void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
     out_ << substitution->ninja_name << " =";
     for (const auto& module_dep : module_dep_info) {
       if (!module_dep.is_self || include_self) {
-        if (module_dep.modulemap) {
-          out_ << " -fmodule-map-file=";
-          path_output_.WriteFile(out_, *module_dep.modulemap);
-        }
-        out_ << " ";
-        EscapeStringToStream(out_, "-fmodule-file=", options);
-        EscapeStringToStream(out_, module_dep.module_name, options);
-        out_ << "=";
-        path_output_.WriteFile(out_, module_dep.pcm);
+        module_dep.Write(out_, path_output_);
       }
     }
 
@@ -390,7 +382,7 @@ void NinjaCBinaryTargetWriter::WriteSources(
     const std::vector<OutputFile>& pch_deps,
     const std::vector<OutputFile>& input_deps,
     const std::vector<OutputFile>& order_only_deps,
-    const std::vector<ClangModuleDep>& module_dep_info,
+    const std::set<ClangModuleDep>& module_dep_info,
     std::vector<OutputFile>* object_files,
     std::vector<OutputFile>* extra_files,
     std::vector<SourceFile>* other_files) {
@@ -444,8 +436,8 @@ void NinjaCBinaryTargetWriter::WriteSources(
       }
 
       for (const auto& module_dep : module_dep_info) {
-        if (tool_outputs[0] != module_dep.pcm)
-          deps.push_back(module_dep.pcm);
+        if (module_dep.pcm && tool_outputs[0] != *module_dep.pcm)
+          deps.push_back(*module_dep.pcm);
       }
 
       WriteCompilerBuildLine({source}, deps, order_only_deps, tool,

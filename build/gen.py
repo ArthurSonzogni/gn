@@ -828,6 +828,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/args_unittest.cc',
         'src/gn/builder_record_map_unittest.cc',
         'src/gn/builder_unittest.cc',
+        'src/gn/binary_target_generator_unittest.cc',
         'src/gn/bundle_data_unittest.cc',
         'src/gn/c_include_iterator_unittest.cc',
         'src/gn/command_format_unittest.cc',

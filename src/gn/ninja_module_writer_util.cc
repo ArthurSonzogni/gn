@@ -6,56 +6,67 @@
 
 #include <algorithm>
 #include <set>
+#include <utility>
 
 #include "gn/resolved_target_data.h"
 #include "gn/substitution_writer.h"
 #include "gn/target.h"
 
-namespace {
-
-// Returns the first source file in the target's sources that is a modulemap
-// file. Returns nullptr if no modulemap file is found.
-const SourceFile* GetModuleMapFromTargetSources(const Target* target) {
-  for (const SourceFile& sf : target->sources()) {
-    if (sf.IsModuleMapType())
-      return &sf;
-  }
-  return nullptr;
-}
-
-}  // namespace
-
 ClangModuleDep::ClangModuleDep(const SourceFile* modulemap,
                                const std::string& module_name,
-                               const OutputFile& pcm,
+                               std::optional<OutputFile> pcm,
                                bool is_self)
     : modulemap(modulemap),
       module_name(module_name),
-      pcm(pcm),
+      pcm(std::move(pcm)),
       is_self(is_self) {}
 
-std::vector<ClangModuleDep> GetModuleDepsInformation(
+std::strong_ordering ClangModuleDep::operator<=>(
+    const ClangModuleDep& other) const {
+  // Sort by (module name, modulemap path, module file path)
+  if (auto cmp = module_name <=> other.module_name; cmp != 0)
+    return cmp;
+  if (modulemap && other.modulemap) {
+    if (auto cmp = *modulemap <=> *other.modulemap; cmp != 0)
+      return cmp;
+  } else {
+    if (auto cmp = modulemap <=> other.modulemap; cmp != 0)
+      return cmp;
+  }
+  // std::optional doesn't support <=> on older versions of mac.
+  if (pcm.has_value() && other.pcm.has_value()) {
+    return *pcm <=> *other.pcm;
+  } else {
+    return pcm.has_value() <=> other.pcm.has_value();
+  }
+}
+
+std::set<ClangModuleDep> GetModuleDepsInformation(
     const Target* target,
     const ResolvedTargetData& resolved) {
-  std::vector<ClangModuleDep> ret;
-  // Use a set to keep track of added PCM files to ensure uniqueness.
-  std::set<OutputFile> added_pcms;
+  std::set<ClangModuleDep> ret;
 
-  auto add_if_new = [&added_pcms, &ret](const Target* t, bool is_self) {
-    const SourceFile* modulemap = GetModuleMapFromTargetSources(t);
-    if (!modulemap)  // Not a module or no .modulemap file.
-      return;
-
-    const char* tool_type;
-    std::vector<OutputFile> modulemap_outputs;
-    CHECK(
-        t->GetOutputFilesForSource(*modulemap, &tool_type, &modulemap_outputs));
-    CHECK(modulemap_outputs.size() == 1u);  // Must be only one .pcm.
-    const OutputFile& pcm_file = modulemap_outputs[0];
-
-    if (added_pcms.insert(pcm_file).second) {
-      // GN sets the module name to the name of the target.
-      ret.emplace_back(modulemap, t->module_name(), pcm_file, is_self);
+  auto add_if_new = [&ret](const Target* t, bool is_self) {
+    std::optional<OutputFile> pcm = std::nullopt;
+    switch (t->module_type()) {
+      case Target::GENERATED_TEXTUAL_MODULEMAP:
+        ret.emplace(t->modulemap_file(), t->module_name(), std::nullopt,
+                    is_self);
+        break;
+      case Target::EXPLICIT_MODULEMAP: {
+        auto modulemap = t->modulemap_file();
+        CHECK(modulemap != nullptr);
+        const char* tool_type;
+        std::vector<OutputFile> modulemap_outputs;
+        CHECK(t->GetOutputFilesForSource(*modulemap, &tool_type,
+                                         &modulemap_outputs));
+        CHECK(modulemap_outputs.size() == 1u);
+        ret.emplace(modulemap, t->module_name(),
+                    std::move(modulemap_outputs[0]), is_self);
+        break;
+      }
+      default:
+        break;
     }
   };
 
@@ -65,11 +76,17 @@ std::vector<ClangModuleDep> GetModuleDepsInformation(
   for (const auto& pair : resolved.GetModuleDepsInformation(target))
     add_if_new(pair.target(), false);
 
-  // Sort by pcm path for deterministic output.
-  std::sort(ret.begin(), ret.end(),
-            [](const ClangModuleDep& a, const ClangModuleDep& b) {
-              return a.pcm < b.pcm;
-            });
-
   return ret;
+}
+
+void ClangModuleDep::Write(std::ostream& out,
+                           const PathOutput& path_output) const {
+  if (modulemap) {
+    out << " -fmodule-map-file=";
+    path_output.WriteFile(out, *modulemap);
+  }
+  if (pcm) {
+    out << " -fmodule-file=" << module_name << "=";
+    path_output.WriteFile(out, *pcm);
+  }
 }

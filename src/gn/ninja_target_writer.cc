@@ -166,6 +166,17 @@ std::string NinjaTargetWriter::RunAndWriteFile(
     NinjaBinaryTargetWriter writer(target, rules);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
+    if (target->module_type() == Target::GENERATED_TEXTUAL_MODULEMAP) {
+      const SourceFile* modulemap = target->modulemap_file();
+      CHECK(modulemap);
+      StringOutputBuffer modulemap_storage;
+      std::ostream os(&modulemap_storage);
+      writer.WriteModuleMap(os, modulemap->GetDir());
+
+      base::FilePath file_path =
+          settings->build_settings()->GetFullPath(*modulemap);
+      modulemap_storage.WriteToFileIfChanged(file_path, nullptr);
+    }
     writer.Run();
   } else {
     CHECK(0) << "Output type of target not handled.";

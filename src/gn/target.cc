@@ -1392,3 +1392,36 @@ bool Target::GetMetadata(const std::vector<std::string>& keys_to_extract,
                  std::make_move_iterator(current_result.end()));
   return true;
 }
+
+void Target::set_module_type(ModuleType type) {
+  module_type_ = type;
+  switch (type) {
+    case GENERATED_TEXTUAL_MODULEMAP: {
+      auto source_dir =
+          GetBuildDirForTargetAsOutputFile(this, BuildDirType::GEN)
+              .AsSourceDir(settings()->build_settings());
+
+      generated_modulemap_file_ = SourceFile(
+          base::StringPrintf("%s%s.modulemap", source_dir.value().c_str(),
+                             label().name().c_str()));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+const SourceFile* Target::modulemap_file() const {
+  switch (module_type_) {
+    case GENERATED_TEXTUAL_MODULEMAP:
+      return &generated_modulemap_file_;
+    case EXPLICIT_MODULEMAP:
+      for (const SourceFile& sf : sources_) {
+        if (sf.IsModuleMapType()) {
+          return &sf;
+        }
+      }
+    default:
+      return nullptr;
+  }
+}

@@ -104,6 +104,13 @@ class SourceFile {
   bool operator<(const SourceFile& other) const {
     return value_ < other.value_;
   }
+  // Needs to be overridden because == has custom logic.
+  std::strong_ordering operator<=>(const SourceFile& other) const {
+    if (*this == other)
+      return std::strong_ordering::equal;
+    return *this < other ? std::strong_ordering::less
+                         : std::strong_ordering::greater;
+  }
 
   struct PtrCompare {
     bool operator()(const SourceFile& a, const SourceFile& b) const noexcept {

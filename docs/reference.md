@@ -78,6 +78,7 @@
     *   [current_os: [string] The operating system of the current toolchain.](#var_current_os)
     *   [current_toolchain: [string] Label of the current toolchain.](#var_current_toolchain)
     *   [default_toolchain: [string] Label of the default toolchain.](#var_default_toolchain)
+    *   [generate_modulemap: [string] Mode for generating modulemaps.](#var_generate_modulemap)
     *   [gn_version: [number] The version of gn.](#var_gn_version)
     *   [host_cpu: [string] The processor architecture that GN is running on.](#var_host_cpu)
     *   [host_os: [string] The operating system that GN is running on.](#var_host_os)
@@ -4614,6 +4615,14 @@
 ```
   A fully-qualified label representing the default toolchain, which may not
   necessarily be the current one (see "current_toolchain").
+```
+### <a name="var_generate_modulemap"></a>**generate_modulemap**: [string] Mode for generating modulemaps.&nbsp;[Back to Top](#gn-reference)
+
+#### **Possible values**:
+```
+  "none" (default): Don't generate a modulemap file for the target.
+  "textual": Generate a modulemap file for the target.
+    All public headers will be marked as textual.
 ```
 ### <a name="var_gn_version"></a>**gn_version**: [number] The version of gn.&nbsp;[Back to Top](#gn-reference)
 

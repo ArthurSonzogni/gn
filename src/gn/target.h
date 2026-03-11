@@ -59,6 +59,14 @@ class Target : public Item {
     DEPS_LINKED,  // Iterates through all non-data dependencies.
   };
 
+  enum ModuleType {
+    NO_MODULEMAP,
+    EXPLICIT_MODULEMAP,
+    // The target didn't have any public headers, so no modulemap is needed.
+    UNNECESSARY_MODULEMAP,
+    GENERATED_TEXTUAL_MODULEMAP,
+  };
+
   using FileList = std::vector<SourceFile>;
   using StringVector = std::vector<std::string>;
 
@@ -348,6 +356,10 @@ class Target : public Item {
     return assert_no_deps_;
   }
 
+  ModuleType module_type() const { return module_type_; }
+  void set_module_type(ModuleType type);
+  const SourceFile* modulemap_file() const;
+
   // The toolchain is only known once this target is resolved (all if its
   // dependencies are known). They will be null until then. Generally, this can
   // only be used during target writing.
@@ -526,6 +538,9 @@ class Target : public Item {
   bool output_extension_set_ = false;
 
   std::string module_name_override_;
+  ModuleType module_type_ = NO_MODULEMAP;
+  // Only filled if the module type is GENERATED_*
+  SourceFile generated_modulemap_file_;
 
   FileList sources_;
   SourceFileTypeSet source_types_used_;

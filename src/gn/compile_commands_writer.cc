@@ -101,13 +101,12 @@ void SetupCompileFlags(const Target* target,
                                           target, &ConfigValues::include_dirs,
                                           IncludeWriter(path_output));
 
-  std::vector<ClangModuleDep> module_dep_info =
+  std::set<ClangModuleDep> module_dep_info =
       GetModuleDepsInformation(target, resolved);
   if (!module_dep_info.empty()) {
     std::ostringstream module_deps_out;
     for (const auto& module_dep : module_dep_info) {
-      module_deps_out << " -fmodule-file=" << module_dep.module_name << "=";
-      path_output.WriteFile(module_deps_out, module_dep.pcm);
+      module_dep.Write(module_deps_out, path_output);
     }
     base::EscapeJSONString(module_deps_out.str(), false,
                            &flags.clang_module_deps);
@@ -115,13 +114,7 @@ void SetupCompileFlags(const Target* target,
     std::ostringstream module_deps_no_self_out;
     for (const auto& module_dep : module_dep_info) {
       if (!module_dep.is_self) {
-        if (module_dep.modulemap) {
-          module_deps_no_self_out << " -fmodule-map-file=";
-          path_output.WriteFile(module_deps_no_self_out, *module_dep.modulemap);
-        }
-        module_deps_no_self_out << " -fmodule-file=" << module_dep.module_name
-                                << "=";
-        path_output.WriteFile(module_deps_no_self_out, module_dep.pcm);
+        module_dep.Write(module_deps_no_self_out, path_output);
       }
     }
     base::EscapeJSONString(module_deps_no_self_out.str(), false,
