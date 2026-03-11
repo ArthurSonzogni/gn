@@ -531,7 +531,9 @@ def WriteGNNinja(path, platform, host, options, args_list):
       ])
 
     elif platform.is_darwin():
-      min_mac_version_flag = '-mmacosx-version-min=10.12'
+      # Feel free to bump this value whenever you want, as long as all non-EOL
+      # macOS versions are supported.
+      min_mac_version_flag = '-mmacosx-version-min=14'
       cflags.append(min_mac_version_flag)
       ldflags.append(min_mac_version_flag)
     elif platform.is_aix():
