@@ -22,6 +22,7 @@
 #include "gn/output_file.h"
 #include "gn/pointer_set.h"
 #include "gn/rust_values.h"
+#include "gn/settings.h"
 #include "gn/source_file.h"
 #include "gn/swift_values.h"
 #include "gn/toolchain.h"
@@ -443,11 +444,10 @@ class Target : public Item {
 
   // The module name for the target.
   std::string module_name() const {
-    return module_name_override_.empty() ? label().name()
-                                         : module_name_override_;
+    return module_name_;
   }
   void set_module_name(std::string module_name) {
-    module_name_override_ = std::move(module_name);
+    module_name_ = std::move(module_name);
   }
 
   // Computes and returns the outputs of this target expressed as SourceFiles.
@@ -537,7 +537,7 @@ class Target : public Item {
   std::string output_extension_;
   bool output_extension_set_ = false;
 
-  std::string module_name_override_;
+  std::string module_name_;
   ModuleType module_type_ = NO_MODULEMAP;
   // Only filled if the module type is GENERATED_*
   SourceFile generated_modulemap_file_;

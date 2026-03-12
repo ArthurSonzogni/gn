@@ -635,7 +635,10 @@ TEST_F(CompileCommandsTest, ModuleMap) {
 
   module_toolchain.ToolchainSetupComplete();
 
-  Target module_target(&module_settings, Label(SourceDir("//foo/"), "module"));
+  Target module_target(
+      &module_settings,
+      Label(SourceDir("//foo/"), "module", module_toolchain.label().dir(),
+            module_toolchain.label().name()));
   module_target.set_output_type(Target::SOURCE_SET);
   module_target.visibility().SetPublic();
   module_target.sources().push_back(SourceFile("//foo/foo.modulemap"));
@@ -644,7 +647,9 @@ TEST_F(CompileCommandsTest, ModuleMap) {
   module_target.SetToolchain(&module_toolchain);
   ASSERT_TRUE(module_target.OnResolved(&err));
 
-  Target dep_target(&module_settings, Label(SourceDir("//foo/"), "dep"));
+  Target dep_target(&module_settings, Label(SourceDir("//foo/"), "dep",
+                                            toolchain()->label().dir(),
+                                            toolchain()->label().name()));
   dep_target.set_output_type(Target::SOURCE_SET);
   dep_target.visibility().SetPublic();
   dep_target.sources().push_back(SourceFile("//foo/dep.cc"));
@@ -667,7 +672,8 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"file\": \"../../foo/foo.modulemap\",\r\n"
       "    \"directory\": \"out/Debug\",\r\n"
       "    \"command\": \"c++ ../../foo/foo.modulemap      "
-      "-fmodule-name=module -c -x c++ -Xclang -emit-module -o  "
+      "-fmodule-name=//foo:module(//toolchain:withmodules) -c -x c++ -Xclang "
+      "-emit-module -o  "
       "withmodules/obj/foo/module.foo.pcm\"\r\n"
       "  },\r\n"
       "  {\r\n"
@@ -675,7 +681,8 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"directory\": \"out/Debug\",\r\n"
       "    \"command\": \"c++ ../../foo/dep.cc    "
       "-fmodule-map-file=../../foo/foo.modulemap "
-      "-fmodule-file=module=withmodules/obj/foo/module.foo.pcm   -o  "
+      "-fmodule-file=//foo:module(//toolchain:withmodules)=withmodules/obj/foo/"
+      "module.foo.pcm   -o  "
       "withmodules/obj/foo/dep.dep.o\"\r\n"
       "  }\r\n"
       "]\r\n";
@@ -686,7 +693,8 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"file\": \"../../foo/foo.modulemap\",\n"
       "    \"directory\": \"out/Debug\",\n"
       "    \"command\": \"c++ ../../foo/foo.modulemap      "
-      "-fmodule-name=module -c -x c++ -Xclang -emit-module -o  "
+      "-fmodule-name=//foo:module(//toolchain:withmodules) -c -x c++ -Xclang "
+      "-emit-module -o  "
       "withmodules/obj/foo/module.foo.pcm\"\n"
       "  },\n"
       "  {\n"
@@ -694,7 +702,8 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "    \"directory\": \"out/Debug\",\n"
       "    \"command\": \"c++ ../../foo/dep.cc    "
       "-fmodule-map-file=../../foo/foo.modulemap "
-      "-fmodule-file=module=withmodules/obj/foo/module.foo.pcm   -o  "
+      "-fmodule-file=//foo:module(//toolchain:withmodules)=withmodules/obj/foo/"
+      "module.foo.pcm   -o  "
       "withmodules/obj/foo/dep.dep.o\"\n"
       "  }\n"
       "]\n";

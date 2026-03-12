@@ -405,7 +405,9 @@ Dependencies
 Target::Target(const Settings* settings,
                const Label& label,
                const SourceFileSet& build_dependency_files)
-    : Item(settings, label, build_dependency_files) {}
+    : Item(settings, label, build_dependency_files),
+      module_name_(
+          label.GetUserVisibleName(settings->default_toolchain_label())) {}
 
 Target::~Target() = default;
 

@@ -196,7 +196,7 @@ void NinjaCBinaryTargetWriter::WriteModuleNameSubstitution() {
           &CSubstitutionModuleName)) {
     out_ << CSubstitutionModuleName.ninja_name << " = ";
     EscapeOptions options;
-    options.mode = ESCAPE_NINJA_COMMAND;
+    options.mode = ESCAPE_NINJA;
     EscapeStringToStream(out_, target_->module_name(), options);
     out_ << std::endl;
   }
