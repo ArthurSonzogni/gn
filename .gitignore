@@ -1,4 +1,5 @@
 *.bak
+*.code-workspace
 *.gypcmd
 *.mk
 *.ncb
@@ -48,7 +49,8 @@
 /clang
 compile_commands.json
 cscope.*
-out/
+# Gn uses out/ by default, so we use * in case the user wants to have multiple output directories.
+out*/
 GPATH
 GRTAGS
 GSYMS
