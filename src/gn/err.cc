@@ -31,7 +31,8 @@ int GetErrorLimit() {
     if (base::CommandLine::InitializedForCurrentProcess()) {
       const base::CommandLine* cmdline = base::CommandLine::ForCurrentProcess();
       if (cmdline && cmdline->HasSwitch(switches::kErrorLimit)) {
-        std::string limit_str = cmdline->GetSwitchValueString(switches::kErrorLimit);
+        std::string limit_str =
+            cmdline->GetSwitchValueString(switches::kErrorLimit);
         int parsed_limit;
         if (base::StringToInt(limit_str, &parsed_limit)) {
           g_error_limit = parsed_limit;
