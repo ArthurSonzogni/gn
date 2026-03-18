@@ -30,6 +30,7 @@ TEST(Pattern, Matches) {
       // Path boundaries.
       {"\\b", "", true},
       {"\\b", "/", true},
+      {"\\b\\b", "", false},
       {"\\b\\b", "/", true},
       {"\\b\\b\\b", "", false},
       {"\\b\\b\\b", "/", true},
@@ -50,6 +51,9 @@ TEST(Pattern, Matches) {
       {"*a*b*c*d*", "abcd", true},
       {"*a*b*c*d*", "1a2b3c4d5", true},
       {"*a*b*c*d*", "1a2b3c45", false},
+      {"*\\b\\b", "", false},
+      {"\\b\\b*", "", false},
+      {"*\\b\\b*", "", false},
       {"*\\bfoo\\b*", "foo", true},
       {"*\\bfoo\\b*", "/foo/", true},
       {"*\\bfoo\\b*", "foob", false},
