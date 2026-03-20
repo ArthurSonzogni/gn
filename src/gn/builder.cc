@@ -73,6 +73,9 @@ void Builder::ItemDefined(std::unique_ptr<Item> item) {
     return;
   }
 
+  DEBUG_BUILDER_RECORD_LOG("BEGIN_DEFINED %s\n",
+                           record->ToDebugString().c_str());
+
   // Check that it's not been already defined.
   if (record->item()) {
     bool with_toolchain =
@@ -87,20 +90,20 @@ void Builder::ItemDefined(std::unique_ptr<Item> item) {
     return;
   }
 
-  record->set_item(std::move(item));
+  record->SetDefined(std::move(item));
 
-  // Notify anyone waiting on this item's definition.
-  const BuilderRecordSet& waiting_deps = record->waiting_on_definition();
-  for (auto it = waiting_deps.begin(); it.valid(); ++it) {
-    BuilderRecord* waiting = *it;
-    if (waiting->OnDefinedDep(record)) {
-      if (!ResolveItem(waiting, &err)) {
-        g_scheduler->FailWithError(err);
-        return;
-      }
-    }
+  // Notify anyone waiting on this item's definition, and resolve those
+  // that are no longer waiting.
+  if (!record->NotifyDependentsWaitingOnValidationDefinition(
+          [&](BuilderRecord* waiting) {
+            DEBUG_BUILDER_RECORD_LOG("  VALDEFNOTIFY %s -> %s\n",
+                                     record->ToDebugString().c_str(),
+                                     waiting->ToDebugString().c_str());
+            return ResolveItem(waiting, &err);
+          })) {
+    g_scheduler->FailWithError(err);
+    return;
   }
-  record->waiting_on_definition().clear();
 
   // Do target-specific dependency setup. This will also schedule dependency
   // loads for targets that are required.
@@ -128,6 +131,7 @@ void Builder::ItemDefined(std::unique_ptr<Item> item) {
       return;
     }
   }
+  DEBUG_BUILDER_RECORD_LOG("END_DEFINED %s\n", record->ToDebugString().c_str());
 }
 
 const Item* Builder::GetItem(const Label& label) const {
@@ -211,7 +215,7 @@ bool Builder::CheckForBadItems(Err* err) const {
     if (!src.should_generate())
       continue;  // Skip ungenerated nodes.
 
-    if (!src.resolved())
+    if (!src.is_resolved())
       bad_records.push_back(&src);
   }
   if (bad_records.empty())
@@ -329,6 +333,7 @@ bool Builder::ToolchainDefined(BuilderRecord* record, Err* err) {
     RecursiveSetShouldGenerate(record, true);
 
   loader_->ToolchainLoaded(toolchain);
+
   return true;
 }
 
@@ -499,7 +504,7 @@ void Builder::RecursiveSetShouldGenerate(BuilderRecord* record, bool force) {
     // that case.
     record->set_should_generate(true);
 
-    // This may have caused the item to go into "resolved and generated" state.
+    // This may have caused the item to go into "finalized and generated" state.
     CheckAndTriggerWrite(record);
   } else if (!force) {
     return;  // Already set and we're not required to iterate dependencies.
@@ -520,7 +525,7 @@ void Builder::ScheduleItemLoadIfNecessary(BuilderRecord* record) {
 }
 
 bool Builder::ResolveItem(BuilderRecord* record, Err* err) {
-  DCHECK(record->can_resolve() && !record->resolved());
+  DCHECK(record->can_resolve() && !record->is_resolved());
 
   if (record->type() == BuilderRecord::ITEM_TARGET) {
     Target* target = record->item()->AsTarget();
@@ -534,6 +539,9 @@ bool Builder::ResolveItem(BuilderRecord* record, Err* err) {
         !ResolveConfigs(&target->public_configs(), err) ||
         !ResolvePool(target, err) || !ResolveToolchain(target, err))
       return false;
+
+    DEBUG_BUILDER_RECORD_LOG("BEGIN_RESOLVE %s\n",
+                             record->ToDebugString().c_str());
 
     if (!target->OnResolvedWithoutChecks(err))
       return false;
@@ -572,32 +580,56 @@ void Builder::ScheduleBackgroundTargetChecks(BuilderRecord* record) {
 }
 
 bool Builder::CompleteItemResolution(BuilderRecord* record, Err* err) {
-  record->set_resolved(true);
-
-  CheckAndTriggerWrite(record);
+  record->SetResolved();
 
   // Recursively update everybody waiting on this item to be resolved.
-  const BuilderRecordSet waiting_deps = record->waiting_on_resolution();
-  for (auto it = waiting_deps.begin(); it.valid(); ++it) {
-    BuilderRecord* waiting = *it;
-    if (waiting->OnResolvedDep(record)) {
-      if (!ResolveItem(waiting, err))
-        return false;
-    }
+  if (!record->NotifyDependentsWaitingOnResolution([&](BuilderRecord* waiting) {
+        DEBUG_BUILDER_RECORD_LOG("  RESOLVE DEP %s -> %s\n",
+                                 record->ToDebugString().c_str(),
+                                 waiting->ToDebugString().c_str());
+        return ResolveItem(waiting, err);
+      })) {
+    return false;
   }
-  record->waiting_on_resolution().clear();
 
-  // Check for any targets waiting on this one for writing.
-  const BuilderRecordSet waiting_for_writing =
-      record->waiting_on_resolution_for_writing();
-  for (auto it = waiting_for_writing.begin(); it.valid(); ++it) {
-    BuilderRecord* waiting = *it;
-    if (waiting->OnResolvedValidationDep(record)) {
-      CheckAndTriggerWrite(waiting);
-    }
+  if (!record->NotifyDependentsWaitingOnValidationResolution(
+          [&](BuilderRecord* waiting) {
+            DEBUG_BUILDER_RECORD_LOG("  VALRESOLVE DEP %s -> %s\n",
+                                     record->ToDebugString().c_str(),
+                                     waiting->ToDebugString().c_str());
+            return FinalizeItem(waiting, err);
+          })) {
+    return false;
   }
-  record->waiting_on_resolution_for_writing().clear();
 
+  if (record->can_finalize()) {
+    return FinalizeItem(record, err);
+  }
+
+  DEBUG_BUILDER_RECORD_LOG("END_RESOLVE %s\n", record->ToDebugString().c_str());
+
+  return true;
+}
+
+bool Builder::FinalizeItem(BuilderRecord* record, Err* err) {
+  record->SetFinalized();
+
+  DEBUG_BUILDER_RECORD_LOG("BEGIN_FINALIZE %s\n",
+                           record->ToDebugString().c_str());
+  CheckAndTriggerWrite(record);
+
+  if (!record->NotifyDependentsWaitingOnFinalization(
+          [&](BuilderRecord* waiting) {
+            DEBUG_BUILDER_RECORD_LOG("  FINALIZE DEP %s -> %s\n",
+                                     record->ToDebugString().c_str(),
+                                     waiting->ToDebugString().c_str());
+            return FinalizeItem(waiting, err);
+          })) {
+    return false;
+  }
+
+  DEBUG_BUILDER_RECORD_LOG("END_FINALIZE %s\n",
+                           record->ToDebugString().c_str());
   return true;
 }
 
@@ -709,8 +741,9 @@ bool Builder::ResolvePools(Toolchain* toolchain, Err* err) {
 }
 
 void Builder::CheckAndTriggerWrite(BuilderRecord* record) {
-  if (record->resolved() && record->should_generate() && record->can_write() &&
+  if (record->is_finalized() && record->should_generate() &&
       resolved_and_generated_callback_) {
+    DEBUG_BUILDER_RECORD_LOG("WRITE %s\n", record->ToDebugString().c_str());
     resolved_and_generated_callback_(record);
   }
 }

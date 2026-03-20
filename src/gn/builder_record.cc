@@ -62,20 +62,44 @@ BuilderRecord::ItemType BuilderRecord::TypeOfItem(const Item* item) {
   return ITEM_UNKNOWN;
 }
 
-void BuilderRecord::AddDep(BuilderRecord* record) {
-  if (all_deps_.add(record) && !record->resolved()) {
-    unresolved_count_ += 1;
-    record->waiting_on_resolution_.add(this);
+void BuilderRecord::SetDefined(std::unique_ptr<Item> item) {
+  DCHECK(state_ == STATE_INIT);
+  state_ = STATE_DEFINED;
+  item_ = std::move(item);
+}
+
+void BuilderRecord::AddDep(BuilderRecord* dep) {
+  DCHECK(state_ == STATE_DEFINED);
+  all_deps_.add(dep);
+  if (!dep->is_resolved()) {
+    // This cannot be resolved yet if any of its standard dependencies is not
+    // resolved.
+    if (dep->waiting_on_resolution_.add(this)) {
+      unresolved_count_++;
+      DEBUG_BUILDER_RECORD_LOG("-- AddDep waiting_on_resolution %s -> %s\n",
+                               dep->ToDebugString().c_str(),
+                               this->ToDebugString().c_str());
+    }
+  }
+  if (!dep->is_finalized()) {
+    // Finalization of the current record is blocked until the
+    // dependency is finalized.
+    if (dep->waiting_on_finalization_.add(this)) {
+      unfinalized_count_++;
+      DEBUG_BUILDER_RECORD_LOG("-- AddDep waiting_on_finalization %s -> %s\n",
+                               dep->ToDebugString().c_str(),
+                               this->ToDebugString().c_str());
+    }
   }
 }
 
-void BuilderRecord::AddGenDep(BuilderRecord* record) {
-  // Records don't have to wait on resolution of their gen deps, since all they
-  // need to do is propagate should_generate to them.
-  all_deps_.insert(record);
+void BuilderRecord::AddGenDep(BuilderRecord* dep) {
+  DCHECK(state_ == STATE_DEFINED);
+  all_deps_.insert(dep);
 }
 
-void BuilderRecord::AddValidationDep(BuilderRecord* record) {
+void BuilderRecord::AddValidationDep(BuilderRecord* dep) {
+  DCHECK(state_ == STATE_DEFINED);
   // Validation dependencies are treated differently than normal dependencies:
   // 1. They are added to all_deps_ for graph traversal (should_generate
   //    propagation) and error checking.
@@ -84,35 +108,77 @@ void BuilderRecord::AddValidationDep(BuilderRecord* record) {
   // 3. They block writing if they are unresolved. This prevents race conditions
   //    where we might write the ninja file before the validation output path
   //    is computed.
-  all_deps_.add(record);
-  if (validation_deps_.add(record)) {
-    if (!record->item()) {
-      unresolved_count_ += 1;
-      record->waiting_on_definition_.add(this);
+  all_deps_.add(dep);
+  if (!dep->is_defined()) {
+    // The record cannot be resolved yet if any of its validation dependencies
+    // is not defined.
+    if (dep->waiting_on_validation_definition_.add(this)) {
+      unresolved_count_++;
+      DEBUG_BUILDER_RECORD_LOG(
+          "-- AddValidationDep waiting_on_validation_definition %s -> %s\n",
+          dep->ToDebugString().c_str(), this->ToDebugString().c_str());
     }
-    if (!record->resolved()) {
-      unresolved_validation_count_ += 1;
-      record->waiting_on_resolution_for_writing_.add(this);
+  }
+  if (!dep->is_resolved()) {
+    // This record cannot be finalized if any of its validation deps is not
+    // resolved.
+    if (dep->waiting_on_validation_resolution_.add(this)) {
+      unfinalized_count_++;
+      DEBUG_BUILDER_RECORD_LOG(
+          "-- AddValidationDep waiting_on_validation_resolution %s -> %s\n",
+          dep->ToDebugString().c_str(), this->ToDebugString().c_str());
     }
   }
 }
 
-bool BuilderRecord::OnDefinedDep(const BuilderRecord* dep) {
+bool BuilderRecord::OnDefinedValidationDep(const BuilderRecord* dep) {
   DCHECK(all_deps_.contains(const_cast<BuilderRecord*>(dep)));
   DCHECK(unresolved_count_ > 0);
-  return --unresolved_count_ == 0;
+  bool result = (--unresolved_count_ == 0);
+  DEBUG_BUILDER_RECORD_LOG("-- OnDefinedValidationDep %s -> %s result=%d\n",
+                           dep->ToDebugString().c_str(),
+                           this->ToDebugString().c_str(), result);
+  return result;
+}
+
+void BuilderRecord::SetResolved() {
+  DCHECK(can_resolve());
+  state_ = STATE_RESOLVED;
 }
 
 bool BuilderRecord::OnResolvedDep(const BuilderRecord* dep) {
   DCHECK(all_deps_.contains(const_cast<BuilderRecord*>(dep)));
   DCHECK(unresolved_count_ > 0);
-  return --unresolved_count_ == 0;
+  bool result = (--unresolved_count_ == 0);
+  DEBUG_BUILDER_RECORD_LOG("-- OnResolvedDep %s -> %s result=%d\n",
+                           dep->ToDebugString().c_str(),
+                           this->ToDebugString().c_str(), result);
+  return result;
 }
 
 bool BuilderRecord::OnResolvedValidationDep(const BuilderRecord* dep) {
-  DCHECK(validation_deps_.contains(const_cast<BuilderRecord*>(dep)));
-  DCHECK(unresolved_validation_count_ > 0);
-  return --unresolved_validation_count_ == 0;
+  DCHECK(all_deps_.contains(const_cast<BuilderRecord*>(dep)));
+  DCHECK(unfinalized_count_ > 0);
+  bool result = (--unfinalized_count_ == 0);
+  DEBUG_BUILDER_RECORD_LOG("-- OnResolvedValidationDep %s -> %s result=%d\n",
+                           dep->ToDebugString().c_str(),
+                           this->ToDebugString().c_str(), result);
+  return result;
+}
+
+void BuilderRecord::SetFinalized() {
+  DCHECK(can_finalize());
+  state_ = STATE_FINALIZED;
+}
+
+bool BuilderRecord::OnFinalizedDep(const BuilderRecord* dep) {
+  DCHECK(all_deps_.contains(const_cast<BuilderRecord*>(dep)));
+  DCHECK(unfinalized_count_ > 0);
+  bool result = (--unfinalized_count_ == 0);
+  DEBUG_BUILDER_RECORD_LOG("-- OnFinalizedDep %s -> %s result=%d\n",
+                           dep->ToDebugString().c_str(),
+                           this->ToDebugString().c_str(), result);
+  return result;
 }
 
 std::vector<const BuilderRecord*> BuilderRecord::GetSortedUnresolvedDeps()
@@ -122,9 +188,40 @@ std::vector<const BuilderRecord*> BuilderRecord::GetSortedUnresolvedDeps()
     BuilderRecord* dep = *it;
     if (dep->waiting_on_resolution_.contains(
             const_cast<BuilderRecord*>(this)) ||
-        dep->waiting_on_definition_.contains(const_cast<BuilderRecord*>(this)))
+        dep->waiting_on_validation_definition_.contains(
+            const_cast<BuilderRecord*>(this)))
       result.push_back(dep);
   }
   std::sort(result.begin(), result.end(), LabelCompare);
   return result;
 }
+
+#if DEBUG_BUILDER_RECORD
+std::string BuilderRecord::ToDebugString() const {
+  std::string result = label_.GetUserVisibleName(false);
+  result += " (";
+  switch (state_) {
+    case STATE_INIT:
+      result += "INIT";
+      break;
+    case STATE_DEFINED:
+      result += "DEFINED";
+      break;
+    case STATE_RESOLVED:
+      result += "RESOLVED";
+      break;
+    case STATE_FINALIZED:
+      result += "FINALIZED";
+      break;
+    default:
+      result += "UNKNOWN";
+      break;
+  }
+  result += " unresolved=" + std::to_string(unresolved_count_);
+  result += " unfinalized=" + std::to_string(unfinalized_count_);
+  if (should_generate_)
+    result += " generated";
+  result += ")";
+  return result;
+}
+#endif  // DEBUG_BUILDER_RECORD

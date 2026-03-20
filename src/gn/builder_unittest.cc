@@ -127,13 +127,15 @@ TEST_F(BuilderTest, BasicDeps) {
   // A should be unresolved with an item
   BuilderRecord* a_record = builder_.GetRecord(a_label);
   EXPECT_TRUE(a_record->item());
-  EXPECT_FALSE(a_record->resolved());
+  EXPECT_TRUE(a_record->is_defined());
+  EXPECT_FALSE(a_record->is_resolved());
   EXPECT_FALSE(a_record->can_resolve());
 
   // B should be unresolved, have no item, and no deps.
   BuilderRecord* b_record = builder_.GetRecord(b_label);
   EXPECT_FALSE(b_record->item());
-  EXPECT_FALSE(b_record->resolved());
+  EXPECT_FALSE(b_record->is_defined());
+  EXPECT_FALSE(b_record->is_resolved());
   EXPECT_FALSE(b_record->can_resolve());
   EXPECT_TRUE(b_record->all_deps().empty());
 
@@ -175,9 +177,9 @@ TEST_F(BuilderTest, BasicDeps) {
 
   // All targets should now be resolved.
   BuilderRecord* c_record = builder_.GetRecord(c_label);
-  EXPECT_TRUE(a_record->resolved());
-  EXPECT_TRUE(b_record->resolved());
-  EXPECT_TRUE(c_record->resolved());
+  EXPECT_TRUE(a_record->is_resolved());
+  EXPECT_TRUE(b_record->is_resolved());
+  EXPECT_TRUE(c_record->is_resolved());
 
   EXPECT_TRUE(a_record->GetSortedUnresolvedDeps().empty());
   EXPECT_TRUE(b_record->GetSortedUnresolvedDeps().empty());
@@ -208,6 +210,11 @@ TEST_F(BuilderTest, SortedUnresolvedDeps) {
   BuilderRecord* b_record = builder_.GetOrCreateRecordForTesting(b_label);
   BuilderRecord* c_record = builder_.GetOrCreateRecordForTesting(c_label);
   BuilderRecord* d_record = builder_.GetOrCreateRecordForTesting(d_label);
+
+  // Set A's state to Defined as this is required by AddDep() to know
+  // which kind of update to perform internally. Don't provide an Item
+  // though, as this test doesn't need it.
+  a_record->SetDefined(nullptr);
 
   a_record->AddDep(b_record);
   a_record->AddDep(d_record);
@@ -404,7 +411,7 @@ TEST_F(BuilderTest, Validations) {
   // A should NOT be resolved yet (waiting for B definition).
   BuilderRecord* a_record = builder_.GetRecord(a_label);
   EXPECT_TRUE(a_record);
-  EXPECT_FALSE(a_record->resolved());
+  EXPECT_FALSE(a_record->is_resolved());
 
   // Define B. B depends on A.
   auto b = std::make_unique<Target>(&settings_, b_label);
@@ -417,9 +424,9 @@ TEST_F(BuilderTest, Validations) {
   scheduler().Run();
 
   // Now both should be resolved.
-  EXPECT_TRUE(a_record->resolved());
+  EXPECT_TRUE(a_record->is_resolved());
   BuilderRecord* b_record = builder_.GetRecord(b_label);
-  EXPECT_TRUE(b_record->resolved());
+  EXPECT_TRUE(b_record->is_resolved());
 
   // There should be no cycle.
   Err err;
@@ -431,7 +438,7 @@ TEST_F(BuilderTest, Validations) {
   EXPECT_EQ(b_ptr, a_ptr->validations()[0].ptr);
 }
 
-// Tests that validation dependencies block writing until resolved.
+// Tests that validation dependencies block finalization until resolved.
 TEST_F(BuilderTest, ValidationsBlockWriting) {
   DefineToolchain();
   SourceDir toolchain_dir = settings_.toolchain_label().dir();
@@ -458,19 +465,22 @@ TEST_F(BuilderTest, ValidationsBlockWriting) {
   // C is unresolved (waiting on definition).
   // B is unresolved (waiting on C).
   // A should be RESOLVED (because B is defined, and validations only wait on
-  // definition for resolution). BUT A should be blocked from WRITING because B
+  // definition for resolution). BUT A should not be FINALIZED because B
   // is not resolved.
 
   BuilderRecord* a_record = builder_.GetRecord(a_label);
   BuilderRecord* b_record = builder_.GetRecord(b_label);
+  BuilderRecord* c_record = builder_.GetRecord(c_label);
 
   scheduler().Run();
 
-  EXPECT_TRUE(a_record->resolved());
-  EXPECT_FALSE(b_record->resolved());
+  EXPECT_FALSE(c_record->is_resolved());
+  EXPECT_FALSE(b_record->is_resolved());
+  EXPECT_TRUE(a_record->is_resolved());
+  EXPECT_FALSE(a_record->is_finalized());
 
   // Check that B knows A is waiting on it for writing.
-  EXPECT_TRUE(b_record->waiting_on_resolution_for_writing().contains(a_record));
+  EXPECT_TRUE(b_record->waiting_on_validation_resolution().contains(a_record));
 }
 
 // Tests that a target can validate a target that depends on it.
@@ -504,8 +514,8 @@ TEST_F(BuilderTest, ValidationsWithCycle) {
   scheduler().Run();
 
   // Both should be resolved.
-  EXPECT_TRUE(a_record->resolved());
-  EXPECT_TRUE(b_record->resolved());
+  EXPECT_TRUE(a_record->is_resolved());
+  EXPECT_TRUE(b_record->is_resolved());
 
   // There should be no errors (cycle detection passed).
   Err err;
@@ -517,7 +527,7 @@ TEST_F(BuilderTest, ValidationsWithCycle) {
 // is still waiting on other dependencies to resolve.
 // A -> deps -> B
 // A -> validations -> C
-// Sequence: C resolves. A should NOT write. B resolves. A writes.
+// Sequence: C finalizes. A should NOT be finalized. B resolves. A is finalized.
 TEST_F(BuilderTest, ValidationsPrematureWrite) {
   DefineToolchain();
   SourceDir toolchain_dir = settings_.toolchain_label().dir();
@@ -546,18 +556,21 @@ TEST_F(BuilderTest, ValidationsPrematureWrite) {
   c->visibility().SetPublic();
   builder_.ItemDefined(std::move(c));
 
-  // C should resolve. A is waiting on B.
+  // C should resolve then finalize. A is waiting on B.
   scheduler().Run();
 
   BuilderRecord* a_record = builder_.GetRecord(a_label);
   BuilderRecord* c_record = builder_.GetRecord(c_label);
 
-  EXPECT_TRUE(c_record->resolved());
-  EXPECT_FALSE(a_record->resolved());
+  EXPECT_TRUE(c_record->is_resolved());
+  EXPECT_TRUE(c_record->is_finalized());
+  EXPECT_FALSE(a_record->is_resolved());
 
   // Only C should be written.
   ASSERT_EQ(1u, written.size());
   EXPECT_EQ(c_record, written[0]);
+  EXPECT_TRUE(c_record->is_finalized());
+  EXPECT_FALSE(a_record->is_finalized());
 
   // Define B.
   auto b = std::make_unique<Target>(&settings_, b_label);
@@ -568,7 +581,8 @@ TEST_F(BuilderTest, ValidationsPrematureWrite) {
 
   scheduler().Run();
 
-  EXPECT_TRUE(a_record->resolved());
+  EXPECT_TRUE(a_record->is_resolved());
+  EXPECT_TRUE(a_record->is_finalized());
 
   // Order should be C, B, A.
   ASSERT_EQ(3u, written.size());
@@ -617,14 +631,14 @@ TEST_F(BuilderTest, RecursiveShouldGenerateWithValidations) {
   builder_.ItemDefined(std::move(b));
   BuilderRecord* b_record = builder_.GetRecord(b_label);
 
-  // A resolves (validations don't block resolution).
+  // A resolves (validations don't block resolution) but does not finalize.
   // B waits for E.
   scheduler().Run();
 
-  EXPECT_TRUE(a_record->resolved());
-  EXPECT_FALSE(b_record->resolved());
-  EXPECT_FALSE(a_record->can_write());
+  EXPECT_TRUE(a_record->is_resolved());
+  EXPECT_FALSE(a_record->is_finalized());
   EXPECT_FALSE(a_record->should_generate());
+  EXPECT_FALSE(b_record->is_resolved());
   EXPECT_TRUE(written.empty());
 
   // Define C depending on A.
@@ -641,9 +655,12 @@ TEST_F(BuilderTest, RecursiveShouldGenerateWithValidations) {
   EXPECT_TRUE(c_record->should_generate());
   EXPECT_TRUE(a_record->should_generate());
 
-  // Only C should be written now.
-  std::vector<const BuilderRecord*> expected_c = {c_record};
-  EXPECT_EQ(expected_c, written);
+  // C cannot be written because A is not finalized.
+  EXPECT_TRUE(c_record->is_resolved());
+  EXPECT_FALSE(c_record->is_finalized());
+
+  // Nothing could be written for now.
+  EXPECT_EQ(written.size(), 0u);
 
   // Define E to cause B to resolve and write A.
   auto e = std::make_unique<Target>(&settings_, e_label);
@@ -654,11 +671,22 @@ TEST_F(BuilderTest, RecursiveShouldGenerateWithValidations) {
 
   scheduler().Run();
 
-  // B writes (resolved), then A writes (unblocked).
-  // C was already written.
-  std::vector<const BuilderRecord*> expected_final = {c_record, e_record,
-                                                      b_record, a_record};
-  EXPECT_EQ(expected_final, written);
+  // Due to the way the Builder is implemented, here's what happens:
+  //
+  // E is resolved, notifies B immediately.
+  // B is resolved, notifies A immediately.
+  // A is finalized, writes, notifies C
+  // C writes.
+  // A returns from finalization.
+  // B returns from resolution.
+  // E returns from resolution.
+  // E finalizes, notifies B
+  // B finalizes.
+  ASSERT_EQ(written.size(), 4u);
+  EXPECT_EQ(written[0], a_record);
+  EXPECT_EQ(written[1], c_record);
+  EXPECT_EQ(written[2], e_record);
+  EXPECT_EQ(written[3], b_record);
 }
 
 }  // namespace gn_builder_unittest

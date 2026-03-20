@@ -127,6 +127,10 @@ class Builder {
   void ScheduleBackgroundTargetChecks(BuilderRecord* record);
   bool CompleteItemResolution(BuilderRecord* record, Err* err);
 
+  // Finalizes the given item, scheduling its write to the Ninja file if
+  // should_generate() is true, then notifying all dependents.
+  bool FinalizeItem(BuilderRecord* record, Err* err);
+
   // Fills in the pointers in the given vector based on the labels. We assume
   // that everything should be resolved by this point, so will return an error
   // if anything isn't found or if the type doesn't match.
