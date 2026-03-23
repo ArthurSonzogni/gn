@@ -527,6 +527,11 @@ TEST_F(BuilderTest, ValidationsPrematureWrite) {
   Label b_label(SourceDir("//b/"), "b", toolchain_dir, toolchain_name);
   Label c_label(SourceDir("//c/"), "c", toolchain_dir, toolchain_name);
 
+  // Track written targets.
+  std::vector<const BuilderRecord*> written;
+  builder_.set_resolved_and_generated_callback(
+      [&written](const BuilderRecord* record) { written.push_back(record); });
+
   // Define A. A depends on B and has validation C.
   auto a = std::make_unique<Target>(&settings_, a_label);
   a->set_output_type(Target::ACTION);
@@ -540,11 +545,6 @@ TEST_F(BuilderTest, ValidationsPrematureWrite) {
   c->set_output_type(Target::ACTION);
   c->visibility().SetPublic();
   builder_.ItemDefined(std::move(c));
-
-  // Track written targets.
-  std::vector<const BuilderRecord*> written;
-  builder_.set_resolved_and_generated_callback(
-      [&written](const BuilderRecord* record) { written.push_back(record); });
 
   // C should resolve. A is waiting on B.
   scheduler().Run();
@@ -596,6 +596,11 @@ TEST_F(BuilderTest, RecursiveShouldGenerateWithValidations) {
   Label c_label(SourceDir("//c/"), "c", toolchain_dir, toolchain_name);
   Label e_label(SourceDir("//e/"), "e", toolchain_dir, toolchain_name);
 
+  // Track written targets.
+  std::vector<const BuilderRecord*> written;
+  builder_.set_resolved_and_generated_callback(
+      [&written](const BuilderRecord* record) { written.push_back(record); });
+
   // Define A with validation B.
   auto a = std::make_unique<Target>(&settings_, a_label);
   a->set_output_type(Target::GROUP);
@@ -611,11 +616,6 @@ TEST_F(BuilderTest, RecursiveShouldGenerateWithValidations) {
   b->visibility().SetPublic();
   builder_.ItemDefined(std::move(b));
   BuilderRecord* b_record = builder_.GetRecord(b_label);
-
-  // Track written targets.
-  std::vector<const BuilderRecord*> written;
-  builder_.set_resolved_and_generated_callback(
-      [&written](const BuilderRecord* record) { written.push_back(record); });
 
   // A resolves (validations don't block resolution).
   // B waits for E.

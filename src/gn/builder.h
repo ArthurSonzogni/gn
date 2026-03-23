@@ -124,8 +124,7 @@ class Builder {
   // This takes a BuilderRecord with resolved dependencies, and fills in the
   // target's Label*Vectors with the resolved pointers.
   bool ResolveItem(BuilderRecord* record, Err* err);
-  void ScheduleTargetOnResolve(BuilderRecord* record);
-  void CompleteAsyncTargetResolution(BuilderRecord* record, const Err& err);
+  void ScheduleBackgroundTargetChecks(BuilderRecord* record);
   bool CompleteItemResolution(BuilderRecord* record, Err* err);
 
   // Fills in the pointers in the given vector based on the labels. We assume

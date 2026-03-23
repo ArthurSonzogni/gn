@@ -75,7 +75,21 @@ class Target : public Item {
   // Item overrides.
   Target* AsTarget() override;
   const Target* AsTarget() const override;
+
+  // NOTE: This calls OnResolvedWithoutChecks followed by RunChecksAfterResolution.
   bool OnResolved(Err* err) override;
+
+  // Perform all resolution steps except for checks. When this function
+  // returns, the content of the Target instance, as well as all its
+  // standard dependencies (i.e. without validations and gen_deps) are
+  // considered final and immutable. This allows running checks in background
+  // threads while the rest of the resolution algorithm continues in the main
+  // thread.
+  bool OnResolvedWithoutChecks(Err* err);
+
+  // Run checks. This requires OnResolvedWithoutChecks() to have been called
+  // first. This can run in a background thread.
+  bool RunChecksAfterResolution(Err* err);
 
   OutputType output_type() const { return output_type_; }
   void set_output_type(OutputType t) { output_type_ = t; }

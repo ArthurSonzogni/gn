@@ -535,9 +535,12 @@ bool Builder::ResolveItem(BuilderRecord* record, Err* err) {
         !ResolvePool(target, err) || !ResolveToolchain(target, err))
       return false;
 
-    // Offload Target::OnResolved to a worker thread.
-    ScheduleTargetOnResolve(record);
-    return true;
+    if (!target->OnResolvedWithoutChecks(err))
+      return false;
+
+    // Offload Target::RunChecksAfterResolution to a worker thread.
+    ScheduleBackgroundTargetChecks(record);
+    return CompleteItemResolution(record, err);
   } else if (record->type() == BuilderRecord::ITEM_CONFIG) {
     Config* config = record->item()->AsConfig();
     if (!ResolveConfigs(&config->configs(), err))
@@ -555,31 +558,17 @@ bool Builder::ResolveItem(BuilderRecord* record, Err* err) {
   return CompleteItemResolution(record, err);
 }
 
-void Builder::ScheduleTargetOnResolve(BuilderRecord* record) {
+void Builder::ScheduleBackgroundTargetChecks(BuilderRecord* record) {
   DCHECK(g_scheduler);
 
   g_scheduler->IncrementWorkCount();
-  g_scheduler->ScheduleWork([this, record]() {
+  g_scheduler->ScheduleWork([record]() {
     Err err;
-    bool success = record->item()->AsTarget()->OnResolved(&err);
-    DCHECK(success == !err.has_error());
-
-    g_scheduler->task_runner()->PostTask(
-        [this, record, err]() { CompleteAsyncTargetResolution(record, err); });
-  });
-}
-
-void Builder::CompleteAsyncTargetResolution(BuilderRecord* record,
-                                            const Err& err) {
-  if (err.has_error()) {
-    g_scheduler->FailWithError(err);
-  } else {
-    Err next_err;
-    if (!CompleteItemResolution(record, &next_err)) {
-      g_scheduler->FailWithError(next_err);
+    if (!record->item()->AsTarget()->RunChecksAfterResolution(&err)) {
+      g_scheduler->FailWithError(err);
     }
-  }
-  g_scheduler->DecrementWorkCount();
+    g_scheduler->DecrementWorkCount();
+  });
 }
 
 bool Builder::CompleteItemResolution(BuilderRecord* record, Err* err) {

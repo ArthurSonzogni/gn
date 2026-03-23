@@ -566,6 +566,10 @@ const Target* Target::AsTarget() const {
 }
 
 bool Target::OnResolved(Err* err) {
+  return OnResolvedWithoutChecks(err) && RunChecksAfterResolution(err);
+}
+
+bool Target::OnResolvedWithoutChecks(Err* err) {
   DCHECK(output_type_ != UNKNOWN);
   DCHECK(toolchain_) << "Toolchain should have been set before resolving.";
 
@@ -608,16 +612,6 @@ bool Target::OnResolved(Err* err) {
   if (!SwiftValues::OnTargetResolved(this, err))
     return false;
 
-  if (!CheckSourceSetLanguages(err))
-    return false;
-  if (!CheckVisibility(err))
-    return false;
-  if (!CheckTestonly(err))
-    return false;
-  if (!CheckAssertNoDeps(err))
-    return false;
-  CheckSourcesGenerated();
-
   if (!write_runtime_deps_output_.value().empty())
     g_scheduler->AddWriteRuntimeDepsTarget(this);
 
@@ -627,6 +621,19 @@ bool Target::OnResolved(Err* err) {
         computed_outputs_[0].AsSourceFile(settings()->build_settings()));
   }
 
+  return true;
+}
+
+bool Target::RunChecksAfterResolution(Err* err) {
+  if (!CheckSourceSetLanguages(err))
+    return false;
+  if (!CheckVisibility(err))
+    return false;
+  if (!CheckTestonly(err))
+    return false;
+  if (!CheckAssertNoDeps(err))
+    return false;
+  CheckSourcesGenerated();
   return true;
 }
 
