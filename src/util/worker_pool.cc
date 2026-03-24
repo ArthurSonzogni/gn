@@ -52,7 +52,7 @@ int GetThreadCount() {
   //
   // The minimum thread count is based on measuring the optimal threads for the
   // Chrome build on a several-year-old 4-core MacBook.
-  return std::max(num_cores - 1, 8);
+  return std::max(std::min(num_cores - 1, 32), 8);
 #endif
 }
 
