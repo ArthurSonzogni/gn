@@ -4,7 +4,9 @@
 
 #include "gn/ninja_binary_target_writer.h"
 
+#include <algorithm>
 #include <sstream>
+#include <unordered_set>
 
 #include "base/strings/string_util.h"
 #include "gn/builtin_tool.h"
@@ -31,6 +33,61 @@ EscapeOptions GetFlagOptions() {
   EscapeOptions opts;
   opts.mode = ESCAPE_NINJA_COMMAND;
   return opts;
+}
+
+std::vector<const Target*> ExpandModules(const LabelTargetVector& targets) {
+  std::vector<const LabelTargetVector*> stack = {&targets};
+  std::unordered_set<const Target*> visited;
+
+  std::vector<const Target*> modules;
+
+  while (!stack.empty()) {
+    const LabelTargetVector* current = stack.back();
+    stack.pop_back();
+    for (const auto& pair : *current) {
+      const Target* target = pair.ptr;
+      if (visited.insert(target).second) {
+        if (target->module_type() == Target::NO_MODULEMAP) {
+          stack.push_back(&target->public_deps());
+          // If you declare `public_deps = ...` on a group, it shows up as a
+          // private dep. Probably because groups don't distinguish between
+          // public and private deps.
+          if (target->output_type() == Target::GROUP) {
+            stack.push_back(&target->private_deps());
+          }
+        } else {
+          modules.push_back(target);
+        }
+      }
+    }
+  }
+  return modules;
+}
+
+void WriteModuleMapHeaders(std::ostream& out,
+                           const SourceDir& out_dir,
+                           const Target::FileList& headers,
+                           const Settings* settings) {
+  for (const auto& header : headers) {
+    if (header.GetType() == SourceFile::SOURCE_H) {
+      out << "  textual header \"";
+      out << RebasePath(header.value(), out_dir,
+                        settings->build_settings()->root_path_utf8());
+      out << "\"\n";
+    }
+  }
+}
+
+void WriteModuleDeps(std::ostream& out,
+                     const std::vector<const Target*>& deps,
+                     const SourceDir& base) {
+  for (const auto& dep : deps) {
+    auto module_name = dep->module_name();
+    auto modulemap = RebasePath(dep->modulemap_file()->value(), base);
+    out << "  extern module \"" << module_name << "\" \"" << modulemap
+        << "\"\n";
+    out << "  use \"" << module_name << "\"\n";
+  }
 }
 
 }  // namespace
@@ -61,21 +118,16 @@ void NinjaBinaryTargetWriter::WriteModuleMap(std::ostream& out,
                                              const SourceDir& out_dir) {
   out << "module \"" << target_->module_name() << "\" {\n";
   if (target_->all_headers_public()) {
-    for (const auto& header : target_->sources()) {
-      if (header.GetType() == SourceFile::SOURCE_H) {
-        out << "  textual header \"";
-        out << RebasePath(header.value(), out_dir,
-                          settings_->build_settings()->root_path_utf8());
-        out << "\"\n";
-      }
-    }
+    WriteModuleMapHeaders(out, out_dir, target_->sources(), settings_);
+  } else {
+    WriteModuleMapHeaders(out, out_dir, target_->public_headers(), settings_);
   }
-  for (const auto& header : target_->public_headers()) {
-    out << "  textual header \"";
-    out << RebasePath(header.value(), out_dir,
-                      settings_->build_settings()->root_path_utf8());
-    out << "\"\n";
-  }
+  auto base = target_->modulemap_file()->GetDir();
+  auto deps = ExpandModules(target_->public_deps());
+  std::ranges::sort(deps, [](const Target* lhs, const Target* rhs) {
+    return lhs->module_name() < rhs->module_name();
+  });
+  WriteModuleDeps(out, deps, base);
   out << "  export *\n}\n";
 }
 
