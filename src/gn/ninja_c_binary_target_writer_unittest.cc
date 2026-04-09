@@ -2931,6 +2931,34 @@ TEST_F(NinjaCBinaryTargetWriterTest, ToolInputs) {
 TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   Err err;
   TestWithScope setup;
+  Settings module_settings(setup.build_settings(), "withmodules/");
+  Toolchain module_toolchain(&module_settings,
+                             Label(SourceDir("//toolchain/"), "withmodules"));
+  module_settings.set_toolchain_label(module_toolchain.label());
+  module_settings.set_default_toolchain_label(module_toolchain.label());
+
+  std::unique_ptr<Tool> cxx = std::make_unique<CTool>(CTool::kCToolCxx);
+  CTool* cxx_tool = cxx->AsC();
+  TestWithScope::SetCommandForTool(
+      "c++ {{source}} {{cflags}} {{cflags_cc}} {{module_deps}} "
+      "{{defines}} {{include_dirs}} -o {{output}}",
+      cxx_tool);
+  cxx_tool->set_outputs(SubstitutionList::MakeForTest(
+      "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o"));
+  cxx_tool->set_precompiled_header_type(CTool::PCH_GCC);
+  module_toolchain.SetTool(std::move(cxx));
+
+  std::unique_ptr<Tool> alink = Tool::CreateTool(CTool::kCToolAlink);
+  CTool* alink_tool = alink->AsC();
+  TestWithScope::SetCommandForTool("ar {{output}} {{source}}", alink_tool);
+  alink_tool->set_lib_switch("-l");
+  alink_tool->set_lib_dir_switch("-L");
+  alink_tool->set_output_prefix("lib");
+  alink_tool->set_outputs(SubstitutionList::MakeForTest(
+      "{{target_out_dir}}/{{target_output_name}}.a"));
+  module_toolchain.SetTool(std::move(alink));
+
+  module_toolchain.ToolchainSetupComplete();
 
   // Let's create a target and give it public headers.
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar",
@@ -3018,54 +3046,54 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
       << expected_modulemap_no_public << "\n"
       << modulemap_str_no_public;
 
-  Target transitive(setup.settings(), Label(SourceDir("//foo/"), "transitive",
-                                            setup.toolchain()->label().dir(),
-                                            setup.toolchain()->label().name()));
+  Target transitive(&module_settings, Label(SourceDir("//foo/"), "transitive",
+                                            module_toolchain.label().dir(),
+                                            module_toolchain.label().name()));
   transitive.visibility().SetPublic();
   transitive.sources().push_back(SourceFile("//foo/invisible.h"));
   transitive.source_types_used().Set(SourceFile::SOURCE_H);
   transitive.set_output_type(Target::SOURCE_SET);
   transitive.set_module_type(kGeneratedTextualModulemap);
-  transitive.SetToolchain(setup.toolchain());
+  transitive.SetToolchain(&module_toolchain);
   ASSERT_TRUE(transitive.OnResolved(&err));
 
-  Target private_dep(setup.settings(),
-                     Label(SourceDir("//private/"), "private_dep",
-                           setup.toolchain()->label().dir(),
-                           setup.toolchain()->label().name()));
+  Target private_dep(
+      &module_settings,
+      Label(SourceDir("//private/"), "private_dep",
+            module_toolchain.label().dir(), module_toolchain.label().name()));
   private_dep.visibility().SetPublic();
   private_dep.set_output_type(Target::SOURCE_SET);
   private_dep.sources().push_back(SourceFile("//foo/private_dep.h"));
   private_dep.source_types_used().Set(SourceFile::SOURCE_H);
   private_dep.public_deps().push_back(LabelTargetPair(&transitive));
   private_dep.set_module_type(kGeneratedTextualModulemap);
-  private_dep.SetToolchain(setup.toolchain());
+  private_dep.SetToolchain(&module_toolchain);
   ASSERT_TRUE(private_dep.OnResolved(&err));
 
-  Target public_dep(setup.settings(), Label(SourceDir("//foo/"), "public_dep",
-                                            setup.toolchain()->label().dir(),
-                                            setup.toolchain()->label().name()));
+  Target public_dep(&module_settings, Label(SourceDir("//foo/"), "public_dep",
+                                            module_toolchain.label().dir(),
+                                            module_toolchain.label().name()));
   public_dep.visibility().SetPublic();
   public_dep.set_output_type(Target::SOURCE_SET);
   public_dep.sources().push_back(SourceFile("//foo/public_dep.h"));
   public_dep.private_deps().push_back(LabelTargetPair(&transitive));
   public_dep.public_deps().push_back(LabelTargetPair(&transitive));
   public_dep.set_module_type(kGeneratedTextualModulemap);
-  public_dep.SetToolchain(setup.toolchain());
+  public_dep.SetToolchain(&module_toolchain);
   ASSERT_TRUE(public_dep.OnResolved(&err));
 
-  Target group_dep(setup.settings(), Label(SourceDir("//foo/"), "group_dep",
-                                           setup.toolchain()->label().dir(),
-                                           setup.toolchain()->label().name()));
+  Target group_dep(&module_settings, Label(SourceDir("//foo/"), "group_dep",
+                                           module_toolchain.label().dir(),
+                                           module_toolchain.label().name()));
   group_dep.set_output_type(Target::GROUP);
   group_dep.visibility().SetPublic();
   group_dep.private_deps().push_back(LabelTargetPair(&public_dep));
-  group_dep.SetToolchain(setup.toolchain());
+  group_dep.SetToolchain(&module_toolchain);
   ASSERT_TRUE(group_dep.OnResolved(&err));
 
-  Target root(setup.settings(), Label(SourceDir("//foo/"), "root",
-                                      setup.toolchain()->label().dir(),
-                                      setup.toolchain()->label().name()));
+  Target root(&module_settings,
+              Label(SourceDir("//foo/"), "root", module_toolchain.label().dir(),
+                    module_toolchain.label().name()));
   root.set_output_type(Target::SOURCE_SET);
   root.visibility().SetPublic();
   root.sources().push_back(SourceFile("//foo/root.cc"));
@@ -3073,10 +3101,11 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   root.public_headers().push_back(SourceFile("//foo/public_header.h"));
   root.set_all_headers_public(false);
   root.source_types_used().Set(SourceFile::SOURCE_H);
+  root.source_types_used().Set(SourceFile::SOURCE_CPP);
   root.public_deps().push_back(LabelTargetPair(&group_dep));
   root.private_deps().push_back(LabelTargetPair(&private_dep));
   root.set_module_type(kGeneratedTextualModulemap);
-  root.SetToolchain(setup.toolchain());
+  root.SetToolchain(&module_toolchain);
   ASSERT_TRUE(root.OnResolved(&err));
 
   std::ostringstream public_modulemap;
@@ -3112,4 +3141,25 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   EXPECT_EQ(expected_private, private_modulemap.str())
       << expected_private << "\n"
       << private_modulemap.str();
+
+  std::ostringstream root_ninja_out;
+  NinjaCBinaryTargetWriter(&root, root_ninja_out).Run();
+  std::string root_ninja_str = root_ninja_out.str();
+  const char expected_root_ninja[] =
+      "defines =\n"
+      "include_dirs =\n"
+      "cflags =\n"
+      "cflags_cc =\n"
+      "module_deps = -fmodule-map-file=gen/foo/root.private.modulemap\n"
+      "target_out_dir = obj/foo\n"
+      "target_output_name = root\n"
+      "\n"
+      "build obj/foo/root.root.o: cxx ../../foo/root.cc\n"
+      "  source_file_part = root.cc\n"
+      "  source_name_part = root\n"
+      "\n"
+      "build phony/foo/root: phony obj/foo/root.root.o\n";
+
+  EXPECT_EQ(expected_root_ninja, root_ninja_str) << expected_root_ninja << "\n"
+                                                 << root_ninja_str;
 }

@@ -47,7 +47,8 @@ std::set<ClangModuleDep> GetModuleDepsInformation(
     const ResolvedTargetData& resolved) {
   std::set<ClangModuleDep> ret;
 
-  auto add_if_new = [&ret](const Target* t, bool is_self) {
+  auto add_if_new = [&ret](const Target* t, bool is_self,
+                           bool has_generated_modulemap) {
     if (!t->module_type().test(Target::HAS_MODULEMAP))
       return;
 
@@ -63,15 +64,28 @@ std::set<ClangModuleDep> GetModuleDepsInformation(
       pcm = std::move(modulemap_outputs[0]);
     }
 
-    ret.emplace(modulemap, t->module_name(), pcm, is_self);
+    ret.emplace(
+        // If we have a generated modulemap, the modulemap should contain
+        // "extern module" declarations, so we don't need to declare
+        // -fmodule-map-file for the dependencies.
+        has_generated_modulemap ? nullptr : modulemap, t->module_name(), pcm,
+        is_self);
   };
 
-  if (target->module_type().test(Target::HAS_MODULEMAP)) {
-    add_if_new(target, true);
+  // Generated modulemaps always generate private modulemaps as well.
+  bool has_generated_modulemap =
+      target->module_type().test(Target::MODULEMAP_IS_GENERATED);
+  if (has_generated_modulemap) {
+    // Add the private modulemap as a dependency.
+    ret.emplace(target->private_modulemap_file(),
+                base::StringPrintf("impl:%s", target->module_name().c_str()),
+                std::nullopt, true);
+  } else {
+    add_if_new(target, true, has_generated_modulemap);
   }
 
   for (const auto& pair : resolved.GetModuleDepsInformation(target))
-    add_if_new(pair.target(), false);
+    add_if_new(pair.target(), false, has_generated_modulemap);
 
   return ret;
 }
