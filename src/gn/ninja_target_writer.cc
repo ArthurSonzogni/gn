@@ -166,7 +166,7 @@ std::string NinjaTargetWriter::RunAndWriteFile(
     NinjaBinaryTargetWriter writer(target, rules);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
-    if (target->module_type() == Target::GENERATED_TEXTUAL_MODULEMAP) {
+    if (target->module_type().test(Target::MODULEMAP_IS_GENERATED)) {
       const SourceFile* modulemap = target->modulemap_file();
       CHECK(modulemap);
 

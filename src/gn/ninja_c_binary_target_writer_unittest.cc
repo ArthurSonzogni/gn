@@ -20,6 +20,11 @@
 
 using NinjaCBinaryTargetWriterTest = TestWithScheduler;
 
+constexpr Target::ModuleType kExplicitModulemap = 1 << Target::HAS_MODULEMAP;
+constexpr Target::ModuleType kGeneratedTextualModulemap =
+    1 << Target::HAS_MODULEMAP | 1 << Target::MODULEMAP_IS_GENERATED |
+    1 << Target::MODULEMAP_IS_TEXTUAL;
+
 TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
   Err err;
   TestWithScope setup;
@@ -2271,7 +2276,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInStaticLibrary) {
   target.sources().push_back(SourceFile("//foo/bar.modulemap"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
   target.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
-  target.set_module_type(Target::EXPLICIT_MODULEMAP);
+  target.set_module_type(kExplicitModulemap);
   ASSERT_TRUE(target.OnResolved(&err));
 
   std::ostringstream out;
@@ -2313,7 +2318,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInSourceSet) {
   target.sources().push_back(SourceFile("//foo/bar.modulemap"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
   target.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
-  target.set_module_type(Target::EXPLICIT_MODULEMAP);
+  target.set_module_type(kExplicitModulemap);
   ASSERT_TRUE(target.OnResolved(&err));
 
   std::ostringstream out;
@@ -2574,7 +2579,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
   target.sources().push_back(SourceFile("//blah/a.h"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
   target.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
-  target.set_module_type(Target::EXPLICIT_MODULEMAP);
+  target.set_module_type(kExplicitModulemap);
   target.SetToolchain(&module_toolchain);
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -2622,7 +2627,7 @@ build obj/blah/liba.a: alink obj/blah/liba.a.o
   target2.sources().push_back(SourceFile("//stuff/b.h"));
   target2.source_types_used().Set(SourceFile::SOURCE_CPP);
   target2.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
-  target2.set_module_type(Target::EXPLICIT_MODULEMAP);
+  target2.set_module_type(kExplicitModulemap);
   target2.public_deps().push_back(LabelTargetPair(&target));
   target2.SetToolchain(&module_toolchain);
   ASSERT_TRUE(target2.OnResolved(&err));
@@ -2668,7 +2673,7 @@ build obj/stuff/libb.a: alink obj/stuff/libb.b.o || obj/blah/liba.a
   target3.visibility().SetPublic();
   target3.sources().push_back(SourceFile("//stuff/c.modulemap"));
   target3.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
-  target3.set_module_type(Target::EXPLICIT_MODULEMAP);
+  target3.set_module_type(kExplicitModulemap);
   target3.public_deps().push_back(LabelTargetPair(&target2));
   target3.SetToolchain(&module_toolchain);
   ASSERT_TRUE(target3.OnResolved(&err));
@@ -2938,7 +2943,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   target.public_headers().push_back(SourceFile("//foo/public_header.h"));
   target.set_all_headers_public(false);
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
-  target.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  target.set_module_type(kGeneratedTextualModulemap);
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -2990,7 +2995,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   target_no_public.sources().push_back(SourceFile("//foo/header1.h"));
   target_no_public.source_types_used().Set(SourceFile::SOURCE_CPP);
   target_no_public.source_types_used().Set(SourceFile::SOURCE_H);
-  target_no_public.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  target_no_public.set_module_type(kGeneratedTextualModulemap);
   target_no_public.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target_no_public.OnResolved(&err));
 
@@ -3020,7 +3025,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   transitive.sources().push_back(SourceFile("//foo/invisible.h"));
   transitive.source_types_used().Set(SourceFile::SOURCE_H);
   transitive.set_output_type(Target::SOURCE_SET);
-  transitive.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  transitive.set_module_type(kGeneratedTextualModulemap);
   transitive.SetToolchain(setup.toolchain());
   ASSERT_TRUE(transitive.OnResolved(&err));
 
@@ -3033,7 +3038,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   private_dep.sources().push_back(SourceFile("//foo/private_dep.h"));
   private_dep.source_types_used().Set(SourceFile::SOURCE_H);
   private_dep.public_deps().push_back(LabelTargetPair(&transitive));
-  private_dep.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  private_dep.set_module_type(kGeneratedTextualModulemap);
   private_dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(private_dep.OnResolved(&err));
 
@@ -3045,7 +3050,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   public_dep.sources().push_back(SourceFile("//foo/public_dep.h"));
   public_dep.private_deps().push_back(LabelTargetPair(&transitive));
   public_dep.public_deps().push_back(LabelTargetPair(&transitive));
-  public_dep.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  public_dep.set_module_type(kGeneratedTextualModulemap);
   public_dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(public_dep.OnResolved(&err));
 
@@ -3070,7 +3075,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   root.source_types_used().Set(SourceFile::SOURCE_H);
   root.public_deps().push_back(LabelTargetPair(&group_dep));
   root.private_deps().push_back(LabelTargetPair(&private_dep));
-  root.set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
+  root.set_module_type(kGeneratedTextualModulemap);
   root.SetToolchain(setup.toolchain());
   ASSERT_TRUE(root.OnResolved(&err));
 

@@ -8,6 +8,7 @@
 #include <set>
 #include <utility>
 
+#include "base/strings/stringprintf.h"
 #include "gn/resolved_target_data.h"
 #include "gn/substitution_writer.h"
 #include "gn/target.h"
@@ -47,31 +48,27 @@ std::set<ClangModuleDep> GetModuleDepsInformation(
   std::set<ClangModuleDep> ret;
 
   auto add_if_new = [&ret](const Target* t, bool is_self) {
+    if (!t->module_type().test(Target::HAS_MODULEMAP))
+      return;
+
     std::optional<OutputFile> pcm = std::nullopt;
-    switch (t->module_type()) {
-      case Target::GENERATED_TEXTUAL_MODULEMAP:
-        ret.emplace(t->modulemap_file(), t->module_name(), std::nullopt,
-                    is_self);
-        break;
-      case Target::EXPLICIT_MODULEMAP: {
-        auto modulemap = t->modulemap_file();
-        CHECK(modulemap != nullptr);
-        const char* tool_type;
-        std::vector<OutputFile> modulemap_outputs;
-        CHECK(t->GetOutputFilesForSource(*modulemap, &tool_type,
-                                         &modulemap_outputs));
-        CHECK(modulemap_outputs.size() == 1u);
-        ret.emplace(modulemap, t->module_name(),
-                    std::move(modulemap_outputs[0]), is_self);
-        break;
-      }
-      default:
-        break;
+    auto modulemap = t->modulemap_file();
+    CHECK(modulemap != nullptr);
+    if (!t->module_type().test(Target::MODULEMAP_IS_TEXTUAL)) {
+      const char* tool_type;
+      std::vector<OutputFile> modulemap_outputs;
+      CHECK(t->GetOutputFilesForSource(*modulemap, &tool_type,
+                                       &modulemap_outputs));
+      CHECK(modulemap_outputs.size() == 1u);
+      pcm = std::move(modulemap_outputs[0]);
     }
+
+    ret.emplace(modulemap, t->module_name(), pcm, is_self);
   };
 
-  if (target->source_types_used().Get(SourceFile::SOURCE_MODULEMAP))
+  if (target->module_type().test(Target::HAS_MODULEMAP)) {
     add_if_new(target, true);
+  }
 
   for (const auto& pair : resolved.GetModuleDepsInformation(target))
     add_if_new(pair.target(), false);

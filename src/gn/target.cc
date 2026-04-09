@@ -1399,40 +1399,32 @@ bool Target::GetMetadata(const std::vector<std::string>& keys_to_extract,
 
 void Target::set_module_type(ModuleType type) {
   module_type_ = type;
-  switch (type) {
-    case GENERATED_TEXTUAL_MODULEMAP: {
-      auto source_dir =
-          GetBuildDirForTargetAsOutputFile(this, BuildDirType::GEN)
-              .AsSourceDir(settings()->build_settings());
+  if (module_type_.test(MODULEMAP_IS_GENERATED)) {
+    auto source_dir = GetBuildDirForTargetAsOutputFile(this, BuildDirType::GEN)
+                          .AsSourceDir(settings()->build_settings());
 
-      generated_modulemap_file_ = SourceFile(
-          base::StringPrintf("%s%s.modulemap", source_dir.value().c_str(),
-                             label().name().c_str()));
-      break;
-    }
-    default:
-      break;
+    generated_modulemap_file_ = SourceFile(base::StringPrintf(
+        "%s%s.modulemap", source_dir.value().c_str(), label().name().c_str()));
   }
 }
 
 const SourceFile* Target::modulemap_file() const {
-  switch (module_type_) {
-    case GENERATED_TEXTUAL_MODULEMAP:
-      return &generated_modulemap_file_;
-    case EXPLICIT_MODULEMAP:
-      for (const SourceFile& sf : sources_) {
-        if (sf.IsModuleMapType()) {
-          return &sf;
-        }
-      }
-    default:
-      return nullptr;
+  if (module_type_.test(MODULEMAP_IS_GENERATED)) {
+    return &generated_modulemap_file_;
   }
+  if (module_type_.any()) {
+    for (const SourceFile& sf : sources_) {
+      if (sf.IsModuleMapType()) {
+        return &sf;
+      }
+    }
+  }
+  return nullptr;
 }
 
 const SourceFile* Target::private_modulemap_file() const {
   if (private_modulemap_file_.is_null() &&
-      module_type_ == GENERATED_TEXTUAL_MODULEMAP) {
+      module_type_.test(MODULEMAP_IS_GENERATED)) {
     auto public_modulemap = modulemap_file();
     std::string private_name = public_modulemap->GetName();
     // foo.modulemap -> foo.private.modulemap

@@ -5,6 +5,7 @@
 #ifndef TOOLS_GN_TARGET_H_
 #define TOOLS_GN_TARGET_H_
 
+#include <bitset>
 #include <set>
 #include <string>
 #include <utility>
@@ -60,13 +61,14 @@ class Target : public Item {
     DEPS_LINKED,  // Iterates through all non-data dependencies.
   };
 
-  enum ModuleType {
-    NO_MODULEMAP,
-    EXPLICIT_MODULEMAP,
-    // The target didn't have any public headers, so no modulemap is needed.
-    UNNECESSARY_MODULEMAP,
-    GENERATED_TEXTUAL_MODULEMAP,
+  enum ModuleTypeBits {
+    HAS_MODULEMAP,
+    MODULEMAP_IS_GENERATED,
+    MODULEMAP_IS_TEXTUAL,
+
+    N_MODULE_TYPE_BITS,
   };
+  using ModuleType = std::bitset<N_MODULE_TYPE_BITS>;
 
   using FileList = std::vector<SourceFile>;
   using StringVector = std::vector<std::string>;
@@ -538,7 +540,7 @@ class Target : public Item {
   bool output_extension_set_ = false;
 
   std::string module_name_;
-  ModuleType module_type_ = NO_MODULEMAP;
+  ModuleType module_type_;
   // Only filled if the module type is GENERATED_*
   SourceFile generated_modulemap_file_;
   // For performance reasons we cache private_modulemap_file.

@@ -295,15 +295,10 @@ bool BinaryTargetGenerator::FillModuleType() {
   const Value* generate_modulemap_val =
       scope_->GetValue(variables::kGenerateModulemap, true);
 
+  Target::ModuleType type;
+  type.set(Target::HAS_MODULEMAP);
   if (target_->source_types_used().Get(SourceFile::SOURCE_MODULEMAP)) {
-    target_->set_module_type(Target::EXPLICIT_MODULEMAP);
-    return true;
-  }
-
-  if (target_->all_headers_public()
-          ? !target_->source_types_used().Get(SourceFile::SOURCE_H)
-          : target_->public_headers().empty()) {
-    target_->set_module_type(Target::UNNECESSARY_MODULEMAP);
+    target_->set_module_type(type);
     return true;
   }
 
@@ -316,13 +311,26 @@ bool BinaryTargetGenerator::FillModuleType() {
     return false;
   }
   auto value = generate_modulemap_val->string_value();
+  type.set(Target::MODULEMAP_IS_GENERATED);
   if (value == "textual") {
-    target_->set_module_type(Target::GENERATED_TEXTUAL_MODULEMAP);
-  } else if (value != "none") {
+    type.set(Target::MODULEMAP_IS_TEXTUAL);
+  } else if (value == "none" || value == "") {
+    return true;
+  } else {
     *err_ = Err(*generate_modulemap_val,
                 "Invalid value for generate_modulemap. Expected \"textual\" or "
                 "\"none\"");
     return false;
   }
+
+  // Even if generate_modulemap was explicitly set, if we're compiling non-c++
+  // code, we shouldn't mark it as a module.
+  if (target_->source_types_used().Get(SourceFile::SOURCE_CPP) ||
+      (target_->all_headers_public()
+           ? target_->source_types_used().Get(SourceFile::SOURCE_H)
+           : !target_->public_headers().empty())) {
+    target_->set_module_type(type);
+  }
+
   return true;
 }

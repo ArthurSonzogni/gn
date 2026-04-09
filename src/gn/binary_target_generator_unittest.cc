@@ -12,7 +12,7 @@
 
 using BinaryTargetGeneratorTest = TestWithScheduler;
 
-TEST_F(BinaryTargetGeneratorTest, UnnecessaryModuleMapAllPublic) {
+TEST_F(BinaryTargetGeneratorTest, NonModuleTarget) {
   TestWithScope setup;
   Scope::ItemVector items_;
   setup.scope()->set_item_collector(&items_);
@@ -21,7 +21,7 @@ TEST_F(BinaryTargetGeneratorTest, UnnecessaryModuleMapAllPublic) {
   TestParseInput input(
       R"(static_library("foo") {
            generate_modulemap = "textual"
-           sources = [ "//foo.cc" ]
+           sources = [ "//foo.c" ]
          })");
   ASSERT_FALSE(input.has_error());
 
@@ -33,7 +33,7 @@ TEST_F(BinaryTargetGeneratorTest, UnnecessaryModuleMapAllPublic) {
   Target* target = items_[0]->AsTarget();
   ASSERT_TRUE(target);
 
-  EXPECT_EQ(Target::UNNECESSARY_MODULEMAP, target->module_type());
+  EXPECT_TRUE(target->module_type().none());
 }
 
 TEST_F(BinaryTargetGeneratorTest, GeneratedModuleMapAllPublic) {
@@ -57,7 +57,9 @@ TEST_F(BinaryTargetGeneratorTest, GeneratedModuleMapAllPublic) {
   Target* target = items_[0]->AsTarget();
   ASSERT_TRUE(target);
 
-  EXPECT_EQ(Target::GENERATED_TEXTUAL_MODULEMAP, target->module_type());
+  EXPECT_TRUE(target->module_type().test(Target::HAS_MODULEMAP));
+  EXPECT_TRUE(target->module_type().test(Target::MODULEMAP_IS_GENERATED));
+  EXPECT_TRUE(target->module_type().test(Target::MODULEMAP_IS_TEXTUAL));
 }
 
 TEST_F(BinaryTargetGeneratorTest, GeneratedModuleMap) {
@@ -82,5 +84,7 @@ TEST_F(BinaryTargetGeneratorTest, GeneratedModuleMap) {
   Target* target = items_[0]->AsTarget();
   ASSERT_TRUE(target);
 
-  EXPECT_EQ(Target::GENERATED_TEXTUAL_MODULEMAP, target->module_type());
+  EXPECT_TRUE(target->module_type().test(Target::HAS_MODULEMAP));
+  EXPECT_TRUE(target->module_type().test(Target::MODULEMAP_IS_GENERATED));
+  EXPECT_TRUE(target->module_type().test(Target::MODULEMAP_IS_TEXTUAL));
 }

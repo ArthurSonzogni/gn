@@ -47,7 +47,7 @@ std::vector<const Target*> ExpandModules(const LabelTargetVector& targets) {
     for (const auto& pair : *current) {
       const Target* target = pair.ptr;
       if (visited.insert(target).second) {
-        if (target->module_type() == Target::NO_MODULEMAP) {
+        if (target->module_type().none()) {
           stack.push_back(&target->public_deps());
           // If you declare `public_deps = ...` on a group, it shows up as a
           // private dep. Probably because groups don't distinguish between
