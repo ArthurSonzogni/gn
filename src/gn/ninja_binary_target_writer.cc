@@ -114,8 +114,8 @@ void NinjaBinaryTargetWriter::Run() {
   writer.Run();
 }
 
-void NinjaBinaryTargetWriter::WriteModuleMap(std::ostream& out,
-                                             const SourceDir& out_dir) {
+void NinjaBinaryTargetWriter::WritePublicModuleMap(std::ostream& out,
+                                                   const SourceDir& out_dir) {
   out << "module \"" << target_->module_name() << "\" {\n";
   if (target_->all_headers_public()) {
     WriteModuleMapHeaders(out, out_dir, target_->sources(), settings_);
@@ -129,6 +129,30 @@ void NinjaBinaryTargetWriter::WriteModuleMap(std::ostream& out,
   });
   WriteModuleDeps(out, deps, base);
   out << "  export *\n}\n";
+}
+
+void NinjaBinaryTargetWriter::WritePrivateModuleMap(std::ostream& out,
+                                                    const SourceDir& out_dir) {
+  auto base = target_->modulemap_file()->GetDir();
+  auto module_name = target_->module_name();
+  out << "module \"impl:" << module_name << "\" {\n";
+  if (!target_->all_headers_public()) {
+    WriteModuleMapHeaders(out, out_dir, target_->sources(), settings_);
+  }
+  out << "  extern module \"" << module_name << "\" \""
+      << target_->modulemap_file()->GetName() << "\"\n";
+  out << "  use \"" << module_name << "\"\n";
+
+  auto deps = ExpandModules(target_->private_deps());
+  auto pub_deps = ExpandModules(target_->public_deps());
+  deps.insert(deps.end(), pub_deps.begin(), pub_deps.end());
+  std::ranges::sort(deps, [](const Target* lhs, const Target* rhs) {
+    return lhs->module_name() < rhs->module_name();
+  });
+  auto dirty = std::ranges::unique(deps);
+  deps.erase(dirty.begin(), dirty.end());
+  WriteModuleDeps(out, deps, base);
+  out << "}\n";
 }
 
 std::vector<OutputFile>

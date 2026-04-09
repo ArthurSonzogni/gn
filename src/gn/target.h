@@ -361,6 +361,7 @@ class Target : public Item {
   ModuleType module_type() const { return module_type_; }
   void set_module_type(ModuleType type);
   const SourceFile* modulemap_file() const;
+  const SourceFile* private_modulemap_file() const;
 
   // The toolchain is only known once this target is resolved (all if its
   // dependencies are known). They will be null until then. Generally, this can
@@ -540,6 +541,10 @@ class Target : public Item {
   ModuleType module_type_ = NO_MODULEMAP;
   // Only filled if the module type is GENERATED_*
   SourceFile generated_modulemap_file_;
+  // For performance reasons we cache private_modulemap_file.
+  // Modulemap files are passed as pointers, so to keep them as pointers instead
+  // of values we need to store them somewhere.
+  mutable SourceFile private_modulemap_file_;
 
   FileList sources_;
   SourceFileTypeSet source_types_used_;

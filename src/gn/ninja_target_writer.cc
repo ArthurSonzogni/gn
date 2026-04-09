@@ -169,13 +169,22 @@ std::string NinjaTargetWriter::RunAndWriteFile(
     if (target->module_type() == Target::GENERATED_TEXTUAL_MODULEMAP) {
       const SourceFile* modulemap = target->modulemap_file();
       CHECK(modulemap);
-      StringOutputBuffer modulemap_storage;
-      std::ostream os(&modulemap_storage);
-      writer.WriteModuleMap(os, modulemap->GetDir());
 
-      base::FilePath file_path =
+      // Write public module map
+      StringOutputBuffer public_storage;
+      std::ostream public_os(&public_storage);
+      writer.WritePublicModuleMap(public_os, modulemap->GetDir());
+      base::FilePath public_path =
           settings->build_settings()->GetFullPath(*modulemap);
-      modulemap_storage.WriteToFileIfChanged(file_path, nullptr);
+      public_storage.WriteToFileIfChanged(public_path, nullptr);
+
+      // Write private module map adjacent to the public one
+      StringOutputBuffer private_storage;
+      std::ostream private_os(&private_storage);
+      writer.WritePrivateModuleMap(private_os, modulemap->GetDir());
+      base::FilePath private_path = settings->build_settings()->GetFullPath(
+          *target->private_modulemap_file());
+      private_storage.WriteToFileIfChanged(private_path, nullptr);
     }
     writer.Run();
   } else {

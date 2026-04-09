@@ -2948,7 +2948,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   std::ostringstream modulemap_out;
   SourceDir out_dir("//out/Debug/gen/");
 
-  writer.WriteModuleMap(modulemap_out, out_dir);
+  writer.WritePublicModuleMap(modulemap_out, out_dir);
 
   const char expected_modulemap[] =
       "module \"//foo:bar\" {\n"
@@ -3000,7 +3000,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
 
   std::ostringstream modulemap_out_no_public;
 
-  writer_no_public.WriteModuleMap(modulemap_out_no_public, out_dir);
+  writer_no_public.WritePublicModuleMap(modulemap_out_no_public, out_dir);
 
   const char expected_modulemap_no_public[] =
       "module \"//foo:no_public\" {\n"
@@ -3076,7 +3076,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
 
   std::ostringstream public_modulemap;
   NinjaCBinaryTargetWriter(&root, ninja_out)
-      .WriteModuleMap(public_modulemap, out_dir);
+      .WritePublicModuleMap(public_modulemap, out_dir);
 
   const char expected_public[] =
       "module \"//foo:root\" {\n"
@@ -3087,4 +3087,24 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
       "}\n";
   EXPECT_EQ(expected_public, public_modulemap.str()) << expected_public << "\n"
                                                      << public_modulemap.str();
+
+  std::ostringstream private_modulemap;
+  NinjaCBinaryTargetWriter(&root, ninja_out)
+      .WritePrivateModuleMap(private_modulemap, out_dir);
+
+  const char expected_private[] =
+      "module \"impl://foo:root\" {\n"
+      "  textual header \"../../../foo/private_header.h\"\n"
+      "  extern module \"//foo:root\" \"root.modulemap\"\n"
+      "  use \"//foo:root\"\n"
+      "  extern module \"//foo:public_dep\" \"public_dep.modulemap\"\n"
+      "  use \"//foo:public_dep\"\n"
+      "  extern module \"//private:private_dep\" "
+      "\"../private/private_dep.modulemap\"\n"
+      "  use \"//private:private_dep\"\n"
+      "}\n";
+
+  EXPECT_EQ(expected_private, private_modulemap.str())
+      << expected_private << "\n"
+      << private_modulemap.str();
 }
