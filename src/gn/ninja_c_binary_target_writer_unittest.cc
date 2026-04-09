@@ -2590,7 +2590,7 @@ cflags =
 cflags_cc =
 cc_module_name = blah_a
 module_deps = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
-module_deps_no_self =
+module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap
 root_out_dir = withmodules
 target_out_dir = obj/blah
 target_output_name = liba
@@ -2639,7 +2639,7 @@ cflags =
 cflags_cc =
 cc_module_name = //stuff$:b(//toolchain$:default)
 module_deps = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=//stuff:b(//toolchain:default)=obj/stuff/libb.b.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
-module_deps_no_self = -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
+module_deps_no_self = -fmodule-map-file=../../stuff/b.modulemap -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 root_out_dir = withmodules
 target_out_dir = obj/stuff
 target_output_name = libb
@@ -2686,7 +2686,7 @@ cflags =
 cflags_cc =
 cc_module_name = //things$:c
 module_deps = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=//stuff:b(//toolchain:default)=obj/stuff/libb.b.pcm -fmodule-map-file=../../stuff/c.modulemap -fmodule-file=//things:c=obj/stuff/libc.c.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
-module_deps_no_self = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=//stuff:b(//toolchain:default)=obj/stuff/libb.b.pcm -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
+module_deps_no_self = -fmodule-map-file=../../stuff/b.modulemap -fmodule-file=//stuff:b(//toolchain:default)=obj/stuff/libb.b.pcm -fmodule-map-file=../../stuff/c.modulemap -fmodule-map-file=../../blah/a.modulemap -fmodule-file=blah_a=obj/blah/liba.a.pcm
 root_out_dir = withmodules
 target_out_dir = obj/things
 target_output_name = libc

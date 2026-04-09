@@ -212,9 +212,7 @@ void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
 
     out_ << substitution->ninja_name << " =";
     for (const auto& module_dep : module_dep_info) {
-      if (!module_dep.is_self || include_self) {
-        module_dep.Write(out_, path_output_);
-      }
+      module_dep.Write(out_, path_output_, include_self);
     }
 
     out_ << std::endl;

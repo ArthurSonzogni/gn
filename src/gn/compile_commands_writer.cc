@@ -106,16 +106,14 @@ void SetupCompileFlags(const Target* target,
   if (!module_dep_info.empty()) {
     std::ostringstream module_deps_out;
     for (const auto& module_dep : module_dep_info) {
-      module_dep.Write(module_deps_out, path_output);
+      module_dep.Write(module_deps_out, path_output, true);
     }
     base::EscapeJSONString(module_deps_out.str(), false,
                            &flags.clang_module_deps);
 
     std::ostringstream module_deps_no_self_out;
     for (const auto& module_dep : module_dep_info) {
-      if (!module_dep.is_self) {
-        module_dep.Write(module_deps_no_self_out, path_output);
-      }
+      module_dep.Write(module_deps_no_self_out, path_output, false);
     }
     base::EscapeJSONString(module_deps_no_self_out.str(), false,
                            &flags.clang_module_deps_no_self);
