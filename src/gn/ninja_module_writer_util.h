@@ -25,7 +25,9 @@ struct ClangModuleDep {
 
   std::strong_ordering operator<=>(const ClangModuleDep& other) const;
   bool operator==(const ClangModuleDep& other) const = default;
-  void Write(std::ostream& out, const PathOutput& path_output, bool include_self) const;
+  void Write(std::ostream& out,
+             const PathOutput& path_output,
+             bool include_self) const;
 
   // The input module.modulemap source file.
   const SourceFile* modulemap;

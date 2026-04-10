@@ -85,7 +85,8 @@ class Target : public Item {
   Target* AsTarget() override;
   const Target* AsTarget() const override;
 
-  // NOTE: This calls OnResolvedWithoutChecks followed by RunChecksAfterResolution.
+  // NOTE: This calls OnResolvedWithoutChecks followed by
+  // RunChecksAfterResolution.
   bool OnResolved(Err* err) override;
 
   // Perform all resolution steps except for checks. When this function
@@ -443,9 +444,7 @@ class Target : public Item {
   }
 
   // The module name for the target.
-  std::string module_name() const {
-    return module_name_;
-  }
+  std::string module_name() const { return module_name_; }
   void set_module_name(std::string module_name) {
     module_name_ = std::move(module_name);
   }

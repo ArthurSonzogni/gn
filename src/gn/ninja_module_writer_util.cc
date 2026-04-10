@@ -80,7 +80,8 @@ std::set<ClangModuleDep> GetModuleDepsInformation(
 }
 
 void ClangModuleDep::Write(std::ostream& out,
-                           const PathOutput& path_output, bool include_self) const {
+                           const PathOutput& path_output,
+                           bool include_self) const {
   if (modulemap) {
     out << " -fmodule-map-file=";
     path_output.WriteFile(out, *modulemap);
