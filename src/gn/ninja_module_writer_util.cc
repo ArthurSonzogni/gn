@@ -78,7 +78,7 @@ std::set<ClangModuleDep> GetModuleDepsInformation(
   if (has_generated_modulemap) {
     // Add the private modulemap as a dependency.
     ret.emplace(target->private_modulemap_file(),
-                base::StringPrintf("impl:%s", target->module_name().c_str()),
+                base::StringPrintf("%s_Private", target->module_name().c_str()),
                 std::nullopt, true);
   } else {
     add_if_new(target, true, has_generated_modulemap);

@@ -3127,7 +3127,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
       .WritePrivateModuleMap(private_modulemap, out_dir);
 
   const char expected_private[] =
-      "module \"impl://foo:root\" {\n"
+      "module \"//foo:root_Private\" {\n"
       "  textual header \"../../../foo/private_header.h\"\n"
       "  extern module \"//foo:root\" \"root.modulemap\"\n"
       "  use \"//foo:root\"\n"

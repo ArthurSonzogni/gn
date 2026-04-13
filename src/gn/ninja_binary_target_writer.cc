@@ -135,7 +135,10 @@ void NinjaBinaryTargetWriter::WritePrivateModuleMap(std::ostream& out,
                                                     const SourceDir& out_dir) {
   auto base = target_->modulemap_file()->GetDir();
   auto module_name = target_->module_name();
-  out << "module \"impl:" << module_name << "\" {\n";
+  // Though it's not documented, clang special-cases modules suffixed with
+  // _Private. Private and public in the context of clang means basically the
+  // same thing as in the context of GN.
+  out << "module \"" << module_name << "_Private\" {\n";
   if (!target_->all_headers_public()) {
     WriteModuleMapHeaders(out, out_dir, target_->sources(), settings_);
   }
