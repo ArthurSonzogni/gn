@@ -41,6 +41,7 @@
     *   [declare_args: Declare build arguments.](#func_declare_args)
     *   [defined: Returns whether an identifier is defined.](#func_defined)
     *   [exec_script: Synchronously run a script and return the output.](#func_exec_script)
+    *   [expand_directory: Expand a source directory and return files.](#func_expand_directory)
     *   [filter_exclude: Remove values that match a set of patterns.](#func_filter_exclude)
     *   [filter_include: Remove values that do not match a set of patterns.](#func_filter_include)
     *   [filter_labels_exclude: Remove labels that match a set of patterns.](#func_filter_labels_exclude)
@@ -2610,6 +2611,25 @@
   # This example just calls the script with no arguments and discards the
   # result.
   exec_script("//foo/bar/myscript.py")
+```
+### <a name="func_expand_directory"></a>**expand_directory**: Expand a source directory and return files.&nbsp;[Back to Top](#gn-reference)
+
+```
+  expand_directory(directory, recursive)
+
+  Returns a list of all files contained within the specified directory.
+
+  Arguments:
+    directory: A string representing the directory to search, relative to
+               the current BUILD file or source-absolute (starting with "//").
+    recursive: A boolean indicating whether to search recursively.
+
+  Returns:
+    A list of source-absolute paths representing the files found, sorted
+    alphabetically.
+
+  Example:
+    files = expand_directory("src/data", true)
 ```
 ### <a name="func_filter_exclude"></a>**filter_exclude**: Remove values that match a set of patterns.&nbsp;[Back to Top](#gn-reference)
 
@@ -7357,6 +7377,21 @@
       compatibility. New code should use "exec_script_allowlist" instead.
       If both values are set, only the value in "exec_script_allowlist" will
       have any effect (so don't set both!).
+
+  expand_directory_allowlist [optional]
+      A list of .gn/.gni files (not labels) that have permission to call the
+      expand_directory function. If this list is defined, calls to
+      expand_directory will be checked against this list and GN will fail if
+      the current file isn't in the list.
+
+      The use of expand_directory is restricted because it encourages
+      monolithic build targets with redundant inputs, which can slow down
+      the build.
+
+      Example:
+        expand_directory_allowlist = [
+          "//base/BUILD.gn",
+        ]
 
   export_compile_commands [optional]
       A list of label patterns for which to generate a Clang compilation

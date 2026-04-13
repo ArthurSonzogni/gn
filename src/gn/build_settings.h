@@ -144,6 +144,15 @@ class BuildSettings {
     exec_script_allowlist_ = std::move(list);
   }
 
+  // A list of files that can call expand_directory(). If the returned pointer
+  // is null, expand_directory may be called from anywhere.
+  const SourceFileSet* expand_directory_allowlist() const {
+    return expand_directory_allowlist_.get();
+  }
+  void set_expand_directory_allowlist(std::unique_ptr<SourceFileSet> list) {
+    expand_directory_allowlist_ = std::move(list);
+  }
+
  private:
   Label root_target_label_;
   std::vector<LabelPattern> root_patterns_;
@@ -167,6 +176,8 @@ class BuildSettings {
   PrintCallback print_callback_;
 
   std::unique_ptr<SourceFileSet> exec_script_allowlist_;
+  std::unique_ptr<SourceFileSet> expand_directory_allowlist_ =
+      std::make_unique<SourceFileSet>();
 
   BuildSettings& operator=(const BuildSettings&) = delete;
 };

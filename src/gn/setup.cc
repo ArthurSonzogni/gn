@@ -127,6 +127,21 @@ Variables
       If both values are set, only the value in "exec_script_allowlist" will
       have any effect (so don't set both!).
 
+  expand_directory_allowlist [optional]
+      A list of .gn/.gni files (not labels) that have permission to call the
+      expand_directory function. If this list is defined, calls to
+      expand_directory will be checked against this list and GN will fail if
+      the current file isn't in the list.
+
+      The use of expand_directory is restricted because it encourages
+      monolithic build targets with redundant inputs, which can slow down
+      the build.
+
+      Example:
+        expand_directory_allowlist = [
+          "//base/BUILD.gn",
+        ]
+
   export_compile_commands [optional]
       A list of label patterns for which to generate a Clang compilation
       database (see "gn help label_pattern" for the string format).
@@ -255,6 +270,28 @@ base::FilePath FindDotFile(const base::FilePath& current_dir) {
     return base::FilePath();  // Got to the top.
 
   return FindDotFile(up_one_dir);
+}
+
+std::unique_ptr<SourceFileSet> FillAllowlist(const Value* value,
+                                             const SourceDir& current_dir,
+                                             Err* err) {
+  if (!value)
+    return nullptr;
+
+  if (!value->VerifyTypeIs(Value::LIST, err)) {
+    return nullptr;
+  }
+  auto allowlist = std::make_unique<SourceFileSet>();
+  for (const auto& item : value->list_value()) {
+    if (!item.VerifyTypeIs(Value::STRING, err)) {
+      return nullptr;
+    }
+    allowlist->insert(current_dir.ResolveRelativeFile(item, err));
+    if (err->has_error()) {
+      return nullptr;
+    }
+  }
+  return allowlist;
 }
 
 // Called on any thread. Post the item to the builder on the main thread.
@@ -1107,24 +1144,28 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
     exec_script_allowlist_value =
         dotfile_scope_.GetValue("exec_script_whitelist", true);
   }
-
   if (exec_script_allowlist_value) {
-    // Fill the list of targets to check.
-    if (!exec_script_allowlist_value->VerifyTypeIs(Value::LIST, err)) {
+    build_settings_.set_exec_script_allowlist(
+        FillAllowlist(exec_script_allowlist_value, current_dir, err));
+    if (err->has_error()) {
       return false;
     }
-    std::unique_ptr<SourceFileSet> allowlist =
-        std::make_unique<SourceFileSet>();
-    for (const auto& item : exec_script_allowlist_value->list_value()) {
-      if (!item.VerifyTypeIs(Value::STRING, err)) {
-        return false;
-      }
-      allowlist->insert(current_dir.ResolveRelativeFile(item, err));
-      if (err->has_error()) {
-        return false;
-      }
+  }
+
+  // Fill expand_directory_allowlist.
+  const Value* expand_directory_allowlist_value =
+      dotfile_scope_.GetValue("expand_directory_allowlist", true);
+
+  if (expand_directory_allowlist_value) {
+    build_settings_.set_expand_directory_allowlist(
+        FillAllowlist(expand_directory_allowlist_value, current_dir, err));
+    if (err->has_error()) {
+      return false;
     }
-    build_settings_.set_exec_script_allowlist(std::move(allowlist));
+  } else {
+    // Treat unspecified as empty.
+    build_settings_.set_expand_directory_allowlist(
+        std::make_unique<SourceFileSet>());
   }
 
   // Fill optional default_args.

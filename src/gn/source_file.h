@@ -154,6 +154,9 @@ struct hash<SourceFile> {
 // overall difference in "gn gen" time is about 10%.
 using SourceFileSet = base::flat_set<SourceFile, SourceFile::PtrCompare>;
 
+class ParseNode;
+bool InSourceAllowList(const ParseNode* node, const SourceFileSet* allowlist);
+
 // Represents a set of tool types.
 class SourceFileTypeSet {
  public:
