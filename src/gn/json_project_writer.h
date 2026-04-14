@@ -29,6 +29,7 @@ class JSONProjectWriter {
   FRIEND_TEST_ALL_PREFIXES(JSONWriter, ForEachWithResponseFile);
   FRIEND_TEST_ALL_PREFIXES(JSONWriter, RustTarget);
   FRIEND_TEST_ALL_PREFIXES(JSONWriter, FilterTargetsWithDataDeps);
+  FRIEND_TEST_ALL_PREFIXES(JSONWriter, GroupWithData);
 
   static bool FilterTargets(const BuildSettings* build_settings,
                             std::vector<const Target*>& all_targets,

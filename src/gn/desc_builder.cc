@@ -391,6 +391,10 @@ class TargetDescBuilder : public BaseDescBuilder {
       }
     }
 
+    if (what(variables::kData) && !target_->data().empty())
+      res->SetWithoutPathExpansion(variables::kData,
+                                   RenderValue(target_->data()));
+
     if (what(variables::kSources) && !target_->sources().empty())
       res->SetWithoutPathExpansion(variables::kSources,
                                    RenderValue(target_->sources()));

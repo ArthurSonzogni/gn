@@ -835,3 +835,48 @@ TEST_F(JSONWriter, FilterTargetsWithDataDeps) {
   EXPECT_GT(labels_all.count(Label(SourceDir("//foo/"), "b")), 0u);
   EXPECT_GT(labels_all.count(Label(SourceDir("//foo/"), "c")), 0u);
 }
+
+TEST_F(JSONWriter, GroupWithData) {
+  Err err;
+  TestWithScope setup;
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "docs"));
+  target.set_output_type(Target::GROUP);
+  target.data().push_back("README.md");
+  target.data().push_back("docs/help.txt");
+  target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target.OnResolved(&err));
+
+  std::vector<const Target*> targets = {&target};
+  std::string out =
+      JSONProjectWriter::RenderJSON(setup.build_settings(), targets);
+#if defined(OS_WIN)
+  base::ReplaceSubstringsAfterOffset(&out, 0, "\r\n", "\n");
+#endif
+  const char expected_json[] =
+      R"_({
+   "build_settings": {
+      "build_dir": "//out/Debug/",
+      "default_toolchain": "//toolchain:default",
+      "gen_input_files": [  ],
+      "root_path": ""
+   },
+   "targets": {
+      "//foo:docs()": {
+         "data": [ "README.md", "docs/help.txt" ],
+         "deps": [  ],
+         "metadata": {
+
+         },
+         "public": "*",
+         "testonly": false,
+         "toolchain": "",
+         "type": "group",
+         "visibility": [  ]
+      }
+   },
+   "toolchains": {
+)_";
+
+  EXPECT_TRUE(out.starts_with(expected_json)) << out;
+}
