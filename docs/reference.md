@@ -781,6 +781,19 @@
       provided by the --ninja-executable switch. Also see "gn help clean_stale".
 ```
 
+#### **IDE support**
+
+```
+  QtCreator (version 20 and newer) has built-in support for GN-based projects.
+  A GN project can be opened directly by selecting the top-level .gn or BUILD.gn file.
+
+  QtCreator's GN support plugin provides:
+    - Project tree with all targets, sources & data files
+    - Accurate code model based on defines and compile flags
+    - Code navigation and completion
+    - Ability to run and debug targets directly
+```
+
 #### **IDE options**
 
 ```
