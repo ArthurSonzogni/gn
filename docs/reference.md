@@ -5304,6 +5304,14 @@
     public_deps = [ ":c" ]
   }
 ```
+
+#### **Allowlist**
+
+```
+  The use of allow_circular_includes_from can be restricted to a specific list
+  of target labels by setting allow_circular_includes_from_allowlist in the .gn
+  file. See "gn help dotfile".
+```
 ### <a name="var_arflags"></a>**arflags**: Arguments passed to static_library archiver.&nbsp;[Back to Top](#gn-reference)
 
 ```
@@ -7627,6 +7635,28 @@
 #### **Variables**
 
 ```
+  allow_circular_includes_from_allowlist [optional]
+      A list of target label patterns that have permission to use the
+      allow_circular_includes_from variable. If this list is defined, usages of
+      allow_circular_includes_from will be checked against this list and GN
+      will fail if the target label isn't in the list.
+
+      This is to allow the use of allow_circular_includes_from to be restricted
+      since circular dependencies between targets are discouraged and should
+      generally be avoided.
+
+      The format of this list is identical to that of "visibility" so see "gn
+      help visibility" for examples.
+
+      If unspecified, the ability to use allow_circular_includes_from is
+      unrestricted.
+
+      Example:
+        allow_circular_includes_from_allowlist = [
+          "//foo:*",
+          "//foo:bar",
+        ]
+
   arg_file_template [optional]
       Path to a file containing the text that should be used as the default
       args.gn content when you run `gn args`.

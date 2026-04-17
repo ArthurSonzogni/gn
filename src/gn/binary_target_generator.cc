@@ -9,6 +9,7 @@
 #include "gn/err.h"
 #include "gn/filesystem_utils.h"
 #include "gn/functions.h"
+#include "gn/label_pattern.h"
 #include "gn/parse_tree.h"
 #include "gn/rust_values_generator.h"
 #include "gn/rust_variables.h"
@@ -208,6 +209,30 @@ bool BinaryTargetGenerator::FillAllowCircularIncludesFrom() {
       scope_->GetValue(variables::kAllowCircularIncludesFrom, true);
   if (!value)
     return true;
+
+  const BuildSettings* build_settings = scope_->settings()->build_settings();
+  const auto* allowlist =
+      build_settings->allow_circular_includes_from_allowlist();
+  if (allowlist && !LabelPattern::VectorMatches(*allowlist, target_->label())) {
+    const ParseNode* blame_node =
+        value->origin() ? value->origin() : function_call_;
+    *err_ = Err(
+        blame_node,
+        "Usage of allow_circular_includes_from is not allowed here.",
+        "Circular dependencies between targets should be avoided:\n"
+        "* If circular dependencies were added accidentally, try removing\n"
+        "  the circular deps and running `gn check <out_dir> --fix` to add\n"
+        "  back only the strictly required header dependencies.\n"
+        "* If one direction is needed for compiling headers and the other for\n"
+        "  linking symbols, extract the sources into a source_set (so other\n"
+        "  targets can depend on headers without linking), and make the\n"
+        "  linking library (e.g. shared_library) an empty wrapper that links\n"
+        "  them together.\n"
+        "\n"
+        "If an exception is strictly required, add an entry to\n"
+        "allow_circular_includes_from_allowlist in your \"//.gn\" file.\n");
+    return false;
+  }
 
   UniqueVector<Label> circular;
   ExtractListOfUniqueLabels(scope_->settings()->build_settings(), *value,

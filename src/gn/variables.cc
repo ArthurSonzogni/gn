@@ -563,6 +563,12 @@ Example
   group("a_b_shared_deps") {
     public_deps = [ ":c" ]
   }
+
+Allowlist
+
+  The use of allow_circular_includes_from can be restricted to a specific list
+  of target labels by setting allow_circular_includes_from_allowlist in the .gn
+  file. See "gn help dotfile".
 )";
 
 const char kGenDeps[] = "gen_deps";

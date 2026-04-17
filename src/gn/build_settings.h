@@ -153,6 +153,18 @@ class BuildSettings {
     expand_directory_allowlist_ = std::move(list);
   }
 
+  // A list of target label patterns that can use allow_circular_includes_from.
+  // If the returned pointer is null, allow_circular_includes_from may be used
+  // anywhere.
+  const std::vector<LabelPattern>* allow_circular_includes_from_allowlist()
+      const {
+    return allow_circular_includes_from_allowlist_.get();
+  }
+  void set_allow_circular_includes_from_allowlist(
+      std::unique_ptr<std::vector<LabelPattern>> list) {
+    allow_circular_includes_from_allowlist_ = std::move(list);
+  }
+
  private:
   Label root_target_label_;
   std::vector<LabelPattern> root_patterns_;
@@ -178,6 +190,8 @@ class BuildSettings {
   std::unique_ptr<SourceFileSet> exec_script_allowlist_;
   std::unique_ptr<SourceFileSet> expand_directory_allowlist_ =
       std::make_unique<SourceFileSet>();
+  std::unique_ptr<std::vector<LabelPattern>>
+      allow_circular_includes_from_allowlist_;
 
   BuildSettings& operator=(const BuildSettings&) = delete;
 };
