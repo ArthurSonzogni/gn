@@ -389,6 +389,19 @@ void NinjaCBinaryTargetWriter::WriteSources(
 
   std::vector<OutputFile> tool_outputs;  // Prevent reallocation in loop.
   std::vector<OutputFile> deps;
+
+  // Collect unique C-family additional outputs from all recursive configs.
+  std::vector<SubstitutionPattern> c_additional_outputs;
+  std::set<std::string> seen_patterns;
+  for (ConfigValuesIterator iter(target_); !iter.done(); iter.Next()) {
+    for (const auto& pattern : iter.cur().c_additional_outputs()) {
+      std::string pattern_str = pattern.AsString();
+      if (seen_patterns.insert(std::move(pattern_str)).second) {
+        c_additional_outputs.push_back(pattern);
+      }
+    }
+  }
+
   for (const auto& source : target_->sources()) {
     DCHECK_NE(source.GetType(), SourceFile::SOURCE_SWIFT);
 
@@ -438,6 +451,24 @@ void NinjaCBinaryTargetWriter::WriteSources(
           deps.push_back(*module_dep.pcm);
       }
 
+      if (tool_name == CTool::kCToolCc || tool_name == CTool::kCToolCxx ||
+          tool_name == CTool::kCToolObjC || tool_name == CTool::kCToolObjCxx) {
+        for (const auto& pattern : c_additional_outputs) {
+          // Use ApplyPatternToCompilerAsOutputFile instead of
+          // ApplyPatternToSourceAsOutputFile to support target-level
+          // substitutions (e.g. {{target_out_dir}}) in addition to source-level
+          // substitutions.
+          OutputFile extra_output =
+              SubstitutionWriter::ApplyPatternToCompilerAsOutputFile(
+                  target_, source, pattern);
+          if (!extra_output.value().empty() &&
+              std::find(tool_outputs.begin(), tool_outputs.end(), extra_output) ==
+                  tool_outputs.end()) {
+            tool_outputs.push_back(std::move(extra_output));
+          }
+        }
+      }
+
       WriteCompilerBuildLine({source}, deps, order_only_deps, tool,
                              tool_outputs);
       WritePool(out_);
@@ -449,6 +480,12 @@ void NinjaCBinaryTargetWriter::WriteSources(
       object_files->push_back(tool_outputs[0]);
     } else {
       extra_files->push_back(tool_outputs[0]);
+    }
+
+    // Add additional outputs to extra_files so they are included in the
+    // target's stamp file.
+    for (size_t i = 1; i < tool_outputs.size(); ++i) {
+      extra_files->push_back(tool_outputs[i]);
     }
   }
 

@@ -417,6 +417,29 @@ Possible values:
     All public headers will be marked as textual.
 )";
 
+const char kCAdditionalOutputs[] = "c_additional_outputs";
+const char kCAdditionalOutputs_HelpShort[] =
+    "c_additional_outputs: [string list] Additional outputs for the compiler.";
+const char kCAdditionalOutputs_Help[] =
+    R"(c_additional_outputs: [string list] Additional outputs for the compiler.
+
+  A list of substitution expressions that will be evaluated in the context
+  of the compiler tool (e.g. "cc") and added to its outputs when this config
+  is applied to a target.
+
+  This is useful for tools that produce side-artifacts like .dwo files
+  when specific flags (like -gsplit-dwarf) are used.
+
+  "c_additional_outputs" are applied to all invocations of the C, C++,
+  Objective C, and Objective C++ compilers.
+
+  Example:
+    config("split_dwarf") {
+      cflags = [ "-gsplit-dwarf" ]
+      c_additional_outputs = [ "{{source_out_dir}}/{{source_name_part}}.dwo" ]
+    }
+)";
+
 // Target variables ------------------------------------------------------------
 
 #define COMMON_ORDERING_HELP                                                 \
@@ -2476,6 +2499,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(BundleExecutableDir)
     INSERT_VARIABLE(XcassetCompilerFlags)
     INSERT_VARIABLE(Transparent)
+    INSERT_VARIABLE(CAdditionalOutputs)
     INSERT_VARIABLE(Cflags)
     INSERT_VARIABLE(CflagsC)
     INSERT_VARIABLE(CflagsCC)

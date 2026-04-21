@@ -107,6 +107,7 @@
     *   [bundle_executable_dir: Expansion of {{bundle_executable_dir}} in create_bundle](#var_bundle_executable_dir)
     *   [bundle_resources_dir: Expansion of {{bundle_resources_dir}} in create_bundle.](#var_bundle_resources_dir)
     *   [bundle_root_dir: Expansion of {{bundle_root_dir}} in create_bundle.](#var_bundle_root_dir)
+    *   [c_additional_outputs: [string list] Additional outputs for the compiler.](#var_c_additional_outputs)
     *   [cflags: [string list] Flags passed to all C compiler variants.](#var_cflags)
     *   [cflags_c: [string list] Flags passed to the C compiler.](#var_cflags_c)
     *   [cflags_cc: [string list] Flags passed to the C++ compiler.](#var_cflags_cc)
@@ -5330,6 +5331,25 @@
     bundle_resources_dir = "${bundle_contents_dir}/Resources"
     bundle_executable_dir = "${bundle_contents_dir}/MacOS"
   }
+```
+### <a name="var_c_additional_outputs"></a>**c_additional_outputs**: [string list] Additional outputs for the compiler.&nbsp;[Back to Top](#gn-reference)
+
+```
+  A list of substitution expressions that will be evaluated in the context
+  of the compiler tool (e.g. "cc") and added to its outputs when this config
+  is applied to a target.
+
+  This is useful for tools that produce side-artifacts like .dwo files
+  when specific flags (like -gsplit-dwarf) are used.
+
+  "c_additional_outputs" are applied to all invocations of the C, C++,
+  Objective C, and Objective C++ compilers.
+
+  Example:
+    config("split_dwarf") {
+      cflags = [ "-gsplit-dwarf" ]
+      c_additional_outputs = [ "{{source_out_dir}}/{{source_name_part}}.dwo" ]
+    }
 ```
 ### <a name="var_cflags"></a>**cflags***: Flags passed to the C compiler.&nbsp;[Back to Top](#gn-reference)
 

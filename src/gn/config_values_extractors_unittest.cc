@@ -183,3 +183,22 @@ TEST(ConfigValuesGenerator, CflagsWithNewlineError) {
   EXPECT_TRUE(err.has_error());
   EXPECT_EQ(err.message(), "Newlines in cflags values are not supported.");
 }
+
+TEST(ConfigValuesGenerator, AdditionalOutputs) {
+  TestWithScope setup;
+  Err err;
+
+  Value outputs_value(nullptr, Value::LIST);
+  outputs_value.list_value().push_back(
+      Value(nullptr, "{{target_out_dir}}/{{source_name_part}}.dwo"));
+  setup.scope()->SetValue("c_additional_outputs", outputs_value, nullptr);
+
+  ConfigValues config_values;
+  ConfigValuesGenerator gen(&config_values, setup.scope(), SourceDir("//foo/"),
+                            &err);
+  gen.Run();
+  EXPECT_FALSE(err.has_error());
+  ASSERT_EQ(config_values.c_additional_outputs().size(), 1u);
+  EXPECT_EQ(config_values.c_additional_outputs()[0].AsString(),
+            "{{target_out_dir}}/{{source_name_part}}.dwo");
+}

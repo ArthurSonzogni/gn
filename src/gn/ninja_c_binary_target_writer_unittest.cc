@@ -170,6 +170,59 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
   }
 }
 
+TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputs) {
+  Err err;
+  TestWithScope setup;
+
+  Value outputs_value(nullptr, Value::LIST);
+  outputs_value.list_value().push_back(
+      Value(nullptr, "{{target_out_dir}}/{{source_name_part}}.dwo"));
+
+  Config config(setup.settings(), Label(SourceDir("//foo/"), "split_dwarf"));
+  config.visibility().SetPublic();
+
+  std::vector<SubstitutionPattern> patterns;
+  for (const auto& v : outputs_value.list_value()) {
+    SubstitutionPattern pattern;
+    ASSERT_TRUE(pattern.Parse(v, &err));
+    patterns.push_back(std::move(pattern));
+  }
+  config.own_values().c_additional_outputs() = std::move(patterns);
+  ASSERT_TRUE(config.OnResolved(&err));
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.set_output_type(Target::SOURCE_SET);
+  target.visibility().SetPublic();
+  target.sources().push_back(SourceFile("//foo/input1.cc"));
+  target.source_types_used().Set(SourceFile::SOURCE_CPP);
+  target.configs().push_back(LabelConfigPair(&config));
+  target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target.OnResolved(&err));
+
+  std::ostringstream out;
+  NinjaCBinaryTargetWriter writer(&target, out);
+  writer.Run();
+
+  const char expected[] =
+      "defines =\n"
+      "include_dirs =\n"
+      "cflags =\n"
+      "cflags_cc =\n"
+      "root_out_dir = .\n"
+      "target_gen_dir = gen/foo\n"
+      "target_out_dir = obj/foo\n"
+      "target_output_name = bar\n"
+      "\n"
+      "build obj/foo/bar.input1.o obj/foo/input1.dwo: cxx "
+      "../../foo/input1.cc\n"
+      "  source_file_part = input1.cc\n"
+      "  source_name_part = input1\n"
+      "\n"
+      "build phony/foo/bar: phony obj/foo/bar.input1.o obj/foo/input1.dwo\n";
+
+  EXPECT_EQ(expected, out.str());
+}
+
 TEST_F(NinjaCBinaryTargetWriterTest, EscapeDefines) {
   TestWithScope setup;
   Err err;

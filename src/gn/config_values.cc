@@ -41,6 +41,7 @@ void ConfigValues::AppendValues(const ConfigValues& append) {
   VectorAppend(&rustflags_, append.rustflags_);
   VectorAppend(&rustenv_, append.rustenv_);
   VectorAppend(&swiftflags_, append.swiftflags_);
+  VectorAppend(&c_additional_outputs_, append.c_additional_outputs_);
 
   // Only append precompiled header if there isn't one. It might be nice to
   // throw an error if there are conflicting precompiled headers, but that
