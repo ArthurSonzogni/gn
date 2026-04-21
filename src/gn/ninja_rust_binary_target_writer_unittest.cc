@@ -74,7 +74,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustExecutable) {
         "  ldflags = -fsanitize=address\n"
         "  sources = ../../foo/input3.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -129,7 +129,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "  ldflags =\n"
         "  sources = ../../baz/privatelib.rs ../../baz/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target far_public_rlib(setup.settings(),
@@ -171,7 +171,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "  ldflags =\n"
         "  sources = ../../far/farlib.rs ../../far/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target public_rlib(setup.settings(), Label(SourceDir("//bar/"), "publiclib"));
@@ -213,7 +213,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "  ldflags =\n"
         "  sources = ../../bar/publiclib.rs ../../bar/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target rlib(setup.settings(), Label(SourceDir("//foo/"), "direct"));
@@ -274,7 +274,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "  ldflags =\n"
         "  sources = ../../main/source.rs ../../main/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -322,7 +322,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "  ldflags =\n"
         "  sources = ../../faz/private_inside.rs ../../faz/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target inside_dylib(setup.settings(), Label(SourceDir("//baz/"), "inside"));
@@ -363,7 +363,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "  ldflags =\n"
         "  sources = ../../baz/inside.rs ../../baz/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target dylib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
@@ -409,7 +409,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target private_dylib(setup.settings(),
@@ -485,7 +485,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -532,7 +532,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   // A group produces an order-only dependency in ninja:
@@ -593,7 +593,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -637,7 +637,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -731,7 +731,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RenamedDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -836,7 +836,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target nonrust_only(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -877,7 +877,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target rstaticlib(setup.settings(), Label(SourceDir("//baz/"), "baz"));
@@ -920,7 +920,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "  ldflags =\n"
         "  sources = ../../baz/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1109,7 +1109,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
       "  sources = ../../exe/main.rs\n";
 
   std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+  EXPECT_EQ(expected, out_str);
 }
 
 TEST_F(NinjaRustBinaryTargetWriterTest, RustOutputExtensionAndDir) {
@@ -1156,7 +1156,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustOutputExtensionAndDir) {
         "  ldflags =\n"
         "  sources = ../../foo/input3.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1226,7 +1226,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, LibsAndLibDirs) {
         "  ldflags =\n"
         "  sources = ../../foo/input.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1326,7 +1326,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibWithLibDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/input.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1412,7 +1412,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -1454,7 +1454,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1500,7 +1500,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target group(setup.settings(), Label(SourceDir("//baz/"), "group"));
@@ -1550,7 +1550,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1605,7 +1605,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Externs) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1657,7 +1657,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Inputs) {
         "  sources = ../../foo/source.rs ../../foo/main.rs "
         "../../foo/config.json ../../foo/template.h\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1700,7 +1700,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
         "  ldflags =\n"
         "  sources = ../../bar/lib.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -1741,7 +1741,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1819,7 +1819,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitivePublicNonRustDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/main.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1917,7 +1917,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
         "  ldflags =\n"
         "  sources = ../../linked/exe.rs\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 
@@ -1967,7 +1967,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Pool) {
       "  sources = ../../foo/source.rs\n"
       "  pool = foo_pool\n";
   std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+  EXPECT_EQ(expected, out_str);
 }
 
 // Tests frameworks are applied.
@@ -2041,7 +2041,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
       "  ldflags =\n"
       "  sources = ../../linked/exe.rs\n";
   const std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+  EXPECT_EQ(expected, out_str);
 }
 
 // Test linking of targets containing Swift modules.
@@ -2102,5 +2102,5 @@ TEST_F(NinjaRustBinaryTargetWriterTest, SwiftModule) {
       "  sources = ../../linked/exe.rs\n";
 
   const std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+  EXPECT_EQ(expected, out_str);
 }

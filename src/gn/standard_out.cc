@@ -97,6 +97,11 @@ void OutputMarkdownDec(TextDecoration dec) {
 
 }  // namespace
 
+bool IsColorEnabled() {
+  EnsureInitialized();
+  return is_console;
+}
+
 #if defined(OS_WIN)
 
 void OutputString(const std::string& output,

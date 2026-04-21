@@ -59,4 +59,6 @@ void PrintShortHelp(const std::string& line,
 // be emitted. Used only in markdown mode.
 void PrintLongHelp(const std::string& text, const std::string& tag = "");
 
+bool IsColorEnabled();
+
 #endif  // TOOLS_GN_STANDARD_OUT_H_

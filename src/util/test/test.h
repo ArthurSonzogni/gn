@@ -9,6 +9,8 @@
 
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <type_traits>
 
 // This is a minimal googletest-like testing framework. It's originally derived
 // from Ninja's src/test.h. You might prefer that one if you have different
@@ -80,6 +82,19 @@ class AssertHelper {
   const char* error_;
 };
 
+std::string DiffStrings(std::string_view expected, std::string_view actual);
+
+template <typename T, typename U>
+std::string TryDiffStrings(const T& expected, const U& actual) {
+  // Try to diff if they are strings
+  if constexpr (std::is_convertible_v<T, std::string_view> &&
+                std::is_convertible_v<U, std::string_view>) {
+    return DiffStrings(expected, actual);
+  } else {
+    return "";
+  }
+}
+
 }  // namespace testing
 
 void RegisterTest(testing::Test* (*)(), const char*);
@@ -125,9 +140,14 @@ void RegisterTest(testing::Test* (*)(), const char*);
   return ::testing::AssertHelper(__FILE__, __LINE__, message) = \
              ::testing::Message()
 
-#define EXPECT_EQ(a, b)                                     \
-  TEST_ASSERT_(::testing::TestResult(a == b, #a " == " #b), \
-               TEST_NONFATAL_FAILURE_)
+#define EXPECT_EQ(a, b)                                        \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                 \
+  if (const ::testing::TestResult test_result =                \
+          ::testing::TestResult(a == b, #a " == " #b))         \
+    ;                                                          \
+  else                                                         \
+    ::testing::AssertHelper(__FILE__, __LINE__, test_result) = \
+        ::testing::Message() << ::testing::TryDiffStrings(a, b)
 
 #define EXPECT_NE(a, b)                                     \
   TEST_ASSERT_(::testing::TestResult(a != b, #a " != " #b), \
@@ -161,8 +181,14 @@ void RegisterTest(testing::Test* (*)(), const char*);
   TEST_ASSERT_(::testing::TestResult(strcmp(a, b) == 0, #a " str== " #b), \
                TEST_NONFATAL_FAILURE_)
 
-#define ASSERT_EQ(a, b) \
-  TEST_ASSERT_(::testing::TestResult(a == b, #a " == " #b), TEST_FATAL_FAILURE_)
+#define ASSERT_EQ(a, b)                                               \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                        \
+  if (const ::testing::TestResult test_result =                       \
+          ::testing::TestResult(a == b, #a " == " #b))                \
+    ;                                                                 \
+  else                                                                \
+    return ::testing::AssertHelper(__FILE__, __LINE__, test_result) = \
+               ::testing::Message() << ::testing::TryDiffStrings(a, b)
 
 #define ASSERT_NE(a, b) \
   TEST_ASSERT_(::testing::TestResult(a != b, #a " != " #b), TEST_FATAL_FAILURE_)

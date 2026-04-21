@@ -79,7 +79,7 @@ TEST_F(NinjaBinaryTargetWriterTest, NoSourcesSourceSet) {
       "\n"
       "\n";
   std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+  EXPECT_EQ(expected, out_str);
 }
 
 TEST_F(NinjaBinaryTargetWriterTest, NoSourcesStaticLib) {
@@ -149,7 +149,7 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
         "\n"
         "build phony/foo/bar: phony obj/foo/bar.source1.o\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 
   {
@@ -192,6 +192,6 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
         "build phony/foo/bar: phony obj/foo/bar.source1.o "
         "obj/foo/bar.source2.o\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }

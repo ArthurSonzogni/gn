@@ -263,8 +263,7 @@ TEST_F(OutputConversionTest, ReverseString) {
   ConvertValueToOutput(settings(), result, Value(nullptr, "string"), reverse,
                        &err);
   EXPECT_FALSE(err.has_error());
-  EXPECT_EQ(reverse.str(), input)
-      << "actual: " << reverse.str() << "expected:" << input;
+  EXPECT_EQ(reverse.str(), input);
 }
 
 TEST_F(OutputConversionTest, ReverseListLines) {
@@ -278,8 +277,7 @@ TEST_F(OutputConversionTest, ReverseListLines) {
   ConvertValueToOutput(settings(), result, Value(nullptr, "list lines"),
                        reverse, &err);
   EXPECT_FALSE(err.has_error());
-  EXPECT_EQ(reverse.str(), input)
-      << "actual: " << reverse.str() << "expected:" << input;
+  EXPECT_EQ(reverse.str(), input);
 }
 
 TEST_F(OutputConversionTest, ReverseValueString) {
@@ -293,8 +291,7 @@ TEST_F(OutputConversionTest, ReverseValueString) {
   ConvertValueToOutput(settings(), result, Value(nullptr, "value"), reverse,
                        &err);
   EXPECT_FALSE(err.has_error());
-  EXPECT_EQ(reverse.str(), input)
-      << "actual: " << reverse.str() << "expected:" << input;
+  EXPECT_EQ(reverse.str(), input);
 }
 
 TEST_F(OutputConversionTest, ReverseValueInt) {
@@ -308,8 +305,7 @@ TEST_F(OutputConversionTest, ReverseValueInt) {
   ConvertValueToOutput(settings(), result, Value(nullptr, "value"), reverse,
                        &err);
   EXPECT_FALSE(err.has_error());
-  EXPECT_EQ(reverse.str(), input)
-      << "actual: " << reverse.str() << "expected:" << input;
+  EXPECT_EQ(reverse.str(), input);
 }
 
 TEST_F(OutputConversionTest, ReverseValueList) {
@@ -323,8 +319,7 @@ TEST_F(OutputConversionTest, ReverseValueList) {
   ConvertValueToOutput(settings(), result, Value(nullptr, "value"), reverse,
                        &err);
   EXPECT_FALSE(err.has_error());
-  EXPECT_EQ(reverse.str(), input)
-      << "actual: " << reverse.str() << "expected:" << input;
+  EXPECT_EQ(reverse.str(), input);
 }
 
 TEST_F(OutputConversionTest, ReverseValueDict) {
@@ -338,8 +333,7 @@ TEST_F(OutputConversionTest, ReverseValueDict) {
   ConvertValueToOutput(settings(), result, Value(nullptr, "scope"), reverse,
                        &err);
   EXPECT_FALSE(err.has_error());
-  EXPECT_EQ(reverse.str(), input)
-      << "actual: " << reverse.str() << "expected:" << input;
+  EXPECT_EQ(reverse.str(), input);
 }
 
 TEST_F(OutputConversionTest, ReverseValueEmpty) {

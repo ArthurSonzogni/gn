@@ -712,7 +712,7 @@ TEST_F(CompileCommandsTest, ModuleMap) {
       "  }\n"
       "]\n";
 #endif
-  EXPECT_EQ(expected, out) << expected << "\n" << out;
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(CompileCommandsTest, CollectTargets) {

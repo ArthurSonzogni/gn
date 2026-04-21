@@ -604,7 +604,7 @@ TEST(NinjaActionTargetWriter, SeesConfig) {
         "\n"
         "build phony/foo/foo: phony foo.out\n";
     std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str) << expected << "\n" << out_str;
+    EXPECT_EQ(expected, out_str);
   }
 }
 

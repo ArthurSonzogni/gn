@@ -274,7 +274,7 @@ TEST_F(JSONWriter, ActionWithResponseFile) {
    }
 }
 )_";
-  EXPECT_EQ(expected_json, out) << out;
+  EXPECT_EQ(expected_json, out);
 }
 
 TEST_F(JSONWriter, RustTarget) {
@@ -514,7 +514,7 @@ TEST_F(JSONWriter, RustTarget) {
    }
 }
 )_";
-  EXPECT_EQ(expected_json, out) << out;
+  EXPECT_EQ(expected_json, out);
 }
 
 TEST_F(JSONWriter, ForEachWithResponseFile) {
@@ -778,7 +778,7 @@ TEST_F(JSONWriter, ForEachWithResponseFile) {
    }
 }
 )_";
-  EXPECT_EQ(expected_json, out) << out;
+  EXPECT_EQ(expected_json, out);
 }
 
 TEST_F(JSONWriter, FilterTargetsWithDataDeps) {
