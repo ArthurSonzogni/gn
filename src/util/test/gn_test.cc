@@ -34,7 +34,31 @@
 namespace testing {
 Test* g_current_test;
 
+std::string Pretty(bool value) {
+  return value ? "true" : "false";
+}
+
+std::string Indent(std::string_view value) {
+  std::stringstream ss;
+  ss << "  ";
+  for (auto c : value) {
+    switch (c) {
+      case '\n':
+        ss << c;
+        ss << "  ";
+        break;
+      default:
+        ss << c;
+    }
+  }
+  return ss.str();
+}
+
 std::string DiffStrings(std::string_view expected, std::string_view actual) {
+  if (expected == actual) {
+    return "Different values with the same representation:\n" +
+           std::string(expected);
+  }
   base::ScopedTempDir temp_dir;
   auto fallback = [&]() {
     return base::StringPrintf(

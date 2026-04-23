@@ -609,6 +609,8 @@ class Target : public Item {
   Target& operator=(const Target&) = delete;
 };
 
+std::string Pretty(const Target& target);
+
 extern const char kExecution_Help[];
 
 #endif  // TOOLS_GN_TARGET_H_

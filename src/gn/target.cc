@@ -1435,3 +1435,7 @@ const SourceFile* Target::private_modulemap_file() const {
   }
   return &private_modulemap_file_;
 }
+
+std::string Pretty(const Target& target) {
+  return "Target for " + target.label().GetUserVisibleName(true);
+}
