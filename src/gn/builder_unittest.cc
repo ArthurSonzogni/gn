@@ -520,7 +520,7 @@ TEST_F(BuilderTest, ValidationsWithCycle) {
   // There should be no errors (cycle detection passed).
   Err err;
   EXPECT_TRUE(builder_.CheckForBadItems(&err));
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
 }
 
 // Tests that if a validation resolves, the target does NOT write if it

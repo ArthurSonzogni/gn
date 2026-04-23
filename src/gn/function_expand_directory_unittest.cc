@@ -64,7 +64,7 @@ TEST_F(ExpandDirectoryTest, Recursive) {
   Value result = functions::RunExpandDirectory(
       setup.scope(), function.get(),
       {Value(nullptr, "//foo/bar"), Value(nullptr, true)}, &err);
-  ASSERT_FALSE(err.has_error()) << err.message();
+  ASSERT_SUCCESS(err);
 
   ASSERT_EQ(result.type(), Value::LIST);
   ASSERT_EQ(result.list_value().size(), 3);
@@ -90,7 +90,7 @@ TEST_F(ExpandDirectoryTest, NonRecursive) {
   Value result = functions::RunExpandDirectory(
       setup.scope(), function.get(),
       {Value(nullptr, "bar"), Value(nullptr, false)}, &err);
-  ASSERT_FALSE(err.has_error()) << err.message();
+  ASSERT_SUCCESS(err);
   ASSERT_EQ(result.type(), Value::LIST);
   ASSERT_EQ(result.list_value().size(), 2);
   EXPECT_EQ(result.list_value()[0].string_value(), "//foo/bar/file1.txt");
@@ -110,7 +110,7 @@ TEST_F(ExpandDirectoryTest, EmptyDir) {
   Value result = functions::RunExpandDirectory(
       setup.scope(), &function, {Value(nullptr, dir_str), Value(nullptr, true)},
       &err);
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
   ASSERT_EQ(result.type(), Value::LIST);
   ASSERT_EQ(result.list_value().size(), 0);
 }

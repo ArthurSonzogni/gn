@@ -462,8 +462,8 @@ void NinjaCBinaryTargetWriter::WriteSources(
               SubstitutionWriter::ApplyPatternToCompilerAsOutputFile(
                   target_, source, pattern);
           if (!extra_output.value().empty() &&
-              std::find(tool_outputs.begin(), tool_outputs.end(), extra_output) ==
-                  tool_outputs.end()) {
+              std::find(tool_outputs.begin(), tool_outputs.end(),
+                        extra_output) == tool_outputs.end()) {
             tool_outputs.push_back(std::move(extra_output));
           }
         }

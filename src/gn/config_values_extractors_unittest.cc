@@ -197,7 +197,7 @@ TEST(ConfigValuesGenerator, AdditionalOutputs) {
   ConfigValuesGenerator gen(&config_values, setup.scope(), SourceDir("//foo/"),
                             &err);
   gen.Run();
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
   ASSERT_EQ(config_values.c_additional_outputs().size(), 1u);
   EXPECT_EQ(config_values.c_additional_outputs()[0].AsString(),
             "{{target_out_dir}}/{{source_name_part}}.dwo");

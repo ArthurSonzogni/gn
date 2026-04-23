@@ -107,21 +107,21 @@ TEST(Label, ResolveAboveRootBuildDir) {
   // No source root given, should not go above the root build dir.
   Label result = Label::Resolve(cur_dir, std::string_view(), default_toolchain,
                                 Value(nullptr, "../../..:target"), &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
   EXPECT_EQ("//", result.dir().value()) << result.dir().value();
   EXPECT_EQ("target", result.name());
 
   // Source root provided, it should go into that.
   result = Label::Resolve(cur_dir, source_root, default_toolchain,
                           Value(nullptr, "../../..:target"), &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
   EXPECT_EQ("/foo/", result.dir().value()) << result.dir().value();
   EXPECT_EQ("target", result.name());
 
   // It shouldn't go up higher than the system root.
   result = Label::Resolve(cur_dir, source_root, default_toolchain,
                           Value(nullptr, "../../../../..:target"), &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
   EXPECT_EQ("/", result.dir().value()) << result.dir().value();
   EXPECT_EQ("target", result.name());
 
@@ -131,7 +131,7 @@ TEST(Label, ResolveAboveRootBuildDir) {
   // accident.
   result = Label::Resolve(cur_dir, source_root, default_toolchain,
                           Value(nullptr, "//../.."), &err);
-  EXPECT_FALSE(err.has_error()) << err.message();
+  EXPECT_SUCCESS(err);
   EXPECT_EQ("/foo/", result.dir().value()) << result.dir().value();
   EXPECT_EQ("foo", result.name());
 }

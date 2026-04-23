@@ -217,4 +217,22 @@ void RegisterTest(testing::Test* (*)(), const char*);
   TEST_ASSERT_(::testing::TestResult(strcmp(a, b) == 0, #a " str== " #b), \
                TEST_FATAL_FAILURE_)
 
+#define EXPECT_SUCCESS(err)                                       \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                    \
+  if (const auto& test_err = (err); !test_err.has_error())        \
+    ;                                                             \
+  else                                                            \
+    TEST_NONFATAL_FAILURE_(                                       \
+        ::testing::TestResult(false, "EXPECT_SUCCESS(" #err ")")) \
+        << test_err.message()
+
+#define ASSERT_SUCCESS(err)                                       \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                    \
+  if (const auto& test_err = (err); !test_err.has_error())        \
+    ;                                                             \
+  else                                                            \
+    TEST_FATAL_FAILURE_(                                          \
+        ::testing::TestResult(false, "ASSERT_SUCCESS(" #err ")")) \
+        << test_err.message()
+
 #endif  // UTIL_TEST_TEST_H_

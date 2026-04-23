@@ -1282,7 +1282,7 @@ TEST(TargetTest, CollectMetadataNoRecurse) {
   TargetSet targets;
   one.GetMetadata(data_keys, walk_keys, SourceDir(), false, &result, &targets,
                   &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
 
   std::vector<Value> expected;
   expected.push_back(Value(nullptr, "foo"));
@@ -1323,7 +1323,7 @@ TEST(TargetTest, CollectMetadataWithRecurse) {
   TargetSet targets;
   one.GetMetadata(data_keys, walk_keys, SourceDir(), false, &result, &targets,
                   &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
 
   std::vector<Value> expected;
   expected.push_back(Value(nullptr, "bar"));
@@ -1370,7 +1370,7 @@ TEST(TargetTest, CollectMetadataWithRecurseHole) {
   TargetSet targets;
   one.GetMetadata(data_keys, walk_keys, SourceDir(), false, &result, &targets,
                   &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
 
   std::vector<Value> expected;
   expected.push_back(Value(nullptr, "bar"));
@@ -1419,7 +1419,7 @@ TEST(TargetTest, CollectMetadataWithBarrier) {
   TargetSet targets;
   one.GetMetadata(data_keys, walk_keys, SourceDir(), false, &result, &targets,
                   &err);
-  EXPECT_FALSE(err.has_error()) << err.message();
+  EXPECT_SUCCESS(err);
 
   std::vector<Value> expected;
   expected.push_back(Value(nullptr, "bar"));
@@ -1561,7 +1561,7 @@ TEST(TargetTest, CollectMetadataWithValidation) {
   Err err;
   a.GetMetadata(data_keys, walk_keys, SourceDir(), false, &result, &targets,
                 &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
 
   std::vector<Value> expected = {Value(nullptr, "bar"), Value(nullptr, "foo")};
   EXPECT_EQ(result, expected);

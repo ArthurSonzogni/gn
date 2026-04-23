@@ -13,7 +13,7 @@ TEST(LenTest, StringLen) {
   std::vector<Value> args;
   args.push_back(Value(nullptr, "foo"));
   Value result = functions::RunLen(setup.scope(), &function_call, args, &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
   EXPECT_EQ(result.type(), Value::INTEGER);
   EXPECT_EQ(result.int_value(), 3);
 }
@@ -28,7 +28,7 @@ TEST(LenTest, ListLen) {
   list_value.list_value().push_back(Value(nullptr, "b"));
   args.push_back(list_value);
   Value result = functions::RunLen(setup.scope(), &function_call, args, &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
   EXPECT_EQ(result.type(), Value::INTEGER);
   EXPECT_EQ(result.int_value(), 2);
 }

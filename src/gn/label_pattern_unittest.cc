@@ -88,7 +88,7 @@ TEST(LabelPattern, PatternParseAboveSourceRoot) {
   Err err;
   LabelPattern result = LabelPattern::GetPattern(
       current_dir, source_root, Value(nullptr, "../../../*"), &err);
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
 
   EXPECT_EQ(LabelPattern::RECURSIVE_DIRECTORY, result.type());
   EXPECT_EQ("/foo/", result.dir().value()) << result.dir().value();

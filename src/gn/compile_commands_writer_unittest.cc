@@ -776,7 +776,7 @@ TEST_F(CompileCommandsTest, CollectTargets) {
   const std::string source_root("/home/me/build/");
   LabelPattern wildcard_pattern = LabelPattern::GetPattern(
       SourceDir(), source_root, Value(nullptr, "//*"), &err);
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
   std::vector<const Target*> output = CompileCommandsWriter::CollectTargets(
       build_settings(), targets, std::vector<LabelPattern>{wildcard_pattern},
       std::nullopt, &err);
@@ -791,7 +791,7 @@ TEST_F(CompileCommandsTest, CollectTargets) {
   // Collect all deps of "//foo/*".
   LabelPattern foo_wildcard = LabelPattern::GetPattern(
       SourceDir(), source_root, Value(nullptr, "//foo/*"), &err);
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
   output = CompileCommandsWriter::CollectTargets(
       build_settings(), targets, std::vector<LabelPattern>{foo_wildcard},
       std::nullopt, &err);
@@ -838,7 +838,7 @@ TEST_F(CompileCommandsTest, CollectTargets) {
   // union.
   LabelPattern foo_bar2 = LabelPattern::GetPattern(
       SourceDir(), source_root, Value(nullptr, "//foo:bar2"), &err);
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
   output = CompileCommandsWriter::CollectTargets(
       build_settings(), targets, std::vector<LabelPattern>{foo_bar2},
       std::string("bar1"), &err);

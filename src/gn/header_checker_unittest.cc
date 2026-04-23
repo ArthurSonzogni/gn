@@ -88,7 +88,7 @@ TEST_F(HeaderCheckerTest, IsDependencyOf) {
   Target p(setup_.settings(), Label(SourceDir("//p/"), "p"));
   p.set_output_type(Target::SOURCE_SET);
   p.SetToolchain(setup_.toolchain(), &err);
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
   p.private_deps().push_back(LabelTargetPair(&c_));
   p.visibility().SetPublic();
   p.OnResolved(&err);
@@ -318,7 +318,7 @@ TEST_F(HeaderCheckerTest, CheckIncludeSwiftModule) {
 
   Err err;
   s.SetToolchain(setup_.toolchain(), &err);
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
 
   const SourceFile bridge_header("//bridge.h");
   const SourceFile generated_header("//out/Debug/gen/s/s.h");
@@ -331,7 +331,7 @@ TEST_F(HeaderCheckerTest, CheckIncludeSwiftModule) {
   s.visibility().SetPublic();
 
   s.OnResolved(&err);
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
   targets_.push_back(&s);
 
   auto checker = CreateChecker();
@@ -372,7 +372,7 @@ TEST_F(HeaderCheckerTest, SourceFileForInclude) {
     include.contents = "lib/header1.h";
     SourceFile source_file = checker->SourceFileForInclude(
         include, kIncludeDirs, dummy_input_file, &err);
-    EXPECT_FALSE(err.has_error());
+    EXPECT_SUCCESS(err);
     EXPECT_EQ(SourceFile("//lib/header1.h"), source_file);
   }
 
@@ -382,7 +382,7 @@ TEST_F(HeaderCheckerTest, SourceFileForInclude) {
     include.contents = "header2.h";
     SourceFile source_file = checker->SourceFileForInclude(
         include, kIncludeDirs, dummy_input_file, &err);
-    EXPECT_FALSE(err.has_error());
+    EXPECT_SUCCESS(err);
     EXPECT_EQ(SourceFile("/c/custom_include/header2.h"), source_file);
   }
 
@@ -395,7 +395,7 @@ TEST_F(HeaderCheckerTest, SourceFileForInclude) {
     include.system_style_include = false;
     SourceFile source_file = checker->SourceFileForInclude(
         include, kIncludeDirs, dummy_input_file, &err);
-    EXPECT_FALSE(err.has_error());
+    EXPECT_SUCCESS(err);
     EXPECT_EQ(SourceFile("/d/subdir/header3.h"), source_file);
   }
 
@@ -409,7 +409,7 @@ TEST_F(HeaderCheckerTest, SourceFileForInclude) {
     SourceFile source_file = checker->SourceFileForInclude(
         include, kIncludeDirs, dummy_input_file, &err);
     EXPECT_TRUE(source_file.is_null());
-    EXPECT_FALSE(err.has_error());
+    EXPECT_SUCCESS(err);
   }
 }
 
@@ -428,7 +428,7 @@ TEST_F(HeaderCheckerTest, SourceFileForInclude_FileNotFound) {
   SourceFile source_file =
       checker->SourceFileForInclude(include, kIncludeDirs, input_file, &err);
   EXPECT_TRUE(source_file.is_null());
-  EXPECT_FALSE(err.has_error());
+  EXPECT_SUCCESS(err);
 }
 
 TEST_F(HeaderCheckerTest, Friend) {
@@ -446,7 +446,7 @@ TEST_F(HeaderCheckerTest, Friend) {
   Err err;
   c_.friends().push_back(LabelPattern::GetPattern(
       SourceDir("//"), std::string_view(), Value(nullptr, "//a:*"), &err));
-  ASSERT_FALSE(err.has_error());
+  ASSERT_SUCCESS(err);
 
   // Must be after setting everything up for it to find the files.
   auto checker = CreateChecker();

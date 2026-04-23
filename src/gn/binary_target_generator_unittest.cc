@@ -23,11 +23,11 @@ TEST_F(BinaryTargetGeneratorTest, NonModuleTarget) {
            generate_modulemap = "textual"
            sources = [ "//foo.c" ]
          })");
-  ASSERT_FALSE(input.has_error());
+  ASSERT_SUCCESS(input);
 
   Err err;
   input.parsed()->Execute(setup.scope(), &err);
-  ASSERT_FALSE(err.has_error()) << err.message();
+  ASSERT_SUCCESS(err);
 
   ASSERT_EQ(1u, items_.size());
   Target* target = items_[0]->AsTarget();
@@ -47,11 +47,11 @@ TEST_F(BinaryTargetGeneratorTest, GeneratedModuleMapAllPublic) {
            generate_modulemap = "textual"
            sources = [ "//foo.cc", "//foo.h" ]
          })");
-  ASSERT_FALSE(input.has_error());
+  ASSERT_SUCCESS(input);
 
   Err err;
   input.parsed()->Execute(setup.scope(), &err);
-  ASSERT_FALSE(err.has_error()) << err.message();
+  ASSERT_SUCCESS(err);
 
   ASSERT_EQ(1u, items_.size());
   Target* target = items_[0]->AsTarget();
@@ -74,11 +74,11 @@ TEST_F(BinaryTargetGeneratorTest, GeneratedModuleMap) {
            sources = [ "//foo.cc" ]
            public = ["//foo.h"]
          })");
-  ASSERT_FALSE(input.has_error());
+  ASSERT_SUCCESS(input);
 
   Err err;
   input.parsed()->Execute(setup.scope(), &err);
-  ASSERT_FALSE(err.has_error()) << err.message();
+  ASSERT_SUCCESS(err);
 
   ASSERT_EQ(1u, items_.size());
   Target* target = items_[0]->AsTarget();
