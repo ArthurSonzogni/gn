@@ -191,7 +191,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputs) {
   ASSERT_TRUE(config.OnResolved(&err));
 
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::SOURCE_SET);
+  target.set_output_type(Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//foo/input1.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -218,7 +218,13 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputs) {
       "  source_file_part = input1.cc\n"
       "  source_name_part = input1\n"
       "\n"
-      "build phony/foo/bar: phony obj/foo/bar.input1.o obj/foo/input1.dwo\n";
+      "build ./bar: link obj/foo/bar.input1.o\n"
+      "  ldflags =\n"
+      "  libs =\n"
+      "  frameworks =\n"
+      "  swiftmodules =\n"
+      "  output_extension =\n"
+      "  output_dir =\n";
 
   EXPECT_EQ(expected, out.str());
 }

@@ -477,13 +477,21 @@ void NinjaCBinaryTargetWriter::WriteSources(
     // It's theoretically possible for a compiler to produce more than one
     // output, but we'll only link to the first output.
     if (!source.IsModuleMapType()) {
-      object_files->push_back(tool_outputs[0]);
+      const OutputFile& output = tool_outputs[0];
+      SourceFile output_as_source =
+          output.AsSourceFile(target_->settings()->build_settings());
+      // Only include actual object files for linking.
+      if (output_as_source.IsObjectType()) {
+        object_files->push_back(output);
+      } else {
+        extra_files->push_back(output);
+      }
     } else {
       extra_files->push_back(tool_outputs[0]);
     }
 
-    // Add additional outputs to extra_files so they are included in the
-    // target's stamp file.
+    // Ensure all additional outputs produced by this source are tracked for
+    // dependencies (e.g., included in the target's stamp file).
     for (size_t i = 1; i < tool_outputs.size(); ++i) {
       extra_files->push_back(tool_outputs[i]);
     }
