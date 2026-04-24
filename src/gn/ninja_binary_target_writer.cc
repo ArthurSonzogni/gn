@@ -319,16 +319,8 @@ void NinjaBinaryTargetWriter::AddSourceSetFiles(
     // Do not add .pcm files as they are not object files linked to final
     // binaries.
     if (source.GetType() != SourceFile::SOURCE_MODULEMAP &&
-        source_set->GetOutputFilesForSource(source, &tool_name,
-                                            &tool_outputs)) {
-      const OutputFile& output = tool_outputs[0];
-      SourceFile output_as_source =
-          output.AsSourceFile(source_set->settings()->build_settings());
-      // Only collect actual object files for linking.
-      if (output_as_source.IsObjectType()) {
-        obj_files->push_back(output);
-      }
-    }
+        source_set->GetOutputFilesForSource(source, &tool_name, &tool_outputs))
+      obj_files->push_back(tool_outputs[0]);
   }
 
   // Swift files may generate one object file per module or one per source file
