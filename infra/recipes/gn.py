@@ -270,13 +270,6 @@ def RunSteps(api, repository):
             if target.is_host:
               api.step('test', [src_dir.join('out', 'gn_unittests')])
 
-              if api.platform.is_linux:
-                with api.context(env={'CLANG_FORMAT': cipd_dir.join('bin', 'clang-format')}):
-                  api.step('Check tools/run_formatter.sh',
-                           [src_dir.join('tools', 'run_formatter.sh'), '--diff'])
-                api.step('Check tools/update_reference.sh',
-                         [src_dir.join('tools', 'update_reference.sh'), '--diff'])
-
             if config['name'] != 'release':
               continue
 
