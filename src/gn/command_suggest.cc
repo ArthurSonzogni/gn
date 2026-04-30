@@ -393,11 +393,16 @@ int RunSuggest(const std::vector<std::string>& args) {
     const auto& includer = pair[0];
     const auto& included = pair[1];
 
-    OutputString("Request: ", TextDecoration::DECORATION_MAGENTA);
-    OutputQuoted(includer);
-    OutputString(" wants to depend on ");
-    OutputQuoted(included);
-    OutputString(":\n");
+    // args[0] = output directory.
+    // If there's only one request, don't print which request this corresponds
+    // to.
+    if (args.size() > 2) {
+      OutputString("Request: ", TextDecoration::DECORATION_MAGENTA);
+      OutputQuoted(includer);
+      OutputString(" wants to depend on ");
+      OutputQuoted(included);
+      OutputString(":\n");
+    }
 
     success &= OutputSuggestions(all_targets, setup, includer, included);
   }
