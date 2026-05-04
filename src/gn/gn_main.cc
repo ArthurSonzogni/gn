@@ -70,6 +70,12 @@ int main(int argc, char** argv) {
   commands::CommandInfoMap::const_iterator found_command =
       command_map.find(command);
 
+  // Buffer nonfatal log output if requested. This must be set up before
+  // starting any worker threads.
+  if (cmdline.HasSwitch(switches::kQuiet)) {
+    BufferLogOutput();
+  }
+
   int retval;
   if (found_command != command_map.end()) {
     MsgLoop msg_loop;
@@ -82,6 +88,11 @@ int main(int argc, char** argv) {
       PrintShortHelp(cmd.second.help_short);
 
     retval = 1;
+  }
+
+  if (retval != 0) {
+    // Failed, print out log info we buffered.
+    FlushBufferedOutput();
   }
 
   exit(retval);  // Don't free memory, it can be really slow!

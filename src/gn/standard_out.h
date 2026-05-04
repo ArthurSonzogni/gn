@@ -29,6 +29,21 @@ void OutputString(std::string_view output,
                   TextDecoration dec = DECORATION_NONE,
                   HtmlEscaping = DEFAULT_ESCAPING);
 
+// Use for nonfatal warnings and log messages printed out during execution.
+//
+// Like OutputString() but in quiet mode this will buffer the output and only
+// print it if there was a failure. Use for things that are neither errors nor
+// the "main output" of the application.
+void OutputLogString(std::string_view output,
+                     TextDecoration dec = DECORATION_NONE,
+                     HtmlEscaping = DEFAULT_ESCAPING);
+
+// Enable or flush to stdout the for quiet mode from OutputLogString().
+// BufferLogOutput() is not threadsafe and is expected to be called from early
+// process init before we've created any worker thread.
+void BufferLogOutput();
+void FlushBufferedOutput();
+
 // If printing markdown, this generates table-of-contents entries with
 // links to the actual help; otherwise, prints a one-line description.
 void PrintSectionHelp(const std::string& line,

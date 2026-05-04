@@ -24,6 +24,7 @@
 #include "gn/scheduler.h"
 #include "gn/scope.h"
 #include "gn/settings.h"
+#include "gn/standard_out.h"
 #include "gn/template.h"
 #include "gn/token.h"
 #include "gn/value.h"
@@ -951,7 +952,8 @@ const char kPrint_Help[] =
     R"(print: Prints to the console.
 
   Prints all arguments to the console separated by spaces. A newline is
-  automatically appended to the end.
+  automatically appended to the end. In quiet mode (-q command-line parameter)
+  the output will be buffered and only printed if there is a fatal error.
 
   This function is intended for debugging. Note that build files are run in
   parallel so you may get interleaved prints. A buildfile may also be executed
@@ -983,8 +985,7 @@ Value RunPrint(Scope* scope,
   if (cb) {
     cb(output);
   } else {
-    printf("%s", output.c_str());
-    fflush(stdout);
+    OutputLogString(output);
   }
 
   return Value();
@@ -1045,8 +1046,7 @@ Value RunPrintStackTrace(Scope* scope,
   if (cb) {
     cb(output);
   } else {
-    printf("%s", output.c_str());
-    fflush(stdout);
+    OutputLogString(output);
   }
 
   return Value();

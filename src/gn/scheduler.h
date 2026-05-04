@@ -154,6 +154,10 @@ class Scheduler {
   Scheduler& operator=(const Scheduler&) = delete;
 };
 
+// Global instance. Normally initialized by the Setup class. This is guaranteed
+// non-null during normal build operations, but can be null for certain early
+// code in command dispatch or during other non-run things like the help
+// function.
 extern Scheduler* g_scheduler;
 
 #endif  // TOOLS_GN_SCHEDULER_H_

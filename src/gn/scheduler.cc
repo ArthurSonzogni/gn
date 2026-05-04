@@ -174,8 +174,8 @@ void Scheduler::SuppressOutputForTesting(bool suppress) {
 
 void Scheduler::LogOnMainThread(const std::string& verb,
                                 const std::string& msg) {
-  OutputString(verb, DECORATION_YELLOW);
-  OutputString(" " + msg + "\n");
+  OutputLogString(verb, DECORATION_YELLOW);
+  OutputLogString(" " + msg + "\n");
 }
 
 void Scheduler::FailWithErrorOnMainThread(const Err& err) {

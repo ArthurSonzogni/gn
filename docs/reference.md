@@ -3206,7 +3206,8 @@
 
 ```
   Prints all arguments to the console separated by spaces. A newline is
-  automatically appended to the end.
+  automatically appended to the end. In quiet mode (-q command-line parameter)
+  the output will be buffered and only printed if there is a fatal error.
 
   This function is intended for debugging. Note that build files are run in
   parallel so you may get interleaved prints. A buildfile may also be executed

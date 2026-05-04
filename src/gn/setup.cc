@@ -557,7 +557,7 @@ bool Setup::RunPostMessageLoop(const base::CommandLine& cmdline) {
       return false;
     }
     err.PrintNonfatalToStdout();
-    OutputString(
+    OutputLogString(
         "\nThe build continued as if that argument was "
         "unspecified.\n\n");
     // Nonfatal error.

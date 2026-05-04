@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
@@ -81,11 +82,22 @@ void FillRangeOnLine(const LocationRange& range,
     line->at(i) = '-';
 }
 
+void OutputErrString(bool is_fatal,
+                     std::string_view output,
+                     TextDecoration dec = DECORATION_NONE) {
+  if (is_fatal) {
+    OutputString(output, dec);
+  } else {
+    OutputLogString(output, dec);
+  }
+}
+
 // The line length is used to clip the maximum length of the markers we'll
 // make if the error spans more than one line (like unterminated literals).
 void OutputHighlighedPosition(const Location& location,
                               const Err::RangeList& ranges,
-                              size_t line_length) {
+                              size_t line_length,
+                              bool is_fatal) {
   // Make a buffer of the line in spaces.
   std::string highlight;
   highlight.resize(line_length);
@@ -107,7 +119,7 @@ void OutputHighlighedPosition(const Location& location,
     highlight.resize(highlight.size() - 1);
 
   highlight += "\n";
-  OutputString(highlight, DECORATION_BLUE);
+  OutputErrString(is_fatal, highlight, DECORATION_BLUE);
 }
 
 }  // namespace
@@ -167,6 +179,7 @@ Err& Err::operator=(const Err& other) {
 }
 
 bool Err::PrintToStdout() const {
+  FlushBufferedOutput();
   return InternalPrintToStdout(false, true);
 }
 
@@ -187,7 +200,8 @@ bool Err::InternalPrintToStdout(bool is_sub_err, bool is_fatal) const {
       int printed = ++g_num_errors_printed;
       if (printed > limit) {
         if (printed == limit + 1) {
-          OutputString(
+          OutputErrString(
+              is_fatal,
               "Too many errors/warnings. Suppressing further messages.\n"
               "You can change the limit by passing --error-limit=<number>.\n",
               DECORATION_RED);
@@ -199,7 +213,7 @@ bool Err::InternalPrintToStdout(bool is_sub_err, bool is_fatal) const {
     if (is_fatal)
       OutputString("ERROR ", DECORATION_RED);
     else
-      OutputString("WARNING ", DECORATION_MAGENTA);
+      OutputLogString("WARNING ", DECORATION_MAGENTA);
   }
 
   // File name and location.
@@ -221,21 +235,23 @@ bool Err::InternalPrintToStdout(bool is_sub_err, bool is_fatal) const {
   std::string colon;
   if (!loc_str.empty() || !toolchain_str.empty())
     colon = ": ";
-  OutputString(loc_str + toolchain_str + colon + info_->message + "\n");
+  OutputErrString(is_fatal,
+                  loc_str + toolchain_str + colon + info_->message + "\n");
 
   // Quoted line.
   if (input_file) {
     std::string line =
         GetNthLine(input_file->contents(), info_->location.line_number());
     if (!base::ContainsOnlyChars(line, base::kWhitespaceASCII)) {
-      OutputString(line + "\n", DECORATION_DIM);
-      OutputHighlighedPosition(info_->location, info_->ranges, line.size());
+      OutputErrString(is_fatal, line + "\n", DECORATION_DIM);
+      OutputHighlighedPosition(info_->location, info_->ranges, line.size(),
+                               is_fatal);
     }
   }
 
   // Optional help text.
   if (!info_->help_text.empty())
-    OutputString(info_->help_text + "\n");
+    OutputErrString(is_fatal, info_->help_text + "\n");
 
   // Sub errors.
   for (const auto& sub_err : info_->sub_errs)

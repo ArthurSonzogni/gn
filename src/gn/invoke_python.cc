@@ -46,7 +46,7 @@ bool InvokePython(const BuildSettings* build_settings,
     return false;
   }
 
-  if (!quiet) {
+  if (!quiet || exit_code != 0) {
     printf("%s", output.c_str());
     fprintf(stderr, "%s", stderr_output.c_str());
   }
