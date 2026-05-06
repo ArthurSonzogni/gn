@@ -509,7 +509,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         '-Wextra-semi',
         '-Wundef',
 
-        '-std=c++20'
+        '-std=c++23'
     ])
 
     if is_gcc(cxx):
@@ -607,7 +607,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         '/wd4505',
         '/wd4838',
         '/wd4996',
-        '/std:c++20',
+        '/std:c++23preview',
         '/GR-',
         '/D_HAS_EXCEPTIONS=0',
     ])

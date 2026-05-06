@@ -90,7 +90,7 @@ You can download the latest version of GN binary for
 from Google's build infrastructure (see "Versioning and distribution" below for
 how this is expected to work).
 
-Alternatively, you can build GN from source with a C++17 compiler:
+Alternatively, you can build GN from source with a C++23 compiler:
 
     git clone https://gn.googlesource.com/gn
     cd gn
