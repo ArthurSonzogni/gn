@@ -9,3 +9,8 @@ impl Foo {
         Foo{s: s, i: "foo"}
     }
 }
+
+#[no_mangle]
+pub extern "C" fn call_from_c() -> i32 {
+    42
+}

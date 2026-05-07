@@ -177,7 +177,8 @@ void ResolvedTargetData::ComputeInheritedLibsFor(
       // inherited.
       const TargetInfo* dep_info = GetTargetInheritedLibs(dep);
       for (const auto& pair : dep_info->inherited_libs) {
-        if (pair.target()->IsFinal())
+        if (pair.target()->IsFinal() ||
+            pair.target()->output_type() == Target::RUST_LIBRARY)
           inherited_libraries->Append(pair.target(),
                                       is_public && pair.is_public());
       }
