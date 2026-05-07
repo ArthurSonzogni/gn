@@ -30,8 +30,7 @@ class NinjaCreateBundleTargetWriter : public NinjaTargetWriter {
   // Writes the steps to copy files into the bundle.
   //
   // The list of newly created files will be added to |output_files|.
-  void WriteCopyBundleDataSteps(const std::vector<OutputFile>& implicit_deps,
-                                const std::vector<OutputFile>& order_only_deps,
+  void WriteCopyBundleDataSteps(const std::vector<OutputFile>& order_only_deps,
                                 std::vector<OutputFile>* output_files);
 
   // Writes the step to copy files BundleFileRule into the bundle.
@@ -39,7 +38,6 @@ class NinjaCreateBundleTargetWriter : public NinjaTargetWriter {
   // The list of newly created files will be added to |output_files|.
   void WriteCopyBundleFileRuleSteps(
       const BundleFileRule& file_rule,
-      const std::vector<OutputFile>& implicit_deps,
       const std::vector<OutputFile>& order_only_deps,
       std::vector<OutputFile>* output_files);
 
@@ -47,7 +45,6 @@ class NinjaCreateBundleTargetWriter : public NinjaTargetWriter {
   //
   // The list of newly created files will be added to |output_files|.
   void WriteCompileAssetsCatalogStep(
-      const std::vector<OutputFile>& implicit_deps,
       const std::vector<OutputFile>& order_only_deps,
       std::vector<OutputFile>* output_files);
 
@@ -62,14 +59,12 @@ class NinjaCreateBundleTargetWriter : public NinjaTargetWriter {
   // post-processing may depends on the full bundle structure, this step will
   // depends on all files generated via other rules.
   void WritePostProcessingStep(const std::string& post_processing_rule_name,
-                               const std::vector<OutputFile>& implicit_deps,
                                const std::vector<OutputFile>& order_only_deps,
                                std::vector<OutputFile>* output_files);
 
   // Writes the stamp file or phony target for the post-processing input
   // dependencies.
   OutputFile WritePostProcessingInputDepsStampOrPhony(
-      const std::vector<OutputFile>& implicit_deps,
       const std::vector<OutputFile>& order_only_deps,
       std::vector<OutputFile>* output_files);
 
