@@ -551,56 +551,9 @@ void NinjaBinaryTargetWriter::WritePool(std::ostream& out) {
 std::vector<OutputFile>
 NinjaBinaryTargetWriter::GetOrderOnlyDepsFromNonLinkableDeps(
     const UniqueVector<const Target*>& non_linkable_deps) const {
-  std::vector<const Target*> group_stack;
-  std::vector<OutputFile> outputs_to_write;
-  std::set<std::string> seen_outputs;
-
-  auto add_output = [&](const OutputFile& output) {
-    if (seen_outputs.insert(output.value()).second) {
-      outputs_to_write.push_back(output);
-    }
-  };
-
-  auto process_dep = [&](const Target* dep) {
-    if (dep->output_type() == Target::GROUP) {
-      group_stack.push_back(dep);
-    } else if (dep->has_dependency_output()) {
-      OutputFile dep_output = dep->dependency_output();
-      if (dep->output_type() == Target::SOURCE_SET) {
-        dep_output.value().append(".linkdeps");
-      }
-      add_output(dep_output);
-    }
-  };
-
-  for (auto* dep : non_linkable_deps) {
-    process_dep(dep);
+  UniqueVector<OutputFile> outputs_to_write;
+  for (const Target* dep : non_linkable_deps) {
+    outputs_to_write.Append(resolved().GetOrderOnlyDeps(dep));
   }
-
-  // Recursively expand dependencies of groups to avoid unnecessary
-  // dependencies. If a group depends on a source set, we depend on its
-  // .linkdeps instead of the group itself. This prevents including non-object
-  // files (like .dwo files) in order-only dependencies. This is crucial for
-  // remote linking to avoid uploading unnecessary files, which increases data
-  // transfer and could hit file count limits.
-  std::set<const Target*> visited_groups;
-  while (!group_stack.empty()) {
-    const Target* current = group_stack.back();
-    group_stack.pop_back();
-
-    if (!visited_groups.insert(current).second)
-      continue;
-
-    auto add_deps = [&](const LabelTargetVector& deps) {
-      for (const auto& pair : deps) {
-        process_dep(pair.ptr);
-      }
-    };
-
-    add_deps(current->public_deps());
-    add_deps(current->private_deps());
-    add_deps(current->data_deps());
-  }
-
-  return outputs_to_write;
+  return outputs_to_write.release();
 }

@@ -310,3 +310,28 @@ void ResolvedTargetData::ComputeSwiftValues(TargetInfo* info) const {
   }
   info->has_swift_values = true;
 }
+
+void ResolvedTargetData::ComputeOrderOnlyDeps(TargetInfo* info) const {
+  UniqueVector<OutputFile> all_order_only_deps;
+  const Target* target = info->target;
+
+  if (target->output_type() == Target::GROUP) {
+    auto add_deps = [&](base::span<const Target*> deps) {
+      for (const Target* dep : deps) {
+        const TargetInfo* dep_info = GetTargetOrderOnlyDeps(dep);
+        all_order_only_deps.Append(dep_info->order_only_deps);
+      }
+    };
+    add_deps(info->deps.public_deps());
+    add_deps(info->deps.private_deps());
+    add_deps(info->deps.data_deps());
+  } else if (target->has_dependency_output()) {
+    OutputFile dep_output = target->dependency_output();
+    if (target->output_type() == Target::SOURCE_SET) {
+      dep_output.value().append(".linkdeps");
+    }
+    all_order_only_deps.push_back(dep_output);
+  }
+
+  info->order_only_deps = all_order_only_deps.release();
+}
