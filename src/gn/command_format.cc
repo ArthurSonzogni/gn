@@ -376,10 +376,10 @@ void Printer::PrintTokensWrapped(const std::vector<Token>& comments) {
 
     // A single word (e.g. a long file path) should not be joined with other
     // lines, as it often represents a vertical list of items.
-    bool is_single_word =
-        !text_only.empty() && text_only.find(' ') == std::string::npos &&
-        (text_only.find('/') != std::string::npos ||
-         text_only.find(':') != std::string::npos);
+    bool is_single_word = !text_only.empty() &&
+                          text_only.find(' ') == std::string::npos &&
+                          (text_only.find('/') != std::string::npos ||
+                           text_only.find(':') != std::string::npos);
 
     // Attention markers start a new paragraph to ensure they remain visible.
     bool is_attention_marker =
