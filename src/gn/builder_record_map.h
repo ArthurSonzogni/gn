@@ -64,6 +64,16 @@ class BuilderRecordMap : public HashTableBase<BuilderRecordNode> {
 
     const BuilderRecord* operator->() const { return node_->record; }
     BuilderRecord* operator->() { return node_->record; }
+
+    const_iterator& operator++() {
+      NodeIterator::operator++();
+      return *this;
+    }
+    const_iterator operator++(int) {
+      const_iterator result = *this;
+      NodeIterator::operator++();
+      return result;
+    }
   };
 
   const_iterator begin() const { return {NodeBegin()}; }

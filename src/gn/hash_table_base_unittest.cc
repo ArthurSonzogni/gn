@@ -182,6 +182,15 @@ class TestHashTable : public HashTableBase<TestHashNode> {
       return (this->BaseType::NodeIterator::operator*()).int_ptr->x();
     }
     const int* operator->() const { return &(this->operator*()); }
+    const_iterator& operator++() {
+      BaseType::NodeIterator::operator++();
+      return *this;
+    }
+    const_iterator operator++(int) {
+      const_iterator result = *this;
+      BaseType::NodeIterator::operator++();
+      return result;
+    }
   };
 
   const_iterator begin() const { return {BaseType::NodeBegin()}; }

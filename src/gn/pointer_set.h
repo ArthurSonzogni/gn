@@ -161,6 +161,15 @@ class PointerSet : public HashTableBase<PointerSetNode> {
     T* operator*() const {
       return const_cast<T*>(static_cast<const T*>(node_->ptr_));
     }
+    const_iterator& operator++() {
+      NodeIterator::operator++();
+      return *this;
+    }
+    const_iterator operator++(int) {
+      const_iterator result = *this;
+      NodeIterator::operator++();
+      return result;
+    }
 
     // The following allows:
     // std::vector<T*> vector(set.begin(), set.end());

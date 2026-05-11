@@ -281,7 +281,16 @@ class HashTableBase {
   //     // Iterators point to Foo instances, not table nodes.
   //     struct ConstIterator : NodeIterator {
   //       const Foo* operator->() { return node_->foo_ptr; }
-  //       const Foo& operator*)) { return *(node_->foo_ptr); }
+  //       const Foo& operator*() { return *(node_->foo_ptr); }
+  //       ConstIterator& operator++() {
+  //         NodeIterator::operator++();
+  //         return *this;
+  //       }
+  //       ConstIterator operator++(int) {
+  //         ConstIterator result = *this;
+  //         NodeIterator::operator++();
+  //         return result;
+  //       }
   //     };
   //
   //     ConstIterator begin() const { return { NodeBegin() }; }
@@ -371,7 +380,16 @@ class HashTableBase {
   //     // Iterators point to Foo instances, not table nodes.
   //     struct ConstIterator : NodeIterator {
   //       const Foo* operator->() { return node_->foo_ptr; }
-  //       const Foo& operator*)) { return *(node_->foo_ptr); }
+  //       const Foo& operator*() { return *(node_->foo_ptr); }
+  //       ConstIterator& operator++() {
+  //         NodeIterator::operator++();
+  //         return *this;
+  //       }
+  //       ConstIterator operator++(int) {
+  //         ConstIterator result = *this;
+  //         NodeIterator::operator++();
+  //         return result;
+  //       }
   //     };
   //
   // and compare two ways to implement its begin() method:
