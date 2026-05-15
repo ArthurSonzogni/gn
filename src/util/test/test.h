@@ -93,6 +93,7 @@ std::string Indent(std::string_view value);
 std::string DiffStrings(std::string_view expected, std::string_view actual);
 
 std::string Pretty(bool value);
+std::string Pretty(const char* value);
 
 // Explicitly write this for enum, because otherwise it tries to cast enums
 // to bools.
