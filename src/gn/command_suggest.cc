@@ -5,8 +5,10 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <deque>
 #include <functional>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -135,6 +137,51 @@ bool Exposes(const Target& target, const Target& underlying) {
     }
   }
   return false;
+}
+
+// Finds the shortest dependency path from `from` to `to`.
+// Returns a vector where the first element is `from` and the last is `to`.
+// Returns the empty vector if no path was found.
+std::vector<const Target*> FindDependencyPath(const Target* from,
+                                              const Target* to) {
+  std::deque<const Target*> queue;
+  std::unordered_map<const Target*, const Target*> parents;
+  parents[from] = nullptr;
+  queue.push_back(from);
+
+  const Target* cur = nullptr;
+  while (!queue.empty()) {
+    cur = queue.front();
+    queue.pop_front();
+    if (cur == to) {
+      break;
+    }
+
+    auto add_deps = [&](const LabelTargetVector& deps) {
+      for (const auto& dep : deps) {
+        if (dep.ptr) {
+          if (parents.emplace(dep.ptr, cur).second) {
+            queue.push_back(dep.ptr);
+          }
+        }
+      }
+    };
+
+    add_deps(cur->public_deps());
+    add_deps(cur->private_deps());
+  }
+
+  if (cur != to) {
+    return {};
+  }
+
+  std::vector<const Target*> path;
+  while (cur != nullptr) {
+    path.push_back(cur);
+    cur = parents[cur];
+  }
+  std::reverse(path.begin(), path.end());
+  return path;
 }
 
 }  // namespace
@@ -412,11 +459,87 @@ bool OutputSuggestions(const std::vector<const Target*>& all_targets,
   auto OutputDepSuggestion = [&](const std::vector<const Target*>& candidates) {
     std::vector<std::string> labels;
     for (const auto& target : candidates) {
-      labels.push_back(
-          target->label().dir() == includer->label().dir()
-              ? ":" + target->label().name()
-              : target->label().GetUserVisibleName(current_toolchain));
+      Label label = target->label();
+      std::vector<const Target*> cycle = FindDependencyPath(target, includer);
+      if (!cycle.empty()) {
+        StartWarning();
+        OutputTarget(target);
+        OutputString(" depends on ");
+        OutputTarget(includer);
+        OutputString(
+            ", so adding this dependency will create a dependency loop:\n");
+
+        OutputString("  ");
+        OutputTarget(includer);
+        OutputString(" ->\n");
+
+        for (size_t i = 0; i < cycle.size(); i++) {
+          OutputString("  ");
+          OutputTarget(cycle[i]);
+          if (i + 1 < cycle.size()) {
+            OutputString(" ->");
+          }
+          OutputString("\n");
+        }
+
+        bool has_allow_circular_includes_from = false;
+        for (const Target* t : cycle) {
+          if (!t->allow_circular_includes_from().empty()) {
+            has_allow_circular_includes_from = true;
+            StartSuggestion();
+            OutputString(":", kLabelLike);
+            OutputString(t->label().name(), kLabelLike);
+            OutputString(" (defined at ");
+            OutputString(t->user_friendly_location().Describe(false),
+                         kLabelLike);
+            OutputString(
+                ") declares allow_circular_includes_from, which is bad style. "
+                "Instead, you should remove allow_circular_includes_from by "
+                "doing the following:\n");
+
+            OutputString("source_set(\"");
+            OutputString(t->label().name());
+            OutputString("_sources\") {\n");
+            OutputString("  # All attributes from :");
+            OutputString(t->label().name());
+            OutputString(" except public_deps, and any link options\n");
+            OutputString(
+                "  # Note that some public_deps may need to be added back "
+                "based on #includes of headers.\n");
+            OutputString("}\n\n");
+
+            OutputString(Target::GetStringForOutputType(t->output_type()));
+            OutputString("(\"");
+            OutputString(t->label().name());
+            OutputString("\") {\n");
+            OutputString("  public_deps = [ \":");
+            OutputString(t->label().name());
+            OutputString("_sources\" ]\n");
+            OutputString("  # public_deps, and any link variables from :");
+            OutputString(t->label().name());
+            OutputString("\n");
+            OutputString("}\n");
+
+            if (t == target) {
+              label = Label(label.dir(), label.name() + "_sources",
+                            label.toolchain_dir(), label.toolchain_name());
+            }
+            break;
+          }
+        }
+        if (!has_allow_circular_includes_from) {
+          StartSuggestion();
+          OutputString(
+              "Find the part of the dependency chain where there is no "
+              "#include "
+              "and remove that dependency.\n");
+        }
+      }
+      labels.push_back(label.dir() == includer->label().dir()
+                           ? ":" + label.name()
+                           : label.GetUserVisibleName(current_toolchain));
     }
+
     std::sort(labels.begin(), labels.end(),
               [](std::string_view lhs, std::string_view rhs) {
                 // Ensure relative labels come before absolute labels.

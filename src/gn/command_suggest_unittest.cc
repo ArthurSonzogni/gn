@@ -345,4 +345,54 @@ TEST(Suggest, OutputSuggestions) {
       "Suggestion: Add public_deps = [ \":exposer_specific\" ] to :includer "
       "(defined at //BUILD.gn:1)\n",
       run_suggest(*invisible));
+
+  auto cyclic = create_target("cyclic", Target::SOURCE_SET, [&](Target* t) {
+    t->public_deps().push_back(LabelTargetPair(includer.get()));
+    t->visibility().SetPublic();
+  });
+  EXPECT_EQ(
+      "Warning: //:cyclic depends on //:includer, so adding this dependency "
+      "will create a dependency loop:\n"
+      "  //:includer ->\n"
+      "  //:cyclic ->\n"
+      "  //:includer\n"
+      "Suggestion: Find the part of the dependency chain where there is no "
+      "#include and remove that dependency.\n"
+      "Suggestion: Add public_deps = [ \":cyclic\" ] to :includer (defined at "
+      "//BUILD.gn:1)\n",
+      run_suggest(*cyclic));
+
+  auto cyclic_circular_includes = create_target(
+      "cyclic_circular_includes", Target::STATIC_LIBRARY, [&](Target* t) {
+        t->public_deps().push_back(LabelTargetPair(includer.get()));
+        t->visibility().SetPublic();
+        t->allow_circular_includes_from().insert(includer->label());
+      });
+  EXPECT_EQ(
+      "Warning: //:cyclic_circular_includes depends on //:includer, so adding "
+      "this "
+      "dependency will create a dependency loop:\n"
+      "  //:includer ->\n"
+      "  //:cyclic_circular_includes ->\n"
+      "  //:includer\n"
+      "Suggestion: :cyclic_circular_includes (defined at //BUILD.gn:1) "
+      "declares "
+      "allow_circular_includes_from, which is bad style. Instead, you should "
+      "remove allow_circular_includes_from by doing the following:\n"
+      "source_set(\"cyclic_circular_includes_sources\") {\n"
+      "  # All attributes from :cyclic_circular_includes except public_deps, "
+      "and any link options\n"
+      "  # Note that some public_deps may need to be added back based on "
+      "#includes of headers.\n"
+      "}\n"
+      "\n"
+      "static_library(\"cyclic_circular_includes\") {\n"
+      "  public_deps = [ \":cyclic_circular_includes_sources\" ]\n"
+      "  # public_deps, and any link variables from :cyclic_circular_includes\n"
+      "}\n"
+      "Suggestion: Add public_deps = [ \":cyclic_circular_includes_sources\" ] "
+      "to "
+      ":includer "
+      "(defined at //BUILD.gn:1)\n",
+      run_suggest(*cyclic_circular_includes));
 }
