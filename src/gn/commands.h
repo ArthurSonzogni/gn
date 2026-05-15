@@ -5,6 +5,7 @@
 #ifndef TOOLS_GN_COMMANDS_H_
 #define TOOLS_GN_COMMANDS_H_
 
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include "base/values.h"
+#include "gn/standard_out.h"
 #include "gn/target.h"
 #include "gn/unique_vector.h"
 
@@ -102,6 +104,15 @@ extern const char kSuggest[];
 extern const char kSuggest_HelpShort[];
 extern const char kSuggest_Help[];
 int RunSuggest(const std::vector<std::string>& args);
+
+using OutputStringFunc =
+    std::function<void(std::string_view, TextDecoration, HtmlEscaping)>;
+bool OutputSuggestions(const std::vector<const Target*>& all_targets,
+                       const BuildSettings* build_settings,
+                       const Label& default_toolchain,
+                       std::string_view includer_name,
+                       std::string_view included_name,
+                       OutputStringFunc output_fn);
 
 extern const char kCleanStale[];
 extern const char kCleanStale_HelpShort[];
