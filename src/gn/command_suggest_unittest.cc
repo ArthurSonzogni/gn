@@ -10,10 +10,12 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "gn/commands.h"
+#include "gn/filesystem_utils.h"
+#include "gn/input_file.h"
+#include "gn/location.h"
 #include "gn/setup.h"
-#include "gn/switches.h"
+#include "gn/standard_out.h"
 #include "gn/target.h"
-#include "gn/test_with_scheduler.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
 
@@ -215,4 +217,132 @@ TEST(Suggest, ResolveFileName) {
     EXPECT_TRUE(ok);
     EXPECT_EQ(expected_targets, results);
   }
+}
+
+TEST(Suggest, OutputSuggestions) {
+  TestWithScope setup_scope;
+  Label default_toolchain = setup_scope.toolchain()->label();
+
+  InputFile build_file(SourceFile("//BUILD.gn"));
+  Location dummy_loc(&build_file, 1, 1);
+  std::vector<const Target*> all_targets;
+
+  auto set_visibility = [&](Target* target, std::string_view pattern) {
+    Value visibility_value(nullptr, Value::LIST);
+    visibility_value.list_value().push_back(
+        Value(nullptr, std::string(pattern)));
+    Err err;
+    EXPECT_TRUE(
+        target->visibility().Set(SourceDir("//"), "", visibility_value, &err));
+  };
+
+  auto create_target = [&](std::string_view name, Target::OutputType type,
+                           auto fn) {
+    auto target = std::make_unique<Target>(
+        setup_scope.settings(),
+        Label(SourceDir("//"), name, default_toolchain.dir(),
+              default_toolchain.name()));
+    target->set_output_type(type);
+    target->SetToolchain(setup_scope.toolchain());
+    target->set_user_friendly_location(dummy_loc);
+    if (type == Target::SOURCE_SET) {
+      Target::ModuleType module_type;
+      module_type.set(Target::HAS_MODULEMAP);
+      target->set_module_type(module_type);
+      target->set_module_name(std::string(name));
+      target->public_headers().push_back(
+          SourceFile("//" + std::string(name) + ".h"));
+    }
+    fn(target.get());
+    Err err;
+    EXPECT_TRUE(target->OnResolvedWithoutChecks(&err));
+    all_targets.push_back(target.get());
+    return target;
+  };
+
+  auto includer = create_target("includer", Target::GROUP, [](Target*) {});
+
+  auto run_suggest = [&](const Target& want) {
+    std::string output;
+    auto collect = [&](std::string_view s, TextDecoration, HtmlEscaping) {
+      output.append(s);
+    };
+    commands::OutputSuggestions(all_targets, setup_scope.build_settings(),
+                                default_toolchain, "//:includer",
+                                want.module_name(), collect);
+    return output;
+  };
+
+  auto visible = create_target("visible", Target::SOURCE_SET,
+                               [&](Target* t) { t->visibility().SetPublic(); });
+  auto visible_group =
+      create_target("visible_group", Target::GROUP, [&](Target* t) {
+        t->public_deps().push_back(LabelTargetPair(visible.get()));
+        t->visibility().SetPublic();
+      });
+  // Prefer the real target over the group that exposes it.
+  EXPECT_EQ(
+      "Suggestion: Add public_deps = [ \":visible\" ] to :includer (defined at "
+      "//BUILD.gn:1)\n",
+      run_suggest(*visible));
+
+  auto invisible =
+      create_target("invisible", Target::SOURCE_SET, [&](Target* t) {});
+  EXPECT_EQ(
+      "Warning: //:invisible is not visible to //:includer\n"
+      "Suggestion: Carefully consider whether you want to change the "
+      "visibility so that you can depend on it\n"
+      "Suggestion: Add public_deps = [ \":invisible\" ] to :includer (defined "
+      "at //BUILD.gn:1)\n",
+      run_suggest(*invisible));
+
+  auto exposer_invisible =
+      create_target("exposer_invisible", Target::GROUP, [&](Target* t) {
+        t->private_deps().push_back(LabelTargetPair(invisible.get()));
+      });
+  EXPECT_EQ(
+      "Warning: //:invisible is exposed via the following targets, but none "
+      "are visible to //:includer\n"
+      "Suggestion: Carefully consider whether you want to change the "
+      "visibility so that you can depend on one of them\n"
+      "Suggestion: Add one of the following to public_deps in :includer "
+      "(defined at //BUILD.gn:1):\n"
+      "* :exposer_invisible\n"
+      "* :invisible\n",
+      run_suggest(*invisible));
+
+  auto exposer_visible =
+      create_target("exposer_visible", Target::GROUP, [&](Target* t) {
+        t->private_deps().push_back(LabelTargetPair(invisible.get()));
+        t->visibility().SetPublic();
+      });
+  EXPECT_EQ(
+      "Suggestion: Add public_deps = [ \":exposer_visible\" ] to :includer "
+      "(defined at //BUILD.gn:1)\n",
+      run_suggest(*invisible));
+
+  auto exposer_visible2 =
+      create_target("exposer_visible2", Target::GROUP, [&](Target* t) {
+        t->private_deps().push_back(LabelTargetPair(exposer_visible.get()));
+        t->visibility().SetPublic();
+      });
+  EXPECT_EQ(
+      "Warning: //:invisible is exposed via multiple targets\n"
+      "Suggestion: Clean up the visibility so that only one of the below "
+      "targets is visible to //:includer\n"
+      "Suggestion: Add one of the following to public_deps in :includer "
+      "(defined at //BUILD.gn:1):\n"
+      "* :exposer_visible\n"
+      "* :exposer_visible2\n",
+      run_suggest(*invisible));
+
+  auto exposer_specific =
+      create_target("exposer_specific", Target::GROUP, [&](Target* t) {
+        t->private_deps().push_back(LabelTargetPair(exposer_visible.get()));
+        set_visibility(t, "//:includer");
+      });
+  EXPECT_EQ(
+      "Suggestion: Add public_deps = [ \":exposer_specific\" ] to :includer "
+      "(defined at //BUILD.gn:1)\n",
+      run_suggest(*invisible));
 }
