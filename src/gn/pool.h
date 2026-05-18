@@ -5,6 +5,7 @@
 #ifndef TOOLS_GN_POOL_H_
 #define TOOLS_GN_POOL_H_
 
+#include <cstdint>
 #include <string>
 
 #include "gn/item.h"
