@@ -357,9 +357,25 @@ class ResolvedTargetData {
   // on demand (hence the mutable qualifier). Implemented with a
   // UniqueVector<> and a parallel vector of unique TargetInfo
   // instances for best performance.
-  mutable std::shared_mutex map_mutex_;
-  mutable UniqueVector<const Target*> targets_;
-  mutable std::vector<std::unique_ptr<TargetInfo>> infos_;
+  // We shard the TargetInfo map to reduce lock contention under the
+  // high-concurrency parallel writing phase of 'gn gen'. 128 shards is chosen
+  // as the sweet spot based on benchmarking, providing optimal scaling for
+  // high-core workstation counts (up to 128 threads) with negligible memory
+  // overhead from empty shards.
+  static constexpr size_t kNumShards = 128;
+  struct Shard {
+    mutable std::shared_mutex mutex;
+    UniqueVector<const Target*> targets;
+    std::vector<std::unique_ptr<TargetInfo>> infos;
+  };
+
+  // We use std::hash to distribute targets evenly across shards and avoid
+  // pointer alignment biases.
+  size_t GetShardIndex(const Target* target) const {
+    return std::hash<const Target*>()(target) % kNumShards;
+  }
+
+  mutable Shard shards_[kNumShards];
 };
 
 #endif  // TOOLS_GN_RESOLVED_TARGET_DATA_H_

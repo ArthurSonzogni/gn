@@ -8,20 +8,22 @@
 
 ResolvedTargetData::TargetInfo* ResolvedTargetData::GetTargetInfo(
     const Target* target) const {
+  size_t shard_idx = GetShardIndex(target);
+  Shard& shard = shards_[shard_idx];
   {
-    std::shared_lock<std::shared_mutex> lock(map_mutex_);
-    size_t index = targets_.IndexOf(target);
+    std::shared_lock<std::shared_mutex> lock(shard.mutex);
+    size_t index = shard.targets.IndexOf(target);
     if (index != UniqueVector<const Target*>::kIndexNone) {
-      return infos_[index].get();
+      return shard.infos[index].get();
     }
   }
 
-  std::unique_lock<std::shared_mutex> lock(map_mutex_);
-  auto ret = targets_.PushBackWithIndex(target);
+  std::unique_lock<std::shared_mutex> lock(shard.mutex);
+  auto ret = shard.targets.PushBackWithIndex(target);
   if (ret.first) {
-    infos_.push_back(std::make_unique<TargetInfo>(target));
+    shard.infos.push_back(std::make_unique<TargetInfo>(target));
   }
-  return infos_[ret.second].get();
+  return shard.infos[ret.second].get();
 }
 
 void ResolvedTargetData::ComputeLibInfo(TargetInfo* info) const {
