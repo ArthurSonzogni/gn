@@ -34,7 +34,7 @@ TEST(NinjaToolchainWriter, WriteToolRuleWithLauncher) {
   EXPECT_EQ(
       "rule prefix_cxx\n"
       "  command = launcher c++ ${in} ${cflags} ${cflags_cc} ${defines} "
-      "${include_dirs} "
+      "${include_dirs} ${module_deps} "
       "-o ${out}\n",
       stream.str());
 }

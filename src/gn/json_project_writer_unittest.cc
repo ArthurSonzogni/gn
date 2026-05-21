@@ -120,7 +120,7 @@ TEST_F(JSONWriter, ActionWithResponseFile) {
             "command": "cp {{source}} {{output}}"
          },
          "cxx": {
-            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} -o {{output}}",
+            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} {{module_deps}} -o {{output}}",
             "command_launcher": "launcher",
             "framework_dir_switch": "-F",
             "framework_switch": "-framework ",
@@ -130,7 +130,7 @@ TEST_F(JSONWriter, ActionWithResponseFile) {
             "weak_framework_switch": "-weak_framework "
          },
          "cxx_module": {
-            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} -o {{output}}",
+            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} {{module_deps_no_self}} -o {{output}}",
             "framework_dir_switch": "-F",
             "framework_switch": "-framework ",
             "lib_dir_switch": "-L",
@@ -360,7 +360,7 @@ TEST_F(JSONWriter, RustTarget) {
             "command": "cp {{source}} {{output}}"
          },
          "cxx": {
-            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} -o {{output}}",
+            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} {{module_deps}} -o {{output}}",
             "command_launcher": "launcher",
             "framework_dir_switch": "-F",
             "framework_switch": "-framework ",
@@ -370,7 +370,7 @@ TEST_F(JSONWriter, RustTarget) {
             "weak_framework_switch": "-weak_framework "
          },
          "cxx_module": {
-            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} -o {{output}}",
+            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} {{module_deps_no_self}} -o {{output}}",
             "framework_dir_switch": "-F",
             "framework_switch": "-framework ",
             "lib_dir_switch": "-L",
@@ -624,7 +624,7 @@ TEST_F(JSONWriter, ForEachWithResponseFile) {
             "command": "cp {{source}} {{output}}"
          },
          "cxx": {
-            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} -o {{output}}",
+            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} {{module_deps}} -o {{output}}",
             "command_launcher": "launcher",
             "framework_dir_switch": "-F",
             "framework_switch": "-framework ",
@@ -634,7 +634,7 @@ TEST_F(JSONWriter, ForEachWithResponseFile) {
             "weak_framework_switch": "-weak_framework "
          },
          "cxx_module": {
-            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} -o {{output}}",
+            "command": "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} {{module_deps_no_self}} -o {{output}}",
             "framework_dir_switch": "-F",
             "framework_switch": "-framework ",
             "lib_dir_switch": "-L",

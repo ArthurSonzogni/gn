@@ -102,6 +102,7 @@ void TestWithScope::SetupToolchain(Toolchain* toolchain, bool use_toc) {
   std::unique_ptr<Tool> cxx_tool = Tool::CreateTool(CTool::kCToolCxx);
   SetCommandForTool(
       "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} "
+      "{{module_deps}} "
       "-o {{output}}",
       cxx_tool.get());
   cxx_tool->set_outputs(SubstitutionList::MakeForTest(
@@ -114,6 +115,7 @@ void TestWithScope::SetupToolchain(Toolchain* toolchain, bool use_toc) {
       Tool::CreateTool(CTool::kCToolCxxModule);
   SetCommandForTool(
       "c++ {{source}} {{cflags}} {{cflags_cc}} {{defines}} {{include_dirs}} "
+      "{{module_deps_no_self}} "
       "-o {{output}}",
       cxx_module_tool.get());
   cxx_module_tool->set_outputs(SubstitutionList::MakeForTest(
