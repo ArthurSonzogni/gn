@@ -73,8 +73,11 @@ void NinjaActionTargetWriter::Run() {
   // and the action will just depend on all the input deps directly.
   size_t num_output_uses =
       target_->output_type() == Target::ACTION ? 1u : target_->sources().size();
-  std::vector<OutputFile> input_deps = WriteInputDepsStampOrPhonyAndGetDep(
+  NinjaTargetWriter::InputDeps stamp_deps = WriteInputDepsStampOrPhonyAndGetDep(
       additional_hard_deps, num_output_uses);
+  std::vector<OutputFile> input_deps = stamp_deps.implicit;
+  input_deps.insert(input_deps.end(), stamp_deps.order_only.begin(),
+                    stamp_deps.order_only.end());
   out_ << std::endl;
 
   // Collects all output files for writing below.

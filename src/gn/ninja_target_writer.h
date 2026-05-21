@@ -82,14 +82,19 @@ class NinjaTargetWriter {
                              bool indent,
                              bool always_write);
 
+  struct InputDeps {
+    std::vector<OutputFile> implicit;
+    std::vector<OutputFile> order_only;
+  };
+
   // Writes to the output stream a phony rule for input dependencies, and
   // returns the file to be appended to source rules that encodes the
-  // order-only dependencies for the current target.
+  // dependencies for the current target.
   // If num_output_uses is small, this might return all input dependencies
   // directly, without writing a phony rule.
   // If there are no implicit dependencies and no additional target dependencies
-  // are passed in, this returns an empty vector.
-  std::vector<OutputFile> WriteInputDepsStampOrPhonyAndGetDep(
+  // are passed in, this returns an empty struct.
+  InputDeps WriteInputDepsStampOrPhonyAndGetDep(
       const std::vector<const Target*>& additional_hard_deps,
       size_t num_output_uses) const;
 

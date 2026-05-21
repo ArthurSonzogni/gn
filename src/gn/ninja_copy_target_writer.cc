@@ -72,13 +72,14 @@ void NinjaCopyTargetWriter::WriteCopyRules(
       GetNinjaRulePrefixForToolchain(settings_) + GeneralTool::kGeneralToolCopy;
 
   size_t num_output_uses = target_->sources().size();
-  std::vector<OutputFile> input_deps = WriteInputDepsStampOrPhonyAndGetDep(
+  NinjaTargetWriter::InputDeps stamp_deps = WriteInputDepsStampOrPhonyAndGetDep(
       std::vector<const Target*>(), num_output_uses);
+  std::vector<OutputFile> implicit_deps = stamp_deps.implicit;
+  std::vector<OutputFile> order_only_deps = stamp_deps.order_only;
 
-  std::vector<OutputFile> data_outs;
   for (const Target* data_dep : resolved().GetDataDeps(target_)) {
     if (data_dep->has_dependency_output())
-      data_outs.push_back(data_dep->dependency_output());
+      order_only_deps.push_back(data_dep->dependency_output());
   }
 
   // Note that we don't write implicit deps for copy steps. "copy" only
@@ -119,10 +120,13 @@ void NinjaCopyTargetWriter::WriteCopyRules(
 
     out_ << ": " << tool_name << " ";
     path_output_.WriteFile(out_, input_file);
-    if (!input_deps.empty() || !data_outs.empty()) {
+    if (!implicit_deps.empty()) {
+      out_ << " |";
+      path_output_.WriteFiles(out_, implicit_deps);
+    }
+    if (!order_only_deps.empty()) {
       out_ << " ||";
-      path_output_.WriteFiles(out_, input_deps);
-      path_output_.WriteFiles(out_, data_outs);
+      path_output_.WriteFiles(out_, order_only_deps);
     }
     WriteValidations();
     out_ << std::endl;

@@ -21,11 +21,14 @@ void NinjaBundleDataTargetWriter::Run() {
         OutputFile(settings_->build_settings(), source_file));
   }
 
-  std::vector<OutputFile> input_deps = WriteInputDepsStampOrPhonyAndGetDep(
-      std::vector<const Target*>(), /*num_output_uses=*/1);
-  output_files.insert(output_files.end(), input_deps.begin(), input_deps.end());
+  NinjaTargetWriter::InputDeps stamp_deps =
+      WriteInputDepsStampOrPhonyAndGetDep(std::vector<const Target*>(),
+                                          /*num_output_uses=*/1);
+  std::vector<OutputFile> implicit_deps = stamp_deps.implicit;
+  std::vector<OutputFile> order_only_deps = stamp_deps.order_only;
+  output_files.insert(output_files.end(), implicit_deps.begin(),
+                      implicit_deps.end());
 
-  std::vector<OutputFile> order_only_deps;
   for (const Target* data_dep : resolved().GetDataDeps(target_)) {
     if (data_dep->has_dependency_output())
       order_only_deps.push_back(data_dep->dependency_output());

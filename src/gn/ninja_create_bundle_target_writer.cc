@@ -81,16 +81,18 @@ void NinjaCreateBundleTargetWriter::Run() {
   // Stamp users are CopyBundleData, CompileAssetsCatalog, PostProcessing and
   // StampForTarget.
   size_t num_stamp_uses = 4;
-  std::vector<OutputFile> order_only_deps = WriteInputDepsStampOrPhonyAndGetDep(
+  NinjaTargetWriter::InputDeps stamp_deps = WriteInputDepsStampOrPhonyAndGetDep(
       std::vector<const Target*>(), num_stamp_uses);
+  std::vector<OutputFile> implicit_deps = stamp_deps.implicit;
+  std::vector<OutputFile> order_only_deps = stamp_deps.order_only;
 
   std::string post_processing_rule_name = WritePostProcessingRuleDefinition();
 
   std::vector<OutputFile> output_files;
-  WriteCopyBundleDataSteps(order_only_deps, &output_files);
-  WriteCompileAssetsCatalogStep(order_only_deps, &output_files);
-  WritePostProcessingStep(post_processing_rule_name, order_only_deps,
-                          &output_files);
+  WriteCopyBundleDataSteps(implicit_deps, order_only_deps, &output_files);
+  WriteCompileAssetsCatalogStep(implicit_deps, order_only_deps, &output_files);
+  WritePostProcessingStep(post_processing_rule_name, implicit_deps,
+                          order_only_deps, &output_files);
 
   for (const Target* data_dep : resolved().GetDataDeps(target_)) {
     if (data_dep->has_dependency_output())
@@ -179,14 +181,17 @@ void NinjaCreateBundleTargetWriter::WritePostProcessingManifestFile() {
 }
 
 void NinjaCreateBundleTargetWriter::WriteCopyBundleDataSteps(
+    const std::vector<OutputFile>& implicit_deps,
     const std::vector<OutputFile>& order_only_deps,
     std::vector<OutputFile>* output_files) {
   for (const BundleFileRule& file_rule : target_->bundle_data().file_rules())
-    WriteCopyBundleFileRuleSteps(file_rule, order_only_deps, output_files);
+    WriteCopyBundleFileRuleSteps(file_rule, implicit_deps, order_only_deps,
+                                 output_files);
 }
 
 void NinjaCreateBundleTargetWriter::WriteCopyBundleFileRuleSteps(
     const BundleFileRule& file_rule,
+    const std::vector<OutputFile>& implicit_deps,
     const std::vector<OutputFile>& order_only_deps,
     std::vector<OutputFile>* output_files) {
   // Note that we don't write implicit deps for copy steps. "copy_bundle_data"
@@ -209,6 +214,10 @@ void NinjaCreateBundleTargetWriter::WriteCopyBundleFileRuleSteps(
          << GeneralTool::kGeneralToolCopyBundleData << " ";
     path_output_.WriteFile(out_, source_file);
 
+    if (!implicit_deps.empty()) {
+      out_ << " |";
+      path_output_.WriteFiles(out_, implicit_deps);
+    }
     if (!order_only_deps.empty()) {
       out_ << " ||";
       path_output_.WriteFiles(out_, order_only_deps);
@@ -219,6 +228,7 @@ void NinjaCreateBundleTargetWriter::WriteCopyBundleFileRuleSteps(
 }
 
 void NinjaCreateBundleTargetWriter::WriteCompileAssetsCatalogStep(
+    const std::vector<OutputFile>& implicit_deps,
     const std::vector<OutputFile>& order_only_deps,
     std::vector<OutputFile>* output_files) {
   if (!TargetRequireAssetCatalogCompilation(target_))
@@ -251,6 +261,10 @@ void NinjaCreateBundleTargetWriter::WriteCompileAssetsCatalogStep(
     WriteOutput(partial_info_plist);
     out_ << ": " << GetNinjaRulePrefixForToolchain(settings_)
          << GeneralTool::kGeneralToolStamp;
+    if (!implicit_deps.empty()) {
+      out_ << " |";
+      path_output_.WriteFiles(out_, implicit_deps);
+    }
     if (!order_only_deps.empty()) {
       out_ << " ||";
       path_output_.WriteFiles(out_, order_only_deps);
@@ -286,6 +300,7 @@ void NinjaCreateBundleTargetWriter::WriteCompileAssetsCatalogStep(
 
   out_ << " | ";
   path_output_.WriteFile(out_, input_dep);
+  path_output_.WriteFiles(out_, implicit_deps);
 
   if (!order_only_deps.empty()) {
     out_ << " ||";
@@ -362,13 +377,15 @@ NinjaCreateBundleTargetWriter::WriteCompileAssetsCatalogInputDepsStampOrPhony(
 
 void NinjaCreateBundleTargetWriter::WritePostProcessingStep(
     const std::string& post_processing_rule_name,
+    const std::vector<OutputFile>& implicit_deps,
     const std::vector<OutputFile>& order_only_deps,
     std::vector<OutputFile>* output_files) {
   if (post_processing_rule_name.empty())
     return;
 
   OutputFile post_processing_input_stamp_file =
-      WritePostProcessingInputDepsStampOrPhony(order_only_deps, output_files);
+      WritePostProcessingInputDepsStampOrPhony(implicit_deps, order_only_deps,
+                                               output_files);
   DCHECK(!post_processing_input_stamp_file.value().empty());
 
   out_ << "build";
@@ -391,6 +408,7 @@ void NinjaCreateBundleTargetWriter::WritePostProcessingStep(
 
 OutputFile
 NinjaCreateBundleTargetWriter::WritePostProcessingInputDepsStampOrPhony(
+    const std::vector<OutputFile>& implicit_deps,
     const std::vector<OutputFile>& order_only_deps,
     std::vector<OutputFile>* output_files) {
   std::vector<SourceFile> post_processing_input_files;
@@ -406,7 +424,8 @@ NinjaCreateBundleTargetWriter::WritePostProcessingInputDepsStampOrPhony(
   }
 
   DCHECK(!post_processing_input_files.empty());
-  if (post_processing_input_files.size() == 1 && order_only_deps.empty())
+  if (post_processing_input_files.size() == 1 && implicit_deps.empty() &&
+      order_only_deps.empty())
     return OutputFile(settings_->build_settings(),
                       post_processing_input_files[0]);
 
@@ -437,6 +456,10 @@ NinjaCreateBundleTargetWriter::WritePostProcessingInputDepsStampOrPhony(
   for (const SourceFile& source : post_processing_input_files) {
     out_ << " ";
     path_output_.WriteFile(out_, source);
+  }
+  if (!implicit_deps.empty()) {
+    out_ << " |";
+    path_output_.WriteFiles(out_, implicit_deps);
   }
   if (!order_only_deps.empty()) {
     out_ << " ||";

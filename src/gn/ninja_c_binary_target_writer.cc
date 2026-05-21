@@ -104,8 +104,11 @@ void NinjaCBinaryTargetWriter::Run() {
   // that also use PCH files won't have a phony target even though having
   // one would make output ninja file size a bit lower. That's ok, binary
   // targets with a single source are rare.
-  std::vector<OutputFile> order_only_deps = WriteInputDepsStampOrPhonyAndGetDep(
+  NinjaTargetWriter::InputDeps stamp_deps = WriteInputDepsStampOrPhonyAndGetDep(
       std::vector<const Target*>(), num_output_uses);
+  input_deps.insert(input_deps.end(), stamp_deps.implicit.begin(),
+                    stamp_deps.implicit.end());
+  std::vector<OutputFile> order_only_deps = stamp_deps.order_only;
 
   // For GCC builds, the .gch files are not object files, but still need to be
   // added as explicit dependencies below. The .gch output files are placed in

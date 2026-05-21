@@ -125,8 +125,9 @@ void NinjaRustBinaryTargetWriter::Run() {
   // Ninja to make sure the inputs are up to date before compiling this source,
   // but changes in the inputs deps won't cause the file to be recompiled. See
   // the comment on NinjaCBinaryTargetWriter::Run for more detailed explanation.
-  std::vector<OutputFile> order_only_deps = WriteInputDepsStampOrPhonyAndGetDep(
+  NinjaTargetWriter::InputDeps stamp_deps = WriteInputDepsStampOrPhonyAndGetDep(
       std::vector<const Target*>(), num_output_uses);
+  std::vector<OutputFile> order_only_deps = stamp_deps.order_only;
   std::copy(input_deps.begin(), input_deps.end(),
             std::back_inserter(order_only_deps));
 
@@ -135,6 +136,7 @@ void NinjaRustBinaryTargetWriter::Run() {
   // -Ldependency. Also assemble a list of extra (i.e. implicit) deps
   // for ninja dependency tracking.
   UniqueVector<OutputFile> implicit_deps;
+  implicit_deps.Append(stamp_deps.implicit.begin(), stamp_deps.implicit.end());
   AppendSourcesAndInputsToImplicitDeps(&implicit_deps);
   implicit_deps.Append(classified_deps.extra_object_files.begin(),
                        classified_deps.extra_object_files.end());
