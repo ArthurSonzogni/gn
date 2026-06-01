@@ -276,6 +276,7 @@ const Target* ResolveTargetFromCommandLineString(
 enum class ApiScope {
   kPublic,
   kPrivate,
+  kOutput,
 };
 
 // Resolves an input to a list of targets for suggestion.

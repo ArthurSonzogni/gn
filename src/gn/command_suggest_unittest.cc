@@ -146,8 +146,29 @@ TEST(Suggest, ResolveFileName) {
   simple_secondary.public_headers().push_back(
       SourceFile("//secondary_toolchain.h"));
 
+  Target generated(setup_scope.settings(),
+                   Label(SourceDir("//"), "generated", current_toolchain.dir(),
+                         current_toolchain.name()));
+  generated.set_output_type(Target::ACTION);
+  generated.SetToolchain(setup_scope.toolchain());
+  generated.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/generated_file.h");
+  Err resolve_err;
+  ASSERT_TRUE(generated.OnResolvedWithoutChecks(&resolve_err));
+
+  Target consumer(setup_scope.settings(),
+                  Label(SourceDir("//"), "consumer", current_toolchain.dir(),
+                        current_toolchain.name()));
+  consumer.set_output_type(Target::SOURCE_SET);
+  consumer.SetToolchain(setup_scope.toolchain());
+  consumer.set_all_headers_public(true);
+  consumer.public_headers().push_back(
+      SourceFile("//out/Debug/generated_file.h"));
+  ASSERT_TRUE(consumer.OnResolvedWithoutChecks(&resolve_err));
+
   std::vector<const Target*> all_targets = {&explicit_target, &implicit_target,
-                                            &simple_default, &simple_secondary};
+                                            &simple_default, &simple_secondary,
+                                            &generated};
 
   {
     auto [results, ok] = commands::ResolveSuggestionToTarget(
@@ -184,6 +205,27 @@ TEST(Suggest, ResolveFileName) {
         setup_scope.build_settings(), all_targets, current_toolchain,
         "nonexistent_file.h");
     EXPECT_FALSE(ok);
+  }
+
+  {
+    auto [results, ok] = commands::ResolveSuggestionToTarget(
+        setup_scope.build_settings(), all_targets, current_toolchain,
+        "//out/Debug/generated_file.h");
+    std::vector<std::pair<const Target*, commands::ApiScope>> expected = {
+        {&generated, commands::ApiScope::kPublic}};
+    EXPECT_TRUE(ok);
+    EXPECT_EQ(expected, results);
+  }
+
+  all_targets.push_back(&consumer);
+  {
+    auto [results, ok] = commands::ResolveSuggestionToTarget(
+        setup_scope.build_settings(), all_targets, current_toolchain,
+        "//out/Debug/generated_file.h");
+    std::vector<std::pair<const Target*, commands::ApiScope>> expected = {
+        {&consumer, commands::ApiScope::kPublic}};
+    EXPECT_TRUE(ok);
+    EXPECT_EQ(expected, results);
   }
 
   {
