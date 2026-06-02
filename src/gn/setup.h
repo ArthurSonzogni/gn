@@ -63,6 +63,10 @@ class Setup {
                       const base::CommandLine& cmdline,
                       Err* err);
 
+  // Setup just enough data for the 'format' command, which doesn't require
+  // a build directory.
+  bool DoSetupForFormat();
+
   // Runs the load, returning true on success. On failure, prints the error
   // and returns false. This includes both RunPreMessageLoop() and
   // RunPostMessageLoop().

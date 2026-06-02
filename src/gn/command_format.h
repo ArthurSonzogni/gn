@@ -24,10 +24,16 @@ enum class TreeDumpMode {
   kJSON
 };
 
-bool FormatJsonToString(const std::string& input, std::string* output);
+// The default format width.
+extern const size_t kDefaultFormatWidth;
+
+bool FormatJsonToString(const std::string& input,
+                        size_t format_width,
+                        std::string* output);
 
 bool FormatStringToString(const std::string& input,
                           TreeDumpMode dump_tree,
+                          size_t format_width,
                           std::string* output,
                           std::string* dump_output);
 

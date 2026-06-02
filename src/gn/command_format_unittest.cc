@@ -14,40 +14,46 @@
 
 using FormatTest = TestWithScheduler;
 
-#define FORMAT_TEST(n)                                                      \
-  TEST_F(FormatTest, n) {                                                   \
-    ::Setup setup;                                                          \
-    std::string input;                                                      \
-    std::string out;                                                        \
-    std::string expected;                                                   \
-    base::FilePath src_dir =                                                \
-        GetExePath().DirName().Append(FILE_PATH_LITERAL(".."));             \
-    base::SetCurrentDirectory(src_dir);                                     \
-    ASSERT_TRUE(base::ReadFileToString(                                     \
-        base::FilePath(FILE_PATH_LITERAL("src/gn/format_test_data/")        \
-                           FILE_PATH_LITERAL(#n) FILE_PATH_LITERAL(".gn")), \
-        &input));                                                           \
-    ASSERT_TRUE(base::ReadFileToString(                                     \
-        base::FilePath(FILE_PATH_LITERAL("src/gn/format_test_data/")        \
-                           FILE_PATH_LITERAL(#n)                            \
-                               FILE_PATH_LITERAL(".golden")),               \
-        &expected));                                                        \
-    EXPECT_TRUE(commands::FormatStringToString(                             \
-        input, commands::TreeDumpMode::kInactive, &out, nullptr));          \
-    EXPECT_EQ(expected, out);                                               \
-    /* Make sure formatting the output doesn't cause further changes. */    \
-    std::string out_again;                                                  \
-    EXPECT_TRUE(commands::FormatStringToString(                             \
-        out, commands::TreeDumpMode::kInactive, &out_again, nullptr));      \
-    ASSERT_EQ(out, out_again);                                              \
-    /* Make sure we can roundtrip to json without any changes. */           \
-    std::string as_json;                                                    \
-    std::string unused;                                                     \
-    EXPECT_TRUE(commands::FormatStringToString(                             \
-        out_again, commands::TreeDumpMode::kJSON, &unused, &as_json));      \
-    std::string rewritten;                                                  \
-    EXPECT_TRUE(commands::FormatJsonToString(as_json, &rewritten));         \
-    ASSERT_EQ(out, rewritten);                                              \
+#define FORMAT_TEST(n) FORMAT_TEST_WITH_WIDTH(n, commands::kDefaultFormatWidth)
+
+#define FORMAT_TEST_WITH_WIDTH(n, format_width)                                \
+  TEST_F(FormatTest, n) {                                                      \
+    ::Setup setup;                                                             \
+    std::string input;                                                         \
+    std::string out;                                                           \
+    std::string expected;                                                      \
+    base::FilePath src_dir =                                                   \
+        GetExePath().DirName().Append(FILE_PATH_LITERAL(".."));                \
+    base::SetCurrentDirectory(src_dir);                                        \
+    ASSERT_TRUE(base::ReadFileToString(                                        \
+        base::FilePath(FILE_PATH_LITERAL("src/gn/format_test_data/")           \
+                           FILE_PATH_LITERAL(#n) FILE_PATH_LITERAL(".gn")),    \
+        &input));                                                              \
+    ASSERT_TRUE(base::ReadFileToString(                                        \
+        base::FilePath(FILE_PATH_LITERAL("src/gn/format_test_data/")           \
+                           FILE_PATH_LITERAL(#n)                               \
+                               FILE_PATH_LITERAL(".golden")),                  \
+        &expected));                                                           \
+    EXPECT_TRUE(commands::FormatStringToString(                                \
+        input, commands::TreeDumpMode::kInactive, format_width, &out,          \
+        nullptr));                                                             \
+    EXPECT_EQ(expected, out);                                                  \
+    /* Make sure formatting the output doesn't cause further changes. */       \
+    std::string out_again;                                                     \
+    EXPECT_TRUE(                                                               \
+        commands::FormatStringToString(out, commands::TreeDumpMode::kInactive, \
+                                       format_width, &out_again, nullptr));    \
+    ASSERT_EQ(out, out_again);                                                 \
+    /* Make sure we can roundtrip to json without any changes. */              \
+    std::string as_json;                                                       \
+    std::string unused;                                                        \
+    EXPECT_TRUE(commands::FormatStringToString(                                \
+        out_again, commands::TreeDumpMode::kJSON, format_width, &unused,       \
+        &as_json));                                                            \
+    std::string rewritten;                                                     \
+    EXPECT_TRUE(                                                               \
+        commands::FormatJsonToString(as_json, format_width, &rewritten));      \
+    ASSERT_EQ(out, rewritten);                                                 \
   }
 
 // These are expanded out this way rather than a runtime loop so that
@@ -158,3 +164,4 @@ FORMAT_TEST(102)
 FORMAT_TEST(103)
 FORMAT_TEST(104)
 FORMAT_TEST(105)
+FORMAT_TEST_WITH_WIDTH(106, 20)

@@ -50,6 +50,10 @@ extern const char kFailOnUnusedArgs[];
 extern const char kFailOnUnusedArgs_HelpShort[];
 extern const char kFailOnUnusedArgs_Help[];
 
+extern const char kFormatWidth[];
+extern const char kFormatWidth_HelpShort[];
+extern const char kFormatWidth_Help[];
+
 extern const char kMarkdown[];
 extern const char kMarkdown_HelpShort[];
 extern const char kMarkdown_Help[];

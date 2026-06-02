@@ -15,6 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -690,7 +691,8 @@ bool Setup::SaveArgsToFile() {
 
   std::string contents = args_input_file_->contents();
   commands::FormatStringToString(contents, commands::TreeDumpMode::kInactive,
-                                 &contents, nullptr);
+                                 commands::kDefaultFormatWidth, &contents,
+                                 nullptr);
 #if defined(OS_WIN)
   // Use Windows lineendings for this file since it will often open in
   // Notepad which can't handle Unix ones.

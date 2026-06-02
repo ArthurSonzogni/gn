@@ -699,7 +699,7 @@
       Shows defines set for the //base:base target, annotated by where
       each one was set from.
 ```
-### <a name="cmd_format"></a>**gn format [\--dump-tree] (\--stdin | &lt;list of build_files...&gt;)**&nbsp;[Back to Top](#gn-reference)
+### <a name="cmd_format"></a>**gn format [\--dump-tree] [\--format-width=WIDTH] (\--stdin | &lt;list of build_files...&gt;)**&nbsp;[Back to Top](#gn-reference)
 
 ```
   Formats .gn file to a standard format.
@@ -724,6 +724,10 @@
       - Exit code 0: successful format, matches on disk.
       - Exit code 1: general failure (parse error, etc.)
       - Exit code 2: successful format, but differs from on disk.
+
+  --format-width=WIDTH
+      Override the default format width. WIDTH must be a strictly positive
+      integer.
 
   --dump-tree[=( text | json )]
       Dumps the parse tree to stdout and does not update the file or print
@@ -8589,6 +8593,7 @@
     *   --enumerate-files-with-git: Use git to list files.
     *   --error-limit: Limit the number of errors or warnings to print.
     *   --fail-on-unused-args: Treat unused build args as fatal errors.
+    *   --format-width: Set the formatting width (default is 80)
     *   --markdown: Write help output in the Markdown format.
     *   --ninja-executable: Set the Ninja executable.
     *   --nocolor: Force non-colored output.

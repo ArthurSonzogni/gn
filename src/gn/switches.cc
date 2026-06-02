@@ -112,6 +112,17 @@ const char kFailOnUnusedArgs_Help[] =
   flag to force GN to fail in that case.
 )";
 
+const char kFormatWidth[] = "format-width";
+const char kFormatWidth_HelpShort[] =
+    "--format-width: Set the formatting width (default is 80)";
+
+const char kFormatWidth_Help[] =
+    R"("--format-width: Set the formatting width,
+
+  Override the format width (default is 80) used by the 'format'
+  command. This takes a strictly positive integer decimal value.
+)";
+
 const char kMarkdown[] = "markdown";
 const char kMarkdown_HelpShort[] =
     "--markdown: Write help output in the Markdown format.";
@@ -359,6 +370,7 @@ const SwitchInfoMap& GetSwitches() {
     INSERT_VARIABLE(EnumerateFilesWithGit)
     INSERT_VARIABLE(ErrorLimit)
     INSERT_VARIABLE(FailOnUnusedArgs)
+    INSERT_VARIABLE(FormatWidth)
     INSERT_VARIABLE(Markdown)
     INSERT_VARIABLE(NinjaExecutable)
     INSERT_VARIABLE(NoColor)
