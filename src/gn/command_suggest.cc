@@ -15,6 +15,7 @@
 #include "base/files/file_util.h"
 #include "base/strings/string_split.h"
 #include "gn/commands.h"
+#include "gn/config_values_extractors.h"
 #include "gn/filesystem_utils.h"
 #include "gn/item.h"
 #include "gn/setup.h"
@@ -36,6 +37,7 @@ const char kSuggest_Help[] =
   * A module name (usually the same as the label)
   * A file path relative to the build directory
   * An absolute file path (eg. "//foo/bar.txt")
+  * A file path relative to the include directories of the includer target (treated as a #include)
 
   Eg. gn suggest out_dir path/to/target.cc=foo/bar.h
 
@@ -116,7 +118,8 @@ bool FileExists(const std::vector<const Target*>& all_targets,
 
 SourceFile ResolveFilePath(const BuildSettings* build_settings,
                            const std::vector<const Target*>& all_targets,
-                           std::string_view input) {
+                           std::string_view input,
+                           const Target* includer = nullptr) {
   if (input.starts_with("//")) {
     SourceFile file = SourceFile(input);
     if (FileExists(all_targets, file, build_settings)) {
@@ -124,15 +127,33 @@ SourceFile ResolveFilePath(const BuildSettings* build_settings,
     }
     return SourceFile();
   }
+  Value input_value(nullptr, std::string(input));
+
   // Resolve relative to the output directory.
   // This is because the user is most likely running this based on an error
   // message from clang, which gives paths relative to the output directory to
   // be unambiguous.
   Err err;
-  SourceFile file = build_settings->build_dir().ResolveRelativeFile(
-      Value(nullptr, std::string(input)), &err);
+  SourceFile file =
+      build_settings->build_dir().ResolveRelativeFile(input_value, &err);
   if (!err.has_error() && FileExists(all_targets, file, build_settings)) {
     return file;
+  }
+  // If we are unable to resolve the file, we should treat it as a #include.
+  // Thus, iterate through the include directories of the includer target to
+  // attempt to find a source file that exists relative to those include dirs.
+  if (includer) {
+    for (ConfigValuesIterator iter(includer); !iter.done(); iter.Next()) {
+      for (const SourceDir& dir : iter.cur().include_dirs()) {
+        Err resolve_err;
+        SourceFile resolved_file =
+            dir.ResolveRelativeFile(input_value, &resolve_err);
+        if (!resolve_err.has_error() &&
+            FileExists(all_targets, resolved_file, build_settings)) {
+          return resolved_file;
+        }
+      }
+    }
   }
   return SourceFile();
 }
@@ -228,7 +249,8 @@ std::pair<std::vector<std::pair<const Target*, commands::ApiScope>>, bool>
 ResolveSuggestionToTarget(const BuildSettings* build_settings,
                           const std::vector<const Target*>& all_targets,
                           const Label& current_toolchain,
-                          std::string_view input) {
+                          std::string_view input,
+                          const Target* includer) {
   auto sort_results = [](auto& vec) {
     std::sort(vec.begin(), vec.end(), [](const auto& lhs, const auto& rhs) {
       return lhs.first->label() < rhs.first->label();
@@ -273,7 +295,8 @@ ResolveSuggestionToTarget(const BuildSettings* build_settings,
   }
 
   // If that doesn't work, try to resolve as a file path.
-  SourceFile file = ResolveFilePath(build_settings, all_targets, input);
+  SourceFile file =
+      ResolveFilePath(build_settings, all_targets, input, includer);
   if (file.is_null()) {
     return {results, false};
   }
@@ -378,9 +401,10 @@ bool OutputSuggestions(const std::vector<const Target*>& all_targets,
     }
   };
 
-  auto ResolveSuggestion = [&](std::string_view value) {
+  auto ResolveSuggestion = [&](std::string_view value,
+                               const Target* target_context = nullptr) {
     const auto& [targets, ok] = ResolveSuggestionToTarget(
-        build_settings, all_targets, current_toolchain, value);
+        build_settings, all_targets, current_toolchain, value, target_context);
     if (!ok) {
       StartError();
       if (value.starts_with("//")) {
@@ -389,7 +413,11 @@ bool OutputSuggestions(const std::vector<const Target*>& all_targets,
       } else {
         OutputString("Unable to find ");
         OutputQuoted(value);
-        OutputString(" in either the output or source root directories\n");
+        if (target_context) {
+          OutputString(" in the output, source root, or include directories\n");
+        } else {
+          OutputString(" in either the output or source root directories\n");
+        }
       }
     }
     return std::make_pair(targets, ok);
@@ -422,7 +450,7 @@ bool OutputSuggestions(const std::vector<const Target*>& all_targets,
   const char* dep_field =
       (dep_kind == commands::ApiScope::kPrivate) ? "deps" : "public_deps";
 
-  const auto& [targets, ok] = ResolveSuggestion(included_name);
+  const auto& [targets, ok] = ResolveSuggestion(included_name, includer);
   if (!ok)
     return false;
 

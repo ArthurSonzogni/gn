@@ -109,6 +109,9 @@ TEST(Suggest, ResolveFileName) {
   base::WriteFile(root_dir.AppendASCII("simple.h"), "", 0);
   base::WriteFile(root_dir.AppendASCII("default_toolchain.h"), "", 0);
   base::WriteFile(root_dir.AppendASCII("secondary_toolchain.h"), "", 0);
+  base::FilePath inc_dir = root_dir.AppendASCII("include_dir");
+  ASSERT_TRUE(base::CreateDirectory(inc_dir));
+  base::WriteFile(inc_dir.AppendASCII("my_header.h"), "", 0);
 
   Target explicit_target(
       setup_scope.settings(),
@@ -156,6 +159,16 @@ TEST(Suggest, ResolveFileName) {
   Err resolve_err;
   ASSERT_TRUE(generated.OnResolvedWithoutChecks(&resolve_err));
 
+  Target included_target(
+      setup_scope.settings(),
+      Label(SourceDir("//"), "included_target", current_toolchain.dir(),
+            current_toolchain.name()));
+  included_target.set_output_type(Target::SOURCE_SET);
+  included_target.SetToolchain(setup_scope.toolchain());
+  included_target.set_all_headers_public(true);
+  included_target.sources().push_back(SourceFile("//include_dir/my_header.h"));
+  ASSERT_TRUE(included_target.OnResolvedWithoutChecks(&resolve_err));
+
   Target consumer(setup_scope.settings(),
                   Label(SourceDir("//"), "consumer", current_toolchain.dir(),
                         current_toolchain.name()));
@@ -164,11 +177,13 @@ TEST(Suggest, ResolveFileName) {
   consumer.set_all_headers_public(true);
   consumer.public_headers().push_back(
       SourceFile("//out/Debug/generated_file.h"));
+  consumer.config_values().include_dirs().push_back(
+      SourceDir("//include_dir/"));
   ASSERT_TRUE(consumer.OnResolvedWithoutChecks(&resolve_err));
 
   std::vector<const Target*> all_targets = {&explicit_target, &implicit_target,
-                                            &simple_default, &simple_secondary,
-                                            &generated};
+                                            &simple_default,  &simple_secondary,
+                                            &generated,       &included_target};
 
   {
     auto [results, ok] = commands::ResolveSuggestionToTarget(
@@ -257,6 +272,16 @@ TEST(Suggest, ResolveFileName) {
     std::vector<std::pair<const Target*, commands::ApiScope>> expected_targets =
         {{{&simple_secondary, commands::ApiScope::kPublic}}};
     EXPECT_TRUE(ok);
+    EXPECT_EQ(expected_targets, results);
+  }
+
+  {
+    auto [results, ok] = commands::ResolveSuggestionToTarget(
+        setup_scope.build_settings(), all_targets, current_toolchain,
+        "my_header.h", &consumer);
+    EXPECT_TRUE(ok);
+    std::vector<std::pair<const Target*, commands::ApiScope>> expected_targets =
+        {{{&included_target, commands::ApiScope::kPublic}}};
     EXPECT_EQ(expected_targets, results);
   }
 }

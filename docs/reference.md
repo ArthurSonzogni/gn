@@ -1405,6 +1405,7 @@
   * A module name (usually the same as the label)
   * A file path relative to the build directory
   * An absolute file path (eg. "//foo/bar.txt")
+  * A file path relative to the include directories of the includer target (treated as a #include)
 
   Eg. gn suggest out_dir path/to/target.cc=foo/bar.h
 

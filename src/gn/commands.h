@@ -286,7 +286,8 @@ std::pair<std::vector<std::pair<const Target*, ApiScope>>, bool>
 ResolveSuggestionToTarget(const BuildSettings* build_settings,
                           const std::vector<const Target*>& all_targets,
                           const Label& current_toolchain,
-                          std::string_view input);
+                          std::string_view input,
+                          const Target* includer = nullptr);
 
 // Resolves a vector of command line inputs and figures out the full set of
 // things they resolve to.
