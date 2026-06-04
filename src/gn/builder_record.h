@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/containers/flat_map.h"
 #include "gn/item.h"
 #include "gn/location.h"
 #include "gn/pointer_set.h"
@@ -187,12 +188,13 @@ class BuilderRecord {
   // false, stop and return false.
   template <typename Func>
   bool NotifyDependentsWaitingOnValidationDefinition(Func&& func) {
-    BuilderRecordSet waiting_deps =
-        std::move(waiting_on_validation_definition_);
-    for (auto it = waiting_deps.begin(); it.valid(); ++it) {
-      BuilderRecord* waiting = *it;
-      if (waiting->OnDefinedValidationDep(this) && !func(waiting))
-        return false;
+    for (auto& pair : waiting_map_) {
+      if (pair.second.wait_validation_defined) {
+        pair.second.wait_validation_defined = false;
+        BuilderRecord* waiting = pair.first;
+        if (waiting->OnDefinedValidationDep(this) && !func(waiting))
+          return false;
+      }
     }
     return true;
   }
@@ -221,11 +223,13 @@ class BuilderRecord {
   // stop and return false.
   template <typename Func>
   bool NotifyDependentsWaitingOnResolution(Func&& func) {
-    BuilderRecordSet waiting_deps = std::move(waiting_on_resolution_);
-    for (auto it = waiting_deps.begin(); it.valid(); ++it) {
-      BuilderRecord* waiting = *it;
-      if (waiting->OnResolvedDep(this) && !func(waiting))
-        return false;
+    for (auto& pair : waiting_map_) {
+      if (pair.second.wait_resolved) {
+        pair.second.wait_resolved = false;
+        BuilderRecord* waiting = pair.first;
+        if (waiting->OnResolvedDep(this) && !func(waiting))
+          return false;
+      }
     }
     return true;
   }
@@ -235,12 +239,13 @@ class BuilderRecord {
   // |func| returns false, stop and return false.
   template <typename Func>
   bool NotifyDependentsWaitingOnValidationResolution(Func&& func) {
-    BuilderRecordSet waiting_deps =
-        std::move(waiting_on_validation_resolution_);
-    for (auto it = waiting_deps.begin(); it.valid(); ++it) {
-      BuilderRecord* waiting = *it;
-      if (waiting->OnResolvedValidationDep(this) && !func(waiting))
-        return false;
+    for (auto& pair : waiting_map_) {
+      if (pair.second.wait_validation_resolved) {
+        pair.second.wait_validation_resolved = false;
+        BuilderRecord* waiting = pair.first;
+        if (waiting->OnResolvedValidationDep(this) && !func(waiting))
+          return false;
+      }
     }
     return true;
   }
@@ -263,11 +268,13 @@ class BuilderRecord {
   // stop and return false.
   template <typename Func>
   bool NotifyDependentsWaitingOnFinalization(Func&& func) {
-    BuilderRecordSet waiting_deps = std::move(waiting_on_finalization_);
-    for (auto it = waiting_deps.begin(); it.valid(); ++it) {
-      BuilderRecord* waiting = *it;
-      if (waiting->OnFinalizedDep(this) && !func(waiting))
-        return false;
+    for (auto& pair : waiting_map_) {
+      if (pair.second.wait_finalized) {
+        pair.second.wait_finalized = false;
+        BuilderRecord* waiting = pair.first;
+        if (waiting->OnFinalizedDep(this) && !func(waiting))
+          return false;
+      }
     }
     return true;
   }
@@ -281,30 +288,40 @@ class BuilderRecord {
   // as a list sorted by label.
   std::vector<const BuilderRecord*> GetSortedUnresolvedDeps() const;
 
+  // Used by unit-tests.
+
   // Records that are waiting on this one to be defined. This is used for
   // "validations" dependencies which don't require the target to be fully
   // resolved, only defined.
-  BuilderRecordSet& waiting_on_validation_definition() {
-    return waiting_on_validation_definition_;
-  }
-  const BuilderRecordSet& waiting_on_validation_definition() const {
-    return waiting_on_validation_definition_;
+  BuilderRecordSet waiting_on_validation_definition() const {
+    BuilderRecordSet result;
+    for (const auto& pair : waiting_map_) {
+      if (pair.second.wait_validation_defined)
+        result.add(pair.first);
+    }
+    return result;
   }
 
   // Records that are waiting on this one to be resolved. This is the other
   // end of the "unresolved deps" arrow for standard dependencies.
-  BuilderRecordSet& waiting_on_resolution() { return waiting_on_resolution_; }
-  const BuilderRecordSet& waiting_on_resolution() const {
-    return waiting_on_resolution_;
+  BuilderRecordSet waiting_on_resolution() const {
+    BuilderRecordSet result;
+    for (const auto& pair : waiting_map_) {
+      if (pair.second.wait_resolved)
+        result.add(pair.first);
+    }
+    return result;
   }
 
   // Records that are waiting on this one to be resolved before they can be
-  // written to the ninja file. This is used for "validations" dependencies.
-  BuilderRecordSet& waiting_on_validation_resolution() {
-    return waiting_on_validation_resolution_;
-  }
-  const BuilderRecordSet& waiting_on_validation_resolution() const {
-    return waiting_on_validation_resolution_;
+  // written to the Ninja file. This is used for "validations" dependencies.
+  BuilderRecordSet waiting_on_validation_resolution() const {
+    BuilderRecordSet result;
+    for (const auto& pair : waiting_map_) {
+      if (pair.second.wait_validation_resolved)
+        result.add(pair.first);
+    }
+    return result;
   }
 
   // Comparator function used to sort records from their label.
@@ -357,10 +374,16 @@ class BuilderRecord {
   size_t unfinalized_count_ = 0;
 
   BuilderRecordSet all_deps_;
-  BuilderRecordSet waiting_on_resolution_;
-  BuilderRecordSet waiting_on_finalization_;
-  BuilderRecordSet waiting_on_validation_definition_;
-  BuilderRecordSet waiting_on_validation_resolution_;
+
+  // A specialized { dependent -> wait_info } map used to track
+  // which state changes dependents of this record are waiting for.
+  struct WaitInfo {
+    bool wait_resolved = false;
+    bool wait_finalized = false;
+    bool wait_validation_defined = false;
+    bool wait_validation_resolved = false;
+  };
+  base::flat_map<BuilderRecord*, WaitInfo> waiting_map_;
 
   BuilderRecord(const BuilderRecord&) = delete;
   BuilderRecord& operator=(const BuilderRecord&) = delete;
