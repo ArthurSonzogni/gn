@@ -157,6 +157,37 @@ impl ProviderType {
         })
     }
 }
+
+impl FrozenProviderType {
+    /// Creates a new builtin provider type with a custom stable TypeInstanceId.
+    /// Unlike regular providers, these providers may have either Defaulted or
+    /// Required parameters.
+    pub fn new(
+        id: TypeInstanceId,
+        name: &'static str,
+        fields: &[(
+            &'static str,
+            starlark::eval::ParametersSpecParam<FrozenValue>,
+        )],
+        heap: &starlark::values::FrozenHeap,
+    ) -> Self {
+        let field_map = fields
+            .iter()
+            .enumerate()
+            .map(|(idx, (name, _))| (name.to_string(), idx))
+            .collect();
+        let name_frozen = heap.alloc_str(name);
+        Self {
+            id,
+            data: ProviderTypeData {
+                name: name_frozen,
+                parameter_spec: ParametersSpec::new_named_only(name, fields.to_vec()),
+            },
+            fields: field_map,
+        }
+    }
+}
+
 impl Freeze for ProviderType {
     type Frozen = FrozenProviderType;
 

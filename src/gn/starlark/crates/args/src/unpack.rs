@@ -2,7 +2,7 @@ use either::Either;
 use starlark::{
     eval::Evaluator,
     typing::Ty,
-    values::{list::UnpackList, type_repr::StarlarkTypeRepr, UnpackValue, Value, ValueTyped},
+    values::{list::ListRef, type_repr::StarlarkTypeRepr, UnpackValue, Value, ValueTyped},
 };
 
 use crate::{formatter::Formatter, FrozenArgs};
@@ -16,6 +16,7 @@ impl<'v> UnpackValue<'v> for Formatter {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct FrozenArgsSequence<'v>(pub Vec<Either<&'v str, ValueTyped<'v, FrozenArgs>>>);
 
 impl<'v> StarlarkTypeRepr for FrozenArgsSequence<'v> {
@@ -30,8 +31,15 @@ impl<'v> UnpackValue<'v> for FrozenArgsSequence<'v> {
     type Error = starlark::Error;
 
     fn unpack_value_impl(value: Value<'v>) -> Result<Option<Self>, Self::Error> {
-        let list = <UnpackList<Either<&'v str, ValueTyped<'v, FrozenArgs>>>>::unpack_value(value)?;
-        Ok(list.map(|l| FrozenArgsSequence(l.items)))
+        // We unpack the list elements one by one, because when you pass [1] to
+        // UnpackList<&str>, it says "expected list, but got list".
+        // This way, it says "expected string | Args, but got int"
+        Ok(Some(FrozenArgsSequence(
+            <&ListRef>::unpack_value_err(value)?
+                .iter()
+                .map(<Either<&'v str, ValueTyped<'v, FrozenArgs>>>::unpack_value_err)
+                .collect::<Result<Vec<_>, _>>()?,
+        )))
     }
 }
 

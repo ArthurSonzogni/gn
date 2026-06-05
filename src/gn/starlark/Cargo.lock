@@ -24,7 +24,7 @@ dependencies = [
 [[package]]
 name = "allocative"
 version = "0.3.6"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "allocative_derive",
  "bumpalo",
@@ -37,7 +37,7 @@ dependencies = [
 [[package]]
 name = "allocative_derive"
 version = "0.3.6"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -291,7 +291,7 @@ dependencies = [
 [[package]]
 name = "cmp_any"
 version = "0.8.1"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 
 [[package]]
 name = "cobs"
@@ -535,7 +535,7 @@ dependencies = [
 [[package]]
 name = "display_container"
 version = "0.9.0"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "either",
  "indenter",
@@ -544,7 +544,7 @@ dependencies = [
 [[package]]
 name = "dupe"
 version = "0.9.1"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "dupe_derive",
 ]
@@ -552,7 +552,7 @@ dependencies = [
 [[package]]
 name = "dupe_derive"
 version = "0.9.1"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1038,7 +1038,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 [[package]]
 name = "pagable"
 version = "0.4.1"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "allocative",
  "anyhow",
@@ -1074,7 +1074,7 @@ dependencies = [
 [[package]]
 name = "pagable_derive"
 version = "0.4.1"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1138,6 +1138,8 @@ name = "providers"
 version = "0.1.0"
 dependencies = [
  "allocative",
+ "args",
+ "depset",
  "either",
  "starlark",
  "starlark_derive",
@@ -1492,7 +1494,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 [[package]]
 name = "starlark"
 version = "0.14.2"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "allocative",
  "anyhow",
@@ -1535,7 +1537,7 @@ dependencies = [
 [[package]]
 name = "starlark_derive"
 version = "0.14.2"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "dupe",
  "proc-macro2",
@@ -1546,7 +1548,7 @@ dependencies = [
 [[package]]
 name = "starlark_map"
 version = "0.14.2"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "allocative",
  "dupe",
@@ -1561,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "starlark_syntax"
 version = "0.14.2"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "allocative",
  "annotate-snippets",
@@ -1599,7 +1601,7 @@ dependencies = [
 [[package]]
 name = "strong_hash"
 version = "0.1.0"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "ref-cast",
  "strong_hash_derive",
@@ -1608,7 +1610,7 @@ dependencies = [
 [[package]]
 name = "strong_hash_derive"
 version = "0.1.0"
-source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#61ec3746b536d7f7824dd56b7f4cbd2e2d99d77d"
+source = "git+https://github.com/matts1/starlark-rust.git?branch=gn_starlark#24e20d48f4601ccfad4707566f6e461d0973d9e0"
 dependencies = [
  "quote",
  "syn 2.0.119",

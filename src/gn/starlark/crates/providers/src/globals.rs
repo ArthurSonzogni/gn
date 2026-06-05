@@ -1,7 +1,7 @@
 use starlark::{environment::GlobalsBuilder, eval::Evaluator, values::Value};
 use starlark_derive::starlark_module;
 
-use crate::Error;
+use crate::{BuiltinProviders, Error};
 
 /// Registers the global `provider()` function.
 #[starlark_module]
@@ -27,6 +27,7 @@ pub(crate) fn register_providers_globals(builder: &mut GlobalsBuilder) {
     }
 }
 
-pub fn register_providers(builder: &mut GlobalsBuilder) {
+pub fn register_providers(builder: &mut GlobalsBuilder) -> BuiltinProviders {
     register_providers_globals(builder);
+    crate::builtins::register_builtin_providers(builder)
 }
