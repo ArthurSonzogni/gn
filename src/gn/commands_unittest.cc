@@ -8,6 +8,7 @@
 #include "base/values.h"
 #include "gn/commands.h"
 #include "gn/label_pattern.h"
+#include "gn/standard_out.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
@@ -64,6 +65,10 @@ TEST(Commands, ApplyTypeFilter) {
     all_targets.push_back(target.get());
     created_targets.push_back(std::move(target));
   }
+
+  // Prevent Err()  messages sent to stderr from polluting
+  // the tests' own output.
+  ScopedBufferedOutput buffered_output;
 
   for (const auto& test_case : cases) {
     std::vector<const Target*> targets_to_filter = all_targets;

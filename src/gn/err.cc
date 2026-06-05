@@ -204,7 +204,7 @@ Err& Err::operator=(const Err& other) {
 }
 
 bool Err::PrintToStdout() const {
-  FlushBufferedOutput();
+  FlushBufferedLogOutput();
   return InternalPrintToStdout(false, true);
 }
 

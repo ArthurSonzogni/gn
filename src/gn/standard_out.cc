@@ -220,6 +220,8 @@ void WriteOutputString(std::string_view output,
 // Collects buffered log output for quiet mode.
 class QuietModeBuffer {
  public:
+  using BufferedOutput = ScopedBufferedOutput::Item;
+
   void Append(std::string_view output,
               TextDecoration decoration,
               HtmlEscaping escaping) {
@@ -251,13 +253,13 @@ class QuietModeBuffer {
     output_buffer_.clear();
   }
 
- private:
-  struct BufferedOutput {
-    std::string output;
-    TextDecoration decoration;
-    HtmlEscaping escaping;
-  };
+  // Take a snapshot of the current buffers output items.
+  std::vector<BufferedOutput> GetItems() {
+    std::lock_guard<std::mutex> lock(lock_);
+    return output_buffer_;
+  }
 
+ private:
   std::mutex lock_;
 
   // Set when we're in quiet mode but then flush the output. This means that
@@ -272,6 +274,9 @@ class QuietModeBuffer {
 // Non-null while buffering standard output. Deliberately leaked on shutdown.
 QuietModeBuffer* quiet_mode_buffer = nullptr;
 
+// Non-null while ScopedBufferedOutput singleton exists.
+QuietModeBuffer* scoped_output_buffer = nullptr;
+
 }  // namespace
 
 bool IsColorEnabled() {
@@ -282,12 +287,20 @@ bool IsColorEnabled() {
 void OutputString(std::string_view output,
                   TextDecoration dec,
                   HtmlEscaping escaping) {
+  if (scoped_output_buffer) {
+    scoped_output_buffer->Append(output, dec, escaping);
+    return;
+  }
   WriteOutputString(output, dec, escaping);
 }
 
 void OutputLogString(std::string_view output,
                      TextDecoration dec,
                      HtmlEscaping escaping) {
+  if (scoped_output_buffer) {
+    scoped_output_buffer->Append(output, dec, escaping);
+    return;
+  }
   if (quiet_mode_buffer) {
     quiet_mode_buffer->Append(output, dec, escaping);
     return;
@@ -303,10 +316,27 @@ void BufferLogOutput() {
   quiet_mode_buffer = new QuietModeBuffer();
 }
 
-void FlushBufferedOutput() {
+void FlushBufferedLogOutput() {
   if (quiet_mode_buffer) {
     quiet_mode_buffer->Flush();
   }
+}
+
+ScopedBufferedOutput::ScopedBufferedOutput() {
+  DCHECK(!scoped_output_buffer)
+      << "Only one ScopedBufferedOutput instance can exist";
+  scoped_output_buffer = new QuietModeBuffer();
+}
+
+ScopedBufferedOutput::~ScopedBufferedOutput() {
+  DCHECK(scoped_output_buffer);
+  delete scoped_output_buffer;
+  scoped_output_buffer = nullptr;
+}
+
+std::vector<ScopedBufferedOutput::Item> ScopedBufferedOutput::GetItems() {
+  DCHECK(scoped_output_buffer);
+  return scoped_output_buffer->GetItems();
 }
 
 void PrintSectionHelp(const std::string& line,
