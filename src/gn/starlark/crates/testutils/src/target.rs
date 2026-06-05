@@ -15,7 +15,7 @@ use starlark::{
     values::{FrozenValue, ProvidesStaticType, StarlarkValue, Value, ValueLike},
 };
 use starlark_derive::{starlark_value, NoSerialize};
-use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, OutputType, TargetRef};
+use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, Session, TargetRef};
 
 /// A fake target struct for testing.
 #[derive(Debug, Allocative, Default)]
@@ -128,5 +128,15 @@ impl TargetRef for FakeTargetRef {
 
     fn target_out_dir(&self, prefix: &str, suffix: &str, _separator: &str) -> String {
         format!("{prefix}$TOOLCHAIN/{suffix}$LABEL")
+    }
+
+    fn register_dependencies<S: Session<TargetRef = Self>>(
+        &self,
+        session: &S,
+        toolchain: LabelRef<'_>,
+    ) {
+        for attr in &self.get().attrs {
+            attr.register_dependencies(session, self.clone(), toolchain);
+        }
     }
 }

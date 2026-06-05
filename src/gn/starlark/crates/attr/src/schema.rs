@@ -9,10 +9,11 @@ use std::{
 
 use allocative::Allocative;
 use starlark::{
+    eval::ParametersSpecParam,
     starlark_simple_value,
     values::{
-        none::NoneOr, Freeze, FreezeResult, Freezer, Heap, ProvidesStaticType, StarlarkValue,
-        Trace, Value,
+        none::NoneOr, Freeze, FreezeResult, Freezer, FrozenValue, Heap, ProvidesStaticType,
+        StarlarkValue, Trace, Value,
     },
 };
 use starlark_derive::{starlark_value, NoSerialize};
@@ -184,9 +185,19 @@ impl AttrSchema {
         Ok(heap.alloc(schema))
     }
 
-    /// Returns the allowed files schema for this attribute.
-    pub fn allow_files(&self) -> &AllowFilesSchema {
-        &self.allow_files
+    /// Verifies if a child attribute schema can override this attribute schema.
+    pub fn check_override(&self, name: &str, child: &Self) -> starlark::Result<()> {
+        if !matches!(self.kind, AttrKind::Label | AttrKind::LabelList) {
+            return Err(crate::Error::OnlyLabelTypesMayBeOverridden(name.to_owned()).into());
+        }
+        if self.kind != child.kind
+            || self.disallow_empty != child.disallow_empty
+            || self.allow_files != child.allow_files
+            || self.cfg != child.cfg
+        {
+            return Err(crate::Error::AttributeTypeMismatch(name.to_owned()).into());
+        }
+        Ok(())
     }
 
     /// Returns the default value of this attribute, if any.
@@ -200,6 +211,16 @@ impl AttrSchema {
             AllowFilesSchema::Single(s) => Some(s),
             AllowFilesSchema::Many(s) => Some(s),
             AllowFilesSchema::None => None,
+        }
+    }
+
+    // Converts the attribute to a parameter spec.
+    // Note that we intentionally do not use Defaulted(T) as it only supports
+    // Defaulted(starlark::Value), while we want Defaulted(Attr).
+    pub fn as_param_spec(&self) -> ParametersSpecParam<FrozenValue> {
+        match &self.default {
+            None => ParametersSpecParam::Required,
+            Some(_) => ParametersSpecParam::Optional,
         }
     }
 }

@@ -19,6 +19,7 @@ members = [
     "crates/ffi",
     "crates/loader",
     "crates/providers",
+    "crates/rule",
     "crates/testutils",
     "crates/types",
 ]

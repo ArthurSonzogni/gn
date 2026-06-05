@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use allocative::Allocative;
 use starlark::{
     collections::SmallMap,
     values::{
@@ -10,7 +11,7 @@ use starlark::{
         FrozenHeap, FrozenValue, FrozenValueTyped, Heap, Value,
     },
 };
-use types::LabelRef;
+use types::{LabelRef, OutputType};
 
 use crate::{
     schema::{AllowFilesSchema, AttrKind, AttrSchema},
@@ -34,6 +35,7 @@ pub struct CtxAttr<'v> {
 ///   "foo": attr.label_list(...),
 ///   "bar": attr.string(...),
 /// }
+#[derive(Debug, Allocative)]
 pub struct CtxAttrSchema {
     attrs: SmallMap<String, AttrSchema>,
     attr: FrozenValueTyped<'static, FrozenRecordType>,
@@ -43,14 +45,30 @@ pub struct CtxAttrSchema {
 
 impl CtxAttrSchema {
     /// Creates a new `CtxAttrSchema`.
-    pub fn new(attrs: SmallMap<String, AttrSchema>, heap: &FrozenHeap) -> Self {
-        let mut attrs_fields = SmallMap::with_capacity(attrs.len());
+    pub fn new(
+        attrs: SmallMap<String, AttrSchema>,
+        builtin: Option<OutputType>,
+        heap: &FrozenHeap,
+    ) -> Self {
+        let (builtin_files, builtin_attrs) =
+            builtin.map(|b| b.attrs()).unwrap_or_default();
+        let mut attrs_fields = SmallMap::with_capacity(
+            attrs.len() + builtin_files.len() + builtin_attrs.len(),
+        );
         let mut file_fields = SmallMap::new();
         let mut files_fields = SmallMap::new();
 
         let any = || -> FieldGen<FrozenValue> {
             FieldGen::new(starlark::values::typing::TypeCompiled::any(), None)
         };
+
+        for name in builtin_files {
+            attrs_fields.insert(name.to_string(), any());
+            files_fields.insert(name.to_string(), any());
+        }
+        for name in builtin_attrs {
+            attrs_fields.insert(name.to_string(), any());
+        }
 
         for (name, attr) in &attrs {
             attrs_fields.insert(name.clone(), any());
@@ -93,10 +111,18 @@ impl CtxAttrSchema {
         fields: &[Attr],
         session: &S,
         current_toolchain: &LabelRef,
+        builtin: Option<OutputType>,
+        mut ctx_attr: Vec<Value<'v>>,
         heap: &Heap<'v>,
     ) -> starlark::Result<CtxAttr<'v>> {
-        let mut ctx_attr = Vec::with_capacity(self.attr.len());
+        let (builtin_files, builtin_attrs) =
+            builtin.map(|b| b.attrs()).unwrap_or_default();
+        debug_assert!(builtin_files.len() + builtin_attrs.len() == ctx_attr.len());
+        ctx_attr.reserve_exact(self.attr.len() - ctx_attr.len());
         let mut ctx_files = Vec::with_capacity(self.files.len());
+        for &attr_val in ctx_attr.iter().take(builtin_files.len()) {
+            ctx_files.push(attr_val);
+        }
         let mut ctx_file = Vec::with_capacity(self.file.len());
 
         debug_assert!(fields.len() == self.attrs.len());
@@ -133,6 +159,10 @@ impl CtxAttrSchema {
                 ctx_file.into_boxed_slice(),
             )),
         })
+    }
+
+    pub fn attrs(&self) -> &SmallMap<String, AttrSchema> {
+        &self.attrs
     }
 }
 
@@ -183,12 +213,15 @@ mod tests {
 
             let ctx = CtxAttrSchema::new(
                 schema.into_iter().map(|(k, v)| (k, (*v).clone())).collect(),
+                None,
                 eval.frozen_heap(),
             )
             .create_ctx_fields(
                 &fields,
                 &context.session,
                 &context.current_toolchain.as_ref(),
+                None,
+                Vec::new(),
                 &eval.heap(),
             )?;
 

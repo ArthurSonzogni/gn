@@ -19,10 +19,27 @@ pub enum OutputType {
     SourceSet,
     Copy,
     Action,
-    ActionForEach,
+    ActionForeach,
     BundleData,
     CreateBundle,
     GeneratedFile,
     RustLibrary,
     RustProcMacro,
+}
+
+impl OutputType {
+    /// Returns (attr-and-files attributes, attr-only attributes).
+    ///
+    /// Any attributes that should fill ctx.files.* should go in the former.
+    /// Other attributes should go in the latter.
+    pub fn attrs(&self) -> (&'static [&'static str], &'static [&'static str]) {
+        match self {
+            Self::Executable
+            | Self::SharedLibrary
+            | Self::LoadableModule
+            | Self::StaticLibrary
+            | Self::SourceSet => (&["sources", "public"], &["deps", "public_deps"]),
+            _ => (&[], &[]),
+        }
+    }
 }

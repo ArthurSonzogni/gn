@@ -4,7 +4,7 @@
 
 use starlark::values::{AllocValue, StarlarkValue};
 
-use crate::File;
+use crate::{File, LabelRef, Session};
 
 /// Unfortunately while we could specify that Eq and Hash are implemented, there
 /// is no way to delegate starlark's equality and hash function to it
@@ -32,4 +32,11 @@ pub trait TargetRef:
         label_prefix: &str,
         package_name_separator: &str,
     ) -> String;
+
+    /// Registers target dependencies contained within this target's attributes.
+    fn register_dependencies<S: Session<TargetRef = Self>>(
+        &self,
+        session: &S,
+        toolchain: LabelRef<'_>,
+    );
 }

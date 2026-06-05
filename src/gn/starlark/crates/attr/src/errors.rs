@@ -9,7 +9,7 @@ use types::Label;
 
 /// Errors returned by target attribute validation and coercion.
 #[derive(thiserror::Error, Debug, Clone)]
-pub enum Error {
+pub(crate) enum Error {
     #[error("value is mandatory")]
     MandatoryAttribute,
     #[error("value cannot be empty")]
@@ -40,6 +40,10 @@ pub enum Error {
         "target `{target}` does not produce any outputs matching allowed extensions: {allowed:?}"
     )]
     NoMatchingOutputs { target: Label, allowed: Vec<String> },
+    #[error("attribute {0}: only attr.label and attr.label_list types may be overridden")]
+    OnlyLabelTypesMayBeOverridden(String),
+    #[error("attribute {0}: types of parent and child's attributes mismatch")]
+    AttributeTypeMismatch(String),
 }
 
 impl From<Error> for starlark::Error {

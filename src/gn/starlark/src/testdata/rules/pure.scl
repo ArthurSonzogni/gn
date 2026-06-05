@@ -1,0 +1,22 @@
+def _parent_impl(ctx):
+  return []
+
+parent_rule = rule(
+  implementation = _parent_impl,
+  attrs = {
+    "parent_only": attr.string(mandatory = True),
+    "override": attr.label(default = "//:parent"),
+  }
+)
+
+def _child_impl(ctx):
+  return []
+
+child_rule = rule(
+  implementation = _child_impl,
+  parent = parent_rule,
+  attrs = {
+    "child_only": attr.string(mandatory = True),
+    "override": attr.label(default = "//:child"),
+  }
+)
