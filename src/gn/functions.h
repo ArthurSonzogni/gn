@@ -260,6 +260,14 @@ Value RunImport(Scope* scope,
                 const std::vector<Value>& args,
                 Err* err);
 
+extern const char kLoad[];
+extern const char kLoad_HelpShort[];
+extern const char kLoad_Help[];
+Value RunLoad(Scope* scope,
+              const FunctionCallNode* function,
+              const ListNode* args_list,
+              Err* err);
+
 extern const char kLabelMatches[];
 extern const char kLabelMatches_HelpShort[];
 extern const char kLabelMatches_Help[];

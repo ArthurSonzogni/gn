@@ -7,6 +7,10 @@
 #include <memory>
 #include <utility>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "gn/filesystem_utils.h"
 #include "gn/parse_tree.h"
 #include "gn/test_with_scope.h"
 #include "gn/value.h"
@@ -708,4 +712,57 @@ TEST(Template, PrintStackTraceWithTemplateDefinedWithinATemplate) {
       "  foo_internal(\"lala.foo.internal\")  //test:8\n"
       "  print_stack_trace()  //test:6\n",
       setup.print_output());
+}
+
+TEST(Functions, Load) {
+  TestWithScope setup;
+  setup.build_settings()->SetRootPath(UTF8ToFilePath("."));
+  setup.scope()->set_source_dir(SourceDir("//"));
+
+  // Verify that .bzl files return an error as they are not supported.
+  {
+    TestParseInput input(R"gn(load("//:wrong_extension.bzl", "a"))gn");
+    ASSERT_SUCCESS(input);
+    Err err;
+    input.parsed()->Execute(setup.scope(), &err);
+    ASSERT_TRUE(err.has_error());
+    ASSERT_EQ(err.message(), "The file to load must be a '.scl' file.");
+  }
+
+  // Verify that an error is returned if the file doesn't exist.
+  {
+    TestParseInput input(R"gn(load("//:non_existent.scl", "a"))gn");
+    ASSERT_SUCCESS(input);
+    Err err;
+    input.parsed()->Execute(setup.scope(), &err);
+    ASSERT_TRUE(err.has_error());
+    ASSERT_EQ(err.message(), "Failed to read file: //:non_existent.scl");
+  }
+
+  // Verify that we can successfully load variables from a starlark file.
+  {
+    base::ScopedTempDir temp_dir;
+    ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+    setup.build_settings()->SetRootPath(temp_dir.GetPath());
+    setup.scope()->set_source_dir(SourceDir("//"));
+
+    std::string scl_content = R"scl(
+a = "hello"
+)scl";
+    base::FilePath scl_path = temp_dir.GetPath().AppendASCII("rules.scl");
+    ASSERT_EQ(
+        static_cast<int>(scl_content.size()),
+        base::WriteFile(scl_path, scl_content.c_str(), scl_content.size()));
+
+    TestParseInput input(R"gn(load("//:rules.scl", "a"))gn");
+    ASSERT_SUCCESS(input);
+    Err err;
+    input.parsed()->Execute(setup.scope(), &err);
+    ASSERT_FALSE(err.has_error()) << err.message();
+
+    const Value* val_a = setup.scope()->GetValue("a");
+    ASSERT_TRUE(val_a);
+    EXPECT_EQ(Value::STRING, val_a->type());
+    EXPECT_EQ("hello", val_a->string_value());
+  }
 }

@@ -1153,6 +1153,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/ffi/session_unittest.cc',
     ])
     executables['gn_unittests']['libs'].append('gn_starlark')
+    executables['gn']['libs'].append('gn_starlark')
 
   # Write the absolute path of the source root to a file in the output directory
   # so that tests can locate the source tree robustly.

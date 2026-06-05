@@ -56,6 +56,7 @@
     *   [import: Import a file into the current scope.](#func_import)
     *   [label_matches: Returns whether a label matches any of a list of patterns.](#func_label_matches)
     *   [len: Returns the length of a string or a list.](#func_len)
+    *   [load: Load variables from a starlark file into the current scope.](#func_load)
     *   [not_needed: Mark variables from scope as not needed.](#func_not_needed)
     *   [path_exists: Returns whether the given path exists.](#func_path_exists)
     *   [pool: Defines a pool object.](#func_pool)
@@ -3137,6 +3138,34 @@
 ```
   len("foo")  # 3
   len([ "a", "b", "c" ])  # 3
+```
+### <a name="func_load"></a>**load**: Load variables from a starlark file into the current scope.&nbsp;[Back to Top](#gn-reference)
+
+```
+  The load command executes a Starlark (.scl) file in a standalone environment
+  and imports the specified symbols into the current scope.
+```
+
+#### **Arguments**
+
+```
+  First argument:
+    A label to the Starlark (.scl) file to load. This label can be
+    absolute (e.g. "//path/to:rules.scl") or relative to the current directory
+    (e.g, ":rules.scl")
+
+  Remaining arguments:
+    A list of string names of the symbols to load from the file.
+```
+
+#### **Example**:
+
+```
+  load("//:rules.scl", "custom_rule", "MY_CONSTANT")
+
+  custom_rule("a") {
+    foo = MY_CONSTANT
+  }
 ```
 ### <a name="func_not_needed"></a>**not_needed**: Mark variables from scope as not needed.&nbsp;[Back to Top](#gn-reference)
 
