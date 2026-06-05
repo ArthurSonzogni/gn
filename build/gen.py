@@ -347,7 +347,9 @@ def WriteGenericNinja(path, static_libraries, executables,
     return escape_path_ninja('%s' % os.path.splitext(path)[0] + object_ext)
 
   def library_to_a(library):
-    return '%s%s' % (library, library_ext)
+    if platform.is_msvc():
+      return '%s%s' % (library, library_ext)
+    return 'lib%s%s' % (library, library_ext)
 
   ninja_lines = []
   def build_source(src_file, settings):
@@ -445,6 +447,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
   libflags = os.environ.get('LIBFLAGS', '').split()
   include_dirs = [
       os.path.relpath(os.path.join(REPO_ROOT, 'src'), os.path.dirname(path)),
+      os.path.relpath(os.path.join(REPO_ROOT, 'src/gn/starlark/vendor/cxx/include'), os.path.dirname(path)),
       '.',
   ]
   if platform.is_zos():
@@ -535,6 +538,9 @@ def WriteGNNinja(path, platform, host, options, args_list):
     # flags not supported by gcc/g++.
     else:
       cflags.extend(['-Wrange-loop-analysis', '-Wextra-semi-stmt'])
+      # We use "extern C" to communicate with rust, not C. So it doesn't matter
+      # if the return type is an invalid C type.
+      cflags.append('-Wno-return-type-c-linkage')
 
     if platform.is_linux() or platform.is_mingw() or platform.is_msys():
       ldflags.append('-Wl,--as-needed')
@@ -618,6 +624,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         '/wd4099',
         '/wd4100',
         '/wd4127',
+        '/wd4190',
         '/wd4244',
         '/wd4267',
         '/wd4505',
@@ -664,6 +671,10 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/base/timer/elapsed_timer.cc',
         'src/base/value_iterators.cc',
         'src/base/values.cc',
+      ]},
+      'string_atom': {'sources': [
+        'src/gn/string_atom.cc',
+        'src/gn/ffi/intern_string.cc',
       ]},
       'gn_lib': {'sources': [
         'src/gn/action_target_generator.cc',
@@ -797,7 +808,6 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/source_dir.cc',
         'src/gn/source_file.cc',
         'src/gn/standard_out.cc',
-        'src/gn/string_atom.cc',
         'src/gn/string_output_buffer.cc',
         'src/gn/string_utils.cc',
         'src/gn/substitution_list.cc',

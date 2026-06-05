@@ -124,6 +124,9 @@ public:
   Str(const std::string &);
   Str(const char *);
   Str(const char *, std::size_t);
+#if __cplusplus >= 201703L
+  Str(std::string_view s) : Str(s.data(), s.size()) {}
+#endif
 
   Str &operator=(const Str &) & noexcept = default;
 
@@ -243,6 +246,7 @@ public:
   using iterator_category = std::random_access_iterator_tag;
 #endif
   using value_type = T;
+  using element_type = T;
   using difference_type = std::ptrdiff_t;
   using pointer = typename std::add_pointer<T>::type;
   using reference = typename std::add_lvalue_reference<T>::type;
