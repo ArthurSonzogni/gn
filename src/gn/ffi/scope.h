@@ -10,6 +10,7 @@
 #include "cxx.h"
 
 class Scope;
+class Value;
 struct SliceAny;
 
 // Constructs a new child Scope, populates placeholder Values for the given
@@ -25,5 +26,8 @@ SliceAny NewScope(const Scope& parent_scope,
 //
 // Safety: Rust is required to convert this to an OwnedSlice<KeyValue>.
 SliceAny GetScopeItems(const Scope& scope);
+
+// Returns a pointer to the value in the scope or nullptr if not found.
+const Value* GetValue(const Scope& scope, rust::Str ident);
 
 #endif  // TOOLS_GN_FFI_SCOPE_H_

@@ -525,7 +525,6 @@ mod tests {
                 target_label.clone(),
                 FakeTargetRef::new(FakeTarget {
                     outputs: vec![file1.clone(), File::new("out.h")],
-                    attrs: vec![],
                     ..Default::default()
                 }),
             );

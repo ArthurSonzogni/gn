@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     hash::Hasher,
     sync::{Arc, Mutex},
 };
@@ -12,10 +12,10 @@ use allocative::Allocative;
 use attr::Attr;
 use starlark::{
     starlark_simple_value,
-    values::{ProvidesStaticType, StarlarkValue, Value, ValueLike},
+    values::{FrozenValue, ProvidesStaticType, StarlarkValue, Value, ValueLike},
 };
 use starlark_derive::{starlark_value, NoSerialize};
-use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, TargetRef};
+use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, OutputType, TargetRef};
 
 /// A fake target struct for testing.
 #[derive(Debug, Allocative, Default)]
@@ -24,10 +24,32 @@ pub struct FakeTarget {
     pub outputs: Vec<File>,
     /// A list of attributes.
     pub attrs: Vec<Attr>,
+    pub output_type: Option<OutputType>,
+    pub rule: FrozenValue,
+    #[allocative(skip)]
+    pub cxx_attrs: HashMap<String, Value<'static>>,
     /// Registered target dependencies.
     #[allocative(skip)]
     pub dependencies: Mutex<HashSet<(Label, Label)>>,
 }
+
+impl PartialEq for FakeTarget {
+    fn eq(&self, other: &Self) -> bool {
+        self.outputs == other.outputs
+            && self.attrs == other.attrs
+            && self.output_type == other.output_type
+            && self.rule == other.rule
+            && self.cxx_attrs.len() == other.cxx_attrs.len()
+            && self.cxx_attrs.iter().all(|(k, v)| {
+                other.cxx_attrs.get(k).map_or(false, |ov| {
+                    v.equals(*ov).unwrap_or(false)
+                })
+            })
+            && *self.dependencies.lock().unwrap() == *other.dependencies.lock().unwrap()
+    }
+}
+impl Eq for FakeTarget {}
+
 
 /// A reference to a fake target.
 #[derive(Debug, ProvidesStaticType, NoSerialize, Allocative, Clone)]

@@ -605,6 +605,11 @@ void cxxbridge1$196$GetScopeItems(::Scope const &scope, ::SliceAny *return$) noe
   new (return$) ::SliceAny(GetScopeItems$(scope));
 }
 
+::Value const *cxxbridge1$196$GetValue(::Scope const &scope, ::rust::Str ident) noexcept {
+  ::Value const *(*GetValue$)(::Scope const &, ::rust::Str) = ::GetValue;
+  return GetValue$(scope, ident);
+}
+
 ::Settings const *cxxbridge1$196$Scope$settings_cxx(::Scope const &self) noexcept {
   ::Settings const *(::Scope::*settings_cxx$)() const = &::Scope::settings;
   return (self.*settings_cxx$)();

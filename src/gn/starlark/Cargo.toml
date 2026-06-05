@@ -31,6 +31,7 @@ either = "1.16"
 starlark = "0.14"
 starlark_derive = "0.14"
 thiserror = "2.0"
+strum = { version = "0.26", features = ["derive"] }
 
 # A short-lived fork until my PR gets merged.
 # Basically all it does is make some pub(crate) things public, so that we can

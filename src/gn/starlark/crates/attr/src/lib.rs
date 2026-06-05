@@ -16,7 +16,7 @@ pub use allow_files::AllowFiles;
 pub use attr::{Attr, LabelOrFile};
 pub use cfg::AttrCfg;
 pub use ctx::{CtxAttr, CtxAttrSchema};
-pub use errors::Error;
+pub(crate) use errors::Error;
 pub use globals::{AttrModule, AttrSpecArgs};
 pub use schema::{AllowFilesSchema, AttrKind, AttrSchema};
 pub use traits::{EvalContext, EvalContextAttrExt, Session, TargetRef};

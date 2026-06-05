@@ -65,3 +65,8 @@ SliceAny GetScopeItems(const Scope& scope) {
   }
   return IntoSlice(std::move(vec));
 }
+
+const Value* GetValue(const Scope& scope, rust::Str ident) {
+  std::string_view ident_sv(ident.data(), ident.size());
+  return scope.GetValue(ident_sv);
+}

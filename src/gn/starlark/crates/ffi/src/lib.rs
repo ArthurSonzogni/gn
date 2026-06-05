@@ -30,5 +30,6 @@ mod value;
 pub use bridge::{KeyValue, Label, OutputFile, Scope, Settings, SourceDir, Value, ValueType};
 pub use mutability::Immutable;
 pub use opaque::{NonOpaque, OpaqueSized};
+pub use scope::OwnedScope;
 pub use slice::{OwnedSlice, Slice};
 pub use test_with_scope::TestWithScope;
