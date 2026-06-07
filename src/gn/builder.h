@@ -121,6 +121,13 @@ class Builder {
 
   void ScheduleItemLoadIfNecessary(BuilderRecord* record);
 
+  // Update the state of a BuilderRecord and triggers subsequent steps
+  // like dependency resolution or finalization based on the state change.
+  // |prev_state| is the state of the record before the update.
+  bool UpdateItem(BuilderRecord* record,
+                  BuilderRecord::RecordState prev_state,
+                  Err* err);
+
   // This takes a BuilderRecord with resolved dependencies, and fills in the
   // target's Label*Vectors with the resolved pointers.
   bool ResolveItem(BuilderRecord* record, Err* err);

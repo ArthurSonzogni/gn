@@ -92,19 +92,6 @@ void Builder::ItemDefined(std::unique_ptr<Item> item) {
 
   record->SetDefined(std::move(item));
 
-  // Notify anyone waiting on this item's definition, and resolve those
-  // that are no longer waiting.
-  if (!record->NotifyDependentsWaitingOnValidationDefinition(
-          [&](BuilderRecord* waiting) {
-            DEBUG_BUILDER_RECORD_LOG("  VALDEFNOTIFY %s -> %s\n",
-                                     record->ToDebugString().c_str(),
-                                     waiting->ToDebugString().c_str());
-            return ResolveItem(waiting, &err);
-          })) {
-    g_scheduler->FailWithError(err);
-    return;
-  }
-
   // Do target-specific dependency setup. This will also schedule dependency
   // loads for targets that are required.
   switch (type) {
@@ -125,13 +112,31 @@ void Builder::ItemDefined(std::unique_ptr<Item> item) {
     return;
   }
 
-  if (record->can_resolve()) {
-    if (!ResolveItem(record, &err)) {
-      g_scheduler->FailWithError(err);
-      return;
-    }
-  }
   DEBUG_BUILDER_RECORD_LOG("END_DEFINED %s\n", record->ToDebugString().c_str());
+
+  if (!UpdateItem(record, BuilderRecord::STATE_INIT, &err)) {
+    g_scheduler->FailWithError(err);
+    return;
+  }
+}
+
+bool Builder::UpdateItem(BuilderRecord* record,
+                         BuilderRecord::RecordState prev_state,
+                         Err* err) {
+  DCHECK(record->is_defined());
+
+  if (record->can_resolve()) {
+    if (!ResolveItem(record, err))
+      return false;
+  }
+  if (record->can_finalize()) {
+    if (!FinalizeItem(record, err))
+      return false;
+  }
+  return record->NotifyDependentsOfStateChange(
+      prev_state, [this, err](BuilderRecord* dependent) {
+        return UpdateItem(dependent, dependent->state(), err);
+      });
 }
 
 const Item* Builder::GetItem(const Label& label) const {
@@ -581,33 +586,7 @@ void Builder::ScheduleBackgroundTargetChecks(BuilderRecord* record) {
 
 bool Builder::CompleteItemResolution(BuilderRecord* record, Err* err) {
   record->SetResolved();
-
-  // Recursively update everybody waiting on this item to be resolved.
-  if (!record->NotifyDependentsWaitingOnResolution([&](BuilderRecord* waiting) {
-        DEBUG_BUILDER_RECORD_LOG("  RESOLVE DEP %s -> %s\n",
-                                 record->ToDebugString().c_str(),
-                                 waiting->ToDebugString().c_str());
-        return ResolveItem(waiting, err);
-      })) {
-    return false;
-  }
-
-  if (!record->NotifyDependentsWaitingOnValidationResolution(
-          [&](BuilderRecord* waiting) {
-            DEBUG_BUILDER_RECORD_LOG("  VALRESOLVE DEP %s -> %s\n",
-                                     record->ToDebugString().c_str(),
-                                     waiting->ToDebugString().c_str());
-            return FinalizeItem(waiting, err);
-          })) {
-    return false;
-  }
-
-  if (record->can_finalize()) {
-    return FinalizeItem(record, err);
-  }
-
   DEBUG_BUILDER_RECORD_LOG("END_RESOLVE %s\n", record->ToDebugString().c_str());
-
   return true;
 }
 
@@ -617,16 +596,6 @@ bool Builder::FinalizeItem(BuilderRecord* record, Err* err) {
   DEBUG_BUILDER_RECORD_LOG("BEGIN_FINALIZE %s\n",
                            record->ToDebugString().c_str());
   CheckAndTriggerWrite(record);
-
-  if (!record->NotifyDependentsWaitingOnFinalization(
-          [&](BuilderRecord* waiting) {
-            DEBUG_BUILDER_RECORD_LOG("  FINALIZE DEP %s -> %s\n",
-                                     record->ToDebugString().c_str(),
-                                     waiting->ToDebugString().c_str());
-            return FinalizeItem(waiting, err);
-          })) {
-    return false;
-  }
 
   DEBUG_BUILDER_RECORD_LOG("END_FINALIZE %s\n",
                            record->ToDebugString().c_str());

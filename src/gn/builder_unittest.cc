@@ -673,20 +673,20 @@ TEST_F(BuilderTest, RecursiveShouldGenerateWithValidations) {
 
   // Due to the way the Builder is implemented, here's what happens:
   //
-  // E is resolved, notifies B immediately.
-  // B is resolved, notifies A immediately.
-  // A is finalized, writes, notifies C
-  // C writes.
-  // A returns from finalization.
-  // B returns from resolution.
-  // E returns from resolution.
-  // E finalizes, notifies B
-  // B finalizes.
+  // E is resolved
+  // E is finalized (written)
+  // E notifies B
+  //   B is resolved
+  //   B is finalized (written)
+  //   B notifies A
+  //     A is finalized (written)
+  //     A notifies C
+  //       C is finalized (written)
   ASSERT_EQ(written.size(), 4u);
-  EXPECT_EQ(written[0], a_record);
-  EXPECT_EQ(written[1], c_record);
-  EXPECT_EQ(written[2], e_record);
-  EXPECT_EQ(written[3], b_record);
+  EXPECT_EQ(written[0], e_record);
+  EXPECT_EQ(written[1], b_record);
+  EXPECT_EQ(written[2], a_record);
+  EXPECT_EQ(written[3], c_record);
 }
 
 }  // namespace gn_builder_unittest
