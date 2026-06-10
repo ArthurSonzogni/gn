@@ -435,6 +435,60 @@ TEST_F(RustProjectJSONWriter, OneRustTargetWithRustcTargetSet) {
   target.source_types_used().Set(SourceFile::SOURCE_RS);
   target.rust_values().set_crate_root(lib);
   target.rust_values().crate_name() = "foo";
+  target.config_values().rustflags().push_back("--target=x86-64_unknown");
+  target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target.OnResolved(&err));
+
+  std::ostringstream stream;
+  std::vector<const Target*> targets;
+  targets.push_back(&target);
+  RustProjectWriter::RenderJSON(setup.build_settings(), targets, stream);
+  std::string out = stream.str();
+#if defined(OS_WIN)
+  base::ReplaceSubstringsAfterOffset(&out, 0, "\r\n", "\n");
+#endif
+  const char expected_json[] =
+      "{\n"
+      "  \"crates\": [\n"
+      "    {\n"
+      "      \"crate_id\": 0,\n"
+      "      \"root_module\": \"path/foo/lib.rs\",\n"
+      "      \"label\": \"//foo:bar\",\n"
+      "      \"source\": {\n"
+      "          \"include_dirs\": [\n"
+      "               \"path/foo/\"\n"
+      "          ],\n"
+      "          \"exclude_dirs\": []\n"
+      "      },\n"
+      "      \"target\": \"x86-64_unknown\",\n"
+      "      \"compiler_args\": [\"--target=x86-64_unknown\"],\n"
+      "      \"deps\": [\n"
+      "      ],\n"
+      "      \"edition\": \"2015\",\n"
+      "      \"cfg\": [\n"
+      "        \"test\",\n"
+      "        \"debug_assertions\"\n"
+      "      ]\n"
+      "    }\n"
+      "  ]\n"
+      "}\n";
+
+  ExpectEqOrShowDiff(expected_json, out);
+}
+
+TEST_F(RustProjectJSONWriter, OneRustTargetWithRustcTargetSetAlternate) {
+  Err err;
+  TestWithScope setup;
+  setup.build_settings()->SetRootPath(UTF8ToFilePath("path"));
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.set_output_type(Target::RUST_LIBRARY);
+  target.visibility().SetPublic();
+  SourceFile lib("//foo/lib.rs");
+  target.sources().push_back(lib);
+  target.source_types_used().Set(SourceFile::SOURCE_RS);
+  target.rust_values().set_crate_root(lib);
+  target.rust_values().crate_name() = "foo";
   target.config_values().rustflags().push_back("--target");
   target.config_values().rustflags().push_back("x86-64_unknown");
   target.SetToolchain(setup.toolchain());

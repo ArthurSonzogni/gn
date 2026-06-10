@@ -172,7 +172,11 @@ void AddTarget(const BuildSettings* build_settings,
   }
 
   auto compiler_args = ExtractCompilerArgs(target);
-  auto compiler_target = FindArgValue("--target", compiler_args);
+  auto compiler_target =
+      FindArgValueAfterPrefix(std::string("--target="), compiler_args);
+  if (!compiler_target.has_value()) {
+    compiler_target = FindArgValue("--target", compiler_args);
+  }
   auto crate_deps = GetRustDeps(target);
 
   // Add all dependencies of this crate, before this crate.
