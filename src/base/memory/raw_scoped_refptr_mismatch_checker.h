@@ -41,7 +41,7 @@ struct NeedsScopedRefptrButGetsRawPtr {
     // raw pointer type and are convertible to a RefCounted(Base|ThreadSafeBase)
     // type.
     value = std::is_pointer<T>::value &&
-            IsRefCountedType<std::remove_pointer_t<T>>::value
+    IsRefCountedType<std::remove_pointer_t<T>>::value
   };
 };
 

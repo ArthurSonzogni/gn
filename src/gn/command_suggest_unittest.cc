@@ -260,7 +260,7 @@ TEST(Suggest, ResolveFileName) {
         {
             {&simple_secondary, commands::ApiScope::kPublic},
             {&simple_default, commands::ApiScope::kPublic},
-        };
+    };
     EXPECT_TRUE(ok);
     EXPECT_EQ(expected_targets, results);
   }
