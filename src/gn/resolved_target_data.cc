@@ -331,7 +331,7 @@ void ResolvedTargetData::ComputeOrderOnlyDeps(TargetInfo* info) const {
   } else if (target->has_dependency_output()) {
     OutputFile dep_output = target->dependency_output();
     if (target->output_type() == Target::SOURCE_SET) {
-      dep_output.value().append(".linkdeps");
+      dep_output.append(".linkdeps");
     }
     all_order_only_deps.push_back(dep_output);
   }

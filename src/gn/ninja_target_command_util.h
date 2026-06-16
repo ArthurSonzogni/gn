@@ -130,6 +130,6 @@ void GetPCHOutputFiles(const Target* target,
 
 std::string GetGCCPCHOutputExtension(const char* tool_name);
 std::string GetWindowsPCHObjectExtension(const char* tool_name,
-                                         const std::string& obj_extension);
+                                         std::string_view obj_extension);
 
 #endif  // TOOLS_GN_NINJA_TARGET_COMMAND_WRITER_H_

@@ -348,15 +348,14 @@ NinjaCreateBundleTargetWriter::WriteCompileAssetsCatalogInputDepsStampOrPhony(
   if (settings_->build_settings()->no_stamp_files()) {
     xcassets_input_stamp_or_phony =
         GetBuildDirForTargetAsOutputFile(target_, BuildDirType::PHONY);
-
-    xcassets_input_stamp_or_phony.value().append(target_->label().name());
-    xcassets_input_stamp_or_phony.value().append(".xcassets.inputdeps");
+    xcassets_input_stamp_or_phony.append(target_->label().name());
+    xcassets_input_stamp_or_phony.append(".xcassets.inputdeps");
     tool = BuiltinTool::kBuiltinToolPhony;
   } else {
     xcassets_input_stamp_or_phony =
         GetBuildDirForTargetAsOutputFile(target_, BuildDirType::OBJ);
-    xcassets_input_stamp_or_phony.value().append(target_->label().name());
-    xcassets_input_stamp_or_phony.value().append(".xcassets.inputdeps.stamp");
+    xcassets_input_stamp_or_phony.append(target_->label().name());
+    xcassets_input_stamp_or_phony.append(".xcassets.inputdeps.stamp");
     tool = GetNinjaRulePrefixForToolchain(settings_) +
            GeneralTool::kGeneralToolStamp;
   }
@@ -436,15 +435,15 @@ NinjaCreateBundleTargetWriter::WritePostProcessingInputDepsStampOrPhony(
     // as those would have been peeled off already.
     stamp_or_phony =
         GetBuildDirForTargetAsOutputFile(target_, BuildDirType::PHONY);
-    stamp_or_phony.value().append(target_->label().name());
-    stamp_or_phony.value().append(".postprocessing.inputdeps");
+    stamp_or_phony.append(target_->label().name());
+    stamp_or_phony.append(".postprocessing.inputdeps");
     tool = BuiltinTool::kBuiltinToolPhony;
   } else {
     // Make a stamp target.
     stamp_or_phony =
         GetBuildDirForTargetAsOutputFile(target_, BuildDirType::OBJ);
-    stamp_or_phony.value().append(target_->label().name());
-    stamp_or_phony.value().append(".postprocessing.inputdeps.stamp");
+    stamp_or_phony.append(target_->label().name());
+    stamp_or_phony.append(".postprocessing.inputdeps.stamp");
     tool = GetNinjaRulePrefixForToolchain(settings_) +
            GeneralTool::kGeneralToolStamp;
   }

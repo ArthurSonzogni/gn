@@ -34,7 +34,7 @@ std::string GetVectorDescription(
   for (size_t i = 0; i < v.size(); i++) {
     if (i != 0)
       result.append(", ");
-    result.append("\"" + v[i].first.value() + "\"");
+    result.append("\"" + std::string(v[i].first.value()) + "\"");
   }
   return result;
 }

@@ -27,7 +27,7 @@ base::FilePath UTF8ToFilePath(std::string_view sp);
 // Returns the index of the extension (character after the last dot not after a
 // slash). Returns std::string::npos if not found. Returns path.size() if the
 // file ends with a dot.
-size_t FindExtensionOffset(const std::string& path);
+size_t FindExtensionOffset(std::string_view path);
 
 // Returns a string piece pointing into the input string identifying the
 // extension. Note that the input pointer must outlive the output.

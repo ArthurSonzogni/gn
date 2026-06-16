@@ -161,7 +161,7 @@ Err GetDuplicateOutputError(const std::vector<const Target*>& all_targets,
 
   Err result(matches[0]->defined_from(), "Duplicate output file.",
              "Two or more targets generate the same output:\n  " +
-                 bad_output.value() +
+                 std::string(bad_output.value()) +
                  "\n\n"
                  "This is can often be fixed by changing one of the target "
                  "names, or by \n"

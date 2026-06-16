@@ -585,15 +585,15 @@ NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
     // as we would return early if there were no inputs.
     input_stamp_or_phony =
         GetBuildDirForTargetAsOutputFile(target_, BuildDirType::PHONY);
-    input_stamp_or_phony.value().append(target_->label().name());
-    input_stamp_or_phony.value().append(".inputdeps");
+    input_stamp_or_phony.append(target_->label().name());
+    input_stamp_or_phony.append(".inputdeps");
     tool = BuiltinTool::kBuiltinToolPhony;
   } else {
     // Make a stamp file.
     input_stamp_or_phony =
         GetBuildDirForTargetAsOutputFile(target_, BuildDirType::OBJ);
-    input_stamp_or_phony.value().append(target_->label().name());
-    input_stamp_or_phony.value().append(".inputdeps.stamp");
+    input_stamp_or_phony.append(target_->label().name());
+    input_stamp_or_phony.append(".inputdeps.stamp");
 
     tool = GetNinjaRulePrefixForToolchain(settings_) +
            GeneralTool::kGeneralToolStamp;

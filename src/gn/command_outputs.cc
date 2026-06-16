@@ -147,8 +147,10 @@ int RunOutputs(const std::vector<std::string>& args) {
   }
 
   // Print.
-  for (const OutputFile& output_file : outputs)
-    printf("%s\n", output_file.value().c_str());
+  for (const OutputFile& output_file : outputs) {
+    OutputString(output_file.value());
+    OutputString("\n");
+  }
   return 0;
 }
 

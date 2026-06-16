@@ -980,7 +980,7 @@ bool Target::FillOutputFiles(Err* err) {
         if (HasRealInputs()) {
           dependency_output_alias_ =
               GetBuildDirForTargetAsOutputFile(this, BuildDirType::PHONY);
-          dependency_output_alias_.value().append(label().name());
+          dependency_output_alias_.append(label().name());
         }
       } else {
         // These don't get linked to and use stamps which should be the first
@@ -990,8 +990,8 @@ bool Target::FillOutputFiles(Err* err) {
         // name.
         dependency_output_file_ =
             GetBuildDirForTargetAsOutputFile(this, BuildDirType::OBJ);
-        dependency_output_file_.value().append(label().name());
-        dependency_output_file_.value().append(".stamp");
+        dependency_output_file_.append(label().name());
+        dependency_output_file_.append(".stamp");
       }
       break;
     }
@@ -1096,8 +1096,11 @@ bool Target::FillOutputFiles(Err* err) {
     // {{some_var}}/{{output_name}} which expands to "./foo", but this won't
     // match "foo" which is what we'll compute when converting a SourceFile to
     // an OutputFile.
-    for (auto& out : computed_outputs_)
-      NormalizePath(&out.value());
+    for (auto& out : computed_outputs_) {
+      std::string path(out.value());
+      NormalizePath(&path);
+      out = OutputFile(std::move(path));
+    }
   }
 
   // Also count anything the target has declared to be an output.

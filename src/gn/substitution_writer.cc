@@ -24,11 +24,11 @@ namespace {
 // slash from the directory (SourceDirs and OutputFiles representing
 // directories will end in a trailing slash). If the directory is empty,
 // it will be replaced with a ".".
-void SetDirOrDotWithNoSlash(const std::string& dir, std::string* dest) {
-  if (!dir.empty() && dir[dir.size() - 1] == '/')
+void SetDirOrDotWithNoSlash(std::string_view dir, std::string* dest) {
+  if (!dir.empty() && dir.back() == '/')
     dest->assign(dir.data(), dir.size() - 1);
   else
-    dest->assign(dir);
+    dest->assign(dir.data(), dir.size());
 
   if (dest->empty())
     dest->push_back('.');
@@ -481,10 +481,9 @@ OutputFile SubstitutionWriter::ApplyPatternToCompilerAsOutputFile(
   OutputFile result;
   for (const auto& subrange : pattern.ranges()) {
     if (subrange.type == &SubstitutionLiteral) {
-      result.value().append(subrange.literal);
+      result.append(subrange.literal);
     } else {
-      result.value().append(
-          GetCompilerSubstitution(target, source, subrange.type));
+      result.append(GetCompilerSubstitution(target, source, subrange.type));
     }
   }
   return result;
@@ -524,9 +523,9 @@ OutputFile SubstitutionWriter::ApplyPatternToLinkerAsOutputFile(
   OutputFile result;
   for (const auto& subrange : pattern.ranges()) {
     if (subrange.type == &SubstitutionLiteral) {
-      result.value().append(subrange.literal);
+      result.append(subrange.literal);
     } else {
-      result.value().append(GetLinkerSubstitution(target, tool, subrange.type));
+      result.append(GetLinkerSubstitution(target, tool, subrange.type));
     }
   }
   return result;
@@ -559,9 +558,9 @@ std::string SubstitutionWriter::GetLinkerSubstitution(
     // path it wants), or the tool's default (which will contain further
     // expansions).
     if (target->output_dir().is_null()) {
-      return ApplyPatternToLinkerAsOutputFile(target, tool,
-                                              tool->default_output_dir())
-          .value();
+      return std::string(ApplyPatternToLinkerAsOutputFile(
+                             target, tool, tool->default_output_dir())
+                             .value());
     }
     SetDirOrDotWithNoSlash(
         RebasePath(target->output_dir().value(),

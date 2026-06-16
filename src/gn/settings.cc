@@ -16,11 +16,12 @@ Settings::Settings(const BuildSettings* build_settings,
   } else {
     // We guarantee this ends in a slash.
     DCHECK(output_subdir_name[output_subdir_name.size() - 1] == '/');
-    toolchain_output_subdir_.value().append(output_subdir_name);
+    toolchain_output_subdir_ = OutputFile(output_subdir_name);
 
     DCHECK(!build_settings->build_dir().is_null());
-    toolchain_output_dir_ = SourceDir(build_settings->build_dir().value() +
-                                      toolchain_output_subdir_.value());
+    std::string dir = build_settings->build_dir().value();
+    dir.append(toolchain_output_subdir_.value());
+    toolchain_output_dir_ = SourceDir(std::move(dir));
   }
   // The output dir will be null in some tests and when invoked to parsed
   // one-off data without doing generation.

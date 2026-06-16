@@ -33,10 +33,10 @@ OutputFile GetWindowsPCHFile(const Target* target, const char* tool_name) {
   // Use "obj/{dir}/{target_name}_{lang}.pch" which ends up
   // looking like "obj/chrome/browser/browser_cc.pch"
   OutputFile ret = GetBuildDirForTargetAsOutputFile(target, BuildDirType::OBJ);
-  ret.value().append(target->label().name());
-  ret.value().push_back('_');
-  ret.value().append(GetPCHLangSuffixForToolType(tool_name));
-  ret.value().append(".pch");
+  ret.append(target->label().name());
+  ret.append("_");
+  ret.append(GetPCHLangSuffixForToolType(tool_name));
+  ret.append(".pch");
 
   return ret;
 }
@@ -89,9 +89,8 @@ void WriteOneFlag(RecursiveWriterConfig config,
         // Trim the .gch suffix for the -include flag.
         // e.g. for gch file foo/bar/target.precompiled.h.gch:
         //          -include foo/bar/target.precompiled.h
-        std::string pch_file = outputs[0].value();
-        pch_file.erase(pch_file.length() - 4);
-        out << " -include " << pch_file;
+        std::string_view pch_file = outputs[0].value();
+        out << " -include " << pch_file.substr(0, pch_file.length() - 4);
       }
     } else {
       RecursiveTargetConfigStringsToStream(config, target, getter,
@@ -126,21 +125,24 @@ void GetPCHOutputFiles(const Target* target,
   if (outputs->size() > 1)
     outputs->resize(1);  // Only link the first output from the compiler tool.
 
-  std::string& output_value = (*outputs)[0].value();
-  size_t extension_offset = FindExtensionOffset(output_value);
+  OutputFile& output_value = (*outputs)[0];
+  std::string_view output_value_str = output_value.value();
+  size_t extension_offset = FindExtensionOffset(output_value_str);
   if (extension_offset == std::string::npos) {
     // No extension found.
     return;
   }
   DCHECK(extension_offset >= 1);
-  DCHECK(output_value[extension_offset - 1] == '.');
+  // Trim the "."
+  extension_offset--;
+  DCHECK(output_value_str[extension_offset] == '.');
 
   std::string output_extension;
   CTool::PrecompiledHeaderType header_type = tool->precompiled_header_type();
   switch (header_type) {
     case CTool::PCH_MSVC:
       output_extension = GetWindowsPCHObjectExtension(
-          tool_name, output_value.substr(extension_offset - 1));
+          tool_name, output_value_str.substr(extension_offset));
       break;
     case CTool::PCH_GCC:
       output_extension = GetGCCPCHOutputExtension(tool_name);
@@ -149,8 +151,8 @@ void GetPCHOutputFiles(const Target* target,
       NOTREACHED() << "No outputs for no PCH type.";
       break;
   }
-  output_value.replace(extension_offset - 1, std::string::npos,
-                       output_extension);
+  output_value.resize(extension_offset);
+  output_value.append(output_extension);
 }
 
 std::string GetGCCPCHOutputExtension(const char* tool_name) {
@@ -169,7 +171,7 @@ std::string GetGCCPCHOutputExtension(const char* tool_name) {
 }
 
 std::string GetWindowsPCHObjectExtension(const char* tool_name,
-                                         const std::string& obj_extension) {
+                                         std::string_view obj_extension) {
   const char* lang_suffix = GetPCHLangSuffixForToolType(tool_name);
   std::string result = ".";
   // For MSVC, annotate the obj files with the language type. For example:

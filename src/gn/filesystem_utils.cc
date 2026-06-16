@@ -181,11 +181,10 @@ void AppendFixedAbsolutePathSuffix(const BuildSettings* build_settings,
   const std::string& build_dir = build_settings->build_dir().value();
 
   if (source_dir.value().starts_with(build_dir)) {
-    size_t build_dir_size = build_dir.size();
-    result->value().append(&source_dir.value()[build_dir_size],
-                           source_dir.value().size() - build_dir_size);
+    result->append(
+        std::string_view(source_dir.value()).substr(build_dir.size()));
   } else {
-    result->value().append("ABS_PATH");
+    result->append("ABS_PATH");
 #if defined(OS_WIN)
     // Windows absolute path contains ':' after drive letter. Remove it to
     // avoid inserting ':' in the middle of path (eg. "ABS_PATH/C:/").
@@ -196,7 +195,7 @@ void AppendFixedAbsolutePathSuffix(const BuildSettings* build_settings,
 #else
     const std::string& src_dir_value = source_dir.value();
 #endif
-    result->value().append(src_dir_value);
+    result->append(src_dir_value);
   }
 }
 
@@ -230,8 +229,8 @@ base::FilePath UTF8ToFilePath(std::string_view sp) {
 #endif
 }
 
-size_t FindExtensionOffset(const std::string& path) {
-  for (int i = static_cast<int>(path.size()); i >= 0; i--) {
+size_t FindExtensionOffset(std::string_view path) {
+  for (int i = static_cast<int>(path.size()) - 1; i >= 0; i--) {
     if (IsSlash(path[i]))
       break;
     if (path[i] == '.')
@@ -1046,11 +1045,11 @@ OutputFile GetBuildDirAsOutputFile(const BuildDirContext& context,
   DCHECK(result.value().empty() || result.value().back() == '/');
 
   if (type == BuildDirType::GEN)
-    result.value().append("gen/");
+    result.append("gen/");
   else if (type == BuildDirType::OBJ)
-    result.value().append("obj/");
+    result.append("obj/");
   else if (type == BuildDirType::PHONY)
-    result.value().append("phony/");
+    result.append("phony/");
   return result;
 }
 
@@ -1078,14 +1077,14 @@ OutputFile GetSubBuildDirAsOutputFile(const BuildDirContext& context,
       // it with `BUILD_DIR`. This will create results like `obj/BUILD_DIR/gen`
       // or `toolchain2/obj/BUILD_DIR/toolchain1/gen` which look surprising,
       // but guarantee unicity.
-      result.value().append("BUILD_DIR/");
-      result.value().append(source_dir_path.substr(build_dir.size()));
+      result.append("BUILD_DIR/");
+      result.append(source_dir_path.substr(build_dir.size()));
 
     } else {
       // The source dir is source-absolute, so we trim off the two leading
       // slashes to append to the toolchain object directory.
-      result.value().append(&source_dir.value()[2],
-                            source_dir.value().size() - 2);
+      result.append(std::string_view(&source_dir.value()[2],
+                                     source_dir.value().size() - 2));
     }
   } else {
     // System-absolute.

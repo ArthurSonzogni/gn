@@ -431,7 +431,7 @@ void NinjaCBinaryTargetWriter::WriteSources(
       const CTool* tool = target_->toolchain()->GetToolAsC(tool_name);
       if (tool->precompiled_header_type() != CTool::PCH_NONE) {
         for (const auto& dep : pch_deps) {
-          const std::string& output_value = dep.value();
+          std::string_view output_value = dep.value();
           size_t extension_offset = FindExtensionOffset(output_value);
           if (extension_offset == std::string::npos)
             continue;
@@ -565,7 +565,7 @@ void NinjaCBinaryTargetWriter::WriteSourceSetStamp(
   }
 
   OutputFile link_phony = target_->dependency_output();
-  link_phony.value().append(".linkdeps");
+  link_phony.append(".linkdeps");
 
   out_ << "build ";
   path_output_.WriteFile(out_, link_phony);
@@ -814,14 +814,14 @@ void NinjaCBinaryTargetWriter::WriteOrderOnlyDependencies(
 
 bool NinjaCBinaryTargetWriter::CheckForDuplicateObjectFiles(
     const std::vector<OutputFile>& files) const {
-  std::set<std::string> set;
+  std::set<std::string_view> set;
   for (const auto& file : files) {
     if (!set.insert(file.value()).second) {
       Err err(
           target_->defined_from(), "Duplicate object file",
           "The target " + target_->label().GetUserVisibleName(false) +
               "\ngenerates two object files with the same name:\n  " +
-              file.value() +
+              std::string(file.value()) +
               "\n"
               "\n"
               "It could be you accidentally have a file listed twice in the\n"

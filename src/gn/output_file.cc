@@ -7,33 +7,35 @@
 #include "gn/filesystem_utils.h"
 #include "gn/source_file.h"
 
-OutputFile::OutputFile(std::string&& v) : value_(std::move(v)) {}
-
-OutputFile::OutputFile(const std::string& v) : value_(v) {}
-
 OutputFile::OutputFile(const BuildSettings* build_settings,
-                       const SourceFile& source_file)
-    : value_(RebasePath(source_file.value(),
-                        build_settings->build_dir(),
-                        build_settings->root_path_utf8())) {}
+                       const SourceFile& source_file) {
+  std::string rebased =
+      RebasePath(source_file.value(), build_settings->build_dir(),
+                 build_settings->root_path_utf8());
+  if (!rebased.empty()) {
+    value_.assign(rebased.begin(), rebased.end());
+  }
+}
 
 SourceFile OutputFile::AsSourceFile(const BuildSettings* build_settings) const {
-  DCHECK(!value_.empty());
-  DCHECK(value_[value_.size() - 1] != '/');
+  std::string_view val = value();
+  DCHECK(!val.empty());
+  DCHECK(val.back() != '/');
 
   std::string path = build_settings->build_dir().value();
-  path.append(value_);
+  path.append(val);
   return SourceFile(std::move(path));
 }
 
 SourceDir OutputFile::AsSourceDir(const BuildSettings* build_settings) const {
-  if (!value_.empty()) {
+  std::string_view val = value();
+  if (!val.empty()) {
     // Empty means the root build dir. Otherwise, we expect it to end in a
     // slash.
-    DCHECK(value_[value_.size() - 1] == '/');
+    DCHECK(val.back() == '/');
   }
   std::string path = build_settings->build_dir().value();
-  path.append(value_);
+  path.append(val);
   NormalizePath(&path);
   return SourceDir(std::move(path));
 }

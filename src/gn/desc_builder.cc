@@ -785,7 +785,7 @@ class TargetDescBuilder : public BaseDescBuilder {
         }
       }
 
-      res->AppendString(str + pair.first.value());
+      res->AppendString(str + std::string(pair.first.value()));
     }
 
     return res;
