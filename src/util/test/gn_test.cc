@@ -206,10 +206,13 @@ int main(int argc, char** argv) {
   int tests_started = 0;
 
   const char* test_filter = "*";
+  bool quiet = false;
   for (int i = 1; i < argc; ++i) {
     const char kTestFilterPrefix[] = "--gtest_filter=";
     if (strncmp(argv[i], kTestFilterPrefix, strlen(kTestFilterPrefix)) == 0) {
       test_filter = &argv[i][strlen(kTestFilterPrefix)];
+    } else if (strcmp(argv[i], "--quiet") == 0) {
+      quiet = true;
     }
   }
 
@@ -246,17 +249,25 @@ int main(int argc, char** argv) {
 
     ++tests_started;
     testing::Test* test = tests[i].factory();
-    printf("%s[%d/%d] %s%s", prefix, tests_started, num_active_tests,
-           tests[i].name, suffix);
+    if (!quiet) {
+      printf("%s[%d/%d] %s%s", prefix, tests_started, num_active_tests,
+             tests[i].name, suffix);
+    }
     test->SetUp();
     test->Run();
     test->TearDown();
-    if (test->Failed())
+    if (test->Failed()) {
       passed = false;
+      if (quiet) {
+        printf("FAILED: %s\n", tests[i].name);
+      }
+    }
     delete test;
   }
 
-  printf("\n%s\n", passed ? "PASSED" : "FAILED");
+  if (!quiet || !passed) {
+    printf("\n%s\n", passed ? "PASSED" : "FAILED");
+  }
   fflush(stdout);
   return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
