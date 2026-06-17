@@ -116,12 +116,12 @@ class Toolchain : public Item {
     return substitution_bits_;
   }
 
-  const std::map<const char*, std::unique_ptr<Tool>>& tools() const {
+  const std::map<std::string_view, std::unique_ptr<Tool>>& tools() const {
     return tools_;
   }
 
  private:
-  std::map<const char*, std::unique_ptr<Tool>> tools_;
+  std::map<std::string_view, std::unique_ptr<Tool>> tools_;
 
   bool setup_complete_ = false;
 
