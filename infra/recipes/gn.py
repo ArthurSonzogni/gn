@@ -264,11 +264,11 @@ def RunSteps(api, repository):
 
             # Windows requires the environment modifications when building too.
             api.step('build',
-                     [cipd_dir.join('ninja'), '-C',
+                     [cipd_dir.join('ninja'), '--quiet', '-C',
                       src_dir.join('out')])
 
             if target.is_host:
-              api.step('test', [src_dir.join('out', 'gn_unittests')])
+              api.step('test', [src_dir.join('out', 'gn_unittests'), '--quiet'])
 
               if api.platform.is_linux:
                 with api.context(env={'CLANG_FORMAT': cipd_dir.join('bin', 'clang-format')}):
