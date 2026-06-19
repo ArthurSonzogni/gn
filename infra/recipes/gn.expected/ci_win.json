@@ -280,8 +280,8 @@
       "[START_DIR]\\cipd\\ninja",
       "-C",
       "[START_DIR]\\gn\\out",
-      "gn",
-      "gn_unittests"
+      "gn.exe",
+      "gn_unittests.exe"
     ],
     "cwd": "[START_DIR]\\gn",
     "env": {
@@ -389,8 +389,8 @@
       "[START_DIR]\\cipd\\ninja",
       "-C",
       "[START_DIR]\\gn\\out",
-      "gn",
-      "gn_unittests"
+      "gn.exe",
+      "gn_unittests.exe"
     ],
     "cwd": "[START_DIR]\\gn",
     "env": {

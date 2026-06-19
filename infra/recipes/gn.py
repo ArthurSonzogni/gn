@@ -264,7 +264,11 @@ def RunSteps(api, repository):
 
             # Windows requires the environment modifications when building too.
             ninja_cmd = [cipd_dir.join('ninja'), '-C', src_dir.join('out')]
-            api.step('build', ninja_cmd + ['gn', 'gn_unittests'])
+            exe_suffix = '.exe' if target.is_win else ''
+            api.step('build', ninja_cmd + [
+              f'gn{exe_suffix}',
+              f'gn_unittests{exe_suffix}',
+            ])
 
             if target.is_host:
               api.step('test', [src_dir.join('out', 'gn_unittests')])
