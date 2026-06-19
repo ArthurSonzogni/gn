@@ -228,7 +228,7 @@
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
       "@@@STEP_LOG_LINE@json.output@    \"\": [@@@",
       "@@@STEP_LOG_LINE@json.output@      {@@@",
-      "@@@STEP_LOG_LINE@json.output@        \"instance_id\": \"resolved-instance_id-of-uploaded:2024-01\",@@@",
+      "@@@STEP_LOG_LINE@json.output@        \"instance_id\": \"resolved-instance_id-of-uploaded:2026-05\",@@@",
       "@@@STEP_LOG_LINE@json.output@        \"package\": \"chrome_internal/third_party/sdk/windows\"@@@",
       "@@@STEP_LOG_LINE@json.output@      }@@@",
       "@@@STEP_LOG_LINE@json.output@    ]@@@",
@@ -330,7 +330,9 @@
     "cmd": [
       "[START_DIR]\\cipd\\ninja",
       "-C",
-      "[START_DIR]\\gn\\out"
+      "[START_DIR]\\gn\\out",
+      "gn",
+      "gn_unittests"
     ],
     "cwd": "[START_DIR]\\gn",
     "env": {
@@ -437,7 +439,9 @@
     "cmd": [
       "[START_DIR]\\cipd\\ninja",
       "-C",
-      "[START_DIR]\\gn\\out"
+      "[START_DIR]\\gn\\out",
+      "gn",
+      "gn_unittests"
     ],
     "cwd": "[START_DIR]\\gn",
     "env": {

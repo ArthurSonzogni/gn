@@ -607,7 +607,9 @@
     "cmd": [
       "[START_DIR]/cipd/ninja",
       "-C",
-      "[START_DIR]/gn/out"
+      "[START_DIR]/gn/out",
+      "gn",
+      "gn_unittests"
     ],
     "cwd": "[START_DIR]/gn",
     "env": {
@@ -774,7 +776,9 @@
     "cmd": [
       "[START_DIR]/cipd/ninja",
       "-C",
-      "[START_DIR]/gn/out"
+      "[START_DIR]/gn/out",
+      "gn",
+      "gn_unittests"
     ],
     "cwd": "[START_DIR]/gn",
     "env": {
@@ -1075,7 +1079,9 @@
     "cmd": [
       "[START_DIR]/cipd/ninja",
       "-C",
-      "[START_DIR]/gn/out"
+      "[START_DIR]/gn/out",
+      "gn",
+      "gn_unittests"
     ],
     "cwd": "[START_DIR]/gn",
     "env": {
@@ -1250,7 +1256,9 @@
     "cmd": [
       "[START_DIR]/cipd/ninja",
       "-C",
-      "[START_DIR]/gn/out"
+      "[START_DIR]/gn/out",
+      "gn",
+      "gn_unittests"
     ],
     "cwd": "[START_DIR]/gn",
     "env": {
