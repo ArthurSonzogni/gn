@@ -272,6 +272,9 @@ def RunSteps(api, repository):
 
             if target.is_host:
               api.step('test', [src_dir.join('out', 'gn_unittests')])
+              api.step(
+                  'integration tests', ninja_cmd + ['run_integration_tests']
+              )
 
               if api.platform.is_linux:
                 with api.context(env={'CLANG_FORMAT': cipd_dir.join('bin', 'clang-format')}):

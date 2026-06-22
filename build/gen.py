@@ -297,6 +297,10 @@ def WriteGenericNinja(path, static_libraries, executables,
     '  generator = 1',
     '  depfile = build.ninja.d',
     '',
+    # TODO: Remove this. A dummy target to ensure that CI is actually running
+    # this test before the integration tests are submitted.
+    'build run_integration_tests: phony build.ninja',
+    ''
   ]
 
 
