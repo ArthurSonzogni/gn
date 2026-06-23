@@ -1187,7 +1187,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
       "-Clink-arg=-Bdynamic "
       "-Clink-arg=obj/pub_sset_in_staticlib/pub_sset_in_staticlib.lib.o "
       "-Clink-arg=obj/priv_sset_in_staticlib/priv_sset_in_staticlib.lib.o "
-      "-Clink-arg=obj/staticlib/libstaticlib.a\n"
+      "-Clink-arg=obj/staticlib/libstaticlib.a "
+      "-Clink-arg=obj/priv_in_staticlib/libpriv_in_staticlib.rlib\n"
       "  ldflags =\n"
       "  sources = ../../exe/main.rs\n";
 
@@ -1997,7 +1998,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
         "behind_sourceset_public=obj/public/libbehind_sourceset_public.rlib\n"
         "  rustdeps = -Ldependency=obj/public -Ldependency=obj/private "
         "-Clink-arg=-Bdynamic "
-        "-Clink-arg=obj/sset/bar.input1.o\n"
+        "-Clink-arg=obj/sset/bar.input1.o "
+        "-Clink-arg=obj/private/libbehind_sourceset_private.rlib\n"
         "  ldflags =\n"
         "  sources = ../../linked/exe.rs\n";
     std::string out_str = out.str();
