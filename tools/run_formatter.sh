@@ -16,5 +16,5 @@ if [ -z "${CLANG_FORMAT:-}" ]; then
   CLANG_FORMAT="./clang/bin/clang-format"
 fi
 
-git ls-files | egrep '\.(h|cc)$' | fgrep -v 'third_party' |\
+git ls-files | egrep '\.(h|cc)$' | grep -Ev 'third_party|vendor' |\
     xargs "$CLANG_FORMAT" $opts
