@@ -633,6 +633,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ffi"
+version = "0.1.0"
+dependencies = [
+ "cxx",
+ "starlark",
+ "starlark_derive",
+ "thiserror",
+ "types",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

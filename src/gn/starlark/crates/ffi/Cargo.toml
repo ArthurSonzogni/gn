@@ -1,0 +1,18 @@
+[package]
+name = "ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+starlark = { workspace = true }
+starlark_derive = { workspace = true }
+cxx = { workspace = true }
+types = { path = "../types" }
+thiserror = { workspace = true }
