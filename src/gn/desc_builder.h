@@ -8,15 +8,23 @@
 #include "base/values.h"
 #include "gn/target.h"
 
+class ResolvedTargetData;
+
 class DescBuilder {
  public:
-  // Creates Dictionary representation for given target
+  // Creates Dictionary representation for given target.
+  //
+  // If |resolved| is non-null it is used to compute (and memoize) inherited
+  // lib/framework information. Callers that describe many targets in a row
+  // should pass a single shared instance to avoid recomputing the transitive
+  // dependency walk for every target (which is quadratic otherwise).
   static std::unique_ptr<base::DictionaryValue> DescriptionForTarget(
       const Target* target,
       const std::string& what,
       bool all,
       bool tree,
-      bool blame);
+      bool blame,
+      ResolvedTargetData* resolved = nullptr);
 
   // Creates Dictionary representation for given config
   static std::unique_ptr<base::DictionaryValue> DescriptionForConfig(

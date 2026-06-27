@@ -319,8 +319,11 @@ class TargetDescBuilder : public BaseDescBuilder {
                     const std::set<std::string>& what,
                     bool all,
                     bool tree,
-                    bool blame)
-      : BaseDescBuilder(what, all, tree, blame), target_(target) {}
+                    bool blame,
+                    ResolvedTargetData* resolved)
+      : BaseDescBuilder(what, all, tree, blame),
+        target_(target),
+        resolved_(resolved) {}
 
   std::unique_ptr<base::DictionaryValue> BuildDescription() {
     auto res = std::make_unique<base::DictionaryValue>();
@@ -592,7 +595,11 @@ class TargetDescBuilder : public BaseDescBuilder {
     // currently implement a blame feature for this since the bottom-up
     // inheritance makes this difficult.
 
-    ResolvedTargetData resolved;
+    // Use the caller-provided cache if any, otherwise a local one. Sharing a
+    // single instance across many targets avoids recomputing the transitive
+    // dependency walk for every target.
+    ResolvedTargetData local_resolved;
+    ResolvedTargetData& resolved = resolved_ ? *resolved_ : local_resolved;
 
     // Libs can be part of any target and get recursively pushed up the chain,
     // so display them regardless of target type.
@@ -946,6 +953,8 @@ class TargetDescBuilder : public BaseDescBuilder {
   }
 
   const Target* target_;
+  // Optional shared cache for inherited lib/framework info; may be null.
+  ResolvedTargetData* resolved_ = nullptr;
 };
 
 }  // namespace
@@ -955,11 +964,12 @@ std::unique_ptr<base::DictionaryValue> DescBuilder::DescriptionForTarget(
     const std::string& what,
     bool all,
     bool tree,
-    bool blame) {
+    bool blame,
+    ResolvedTargetData* resolved) {
   std::set<std::string> w;
   if (!what.empty())
     w.insert(what);
-  TargetDescBuilder b(target, w, all, tree, blame);
+  TargetDescBuilder b(target, w, all, tree, blame, resolved);
   return b.BuildDescription();
 }
 

@@ -19,6 +19,7 @@
 #include "gn/desc_builder.h"
 #include "gn/filesystem_utils.h"
 #include "gn/invoke_python.h"
+#include "gn/resolved_target_data.h"
 #include "gn/scheduler.h"
 #include "gn/settings.h"
 #include "gn/string_output_buffer.h"
@@ -385,14 +386,17 @@ StringOutputBuffer JSONProjectWriter::GenerateJSON(
   json_writer.EndDict();  // build_settings
 
   std::map<Label, const Toolchain*> toolchains;
+  // Shared across all targets so that inherited lib/framework information is
+  // memoized once rather than recomputed per target (avoids quadratic blowup).
+  ResolvedTargetData resolved;
   json_writer.BeginDict("targets");
   {
     for (const auto* target : sorted_targets) {
-      auto description =
-          DescBuilder::DescriptionForTarget(target, "", false, false, false);
+      auto description = DescBuilder::DescriptionForTarget(
+          target, "", false, false, false, &resolved);
       // Outputs need to be asked for separately.
-      auto outputs = DescBuilder::DescriptionForTarget(target, "source_outputs",
-                                                       false, false, false);
+      auto outputs = DescBuilder::DescriptionForTarget(
+          target, "source_outputs", false, false, false, &resolved);
       base::DictionaryValue* outputs_value = nullptr;
       if (outputs->GetDictionary("source_outputs", &outputs_value) &&
           !outputs_value->empty()) {
