@@ -23,6 +23,7 @@
 #include "gn/scheduler.h"
 #include "gn/settings.h"
 #include "gn/string_output_buffer.h"
+#include "util/worker_pool.h"
 
 // Structure of JSON output file
 // {
@@ -388,26 +389,44 @@ StringOutputBuffer JSONProjectWriter::GenerateJSON(
   std::map<Label, const Toolchain*> toolchains;
   // Shared across all targets so that inherited lib/framework information is
   // memoized once rather than recomputed per target (avoids quadratic blowup).
+  // ResolvedTargetData is safe for concurrent access (the parallel Ninja
+  // writers share a single instance the same way), so the per-target
+  // descriptions below are rendered on a worker pool.
   ResolvedTargetData resolved;
+
+  // Render each target's JSON dictionary in parallel into a pre-sized slot,
+  // preserving the sorted order. Only the rendering (desc building + JSON
+  // serialization) is parallelized; appending to the shared output buffer and
+  // collecting toolchains happens serially afterwards.
+  std::vector<std::string> rendered(sorted_targets.size());
+  {
+    WorkerPool pool;
+    for (size_t i = 0; i < sorted_targets.size(); i++) {
+      pool.PostTask([&sorted_targets, &resolved, &rendered, i]() {
+        const Target* target = sorted_targets[i];
+        auto description = DescBuilder::DescriptionForTarget(
+            target, "", false, false, false, &resolved);
+        // Outputs need to be asked for separately.
+        auto outputs = DescBuilder::DescriptionForTarget(
+            target, "source_outputs", false, false, false, &resolved);
+        base::DictionaryValue* outputs_value = nullptr;
+        if (outputs->GetDictionary("source_outputs", &outputs_value) &&
+            !outputs_value->empty()) {
+          description->MergeDictionary(outputs.get());
+        }
+
+        base::JSONWriter::WriteWithOptions(
+            *description.get(), base::JSONWriter::OPTIONS_PRETTY_PRINT,
+            &rendered[i]);
+      });
+    }
+  }  // pool destructor drains the queue and joins all workers.
+
   json_writer.BeginDict("targets");
   {
-    for (const auto* target : sorted_targets) {
-      auto description = DescBuilder::DescriptionForTarget(
-          target, "", false, false, false, &resolved);
-      // Outputs need to be asked for separately.
-      auto outputs = DescBuilder::DescriptionForTarget(
-          target, "source_outputs", false, false, false, &resolved);
-      base::DictionaryValue* outputs_value = nullptr;
-      if (outputs->GetDictionary("source_outputs", &outputs_value) &&
-          !outputs_value->empty()) {
-        description->MergeDictionary(outputs.get());
-      }
-
-      std::string json_dict;
-      base::JSONWriter::WriteWithOptions(*description.get(),
-                                         base::JSONWriter::OPTIONS_PRETTY_PRINT,
-                                         &json_dict);
-      json_writer.AddJSONDict(target_labels[target], json_dict);
+    for (size_t i = 0; i < sorted_targets.size(); i++) {
+      const Target* target = sorted_targets[i];
+      json_writer.AddJSONDict(target_labels[target], rendered[i]);
       toolchains[target->toolchain()->label()] = target->toolchain();
     }
   }
