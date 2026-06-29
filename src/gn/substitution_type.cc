@@ -7,6 +7,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include <algorithm>
+#include <cstring>
+
 #include "gn/c_substitution_type.h"
 #include "gn/err.h"
 #include "gn/rust_substitution_type.h"
@@ -123,6 +126,13 @@ void SubstitutionBits::FillVector(
   for (const Substitution* s : used) {
     vect->push_back(s);
   }
+  // Sort by name for deterministic output across different builds of the
+  // same GN source. The flat_set iterates by pointer address which can
+  // vary between binaries.
+  std::sort(vect->begin(), vect->end(),
+            [](const Substitution* a, const Substitution* b) {
+              return std::strcmp(a->name, b->name) < 0;
+            });
 }
 
 bool SubstitutionIsInOutputDir(const Substitution* type) {
