@@ -4,6 +4,7 @@
 
 #include "gn/ninja_target_writer.h"
 
+#include <algorithm>
 #include <sstream>
 
 #include "base/files/file_util.h"
@@ -619,6 +620,22 @@ NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
 void NinjaTargetWriter::WriteStampOrPhonyForTarget(
     const std::vector<OutputFile>& files,
     const std::vector<OutputFile>& order_only_deps) {
+  // Add dependency outputs of public_deps to this target's stamp or phony
+  // target to propagate public dependencies transitively. This allows
+  // dependents of this target to implicitly depend on the public_deps without
+  // listing them all directly on their build lines, preventing inflation of
+  // implicit inputs.
+  std::vector<OutputFile> all_files = files;
+  for (const auto& pair : target_->public_deps()) {
+    if (pair.ptr->has_dependency_output() && !pair.ptr->IsDataOnly()) {
+      OutputFile dep_out = pair.ptr->dependency_output();
+      if (std::find(all_files.begin(), all_files.end(), dep_out) ==
+          all_files.end()) {
+        all_files.push_back(dep_out);
+      }
+    }
+  }
+
   // We should have already discerned whether this target is a stamp or a phony.
   // If there's a dependency_output_file, it should be a stamp. Else is a phony
   // or omitted phony (in which case, we don't write it).
@@ -651,12 +668,12 @@ void NinjaTargetWriter::WriteStampOrPhonyForTarget(
   } else {
     // This is the omitted phony case. We should not get here if there were any
     // dependencies, so ensure that none got added.
-    CHECK(files.empty());
+    CHECK(all_files.empty());
     CHECK(order_only_deps.empty());
     return;
   }
 
-  path_output_.WriteFiles(out_, files);
+  path_output_.WriteFiles(out_, all_files);
 
   if (!order_only_deps.empty()) {
     out_ << " ||";

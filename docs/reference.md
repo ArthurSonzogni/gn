@@ -6838,6 +6838,12 @@
       publicly depends on (directly or indirectly) are propagated up the
       dependency tree to dependents for linking.
 
+    - For non-binary targets (like actions, groups, etc.), their dependency
+      outputs (stamp or phony targets) will transitively depend on the
+      dependency outputs of their public_deps. This ensures that dependents
+      of the current target will also implicitly depend on the outputs of the
+      public_deps.
+
   See also "gn help public_configs".
 ```
 
