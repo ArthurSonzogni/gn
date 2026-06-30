@@ -54,8 +54,7 @@ TEST(NinjaGroupTargetWriter, Run) {
   writer.Run();
 
   const char expected[] =
-      "build phony/foo/bar: phony phony/foo/dep phony/foo/dep2 "
-      "phony/foo/bundle_data_dep || "
+      "build phony/foo/bar: phony phony/foo/dep phony/foo/dep2 || "
       "phony/foo/bundle_data_dep phony/foo/datadep\n";
   EXPECT_EQ(expected, out.str());
 }

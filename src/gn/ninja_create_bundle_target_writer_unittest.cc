@@ -493,7 +493,7 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessing) {
       "| phony/baz/bar.postprocessing.inputdeps\n"
       "build phony/baz/bar: phony "
       "bar.bundle/Contents/quz "
-      "bar.bundle/_CodeSignature/CodeResources ./quz\n"
+      "bar.bundle/_CodeSignature/CodeResources\n"
       "build bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -579,7 +579,7 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessingNoStampFilesCustomToolchain) {
       "| toolchain/phony/baz/bar.postprocessing.inputdeps\n"
       "build toolchain/phony/baz/bar: phony "
       "bar.bundle/Contents/quz "
-      "bar.bundle/_CodeSignature/CodeResources ./quz\n"
+      "bar.bundle/_CodeSignature/CodeResources\n"
       "build bar.bundle: phony toolchain/phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);

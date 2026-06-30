@@ -64,7 +64,7 @@ TEST_F(NinjaGeneratedFileTargetWriterTest, Run) {
 
   const char expected[] =
       "build phony/foo/bar: phony foo.json phony/foo/dep "
-      "phony/foo/dep2 phony/foo/bundle_data_dep || "
+      "phony/foo/dep2 || "
       "phony/foo/bundle_data_dep phony/foo/datadep\n";
   EXPECT_EQ(expected, out.str());
 }

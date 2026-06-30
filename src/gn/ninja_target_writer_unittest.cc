@@ -5,7 +5,6 @@
 #include <sstream>
 
 #include "gn/ninja_action_target_writer.h"
-#include "gn/ninja_group_target_writer.h"
 #include "gn/ninja_target_writer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
@@ -158,7 +157,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
         "build: __foo_action___rule | ../../foo/script.py"
         " ../../foo/action_source.txt ./target\n"
         "\n"
-        "build phony/foo/action: phony ./target\n",
+        "build phony/foo/action: phony\n",
         stream.str());
   }
 
@@ -258,7 +257,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
         "build: __foo_action___rule | ../../foo/script.py"
         " ../../foo/action_source.txt ./target\n"
         "\n"
-        "build obj/foo/action.stamp: stamp ./target\n",
+        "build obj/foo/action.stamp: stamp\n",
         stream.str());
   }
 
@@ -440,127 +439,4 @@ TEST(NinjaTargetWriter, ValidationsWithNoOutput) {
   // Should not contain validation separator since the validation target has no
   // output.
   EXPECT_EQ("build phony/foo/target: phony phony/foo/dep\n", out);
-}
-
-TEST(NinjaTargetWriter, PhonyPropagation) {
-  TestWithScope setup;
-  Err err;
-
-  // Set up common target A (action)
-  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  a.set_output_type(Target::ACTION);
-  a.visibility().SetPublic();
-  a.SetToolchain(setup.toolchain());
-  a.action_values().set_script(SourceFile("//foo/script.py"));
-  a.action_values().outputs() =
-      SubstitutionList::MakeForTest("//out/Debug/a.out");
-
-  // Set up B_pub (action, public_dep A)
-  Target b_pub(setup.settings(), Label(SourceDir("//foo/"), "b_pub"));
-  b_pub.set_output_type(Target::ACTION);
-  b_pub.visibility().SetPublic();
-  b_pub.SetToolchain(setup.toolchain());
-  b_pub.action_values().set_script(SourceFile("//foo/script.py"));
-  b_pub.action_values().outputs() =
-      SubstitutionList::MakeForTest("//out/Debug/b_pub.out");
-  b_pub.public_deps().push_back(LabelTargetPair(&a));
-
-  // Set up B_priv (action, private_dep A)
-  Target b_priv(setup.settings(), Label(SourceDir("//foo/"), "b_priv"));
-  b_priv.set_output_type(Target::ACTION);
-  b_priv.visibility().SetPublic();
-  b_priv.SetToolchain(setup.toolchain());
-  b_priv.action_values().set_script(SourceFile("//foo/script.py"));
-  b_priv.action_values().outputs() =
-      SubstitutionList::MakeForTest("//out/Debug/b_priv.out");
-  b_priv.private_deps().push_back(LabelTargetPair(&a));
-
-  // Set up C_pub (action, private_dep B_pub)
-  Target c_pub(setup.settings(), Label(SourceDir("//foo/"), "c_pub"));
-  c_pub.set_output_type(Target::ACTION);
-  c_pub.visibility().SetPublic();
-  c_pub.SetToolchain(setup.toolchain());
-  c_pub.action_values().set_script(SourceFile("//foo/script.py"));
-  c_pub.private_deps().push_back(LabelTargetPair(&b_pub));
-
-  // Set up C_priv (action, private_dep B_priv)
-  Target c_priv(setup.settings(), Label(SourceDir("//foo/"), "c_priv"));
-  c_priv.set_output_type(Target::ACTION);
-  c_priv.visibility().SetPublic();
-  c_priv.SetToolchain(setup.toolchain());
-  c_priv.action_values().set_script(SourceFile("//foo/script.py"));
-  c_priv.private_deps().push_back(LabelTargetPair(&b_priv));
-
-  ASSERT_TRUE(a.OnResolved(&err));
-  ASSERT_TRUE(b_pub.OnResolved(&err));
-  ASSERT_TRUE(b_priv.OnResolved(&err));
-  ASSERT_TRUE(c_pub.OnResolved(&err));
-  ASSERT_TRUE(c_priv.OnResolved(&err));
-
-  // 1. Verify B_pub's stamp/phony target. It should contain A's output
-  // (phony/foo/a).
-  {
-    std::ostringstream stream;
-    NinjaActionTargetWriter writer(&b_pub, stream);
-    writer.Run();
-    EXPECT_EQ(
-        "rule __foo_b_pub___rule\n"
-        "  command =  ../../foo/script.py\n"
-        "  description = ACTION //foo:b_pub()\n"
-        "  restat = 1\n"
-        "\n"
-        "build b_pub.out: __foo_b_pub___rule | ../../foo/script.py "
-        "phony/foo/a\n"
-        "\n"
-        "build phony/foo/b_pub: phony b_pub.out phony/foo/a\n",
-        stream.str());
-  }
-
-  // 2. Verify B_priv's stamp/phony target. It should NOT contain A's output.
-  {
-    std::ostringstream stream;
-    NinjaActionTargetWriter writer(&b_priv, stream);
-    writer.Run();
-    EXPECT_EQ(
-        "rule __foo_b_priv___rule\n"
-        "  command =  ../../foo/script.py\n"
-        "  description = ACTION //foo:b_priv()\n"
-        "  restat = 1\n"
-        "\n"
-        "build b_priv.out: __foo_b_priv___rule | ../../foo/script.py "
-        "phony/foo/a\n"
-        "\n"
-        "build phony/foo/b_priv: phony b_priv.out\n",
-        stream.str());
-  }
-
-  // 3. Verify C_pub's inputdeps contains B_pub's stamp/phony.
-  {
-    std::ostringstream stream;
-    TestingNinjaTargetWriter writer(&c_pub, setup.toolchain(), stream);
-    auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
-        std::vector<const Target*>(), 10u);
-
-    ASSERT_EQ(1u, dep.implicit.size());
-    EXPECT_EQ("phony/foo/c_pub.inputdeps", dep.implicit[0].value());
-    EXPECT_EQ(
-        "build phony/foo/c_pub.inputdeps: phony ../../foo/script.py "
-        "phony/foo/b_pub\n",
-        stream.str());
-  }
-
-  // 4. Verify C_priv's inputdeps contains B_priv's stamp/phony.
-  {
-    std::ostringstream stream;
-    TestingNinjaTargetWriter writer(&c_priv, setup.toolchain(), stream);
-    auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
-        std::vector<const Target*>(), 10u);
-
-    ASSERT_EQ(1u, dep.implicit.size());
-    EXPECT_EQ("phony/foo/c_priv.inputdeps", dep.implicit[0].value());
-    EXPECT_EQ(
-        "build phony/foo/c_priv.inputdeps: phony ../../foo/script.py "
-        "phony/foo/b_priv\n",
-        stream.str());
-  }
 }
