@@ -27,9 +27,6 @@ impl Label {
 
     /// Returns a `LabelRef` referencing the directory and name of this label.
     pub fn as_ref<'a>(&'a self) -> LabelRef<'a> {
-        LabelRef {
-            package: self.package(),
-            name: self.name(),
-        }
+        LabelRef::new(self.package(), self.name())
     }
 }
