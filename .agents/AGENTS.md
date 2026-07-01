@@ -25,6 +25,11 @@ modifying Rust code in this repository:
   `// Safety: <reason>` comment explaining why the usage is safe.
 * **Warnings**: The code (including the tests) should compile with no warnings
   and no clippy lint errors.
+* If you ever believe that #[allow] is required to bypass the linter:
+  * You *must* get permission from the user.
+  * You *must* write a comment above the allow saying why we need it.
+  * You *must* put it in as specific a place as is feasible. Avoid, for
+    example, allowing a lint for a whole file.
 
 ## Imports & Use Statements
 
