@@ -555,6 +555,22 @@ File name handling
   generates the file to copy must be reachable from the deps or public_deps of
   the copy target.
 
+How the copy is performed
+
+  The actual command used to copy each file is not built in to the "copy"
+  target type. It is provided by the "copy" tool defined by the toolchain used
+  to build the target (see "gn help tool"). If the toolchain does not define a
+  "copy" tool, GN will error out.
+
+  This means projects can customize how files are copied -- for example to hard
+  link instead of byte-copying for speed -- by overriding the toolchain's
+  "copy" tool:
+
+    tool("copy") {
+      command = "cp -af --reflink=auto {{source}} {{output}}"
+      description = "COPY {{source}} {{output}}"
+    }
+
 Variables
 
 )" DEPENDENT_CONFIG_VARS DEPS_VARS GENERAL_TARGET_VARS
