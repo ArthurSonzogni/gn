@@ -17,6 +17,7 @@
 //! Safe APIs for C++ types are then exposed in the impl functions for each of
 //! these types in their own files.
 mod bridge;
+mod err;
 mod label;
 mod mutability;
 mod opaque;
@@ -27,7 +28,7 @@ mod slice;
 mod test_with_scope;
 mod value;
 
-pub use bridge::{KeyValue, Label, OutputFile, Scope, Settings, SourceDir, Value, ValueType};
+pub use bridge::{Err, KeyValue, Label, OutputFile, Scope, Settings, SourceDir, Value, ValueType};
 pub use mutability::Immutable;
 pub use opaque::{NonOpaque, OpaqueSized};
 pub use scope::OwnedScope;
