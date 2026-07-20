@@ -63,7 +63,7 @@ impl CtxAttrSchema {
             }
         }
 
-        CtxAttrSchema {
+        Self {
             attrs,
             attr: FrozenValueTyped::new(heap.alloc(FrozenRecordType::new(
                 "rule_attr",
@@ -175,7 +175,7 @@ mod tests {
                     Attr::create(
                         attr_schema,
                         Some(val),
-                        &context.package.as_ref(),
+                        context.package.as_ref(),
                         &context.path_resolver,
                     )
                 })
