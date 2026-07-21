@@ -1,7 +1,7 @@
 // Copyright 2026 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-use std::collections::HashMap;
+use std::{cell::UnsafeCell, collections::HashMap};
 
 use attr::{Attr, EvalContext as AttrEvalContext, EvalContextAttrExt, Session as AttrSession};
 use starlark::{
@@ -54,7 +54,7 @@ pub struct FakeEvalContext {
     pub path_resolver: PathResolver,
     /// The fake rule state.
     #[allocative(skip)]
-    pub rule_state: CtxState<FakeTargetRef>,
+    pub rule_state: UnsafeCell<CtxState<FakeTargetRef>>,
     /// The fake scope.
     #[allocative(skip)]
     pub scope: FakeScope,
@@ -79,15 +79,15 @@ impl FakeEvalContext {
             current_toolchain: session.default_toolchain.clone(),
             session,
             path_resolver: PathResolver::new_for_testing(),
-            rule_state: CtxState::new(FakeTargetRef::default()),
+            rule_state: CtxState::new(FakeTargetRef::default()).into(),
             scope: FakeScope::default(),
         }
     }
 }
 
 impl AttrEvalContext for FakeEvalContext {
-    type Session = FakeSession;
     type Scope = FakeScope;
+    type Session = FakeSession;
 
     fn session(&self) -> &Self::Session {
         &self.session
@@ -113,14 +113,9 @@ impl AttrEvalContext for FakeEvalContext {
         Ok(())
     }
 
-    fn require_rule_impl(&self) -> Result<&CtxState<<Self::Session as Session>::TargetRef>> {
-        Ok(&self.rule_state)
-    }
-
-    fn require_rule_impl_mut(
-        &mut self,
-    ) -> Result<&mut CtxState<<Self::Session as Session>::TargetRef>> {
-        Ok(&mut self.rule_state)
+    fn require_rule_impl(&self) -> Result<&mut CtxState<<Self::Session as Session>::TargetRef>> {
+        // Safety: The eval context is single-threaded.
+        Ok(unsafe { &mut (*self.rule_state.get()) })
     }
 }
 

@@ -18,7 +18,7 @@ pub fn depset_constructor<'v, C: types::EvalContext>(
     transitive: Option<UnpackList<UnpackDepset<'v>>>,
     mut order: Order,
     heap: &Heap<'v>,
-    ctx: &mut C,
+    ctx: &C,
 ) -> starlark::Result<Value<'v>> {
     let mut kind = Kind::Empty;
     let mut set_kind = |k: Kind| -> Result<(), crate::Error> {
@@ -117,7 +117,7 @@ pub fn depset_constructor<'v, C: types::EvalContext>(
                     let child_dep = UnpackDepset::unpack_value(*v).unwrap().unwrap();
                     deps.push(child_dep.phony().as_ref().unwrap().clone());
                 }
-                let state = ctx.require_rule_impl_mut()?;
+                let state = ctx.require_rule_impl()?;
                 Some(state.new_phony(deps))
             } else {
                 None
@@ -167,7 +167,7 @@ macro_rules! depset_globals {
                     transitive,
                     order,
                     &eval.heap(),
-                    eval.context_mut(),
+                    eval.context(),
                 )
             }
         }
@@ -191,7 +191,7 @@ pub(crate) mod tests {
             eval: &mut Evaluator<'v, '_, '_>,
         ) -> starlark::Result<Depset<'v>> {
             let heap = eval.heap();
-            let ctx = eval.context_mut::<testutils::eval_context::FakeEvalContext>();
+            let ctx = eval.context::<testutils::eval_context::FakeEvalContext>();
             let direct = files.items.into_iter().cloned().collect();
             Depset::new_file_depset(direct, &heap, ctx)
         }

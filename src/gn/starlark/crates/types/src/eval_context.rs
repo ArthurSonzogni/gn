@@ -13,8 +13,6 @@ use crate::{LabelRef, PackageRef, PathResolver, Scope, Session};
 pub trait EvalContext:
     for<'v> starlark::values::ProvidesStaticType<'v, StaticType = Self>
     + allocative::Allocative
-    + Send
-    + Sync
     + 'static
 {
     /// The session type associated with this context.
@@ -46,34 +44,29 @@ pub trait EvalContext:
 
     /// Asserts that the evaluator is executing a rule implementation, and
     /// returns the state of the rule implementation.
+    ///
+    /// We require EvalContext to have interior mutability, and thus it can
+    /// return a mutable reference to the state from an immutable reference.
+    #[allow(clippy::mut_from_ref)]
     fn require_rule_impl(
         &self,
-    ) -> starlark::Result<&crate::CtxState<<Self::Session as Session>::TargetRef>>;
-
-    /// Asserts that the evaluator is executing a rule implementation, and
-    /// returns the mutable state of the rule implementation.
-    fn require_rule_impl_mut(
-        &mut self,
     ) -> starlark::Result<&mut crate::CtxState<<Self::Session as Session>::TargetRef>>;
 }
 
-/// Extension trait to add the methods `.context` and `.context_mut` to the
+/// Extension trait to add the methods `.context` and `.set_context` to the
 /// starlark Evaluator.
 pub trait EvaluatorContextExt<'v, 'a, 'e> {
     /// Returns a reference to the evaluation context.
     fn context<C: EvalContext>(&self) -> &C;
 
-    /// Returns a mutable reference to the evaluation context.
-    fn context_mut<C: EvalContext>(&mut self) -> &mut C;
-
     /// Sets the evaluation context on the evaluator.
-    fn set_context<C: EvalContext>(&mut self, context: &'a mut C);
+    fn set_context<C: EvalContext>(&mut self, context: &'a C);
 }
 
 impl<'v, 'a, 'e> EvaluatorContextExt<'v, 'a, 'e> for starlark::eval::Evaluator<'v, 'a, 'e> {
     #[inline]
     fn context<C: EvalContext>(&self) -> &C {
-        let extra = self.extra_mut.as_ref();
+        let extra = self.extra.as_ref();
         debug_assert!(extra.is_some(), "evaluator context not set");
         let dyn_any = unsafe { extra.unwrap_unchecked() };
         debug_assert!(dyn_any.is::<C>(), "failed to downcast evaluator context");
@@ -81,16 +74,7 @@ impl<'v, 'a, 'e> EvaluatorContextExt<'v, 'a, 'e> for starlark::eval::Evaluator<'
     }
 
     #[inline]
-    fn context_mut<C: EvalContext>(&mut self) -> &mut C {
-        let extra = self.extra_mut.as_mut();
-        debug_assert!(extra.is_some(), "evaluator context not set");
-        let dyn_any = unsafe { extra.unwrap_unchecked() };
-        debug_assert!(dyn_any.is::<C>(), "failed to downcast evaluator context");
-        unsafe { dyn_any.downcast_mut::<C>().unwrap_unchecked() }
-    }
-
-    #[inline]
-    fn set_context<C: EvalContext>(&mut self, context: &'a mut C) {
-        self.extra_mut = Some(context);
+    fn set_context<C: EvalContext>(&mut self, context: &'a C) {
+        self.extra = Some(context);
     }
 }

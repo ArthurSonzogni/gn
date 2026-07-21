@@ -119,12 +119,12 @@ impl<'v> Depset<'v> {
     pub fn new_file_depset<C: types::EvalContext>(
         direct: Vec<File>,
         heap: &Heap<'v>,
-        ctx: &mut C,
+        ctx: &C,
     ) -> starlark::Result<Self> {
         let phony = if direct.len() == 1 {
             Some(direct[0].clone())
         } else if !direct.is_empty() {
-            Some(ctx.require_rule_impl_mut()?.new_phony(direct.clone()))
+            Some(ctx.require_rule_impl()?.new_phony(direct.clone()))
         } else {
             None
         };
@@ -358,7 +358,8 @@ mod tests {
         let mut upto_phony = 0;
         // Collect the phonies we've seen since last time we called new_phonies.
         let mut new_phonies = |a: &Assert| {
-            let phonies = &a.context().rule_state.phonies;
+            use types::EvalContext as _;
+            let phonies = &a.context().require_rule_impl().unwrap().phonies;
             let result = &phonies[upto_phony..];
             upto_phony = phonies.len();
             result.to_vec()

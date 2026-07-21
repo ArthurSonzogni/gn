@@ -34,16 +34,15 @@ impl Assert {
         // forces the framework to run the code only once (specifically,
         // under the "always GC" configuration), ensuring state is mutated only once.
         assert.always_gc();
-        let mut context = Box::new(context);
-        let context_ptr = &mut *context as *mut FakeEvalContext;
+        let context = Box::new(context);
+        let context_ptr = &*context as *const FakeEvalContext;
 
         assert.setup_eval(move |eval| {
             // Safety: The context is owned by Assert, which outlives the evaluator run.
             // Since all evaluation methods on Assert require `&mut self`, this guarantees
             // exclusive access to `context` when the evaluator runs, so dereferencing
             // this pointer is safe and does not alias.
-            let context_mut = unsafe { &mut *context_ptr };
-            eval.set_context(context_mut);
+            eval.set_context(unsafe { &*context_ptr });
         });
 
         let mut s = Self {

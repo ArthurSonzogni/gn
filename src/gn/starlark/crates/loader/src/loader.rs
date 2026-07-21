@@ -171,10 +171,10 @@ impl FileLoader {
 
         let loader = PreloadedLoader { modules: &deps_map };
         Module::with_temp_heap(|module| {
-            let mut extra = make_eval_context(label.package());
+            let extra = make_eval_context(label.package());
             {
                 let mut eval = Evaluator::new(&module);
-                eval.set_context(&mut *extra);
+                eval.set_context(&*extra);
                 eval.set_loader(&loader);
                 eval.eval_module(ast, globals)?;
             }
