@@ -78,3 +78,7 @@ impl<'v, 'a, 'e> EvaluatorContextExt<'v, 'a, 'e> for starlark::eval::Evaluator<'
         self.extra = Some(context);
     }
 }
+
+pub trait CtxMethods {
+    fn methods() -> &'static starlark::environment::Methods;
+}

@@ -19,4 +19,4 @@ pub use ctx::{CtxAttr, CtxAttrSchema};
 pub(crate) use errors::Error;
 pub use globals::{AttrModule, AttrSpecArgs};
 pub use schema::{AllowFilesSchema, AttrKind, AttrSchema};
-pub use traits::{EvalContext, EvalContextAttrExt, Session, TargetRef};
+pub use traits::{EvalContext, EvalContextAttrExt, Session, TargetAttrExt, TargetRef};

@@ -4,13 +4,20 @@
 
 /// Errors returned by the GN Starlark rule system.
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum Error {
+pub enum Error {
     #[error("Rule must be assigned to a global variable to be used")]
     RuleMustBeNamed,
     #[error("Parent must be a rule")]
     ParentMustBeARule,
     #[error("Attribute '{0}' is reserved")]
     ReservedAttribute(String),
+    #[error("Rule does not have a parent rule")]
+    NoParentRule,
+    #[error(
+        "The '{0}' object is ephemeral and cannot be stored in providers or other long-lived \
+         structures."
+    )]
+    ObjectUnfreezable(&'static str),
 }
 
 impl From<Error> for starlark::Error {

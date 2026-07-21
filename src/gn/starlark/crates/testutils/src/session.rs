@@ -10,6 +10,7 @@ use types::{Label, LabelRef, PackageRef, TargetRef};
 use crate::{FakeTarget, FakeTargetRef};
 
 /// A fake implementation of the `Session` trait for testing.
+#[derive(Clone)]
 pub struct FakeSession {
     /// The preconfigured default toolchain label.
     pub default_toolchain: Label,
@@ -80,12 +81,18 @@ impl Session for FakeSession {
     type TargetRef = FakeTargetRef;
 
     fn get_target(&self, label: LabelRef<'_>, current_toolchain: LabelRef<'_>) -> Self::TargetRef {
-        self.targets
-            .borrow()
+        let targets = self.targets.borrow();
+        if let Some(target) = targets
             .iter()
             .find(|target| target.label() == label && target.toolchain() == current_toolchain)
-            .unwrap()
-            .clone()
+        {
+            target.clone()
+        } else {
+            panic!(
+                "get_target failed to find label: {:?}, toolchain: {:?}. Available targets: {:?}",
+                label, current_toolchain, targets
+            );
+        }
     }
 
     fn register_dependency<'a>(

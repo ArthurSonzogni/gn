@@ -5,6 +5,13 @@
 /// Re-export the traits from types so caller crates can access them seamlessly.
 pub use types::{EvalContext, OutputType, Session, TargetRef};
 
+/// Represents a target with attributes that can be executed by custom Starlark
+/// rules.
+pub trait TargetAttrExt: TargetRef {
+    /// Returns the resolved custom attributes of the target.
+    fn attrs(&self) -> &[crate::Attr];
+}
+
 /// Extension trait for EvalContext to support target creation.
 pub trait EvalContextAttrExt: types::EvalContext {
     fn create_target(

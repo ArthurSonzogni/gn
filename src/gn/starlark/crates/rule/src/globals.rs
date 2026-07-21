@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use attr::traits::EvalContextAttrExt;
+use attr::{traits::EvalContextAttrExt, TargetAttrExt};
 use starlark::{
     environment::{FrozenModule, Module},
     values::FrozenHeapName,
@@ -20,7 +20,10 @@ use crate::{FrozenRule, OutputType};
 ///   sources = [...],
 ///   ...
 /// )
-pub fn register_builtin_rules<C: EvalContextAttrExt>() -> FrozenModule {
+pub fn register_builtin_rules<C: EvalContextAttrExt>() -> FrozenModule
+where
+    <C::Session as types::Session>::TargetRef: TargetAttrExt,
+{
     Module::with_temp_heap(|module| {
         for output_type in OutputType::iter() {
             let name = output_type.to_string();
@@ -78,31 +81,9 @@ macro_rules! register_rule_globals {
 #[cfg(test)]
 pub(crate) mod tests {
     use starlark::values::list::UnpackList;
-    use testutils::FakeEvalContext;
-
-    pub(crate) fn make_attr_schema<'v>(
-        kind: attr::AttrKind,
-        args: attr::AttrSpecArgs<'v>,
-        eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
-    ) -> starlark::Result<starlark::values::Value<'v>> {
-        attr::AttrSchema::create(
-            kind,
-            args,
-            types::PackageRef::root(),
-            &types::PathResolver::new_for_testing(),
-            &eval.heap(),
-        )
-    }
 
     pub(crate) fn new_assert() -> testutils::Assert {
-        let mut assert = testutils::Assert::default();
-        assert.modify_globals(|builder| {
-            crate::register_rule_globals!(builder, FakeEvalContext);
-            builder.set("attr", attr::AttrModule { make_attr_schema });
-        });
-        let builtins = crate::register_builtin_rules::<FakeEvalContext>();
-        assert.module_add(builtins);
-        assert
+        testutils::Assert::new_rule_assert()
     }
 
     #[test]
