@@ -51,7 +51,7 @@ pub struct FrozenProviderType {
     /// The unique type identifier.
     pub(crate) id: TypeInstanceId,
     /// The configured provider fields.
-    pub(crate) data: Option<ProviderTypeData>,
+    pub(crate) data: ProviderTypeData,
     /// A mapping from field name to index.
     /// This is akin to python's `__slots__`.
     pub(crate) fields: SmallMap<String, usize>,
@@ -122,17 +122,17 @@ impl<'v> StarlarkValue<'v> for FrozenProviderType {
     ) -> starlark::Result<Value<'v>> {
         // Safety: `me` is the receiver of type `FrozenProviderType`, which is
         // guaranteed to be frozen.
-        let provider_type =
+        let provider_type: FrozenValueTyped<'static, Self> =
             unsafe { FrozenValueTyped::new_unchecked(me.unpack_frozen().unwrap_unchecked()) };
 
-        let data = self.data.as_ref().ok_or(Error::ProviderNotExported)?;
+        let data = &self.data;
         data.parameter_spec
             .parser(args, eval, |param_parser, eval| {
                 let values: Box<[Option<Value<'v>>]> = (0..self.fields.len())
                     .map(|_| param_parser.next_opt::<Value<'v>>())
                     .collect::<starlark::Result<_>>()?;
                 Ok(eval.heap().alloc_complex(ProviderInstance {
-                    provider_type,
+                    provider_type: provider_type.as_ref(),
                     values,
                 }))
             })
@@ -161,9 +161,13 @@ impl Freeze for ProviderType {
     type Frozen = FrozenProviderType;
 
     fn freeze(self, _freezer: &Freezer) -> FreezeResult<Self::Frozen> {
+        let data = self
+            .data
+            .into_inner()
+            .ok_or(Error::ProviderNotExported)?;
         Ok(FrozenProviderType {
             id: self.id,
-            data: self.data.into_inner(),
+            data,
             fields: self.fields,
         })
     }
@@ -235,13 +239,8 @@ p = provider(fields=['a'])
     #[test]
     fn test_unexported_provider_fails_to_call() {
         let mut a = new_assert();
-        let unexported = a.pass("x = [provider(fields=['a'])]; x");
-        a.modify_globals(move |builder| {
-            builder.set("x", unexported.clone());
-        });
-
-        a.fail(
-            "MyInfo = x[0]; MyInfo()",
+        a.fail_to_freeze(
+            "x = [provider(fields=['a'])]; x",
             "The result of provider() must be assigned to a variable",
         );
     }

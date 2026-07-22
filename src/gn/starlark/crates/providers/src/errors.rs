@@ -19,6 +19,12 @@ pub(crate) enum Error {
     ProviderNotFrozen,
 }
 
+impl From<Error> for starlark::values::FreezeError {
+    fn from(err: Error) -> Self {
+        Self::new(err.to_string())
+    }
+}
+
 impl From<Error> for starlark::Error {
     fn from(err: Error) -> Self {
         Self::new_other(err)

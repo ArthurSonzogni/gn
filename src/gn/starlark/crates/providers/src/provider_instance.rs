@@ -11,7 +11,8 @@ use starlark::{
     collections::{Hashed, StarlarkHasher},
     starlark_complex_value,
     values::{
-        Freeze, FrozenValueTyped, Heap, StarlarkValue, Trace, Value, ValueLifetimeless, ValueLike,
+        Freeze, FreezeResult, Freezer, Heap, StarlarkValue, Trace, Value, ValueLifetimeless,
+        ValueLike,
     },
 };
 use starlark_derive::{starlark_value, NoSerialize};
@@ -19,11 +20,31 @@ use starlark_derive::{starlark_value, NoSerialize};
 use crate::provider_type::FrozenProviderType;
 
 /// Represents an instance of a provider.
-#[derive(Clone, Trace, Coerce, Freeze, ProvidesStaticType, Allocative, NoSerialize)]
+#[derive(Clone, Trace, Coerce, ProvidesStaticType, Allocative, NoSerialize)]
 #[repr(C)]
 pub struct ProviderInstanceGen<V: ValueLifetimeless> {
-    pub(crate) provider_type: FrozenValueTyped<'static, FrozenProviderType>,
+    pub(crate) provider_type: &'static FrozenProviderType,
     pub(crate) values: Box<[Option<V>]>,
+}
+
+impl<V: ValueLifetimeless + Freeze> Freeze for ProviderInstanceGen<V>
+where
+    V::Frozen: ValueLifetimeless,
+{
+    type Frozen = ProviderInstanceGen<V::Frozen>;
+
+    fn freeze(self, freezer: &Freezer) -> FreezeResult<Self::Frozen> {
+        Ok(ProviderInstanceGen {
+            provider_type: self.provider_type,
+            values: self
+                .values
+                .into_vec()
+                .into_iter()
+                .map(|v| v.freeze(freezer))
+                .collect::<Result<Vec<_>, _>>()?
+                .into_boxed_slice(),
+        })
+    }
 }
 
 starlark_complex_value!(pub ProviderInstance);
@@ -32,9 +53,6 @@ impl<'v, V: ValueLike<'v>> ProviderInstanceGen<V>
 where
     Self: ProvidesStaticType<'v>,
 {
-    pub(crate) fn ty(&self) -> &'v FrozenProviderType {
-        self.provider_type.as_ref()
-    }
 
     pub(crate) fn ty_name(&self) -> &'static str {
         self.get_type_value_dyn().as_str()
@@ -44,7 +62,7 @@ where
     where
         'v: 'a,
     {
-        let fields = &self.ty().fields;
+        let fields = &self.provider_type.fields;
         fields
             .iter()
             .filter_map(move |(name, &idx)| self.values[idx].map(|val| (name.as_str(), val)))
@@ -93,15 +111,14 @@ where
     type Canonical = FrozenProviderInstance;
 
     fn get_type_value_dyn(&self) -> starlark::values::FrozenStringValue {
-        // Safety: ProviderInstance is only constructed when the provider is exported.
-        unsafe { self.ty().data.as_ref().unwrap_unchecked().name }
+        self.provider_type.data.name
     }
 
     fn equals(&self, other: Value<'v>) -> starlark::Result<bool> {
         let Some(other) = ProviderInstance::from_value(other) else {
             return Ok(false);
         };
-        if self.ty().id != other.ty().id {
+        if self.provider_type.id != other.provider_type.id {
             return Ok(false);
         }
         for (v1, v2) in self.values.iter().zip(other.values.iter()) {
@@ -132,7 +149,7 @@ where
     }
 
     fn get_attr_hashed(&self, attribute: Hashed<&str>, _heap: Heap<'v>) -> Option<Value<'v>> {
-        let &i = self.ty().fields.get_hashed(attribute)?;
+        let &i = self.provider_type.fields.get_hashed(attribute)?;
         self.values[i].map(|v| v.to_value())
     }
 
@@ -149,7 +166,7 @@ where
     }
 
     fn dir_attr(&self) -> Vec<String> {
-        let fields = &self.ty().fields;
+        let fields = &self.provider_type.fields;
         fields
             .iter()
             .filter_map(|(name, &idx)| {
