@@ -1,7 +1,7 @@
 // Copyright 2026 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-use std::{cell::UnsafeCell, collections::HashMap};
+use std::{cell::UnsafeCell, collections::HashMap, rc::Rc};
 
 use attr::{Attr, EvalContext as AttrEvalContext, EvalContextAttrExt, Session as AttrSession};
 use starlark::{
@@ -10,6 +10,7 @@ use starlark::{
 };
 use types::{
     CtxState, Label, LabelRef, OutputType, Package, PackageRef, PathResolver, Scope, Session,
+    TargetRef,
 };
 
 use crate::{FakeSession, FakeTarget, FakeTargetRef};
@@ -48,7 +49,7 @@ pub struct FakeEvalContext {
     pub current_toolchain: Label,
     /// The fake starlark session.
     #[allocative(skip)]
-    pub session: FakeSession,
+    pub session: Rc<FakeSession>,
     /// The fake path resolver.
     #[allocative(skip)]
     pub path_resolver: PathResolver,
@@ -64,22 +65,26 @@ unsafe impl<'v> ProvidesStaticType<'v> for FakeEvalContext {
     type StaticType = Self;
 }
 
-impl Default for FakeEvalContext {
-    fn default() -> Self {
-        Self::new("//")
-    }
-}
-
 impl FakeEvalContext {
+    /// Creates a new eval context for a given session.
+    pub fn default_rule_impl(session: Rc<FakeSession>) -> Self {
+        Self::rule_impl(session.clone(), session.default_target())
+    }
+
     /// Creates a new `FakeEvalContext` for a given package name.
-    pub fn new(package: &str) -> Self {
-        let session = FakeSession::new();
+    pub fn new(package: &PackageRef, name: &str) -> Self {
+        let session = Rc::new(FakeSession::default());
+        let dummy_target = session.insert_empty_target(package, name);
+        Self::rule_impl(session, dummy_target)
+    }
+
+    pub fn rule_impl(session: Rc<FakeSession>, target: FakeTargetRef) -> Self {
         Self {
-            package: PackageRef::new(package).unwrap().to_owned(),
-            current_toolchain: session.default_toolchain.clone(),
+            package: target.label().package().to_owned(),
+            current_toolchain: target.toolchain().to_owned(),
             session,
             path_resolver: PathResolver::new_for_testing(),
-            rule_state: CtxState::new(FakeTargetRef::default()).into(),
+            rule_state: CtxState::new(target).into(),
             scope: FakeScope::default(),
         }
     }
@@ -129,15 +134,16 @@ impl EvalContextAttrExt for FakeEvalContext {
         attrs: Vec<Attr>,
     ) -> Result<<Self::Session as AttrSession>::TargetRef> {
         let label = Label::new(self.package.clone(), target_name.to_owned());
-        let target = FakeTargetRef::new(FakeTarget {
+        let toolchain = self.current_toolchain().to_owned();
+        Ok(self.session.insert_target(FakeTarget {
+            label,
+            toolchain,
             output_type: target_type,
             rule,
             cxx_attrs: scope.0.clone(),
             outputs: vec![],
             attrs,
-            ..Default::default()
-        });
-        self.session.insert_target(label, target.clone());
-        Ok(target)
+            dependencies: Default::default(),
+        }))
     }
 }

@@ -239,7 +239,7 @@ mod tests {
         values::{list::UnpackList, UnpackValue as _, ValueLike as _},
     };
     use testutils::{FakeSession, FakeTarget, FakeTargetRef};
-    use types::{Label, PackageRef};
+    use types::PackageRef;
 
     use super::*;
     use crate::{
@@ -280,10 +280,13 @@ mod tests {
     #[test]
     fn test_to_value_label_no_files() {
         let session = FakeSession::new();
-        let target_label = Label::new(
-            PackageRef::new("//foo").unwrap().to_owned(),
-            "bar".to_owned(),
-        );
+        let file1 = File::new("foo.txt");
+
+        let target_empty = session.insert_empty_target(PackageRef::new("//foo").unwrap(), "empty");
+        let target_outputs = session.insert_target(FakeTarget {
+            outputs: vec![file1.clone()],
+            ..session.empty_target(PackageRef::new("//foo").unwrap(), "outputs")
+        });
 
         let schema = AttrSchema {
             kind: AttrKind::Label,
@@ -296,15 +299,17 @@ mod tests {
 
         Module::with_temp_heap(|module| {
             let heap = module.heap();
-            let AttrValue { attr, file, files } =
-                Attr::Label(Some(crate::LabelOrFile::Label(target_label.clone())))
-                    .to_value(
-                        &schema,
-                        &session,
-                        &session.default_toolchain.as_ref(),
-                        &heap,
-                    )
-                    .unwrap();
+
+            let AttrValue { attr, file, files } = Attr::Label(Some(crate::LabelOrFile::Label(
+                target_empty.label().to_owned(),
+            )))
+            .to_value(
+                &schema,
+                &session,
+                &session.default_toolchain.as_ref(),
+                &heap,
+            )
+            .unwrap();
 
             // The resolved value should be the Target object
             let resolved_target = attr.downcast_ref::<FakeTargetRef>().unwrap();
@@ -321,24 +326,16 @@ mod tests {
 
             // Target has outputs -> they should be collected to files even when allow_files
             // is None.
-            let file1 = File::new("foo.txt");
-            session.insert_target(
-                target_label.clone(),
-                FakeTargetRef::new(FakeTarget {
-                    outputs: vec![file1.clone()],
-                    ..Default::default()
-                }),
-            );
-
-            let AttrValue { files, file, .. } =
-                Attr::Label(Some(crate::LabelOrFile::Label(target_label.clone())))
-                    .to_value(
-                        &schema,
-                        &session,
-                        &session.default_toolchain.as_ref(),
-                        &heap,
-                    )
-                    .unwrap();
+            let AttrValue { files, file, .. } = Attr::Label(Some(crate::LabelOrFile::Label(
+                target_outputs.label().to_owned(),
+            )))
+            .to_value(
+                &schema,
+                &session,
+                &session.default_toolchain.as_ref(),
+                &heap,
+            )
+            .unwrap();
 
             assert_eq!(
                 UnpackList::<&File>::unpack_value_err(files.unwrap())
@@ -353,20 +350,15 @@ mod tests {
     #[test]
     fn test_to_value_label_allow_files_many() {
         let session = FakeSession::new();
-        let target_label = Label::new(
-            PackageRef::new("//foo").unwrap().to_owned(),
-            "bar".to_owned(),
-        );
         let label_only_file = File::new("label_only.cc");
         let overlap = File::new("overlap.cc");
         let file_only_file = File::new("file_only.cc");
 
         // Target outputs out.cc and overlap.h
-        let dep = FakeTargetRef::new(FakeTarget {
+        let dep = session.insert_target(FakeTarget {
             outputs: vec![label_only_file.clone(), overlap.clone()],
-            ..Default::default()
+            ..session.empty_target(PackageRef::new("//foo").unwrap(), "dep")
         });
-        session.insert_target(target_label.clone(), dep.clone());
 
         let schema = AttrSchema {
             kind: AttrKind::LabelList,
@@ -380,7 +372,7 @@ mod tests {
         Module::with_temp_heap(|module| {
             let heap = module.heap();
             let AttrValue { attr, file, files } = Attr::LabelList(vec![
-                crate::LabelOrFile::Label(target_label.clone()),
+                crate::LabelOrFile::Label(dep.label().to_owned()),
                 crate::LabelOrFile::File(file_only_file.clone()),
                 crate::LabelOrFile::File(overlap.clone()),
             ])
@@ -419,11 +411,17 @@ mod tests {
     #[test]
     fn test_to_value_label_allow_files_single() {
         let session = FakeSession::new();
-        let target_label = Label::new(
-            PackageRef::new("//foo").unwrap().to_owned(),
-            "bar".to_owned(),
-        );
         let file1 = File::new("out.cc");
+
+        let target_single = session.insert_target(FakeTarget {
+            outputs: vec![file1.clone()],
+            ..session.empty_target(PackageRef::new("//foo").unwrap(), "single")
+        });
+        let target_two = session.insert_target(FakeTarget {
+            outputs: vec![file1.clone(), File::new("out.h")],
+            ..session.empty_target(PackageRef::new("//foo").unwrap(), "two")
+        });
+        let target_empty = session.insert_empty_target(PackageRef::new("//foo").unwrap(), "empty");
 
         let schema = AttrSchema {
             kind: AttrKind::Label,
@@ -438,16 +436,8 @@ mod tests {
             let heap = module.heap();
 
             // Target has exactly 1 output file -> succeeds
-            session.insert_target(
-                target_label.clone(),
-                FakeTargetRef::new(FakeTarget {
-                    outputs: vec![file1.clone()],
-                    ..Default::default()
-                }),
-            );
-
             let path_resolver = types::PathResolver::new_for_testing();
-            let starlark_val = heap.alloc(":bar");
+            let starlark_val = heap.alloc(":single");
             let attr = Attr::create(
                 &schema,
                 Some(starlark_val),
@@ -456,7 +446,7 @@ mod tests {
             )
             .unwrap();
 
-            let source_target = FakeTargetRef::default();
+            let source_target = session.insert_empty_target(PackageRef::root(), "source");
             attr.register_dependencies(
                 &session,
                 source_target.clone(),
@@ -465,7 +455,10 @@ mod tests {
 
             assert_eq!(
                 source_target.registered_deps(),
-                HashSet::from([(target_label.clone(), session.default_toolchain.clone())])
+                HashSet::from([(
+                    target_single.label().to_owned(),
+                    session.default_toolchain.clone()
+                )])
             );
 
             let AttrValue {
@@ -521,15 +514,10 @@ mod tests {
             );
 
             // Target has 2 outputs -> fails
-            session.insert_target(
-                target_label.clone(),
-                FakeTargetRef::new(FakeTarget {
-                    outputs: vec![file1.clone(), File::new("out.h")],
-                    ..Default::default()
-                }),
-            );
-
-            let res = Attr::Label(Some(crate::LabelOrFile::Label(target_label.clone()))).to_value(
+            let res = Attr::Label(Some(crate::LabelOrFile::Label(
+                target_two.label().to_owned(),
+            )))
+            .to_value(
                 &schema,
                 &session,
                 &session.default_toolchain.as_ref(),
@@ -537,28 +525,22 @@ mod tests {
             );
             assert_eq!(
                 res.unwrap_err().to_string(),
-                "target `//foo:bar` must produce a single output file"
+                "target `//foo:two` must produce a single output file"
             );
 
             // Target has no outputs -> fails
-            session.insert_target(
-                target_label.clone(),
-                FakeTargetRef::new(FakeTarget {
-                    outputs: vec![],
-                    ..Default::default()
-                }),
+            let res_empty = Attr::Label(Some(crate::LabelOrFile::Label(
+                target_empty.label().to_owned(),
+            )))
+            .to_value(
+                &schema,
+                &session,
+                &session.default_toolchain.as_ref(),
+                &heap,
             );
-
-            let res_empty = Attr::Label(Some(crate::LabelOrFile::Label(target_label.clone())))
-                .to_value(
-                    &schema,
-                    &session,
-                    &session.default_toolchain.as_ref(),
-                    &heap,
-                );
             assert_eq!(
                 res_empty.unwrap_err().to_string(),
-                "target `//foo:bar` must produce a single output file"
+                "target `//foo:empty` must produce a single output file"
             );
         });
     }
@@ -566,10 +548,7 @@ mod tests {
     #[test]
     fn test_to_value_label_keyed_string_dict() {
         let session = FakeSession::new();
-        let target_label = Label::new(
-            PackageRef::new("//foo").unwrap().to_owned(),
-            "bar".to_owned(),
-        );
+        let target = session.insert_empty_target(PackageRef::new("//foo").unwrap(), "bar");
 
         let schema = AttrSchema {
             kind: AttrKind::LabelKeyedStringDict,
@@ -582,17 +561,10 @@ mod tests {
 
         Module::with_temp_heap(|module| {
             let heap = module.heap();
-            session.insert_target(
-                target_label.clone(),
-                FakeTargetRef::new(FakeTarget {
-                    outputs: vec![],
-                    ..Default::default()
-                }),
-            );
 
             let mut dict = SmallMap::new();
             dict.insert(
-                crate::LabelOrFile::Label(target_label.clone()),
+                crate::LabelOrFile::Label(target.label().to_owned()),
                 "value1".to_owned(),
             );
 
@@ -619,10 +591,17 @@ mod tests {
     #[test]
     fn test_to_value_label_allow_files_matching() {
         let session = FakeSession::new();
-        let target_label = Label::new(
-            PackageRef::new("//foo").unwrap().to_owned(),
-            "bar".to_owned(),
-        );
+        let file1 = File::new("foo.cc");
+        let file2 = File::new("foo.h");
+
+        let target_matching = session.insert_target(FakeTarget {
+            outputs: vec![file1.clone(), file2.clone()],
+            ..session.empty_target(PackageRef::new("//foo").unwrap(), "matching")
+        });
+        let target_no_matching = session.insert_target(FakeTarget {
+            outputs: vec![file2.clone()],
+            ..session.empty_target(PackageRef::new("//foo").unwrap(), "no_matching")
+        });
 
         let schema = AttrSchema {
             kind: AttrKind::Label,
@@ -638,25 +617,16 @@ mod tests {
 
             // Target outputs foo.cc and foo.h -> succeeds (at least one matches) and both
             // files are collected
-            let file1 = File::new("foo.cc");
-            let file2 = File::new("foo.h");
-            session.insert_target(
-                target_label.clone(),
-                FakeTargetRef::new(FakeTarget {
-                    outputs: vec![file1.clone(), file2.clone()],
-                    ..Default::default()
-                }),
-            );
-
-            let AttrValue { files, .. } =
-                Attr::Label(Some(crate::LabelOrFile::Label(target_label.clone())))
-                    .to_value(
-                        &schema,
-                        &session,
-                        &session.default_toolchain.as_ref(),
-                        &heap,
-                    )
-                    .unwrap();
+            let AttrValue { files, .. } = Attr::Label(Some(crate::LabelOrFile::Label(
+                target_matching.label().to_owned(),
+            )))
+            .to_value(
+                &schema,
+                &session,
+                &session.default_toolchain.as_ref(),
+                &heap,
+            )
+            .unwrap();
 
             assert_eq!(
                 UnpackList::<&File>::unpack_value_err(files.unwrap())
@@ -666,15 +636,10 @@ mod tests {
             );
 
             // Target outputs only foo.h -> fails (no matching outputs)
-            session.insert_target(
-                target_label.clone(),
-                FakeTargetRef::new(FakeTarget {
-                    outputs: vec![file2.clone()],
-                    ..Default::default()
-                }),
-            );
-
-            let res = Attr::Label(Some(crate::LabelOrFile::Label(target_label.clone()))).to_value(
+            let res = Attr::Label(Some(crate::LabelOrFile::Label(
+                target_no_matching.label().to_owned(),
+            )))
+            .to_value(
                 &schema,
                 &session,
                 &session.default_toolchain.as_ref(),
@@ -683,7 +648,7 @@ mod tests {
 
             assert_eq!(
                 res.unwrap_err().to_string(),
-                "target `//foo:bar` does not produce any outputs matching allowed extensions: [\".cc\"]"
+                "target `//foo:no_matching` does not produce any outputs matching allowed extensions: [\".cc\"]"
             );
         });
     }

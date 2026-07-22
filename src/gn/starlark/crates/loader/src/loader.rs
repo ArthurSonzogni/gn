@@ -96,7 +96,7 @@ impl FileLoader {
 
     /// Loads, parses, compiles, and evaluates a Starlark module, resolving
     /// dependencies recursively and caching the result.
-    pub fn load<'b, C: EvalContext, F: Fn(&PackageRef) -> Box<C>>(
+    pub fn load<'b, C: EvalContext, F: Fn(&PackageRef) -> C>(
         &self,
         label: LabelRef<'b>,
         path_resolver: &PathResolver,
@@ -130,7 +130,7 @@ impl FileLoader {
         self.set_complete(&file_status, result)
     }
 
-    fn load_and_evaluate<'b, C: EvalContext, F: Fn(&PackageRef) -> Box<C>>(
+    fn load_and_evaluate<'b, C: EvalContext, F: Fn(&PackageRef) -> C>(
         &self,
         label: LabelRef<'b>,
         label_str: &str,
@@ -174,7 +174,7 @@ impl FileLoader {
             let extra = make_eval_context(label.package());
             {
                 let mut eval = Evaluator::new(&module);
-                eval.set_context(&*extra);
+                eval.set_context(&extra);
                 eval.set_loader(&loader);
                 eval.eval_module(ast, globals)?;
             }
@@ -239,13 +239,15 @@ impl StarlarkFileLoader for PreloadedLoader<'_> {
 
 #[cfg(test)]
 mod tests {
-    use testutils::FakeEvalContext;
+    use std::rc::Rc;
+
+    use testutils::{FakeEvalContext, FakeSession};
     use types::Label;
 
     use super::*;
 
-    fn make_eval_context(pkg: &PackageRef) -> Box<FakeEvalContext> {
-        Box::new(FakeEvalContext::new(pkg.as_str()))
+    fn make_eval_context(_pkg: &PackageRef) -> FakeEvalContext {
+        FakeEvalContext::default_rule_impl(Rc::new(FakeSession::default()))
     }
 
     fn load(loader: &FileLoader, label_str: &str) -> starlark::Result<FrozenModule> {

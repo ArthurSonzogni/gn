@@ -155,7 +155,7 @@ mod tests {
     use attr::{Attr, LabelOrFile};
     use starlark::environment::FrozenModule;
     use testutils::FakeTarget;
-    use types::{Label, OutputType, PackageRef};
+    use types::{Label, OutputType, PackageRef, Session};
 
     use crate::globals::tests::new_assert;
 
@@ -215,18 +215,18 @@ child_rule(
         );
 
         let context = assert.context();
-        let targets_lock = context.session.targets.lock().unwrap();
         let load = |name: &str| {
             let label = Label::new(PackageRef::root().to_owned(), name.to_owned());
-            targets_lock
-                .get(&(label, context.session.default_toolchain.clone()))
-                .unwrap()
-                .get()
+            context
+                .session
+                .get_target(label.as_ref(), context.session.default_toolchain.as_ref())
         };
 
         assert_eq!(
             *load("shared_library"),
             FakeTarget {
+                label: Label::new(PackageRef::root().to_owned(), "shared_library".to_owned()),
+                toolchain: context.session.default_toolchain.clone(),
                 outputs: vec![],
                 attrs: vec![
                     Attr::String("optional_val".to_owned()),
@@ -242,6 +242,8 @@ child_rule(
         assert_eq!(
             *load("static_library"),
             FakeTarget {
+                label: Label::new(PackageRef::root().to_owned(), "static_library".to_owned()),
+                toolchain: context.session.default_toolchain.clone(),
                 outputs: vec![],
                 attrs: vec![Attr::String("optional_val".to_owned())],
                 output_type: Some(OutputType::StaticLibrary),
@@ -259,6 +261,8 @@ child_rule(
         assert_eq!(
             *load("parent_defaulted"),
             FakeTarget {
+                label: Label::new(PackageRef::root().to_owned(), "parent_defaulted".to_owned()),
+                toolchain: toolchain.clone(),
                 outputs: vec![],
                 attrs: vec![
                     Attr::String("p".to_owned()),
@@ -280,6 +284,8 @@ child_rule(
         assert_eq!(
             *load("child_defaulted"),
             FakeTarget {
+                label: Label::new(PackageRef::root().to_owned(), "child_defaulted".to_owned()),
+                toolchain: toolchain.clone(),
                 outputs: vec![],
                 attrs: vec![
                     Attr::String("p".to_owned()),
@@ -302,6 +308,8 @@ child_rule(
         assert_eq!(
             *load("child_override"),
             FakeTarget {
+                label: Label::new(PackageRef::root().to_owned(), "child_override".to_owned()),
+                toolchain: toolchain.clone(),
                 outputs: vec![],
                 attrs: vec![
                     Attr::String("parent_val".to_owned()),

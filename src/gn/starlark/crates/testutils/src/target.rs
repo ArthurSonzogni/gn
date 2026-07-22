@@ -4,7 +4,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    hash::Hasher,
+    ops::Deref,
     sync::{Arc, Mutex},
 };
 
@@ -20,8 +20,10 @@ use types::{
 };
 
 /// A fake target struct for testing.
-#[derive(Debug, Allocative, Default)]
+#[derive(Allocative, Debug)]
 pub struct FakeTarget {
+    pub label: Label,
+    pub toolchain: Label,
     /// A list of fake files returned as outputs of the target.
     pub outputs: Vec<File>,
     /// A list of attributes.
@@ -37,7 +39,9 @@ pub struct FakeTarget {
 
 impl PartialEq for FakeTarget {
     fn eq(&self, other: &Self) -> bool {
-        self.outputs == other.outputs
+        self.label == other.label
+            && self.toolchain == other.toolchain
+            && self.outputs == other.outputs
             && self.attrs == other.attrs
             && self.output_type == other.output_type
             && self.rule == other.rule
@@ -51,17 +55,12 @@ impl PartialEq for FakeTarget {
             && *self.dependencies.lock().unwrap() == *other.dependencies.lock().unwrap()
     }
 }
+
 impl Eq for FakeTarget {}
 
 /// A reference to a fake target.
 #[derive(Debug, ProvidesStaticType, NoSerialize, Allocative, Clone)]
 pub struct FakeTargetRef(#[allocative(skip)] Arc<FakeTarget>);
-
-impl Default for FakeTargetRef {
-    fn default() -> Self {
-        Self::new(FakeTarget::default())
-    }
-}
 
 impl FakeTargetRef {
     /// Creates a new `FakeTargetRef` containing the given `FakeTarget`.
@@ -76,20 +75,21 @@ impl FakeTargetRef {
 
     /// Returns the registered dependencies of this target.
     pub fn registered_deps(&self) -> HashSet<(Label, Label)> {
-        self.get().dependencies.lock().unwrap().clone()
+        self.dependencies.lock().unwrap().clone()
     }
 }
 
 impl PartialEq for FakeTargetRef {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
+        self.label == other.label && self.toolchain == other.toolchain
     }
 }
 impl Eq for FakeTargetRef {}
 
 impl std::hash::Hash for FakeTargetRef {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Arc::as_ptr(&self.0).hash(state);
+        self.label.hash(state);
+        self.toolchain.hash(state);
     }
 }
 
@@ -107,7 +107,7 @@ impl IPromiseToImplementStarlarkEqAndHash for FakeTargetRef {}
 impl<'v> StarlarkValue<'v> for FakeTargetRef {
     fn equals(&self, other: Value<'v>) -> starlark::Result<bool> {
         if let Some(other) = other.downcast_ref::<Self>() {
-            Ok(Arc::ptr_eq(&self.0, &other.0))
+            Ok(self == other)
         } else {
             Ok(false)
         }
@@ -117,13 +117,29 @@ impl<'v> StarlarkValue<'v> for FakeTargetRef {
         &self,
         hasher: &mut starlark::collections::StarlarkHasher,
     ) -> starlark::Result<()> {
-        let ptr = Arc::as_ptr(&self.0) as usize;
-        hasher.write_usize(ptr);
+        use std::hash::Hash as _;
+        self.hash(hasher);
         Ok(())
     }
 }
 
+impl Deref for FakeTargetRef {
+    type Target = FakeTarget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl TargetRef for FakeTargetRef {
+    fn label(&self) -> LabelRef<'_> {
+        self.get().label.as_ref()
+    }
+
+    fn toolchain(&self) -> LabelRef<'_> {
+        self.get().toolchain.as_ref()
+    }
+
     fn outputs(&self) -> Vec<File> {
         self.get().outputs.clone()
     }

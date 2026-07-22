@@ -18,6 +18,11 @@ pub trait IPromiseToImplementStarlarkEqAndHash {}
 pub trait TargetRef:
     for<'v> StarlarkValue<'v> + for<'v> AllocValue<'v> + Clone + IPromiseToImplementStarlarkEqAndHash
 {
+    /// Returns the label of the target.
+    fn label(&self) -> LabelRef<'_>;
+    /// Returns the toolchain the label was defined in.
+    fn toolchain(&self) -> LabelRef<'_>;
+
     /// Returns the output files produced by this target.
     fn outputs(&self) -> Vec<File>;
 
