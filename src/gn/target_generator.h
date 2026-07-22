@@ -71,6 +71,7 @@ class TargetGenerator {
   bool FillMetadata();
   bool FillTestonly();
   bool FillAssertNoDeps();
+  bool FillCheckIncludesStrict();
   bool FillWriteRuntimeDeps();
 
   // Reads configs/deps from the given var name, and uses the given setting on

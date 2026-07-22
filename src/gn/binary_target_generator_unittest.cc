@@ -88,3 +88,49 @@ TEST_F(BinaryTargetGeneratorTest, GeneratedModuleMap) {
   EXPECT_TRUE(target->module_type().test(Target::MODULEMAP_IS_GENERATED));
   EXPECT_TRUE(target->module_type().test(Target::MODULEMAP_IS_TEXTUAL));
 }
+
+TEST_F(BinaryTargetGeneratorTest, CheckIncludesStrict) {
+  TestWithScope setup;
+  Scope::ItemVector items_;
+  setup.scope()->set_item_collector(&items_);
+  setup.scope()->set_source_dir(SourceDir("//test/"));
+
+  // Check default value is false.
+  {
+    TestParseInput input(
+        R"(static_library("foo") {
+             sources = [ "//foo.cc" ]
+           })");
+    ASSERT_SUCCESS(input);
+
+    Err err;
+    input.parsed()->Execute(setup.scope(), &err);
+    ASSERT_SUCCESS(err);
+
+    ASSERT_EQ(1u, items_.size());
+    Target* target = items_[0]->AsTarget();
+    ASSERT_TRUE(target);
+    EXPECT_FALSE(target->check_includes_strict());
+    items_.clear();
+  }
+
+  // Check overriding to true.
+  {
+    TestParseInput input(
+        R"(static_library("bar") {
+             sources = [ "//bar.cc" ]
+             check_includes_strict = true
+           })");
+    ASSERT_SUCCESS(input);
+
+    Err err;
+    input.parsed()->Execute(setup.scope(), &err);
+    ASSERT_SUCCESS(err);
+
+    ASSERT_EQ(1u, items_.size());
+    Target* target = items_[0]->AsTarget();
+    ASSERT_TRUE(target);
+    EXPECT_TRUE(target->check_includes_strict());
+    items_.clear();
+  }
+}

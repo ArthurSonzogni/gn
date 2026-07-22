@@ -271,6 +271,7 @@ std::map<std::string, DescHandlerFunc> GetHandlers() {
           {variables::kMetadata, MetadataHandler},
           {variables::kTestonly, DefaultHandler},
           {variables::kCheckIncludes, DefaultHandler},
+          {variables::kCheckIncludesStrict, DefaultHandler},
           {variables::kAllowCircularIncludesFrom, DefaultHandler},
           {variables::kSources, DefaultHandler},
           {variables::kPublic, PublicHandler},
@@ -369,6 +370,7 @@ bool PrintTarget(const Target* target,
   HandleProperty(variables::kMetadata, handler_map, v, dict);
   HandleProperty(variables::kTestonly, handler_map, v, dict);
   HandleProperty(variables::kCheckIncludes, handler_map, v, dict);
+  HandleProperty(variables::kCheckIncludesStrict, handler_map, v, dict);
   HandleProperty(variables::kAllowCircularIncludesFrom, handler_map, v, dict);
   HandleProperty(variables::kSources, handler_map, v, dict);
   HandleProperty(variables::kSwiftBridgeHeader, handler_map, v, dict);

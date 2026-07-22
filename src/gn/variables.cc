@@ -905,6 +905,43 @@ Example
   }
 )";
 
+const char kCheckIncludesStrict[] = "check_includes_strict";
+const char kCheckIncludesStrict_HelpShort[] =
+    "check_includes_strict: [boolean] Controls whether strict include checking "
+    "is enforced.";
+const char kCheckIncludesStrict_Help[] =
+    R"(check_includes_strict: [boolean] Enforce strict include checking.
+
+  When true, the "gn check" command (as well as "gn gen" with the --check flag)
+  will enforce strict header checking rules on this target:
+
+  1. Public headers of this target cannot include headers from its private
+     "deps".
+  2. Public headers of this target cannot include its own private headers
+     (headers in "sources" when "public" is explicitly specified).
+  3. Dependents of this target cannot transitively include headers from this
+     target's "public_deps" (they must depend on those targets directly).
+
+  Note that targets listed in "allow_circular_includes_from" act as an escape
+  hatch and bypass these strict checks.
+
+  This enforces strict API boundary separation. Under this strict model:
+  * "public_deps" act as interface dependencies (dependencies required to
+    compile this target's public headers), but they are not transitively
+    forwarded to dependents.
+  * "deps" act as private implementation dependencies (dependencies required to
+    compile this target's sources).
+
+  When false (the default), the default loose include checking rules apply.
+
+Example
+
+  source_set("strict_target") {
+    check_includes_strict = true
+    ...
+  }
+)";
+
 const char kCompleteStaticLib[] = "complete_static_lib";
 const char kCompleteStaticLib_HelpShort[] =
     "complete_static_lib: [boolean] Links all deps into a static library.";
@@ -2553,6 +2590,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(CflagsObjC)
     INSERT_VARIABLE(CflagsObjCC)
     INSERT_VARIABLE(CheckIncludes)
+    INSERT_VARIABLE(CheckIncludesStrict)
     INSERT_VARIABLE(CompleteStaticLib)
     INSERT_VARIABLE(Configs)
     INSERT_VARIABLE(Data)

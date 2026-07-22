@@ -94,14 +94,31 @@ std::string GetDependencyChainPublicError(const HeaderChecker::Chain& chain) {
     ret += "There is no dependency chain between these targets.";
   } else {
     // Indirect dependency chain, print the chain.
-    ret +=
-        "\nIt's usually best to depend directly on the destination target.\n"
-        "In some cases, the destination target is considered a subcomponent\n"
-        "of an intermediate target. In this case, the intermediate target\n"
-        "should depend publicly on the destination to forward the ability\n"
-        "to include headers.\n"
-        "\n"
-        "Dependency chain (there may also be others):\n";
+    const Target* strict_target = nullptr;
+    for (size_t i = 1; i < chain.size() - 1; i++) {
+      if (chain[i].target->check_includes_strict()) {
+        strict_target = chain[i].target;
+        break;
+      }
+    }
+
+    if (strict_target) {
+      ret +=
+          "\nPlease depend directly on the destination target.\n"
+          "Including headers from the public_deps of " +
+          strict_target->label().GetUserVisibleName(false) +
+          " is blocked because check_includes_strict = true is enabled on it.\n"
+          "check_includes_strict = true is highly recommended for all new code "
+          "to ensure a correct build graph.\n";
+    } else {
+      ret +=
+          "\nIt's usually best to depend directly on the destination target.\n"
+          "In some cases, the destination target is considered a subcomponent\n"
+          "of an intermediate target. In this case, the intermediate target\n"
+          "should depend publicly on the destination to forward the ability\n"
+          "to include headers.\n";
+    }
+    ret += "\nDependency chain (there may also be others):\n";
 
     for (int i = static_cast<int>(chain.size()) - 1; i >= 0; i--) {
       ret.append("  " + chain[i].target->label().GetUserVisibleName(false));
@@ -110,10 +127,16 @@ std::string GetDependencyChainPublicError(const HeaderChecker::Chain& chain) {
         // dependency chain things went bad. Don't list this for the first link
         // in the chain since direct dependencies are OK, and listing that as
         // "private" may make people feel like they need to fix it.
-        if (i == static_cast<int>(chain.size()) - 1 || chain[i - 1].is_public)
-          ret.append(" -->");
-        else
+        if (i == static_cast<int>(chain.size()) - 1 || chain[i - 1].is_public) {
+          if (i != static_cast<int>(chain.size()) - 1 &&
+              chain[i].target->check_includes_strict()) {
+            ret.append(" --[check_includes_strict = true]-->");
+          } else {
+            ret.append(" -->");
+          }
+        } else {
           ret.append(" --[private]-->");
+        }
       }
       ret.append("\n");
     }
@@ -234,10 +257,10 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files,
         continue;
     }
 
-    std::vector<const Target*> targets_to_check;
+    TargetVector targets_to_check;
     for (const auto& vect_i : file.second) {
       if (vect_i.target->check_includes()) {
-        targets_to_check.push_back(vect_i.target);
+        targets_to_check.push_back(vect_i);
       }
     }
     if (targets_to_check.empty())
@@ -259,7 +282,7 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files,
     task_count_cv_.wait(auto_lock);
 }
 
-void HeaderChecker::DoWork(const std::vector<const Target*>& targets,
+void HeaderChecker::DoWork(const TargetVector& targets,
                            const SourceFile& file) {
   std::vector<Err> errors;
   if (!CheckFile(targets, file, &errors)) {
@@ -392,6 +415,11 @@ void HeaderChecker::ReachabilityCache::PerformDependencyWalk(bool permitted) {
     const Target* target = work_queue.front();
     work_queue.pop();
 
+    if (permitted && target != source_target_ &&
+        target->check_includes_strict()) {
+      continue;
+    }
+
     for (const auto& dep : target->public_deps()) {
       if (breadcrumbs.Insert(dep.ptr, target, true))
         work_queue.push(dep.ptr);
@@ -458,7 +486,7 @@ bool HeaderChecker::ReachabilityCache::SearchBreadcrumbs(
   return true;
 }
 
-bool HeaderChecker::CheckFile(const std::vector<const Target*>& targets,
+bool HeaderChecker::CheckFile(const TargetVector& targets,
                               const SourceFile& file,
                               std::vector<Err>* errors) const {
   ScopedTrace trace(TraceItem::TRACE_CHECK_HEADER, file.value());
@@ -478,7 +506,8 @@ bool HeaderChecker::CheckFile(const std::vector<const Target*>& targets,
     if (IsFileInOuputDir(file))
       return true;
 
-    for (const Target* from_target : targets) {
+    for (const TargetInfo& from_target_info : targets) {
+      const Target* from_target = from_target_info.target;
       errors->emplace_back(
           from_target->defined_from(), "Source file not found.",
           "The target:\n  " + from_target->label().GetUserVisibleName(false) +
@@ -505,7 +534,8 @@ bool HeaderChecker::CheckFile(const std::vector<const Target*>& targets,
 
   size_t error_count_before = errors->size();
 
-  for (const Target* from_target : targets) {
+  for (const TargetInfo& from_target_info : targets) {
+    const Target* from_target = from_target_info.target;
     std::vector<SourceDir> include_dirs;
     for (ConfigValuesIterator target_iter(from_target); !target_iter.done();
          target_iter.Next()) {
@@ -523,8 +553,10 @@ bool HeaderChecker::CheckFile(const std::vector<const Target*>& targets,
       SourceFile included_file =
           SourceFileForInclude(inc, include_dirs, input_file, &err);
       if (!included_file.is_null()) {
-        CheckInclude(from_target_cache, input_file, included_file, inc.location,
-                     errors);
+        CheckInclude(from_target_cache,
+                     from_target_info.is_public &&
+                         file.GetType() == SourceFile::SOURCE_H,
+                     input_file, included_file, inc.location, errors);
       }
     }
   }
@@ -539,6 +571,7 @@ bool HeaderChecker::CheckFile(const std::vector<const Target*>& targets,
 //  - If there are multiple targets with the header in it, only one need be
 //    valid for the check to pass.
 void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
+                                 bool is_public_header,
                                  const InputFile& source_file,
                                  const SourceFile& include_file,
                                  const LocationRange& range,
@@ -597,10 +630,26 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   bool found_dependency = false;
   for (const auto& target : targets) {
     // We always allow source files in a target to include headers also in that
-    // target.
+    // target, unless strict checking is enabled and a public header includes
+    // a private header.
     const Target* to_target = target.target;
-    if (to_target == from_target)
+    if (to_target == from_target) {
+      if (from_target->check_includes_strict() && is_public_header &&
+          !target.is_public) {
+        last_error = Err(
+            CreatePersistentRange(source_file, range),
+            "Public headers cannot include private headers of the same target.",
+            "The public header:\n  " + source_file.name().value() +
+                "\nis including a private header of the same target:\n  " +
+                include_file.value() +
+                "\nEither make the included header public, make the includer "
+                "private,\n"
+                "or make a source_set containing public = [private_headers] "
+                "and add it to public_deps.");
+        errors->push_back(std::move(last_error));
+      }
       return;
+    }
 
     bool is_permitted_chain = false;
     if (IsDependencyOf(to_target, from_target_cache, &chain,
@@ -614,6 +663,18 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
           target.is_public || FriendMatches(to_target, from_target);
 
       if (effectively_public && is_permitted_chain) {
+        if (from_target->check_includes_strict() && is_public_header &&
+            !chain[chain.size() - 2].is_public) {
+          last_error = Err(
+              CreatePersistentRange(source_file, range),
+              "Public headers cannot include private dependencies.",
+              "The public header:\n  " + source_file.name().value() +
+                  "\nis including a header from private dependency:\n  " +
+                  to_target->label().GetUserVisibleName(false) +
+                  "\nEither move the dependency to public_deps, or make this "
+                  "header private.");
+          continue;
+        }
         // This one is OK, we're done.
         last_error = Err();
         break;

@@ -69,6 +69,9 @@ void TargetGenerator::Run() {
   if (!FillAssertNoDeps())
     return;
 
+  if (!FillCheckIncludesStrict())
+    return;
+
   if (!Visibility::FillItemVisibility(target_, scope_, err_))
     return;
 
@@ -377,6 +380,16 @@ bool TargetGenerator::FillCheckIncludes() {
   if (!value->VerifyTypeIs(Value::BOOLEAN, err_))
     return false;
   target_->set_check_includes(value->boolean_value());
+  return true;
+}
+
+bool TargetGenerator::FillCheckIncludesStrict() {
+  const Value* value = scope_->GetValue(variables::kCheckIncludesStrict, true);
+  if (!value)
+    return true;
+  if (!value->VerifyTypeIs(Value::BOOLEAN, err_))
+    return false;
+  target_->set_check_includes_strict(value->boolean_value());
   return true;
 }
 

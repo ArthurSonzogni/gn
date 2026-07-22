@@ -85,6 +85,11 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest,
                            SourceFileForInclude_FileNotFound);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, Friend);
+  FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, CheckIncludesStrictTransitive);
+  FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest,
+                           CheckIncludesStrictPrivateInPublicHeader);
+  FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest,
+                           CheckIncludesStrictSameTargetPrivateHeader);
 
   ~HeaderChecker();
 
@@ -247,8 +252,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
                          bool force_check,
                          WorkerPool* pool);
 
-  void DoWork(const std::vector<const Target*>& targets,
-              const SourceFile& file);
+  void DoWork(const TargetVector& targets, const SourceFile& file);
 
   // Adds the sources and public files from the given target to the given map.
   static void AddTargetToFileMap(const Target* target, FileMap* dest);
@@ -264,7 +268,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
 
   // targets is a list of targets using the source file. They will be used in
   // error messages.
-  bool CheckFile(const std::vector<const Target*>& targets,
+  bool CheckFile(const TargetVector& targets,
                  const SourceFile& file,
                  std::vector<Err>* errors) const;
 
@@ -273,6 +277,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // the errors array.  The range indicates the location of the
   // include in the file for error reporting.
   void CheckInclude(ReachabilityCache& from_target_cache,
+                    bool is_public_header,
                     const InputFile& source_file,
                     const SourceFile& include_file,
                     const LocationRange& range,
