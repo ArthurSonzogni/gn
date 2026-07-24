@@ -198,7 +198,9 @@ class CommandSwitches {
   TargetPrintMode target_print_mode() const { return target_print_mode_; }
 
   // For --type=TARGET_TYPE
-  Target::OutputType target_type() const { return target_type_; }
+  const std::vector<Target::OutputType>& target_types() const {
+    return target_types_;
+  }
 
   enum TestonlyMode {
     TESTONLY_NONE,   // no --testonly used.
@@ -245,7 +247,7 @@ class CommandSwitches {
   bool has_with_data_ = false;
 
   TargetPrintMode target_print_mode_ = TARGET_PRINT_LABEL;
-  Target::OutputType target_type_ = Target::UNKNOWN;
+  std::vector<Target::OutputType> target_types_;
   TestonlyMode testonly_mode_ = TESTONLY_NONE;
 
   std::string meta_rebase_dir_;
@@ -365,7 +367,8 @@ bool FilterPatternsFromString(const BuildSettings* build_settings,
   "          generated_file|group|loadable_module|rust_library|\n"        \
   "          rust_proc_macro|shared_library|source_set|static_library)\n" \
   "      Restrict outputs to targets matching the given type. If\n"       \
-  "      unspecified, no filtering will be performed.\n"
+  "      unspecified, no filtering will be performed. You can specify\n"  \
+  "      a comma-separated list of types to match multiple types.\n"
 #define TARGET_TESTONLY_FILTER_COMMAND_LINE_HELP                           \
   "  --testonly=(true|false)\n"                                            \
   "      Restrict outputs to targets with the testonly flag set\n"         \

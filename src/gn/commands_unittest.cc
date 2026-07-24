@@ -83,4 +83,30 @@ TEST(Commands, ApplyTypeFilter) {
     commands::CommandSwitches empty_switches;
     commands::CommandSwitches::Set(empty_switches);
   }
+
+  // Test multiple types separated by a comma.
+  {
+    std::vector<const Target*> targets_to_filter = all_targets;
+
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("type", "executable,rust_library");
+
+    commands::CommandSwitches::Init(cmdline);
+
+    base::ListValue out;
+    commands::FilterAndPrintTargets(&targets_to_filter, &out);
+
+    ASSERT_EQ(2u, targets_to_filter.size());
+    EXPECT_TRUE(
+        std::ranges::any_of(targets_to_filter, [](const Target* target) {
+          return target->output_type() == Target::EXECUTABLE;
+        }));
+    EXPECT_TRUE(
+        std::ranges::any_of(targets_to_filter, [](const Target* target) {
+          return target->output_type() == Target::RUST_LIBRARY;
+        }));
+
+    commands::CommandSwitches empty_switches;
+    commands::CommandSwitches::Set(empty_switches);
+  }
 }

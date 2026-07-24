@@ -675,7 +675,8 @@
           generated_file|group|loadable_module|rust_library|
           rust_proc_macro|shared_library|source_set|static_library)
       Restrict outputs to targets matching the given type. If
-      unspecified, no filtering will be performed.
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
 ```
 
 #### **Note**
@@ -1088,7 +1089,8 @@
           generated_file|group|loadable_module|rust_library|
           rust_proc_macro|shared_library|source_set|static_library)
       Restrict outputs to targets matching the given type. If
-      unspecified, no filtering will be performed.
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
 ```
 
 #### **Examples**
@@ -1351,7 +1353,8 @@
           generated_file|group|loadable_module|rust_library|
           rust_proc_macro|shared_library|source_set|static_library)
       Restrict outputs to targets matching the given type. If
-      unspecified, no filtering will be performed.
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
 
   --relation=(source|public|input|data|script|output)
       Restricts output to targets which refer to input files by a specific

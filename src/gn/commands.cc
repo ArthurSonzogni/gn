@@ -145,11 +145,11 @@ bool GetTargetPrintingMode(CommandSwitches::TargetPrintMode* mode) {
 // current process. Returns true on success. On error, prints a message to the
 // console and returns false.
 //
-// Target::UNKNOWN will be set if there is no filter. Target::ACTION_FOREACH
+// The vector will be empty if there is no filter. Target::ACTION_FOREACH
 // will never be returned. Code applying the filters should apply Target::ACTION
 // to both ACTION and ACTION_FOREACH.
-bool GetTargetTypeFilter(Target::OutputType* type) {
-  *type = CommandSwitches::Get().target_type();
+bool GetTargetTypeFilter(std::vector<Target::OutputType>* types) {
+  *types = CommandSwitches::Get().target_types();
   return true;
 }
 
@@ -180,10 +180,10 @@ bool ApplyTestonlyFilter(std::vector<const Target*>* targets) {
 // Applies any target type filtering specified on the command line to the given
 // target set. On failure, prints an error and returns false.
 bool ApplyTypeFilter(std::vector<const Target*>* targets) {
-  Target::OutputType type = Target::UNKNOWN;
-  if (!GetTargetTypeFilter(&type))
+  std::vector<Target::OutputType> types;
+  if (!GetTargetTypeFilter(&types))
     return false;
-  if (targets->empty() || type == Target::UNKNOWN)
+  if (targets->empty() || types.empty())
     return true;  // Nothing to filter out.
 
   // Filter into a copy of the vector, then replace the output.
@@ -191,11 +191,14 @@ bool ApplyTypeFilter(std::vector<const Target*>* targets) {
   result.reserve(targets->size());
 
   for (const Target* target : *targets) {
-    // Make "action" also apply to ACTION_FOREACH.
-    if (target->output_type() == type ||
-        (type == Target::ACTION &&
-         target->output_type() == Target::ACTION_FOREACH))
+    if (std::ranges::any_of(types, [target](Target::OutputType type) {
+          // Make "action" also apply to ACTION_FOREACH.
+          return target->output_type() == type ||
+                 (type == Target::ACTION &&
+                  target->output_type() == Target::ACTION_FOREACH);
+        })) {
       result.push_back(target);
+    }
   }
 
   *targets = std::move(result);
@@ -463,6 +466,8 @@ bool CommandSwitches::InitFrom(const base::CommandLine& cmdline) {
   std::string_view target_type_switch = "type";
   if (cmdline.HasSwitch(target_type_switch)) {
     std::string value = cmdline.GetSwitchValueString(target_type_switch);
+    std::vector<std::string> tokens = base::SplitString(
+        value, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     static const struct {
       const char* name;
       Target::OutputType type;
@@ -481,17 +486,20 @@ bool CommandSwitches::InitFrom(const base::CommandLine& cmdline) {
         {"bundle_data", Target::BUNDLE_DATA},
         {"create_bundle", Target::CREATE_BUNDLE},
     };
-    bool found = false;
-    for (const auto& type : kTypes) {
-      if (value == type.name) {
-        result.target_type_ = type.type;
-        found = true;
-        break;
+    for (const std::string& token : tokens) {
+      bool found = false;
+      for (const auto& type : kTypes) {
+        if (token == type.name) {
+          result.target_types_.push_back(type.type);
+          found = true;
+          break;
+        }
       }
-    }
-    if (!found) {
-      Err(Location(), "Invalid value for \"--type\".").PrintToStdout();
-      return false;
+      if (!found) {
+        Err(Location(), "Invalid value \"" + token + "\" for \"--type\".")
+            .PrintToStdout();
+        return false;
+      }
     }
   }
   std::string_view testonly_switch = "testonly";
