@@ -475,6 +475,11 @@ bool CommandSwitches::InitFrom(const base::CommandLine& cmdline) {
         {"source_set", Target::SOURCE_SET},
         {"copy", Target::COPY_FILES},
         {"action", Target::ACTION},
+        {"generated_file", Target::GENERATED_FILE},
+        {"rust_library", Target::RUST_LIBRARY},
+        {"rust_proc_macro", Target::RUST_PROC_MACRO},
+        {"bundle_data", Target::BUNDLE_DATA},
+        {"create_bundle", Target::CREATE_BUNDLE},
     };
     bool found = false;
     for (const auto& type : kTypes) {

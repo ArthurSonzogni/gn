@@ -671,8 +671,9 @@
       Tree output can not be used with the filtering or output flags: --as,
       --type, --testonly.
 
-  --type=(action|copy|executable|group|loadable_module|shared_library|
-          source_set|static_library)
+  --type=(action|bundle_data|copy|create_bundle|executable|
+          generated_file|group|loadable_module|rust_library|
+          rust_proc_macro|shared_library|source_set|static_library)
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed.
 ```
@@ -1083,8 +1084,9 @@
       accordingly. When unspecified, the target's testonly flags are
       ignored.
 
-  --type=(action|copy|executable|group|loadable_module|shared_library|
-          source_set|static_library)
+  --type=(action|bundle_data|copy|create_bundle|executable|
+          generated_file|group|loadable_module|rust_library|
+          rust_proc_macro|shared_library|source_set|static_library)
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed.
 ```
@@ -1345,8 +1347,9 @@
       Tree output can not be used with the filtering or output flags: --as,
       --type, --testonly.
 
-  --type=(action|copy|executable|group|loadable_module|shared_library|
-          source_set|static_library)
+  --type=(action|bundle_data|copy|create_bundle|executable|
+          generated_file|group|loadable_module|rust_library|
+          rust_proc_macro|shared_library|source_set|static_library)
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed.
 

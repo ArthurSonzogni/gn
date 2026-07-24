@@ -360,10 +360,11 @@ bool FilterPatternsFromString(const BuildSettings* build_settings,
   "      output\n"                                                            \
   "          Prints the first output file for the target relative to the\n"   \
   "          root build directory.\n"
-#define TARGET_TYPE_FILTER_COMMAND_LINE_HELP                                 \
-  "  --type=(action|copy|executable|group|loadable_module|shared_library|\n" \
-  "          source_set|static_library)\n"                                   \
-  "      Restrict outputs to targets matching the given type. If\n"          \
+#define TARGET_TYPE_FILTER_COMMAND_LINE_HELP                              \
+  "  --type=(action|bundle_data|copy|create_bundle|executable|\n"         \
+  "          generated_file|group|loadable_module|rust_library|\n"        \
+  "          rust_proc_macro|shared_library|source_set|static_library)\n" \
+  "      Restrict outputs to targets matching the given type. If\n"       \
   "      unspecified, no filtering will be performed.\n"
 #define TARGET_TESTONLY_FILTER_COMMAND_LINE_HELP                           \
   "  --testonly=(true|false)\n"                                            \
