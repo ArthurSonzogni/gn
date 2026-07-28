@@ -130,7 +130,8 @@ impl Assert {
         self.assert.pass(code)
     }
 
-    /// Asserts that freezing the evaluated module fails with the expected error.
+    /// Asserts that freezing the evaluated module fails with the expected
+    /// error.
     #[track_caller]
     pub fn fail_to_freeze(&mut self, code: &str, expected_error: &str) -> starlark::Error {
         self.assert.fail_to_freeze(code, expected_error)

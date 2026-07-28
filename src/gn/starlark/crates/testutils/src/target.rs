@@ -15,7 +15,9 @@ use starlark::{
     values::{FrozenValue, ProvidesStaticType, StarlarkValue, Value, ValueLike},
 };
 use starlark_derive::{starlark_value, NoSerialize};
-use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, Session, TargetRef};
+use types::{
+    File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, Session, TargetRef,
+};
 
 /// A fake target struct for testing.
 #[derive(Debug, Allocative, Default)]

@@ -161,10 +161,7 @@ impl Freeze for ProviderType {
     type Frozen = FrozenProviderType;
 
     fn freeze(self, _freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        let data = self
-            .data
-            .into_inner()
-            .ok_or(Error::ProviderNotExported)?;
+        let data = self.data.into_inner().ok_or(Error::ProviderNotExported)?;
         Ok(FrozenProviderType {
             id: self.id,
             data,

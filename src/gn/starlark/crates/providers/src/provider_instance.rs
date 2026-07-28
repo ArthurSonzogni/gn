@@ -53,7 +53,6 @@ impl<'v, V: ValueLike<'v>> ProviderInstanceGen<V>
 where
     Self: ProvidesStaticType<'v>,
 {
-
     pub(crate) fn ty_name(&self) -> &'static str {
         self.get_type_value_dyn().as_str()
     }

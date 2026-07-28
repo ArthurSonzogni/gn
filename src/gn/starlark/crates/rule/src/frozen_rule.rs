@@ -17,7 +17,6 @@ use types::{EvaluatorContextExt, Scope, TargetRef};
 
 use crate::rule::{build_signature, OutputType};
 
-
 /// A frozen representation of a Starlark rule object.
 ///
 /// Once a rule has been exported from a loaded Starlark module (e.g., from
@@ -35,7 +34,8 @@ pub struct FrozenRule<C: EvalContextAttrExt> {
 }
 
 // Safety: FrozenRule does not automatically derive Send and Sync because of C.
-// But it only contains C inside PhantomData, so Send and Sync are actually safe.
+// But it only contains C inside PhantomData, so Send and Sync are actually
+// safe.
 unsafe impl<C: EvalContextAttrExt> Send for FrozenRule<C> {}
 unsafe impl<C: EvalContextAttrExt> Sync for FrozenRule<C> {}
 

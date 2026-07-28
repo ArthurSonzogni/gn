@@ -16,8 +16,8 @@ use starlark::{
     },
 };
 use starlark_derive::{starlark_value, NoSerialize};
-pub use types::OutputType;
 use types::EvaluatorContextExt;
+pub use types::OutputType;
 
 use crate::frozen_rule::FrozenRule;
 
@@ -44,7 +44,8 @@ pub struct Rule<'v, C: EvalContextAttrExt> {
 }
 
 // Safety: Rule does not automatically derive Send and Sync because of C.
-// But it only contains C inside PhantomData, so Send and Sync are actually safe.
+// But it only contains C inside PhantomData, so Send and Sync are actually
+// safe.
 unsafe impl<'v, C: EvalContextAttrExt> Send for Rule<'v, C> {}
 unsafe impl<'v, C: EvalContextAttrExt> Sync for Rule<'v, C> {}
 
