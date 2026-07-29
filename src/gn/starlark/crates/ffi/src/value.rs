@@ -6,7 +6,6 @@ use std::pin::Pin;
 
 use starlark::values::{list::ListRef, structs::StructRef};
 
-pub use crate::bridge::ParseNode;
 use crate::{
     bridge::{SliceAny, Value, ValueType},
     Immutable, Scope, Slice,
@@ -43,32 +42,19 @@ impl Value {
         mut self: Pin<&mut Self>,
         val: starlark::values::Value<'v>,
         scope: &mut Scope,
-        origin: *const ParseNode,
+        origin: crate::bridge::ParseNodePtr,
     ) {
         if val.is_none() {
-            // Safety: Just an FFI function.
-            unsafe {
-                crate::bridge::SetValueNone(self.as_mut(), origin);
-            }
+            crate::bridge::SetValueNone(self.as_mut(), origin);
         } else if let Some(s) = val.unpack_str() {
-            // Safety: Just an FFI function.
-            unsafe {
-                crate::bridge::SetValueString(self.as_mut(), origin, s);
-            }
+            crate::bridge::SetValueString(self.as_mut(), origin, s);
         } else if let Some(b) = val.unpack_bool() {
-            // Safety: Just an FFI function.
-            unsafe {
-                crate::bridge::SetValueBool(self.as_mut(), origin, b);
-            }
+            crate::bridge::SetValueBool(self.as_mut(), origin, b);
         } else if let Some(i) = val.unpack_i32() {
-            // Safety: Just an FFI function.
-            unsafe {
-                crate::bridge::SetValueInt(self.as_mut(), origin, i64::from(i));
-            }
+            crate::bridge::SetValueInt(self.as_mut(), origin, i64::from(i));
         } else if let Some(l) = ListRef::from_value(val) {
             let mut slice: Slice<Self> = SliceAny {
-                // Safety: Just an FFI function.
-                ptr: unsafe { crate::bridge::SetValueList(self.as_mut(), origin, l.len()) },
+                ptr: crate::bridge::SetValueList(self.as_mut(), origin, l.len()),
                 len: l.len(),
             }
             .into();
@@ -83,10 +69,7 @@ impl Value {
                 v_cxx.as_mut().assign(v_starlark, scope, origin);
             }
 
-            // Safety: Just an FFI function.
-            unsafe {
-                crate::bridge::SetValueScope(self.as_mut(), origin, nested_scope);
-            }
+            crate::bridge::SetValueScope(self.as_mut(), origin, nested_scope);
         } else {
             todo!("Arbitrary starlark values not (yet) supported");
         }
@@ -108,7 +91,13 @@ mod tests {
         let scope = setup.scope();
 
         let mut value = crate::bridge::NewValueForTesting();
-        value.pin_mut().assign(val, scope, std::ptr::null());
+        value.pin_mut().assign(
+            val,
+            scope,
+            crate::bridge::ParseNodePtr {
+                ptr: std::ptr::null(),
+            },
+        );
         value.to_rust(heap)
     }
 

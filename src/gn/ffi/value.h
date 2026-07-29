@@ -11,7 +11,7 @@
 #include "gn/value.h"
 
 class Scope;
-class ParseNode;
+struct ParseNodePtr;
 struct SliceAny;
 
 enum class ValueType : uint8_t;
@@ -25,18 +25,18 @@ size_t ValueSize();
 // SetValue* is called with potentially uninitialized Value objects.
 // These functions roughly correspond to calling the corresponding constructor
 // with in-place construction.
-void SetValueNone(Value& self, const ParseNode* origin);
-void SetValueBool(Value& self, const ParseNode* origin, bool b);
-void SetValueInt(Value& self, const ParseNode* origin, int64_t i);
-void SetValueString(Value& self, const ParseNode* origin, rust::Str s);
+void SetValueNone(Value& self, ParseNodePtr origin);
+void SetValueBool(Value& self, ParseNodePtr origin, bool b);
+void SetValueInt(Value& self, ParseNodePtr origin, int64_t i);
+void SetValueString(Value& self, ParseNodePtr origin, rust::Str s);
 struct Any;
 // Sets the value to a list of `size` elements. Returns a pointer to the start
 // of the vector.
 //
 // Safety: Rust is required to convert this to a Slice<Value>(pointer, size)
-Any* SetValueList(Value& self, const ParseNode* origin, size_t size);
+Any* SetValueList(Value& self, ParseNodePtr origin, size_t size);
 void SetValueScope(Value& self,
-                   const ParseNode* origin,
+                   ParseNodePtr origin,
                    std::unique_ptr<Scope> scope);
 // Returns a "std::vector<Value>".
 //

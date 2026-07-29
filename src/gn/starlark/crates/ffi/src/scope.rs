@@ -54,7 +54,7 @@ impl types::Scope for OwnedScope {
         for (placeholder, val) in placeholders.as_slice_mut().iter_mut().zip(vals) {
             placeholder
                 .as_mut()
-                .assign(val, child_ref, std::ptr::null());
+                .assign(val, child_ref, Default::default());
         }
 
         Self(child_scope)

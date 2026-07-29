@@ -592,6 +592,7 @@ template <> struct deleter_if<true> {
 struct Any;
 struct SliceAny;
 struct KeyValue;
+struct ParseNodePtr;
 enum class ValueType : ::std::uint8_t;
 using Err = ::Err;
 using InputFile = ::InputFile;
@@ -632,6 +633,15 @@ struct KeyValue final {
   using IsRelocatable = ::std::true_type;
 };
 #endif // CXXBRIDGE1_STRUCT_KeyValue
+
+#ifndef CXXBRIDGE1_STRUCT_ParseNodePtr
+#define CXXBRIDGE1_STRUCT_ParseNodePtr
+struct ParseNodePtr final {
+  ::ParseNode const *ptr CXX_DEFAULT_VALUE(nullptr);
+
+  using IsRelocatable = ::std::true_type;
+};
+#endif // CXXBRIDGE1_STRUCT_ParseNodePtr
 
 #ifndef CXXBRIDGE1_ENUM_ValueType
 #define CXXBRIDGE1_ENUM_ValueType
@@ -776,34 +786,34 @@ void cxxbridge1$196$list_value_cxx(::Value const &val, ::SliceAny *return$) noex
   return (self.*scope_value$)();
 }
 
-void cxxbridge1$196$SetValueNone(::Value &val, ::ParseNode const *origin) noexcept {
-  void (*SetValueNone$)(::Value &, ::ParseNode const *) = ::SetValueNone;
-  SetValueNone$(val, origin);
+void cxxbridge1$196$SetValueNone(::Value &val, ::ParseNodePtr *origin) noexcept {
+  void (*SetValueNone$)(::Value &, ::ParseNodePtr) = ::SetValueNone;
+  SetValueNone$(val, ::std::move(*origin));
 }
 
-void cxxbridge1$196$SetValueBool(::Value &val, ::ParseNode const *origin, bool b) noexcept {
-  void (*SetValueBool$)(::Value &, ::ParseNode const *, bool) = ::SetValueBool;
-  SetValueBool$(val, origin, b);
+void cxxbridge1$196$SetValueBool(::Value &val, ::ParseNodePtr *origin, bool b) noexcept {
+  void (*SetValueBool$)(::Value &, ::ParseNodePtr, bool) = ::SetValueBool;
+  SetValueBool$(val, ::std::move(*origin), b);
 }
 
-void cxxbridge1$196$SetValueInt(::Value &val, ::ParseNode const *origin, ::std::int64_t i) noexcept {
-  void (*SetValueInt$)(::Value &, ::ParseNode const *, ::std::int64_t) = ::SetValueInt;
-  SetValueInt$(val, origin, i);
+void cxxbridge1$196$SetValueInt(::Value &val, ::ParseNodePtr *origin, ::std::int64_t i) noexcept {
+  void (*SetValueInt$)(::Value &, ::ParseNodePtr, ::std::int64_t) = ::SetValueInt;
+  SetValueInt$(val, ::std::move(*origin), i);
 }
 
-void cxxbridge1$196$SetValueString(::Value &val, ::ParseNode const *origin, ::rust::Str s) noexcept {
-  void (*SetValueString$)(::Value &, ::ParseNode const *, ::rust::Str) = ::SetValueString;
-  SetValueString$(val, origin, s);
+void cxxbridge1$196$SetValueString(::Value &val, ::ParseNodePtr *origin, ::rust::Str s) noexcept {
+  void (*SetValueString$)(::Value &, ::ParseNodePtr, ::rust::Str) = ::SetValueString;
+  SetValueString$(val, ::std::move(*origin), s);
 }
 
-::Any *cxxbridge1$196$SetValueList(::Value &val, ::ParseNode const *origin, ::std::size_t size) noexcept {
-  ::Any *(*SetValueList$)(::Value &, ::ParseNode const *, ::std::size_t) = ::SetValueList;
-  return SetValueList$(val, origin, size);
+::Any *cxxbridge1$196$SetValueList(::Value &val, ::ParseNodePtr *origin, ::std::size_t size) noexcept {
+  ::Any *(*SetValueList$)(::Value &, ::ParseNodePtr, ::std::size_t) = ::SetValueList;
+  return SetValueList$(val, ::std::move(*origin), size);
 }
 
-void cxxbridge1$196$SetValueScope(::Value &val, ::ParseNode const *origin, ::Scope *scope) noexcept {
-  void (*SetValueScope$)(::Value &, ::ParseNode const *, ::std::unique_ptr<::Scope>) = ::SetValueScope;
-  SetValueScope$(val, origin, ::std::unique_ptr<::Scope>(scope));
+void cxxbridge1$196$SetValueScope(::Value &val, ::ParseNodePtr *origin, ::Scope *scope) noexcept {
+  void (*SetValueScope$)(::Value &, ::ParseNodePtr, ::std::unique_ptr<::Scope>) = ::SetValueScope;
+  SetValueScope$(val, ::std::move(*origin), ::std::unique_ptr<::Scope>(scope));
 }
 
 static_assert(::rust::detail::is_complete<::std::remove_extent<::Err>::type>::value, "definition of `::Err` is required");

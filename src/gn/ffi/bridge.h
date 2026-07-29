@@ -575,6 +575,7 @@ std::size_t align_of() {
 struct Any;
 struct SliceAny;
 struct KeyValue;
+struct ParseNodePtr;
 enum class ValueType : ::std::uint8_t;
 using Err = ::Err;
 using InputFile = ::InputFile;
@@ -615,6 +616,15 @@ struct KeyValue final {
   using IsRelocatable = ::std::true_type;
 };
 #endif // CXXBRIDGE1_STRUCT_KeyValue
+
+#ifndef CXXBRIDGE1_STRUCT_ParseNodePtr
+#define CXXBRIDGE1_STRUCT_ParseNodePtr
+struct ParseNodePtr final {
+  ::ParseNode const *ptr CXX_DEFAULT_VALUE(nullptr);
+
+  using IsRelocatable = ::std::true_type;
+};
+#endif // CXXBRIDGE1_STRUCT_ParseNodePtr
 
 #ifndef CXXBRIDGE1_ENUM_ValueType
 #define CXXBRIDGE1_ENUM_ValueType
