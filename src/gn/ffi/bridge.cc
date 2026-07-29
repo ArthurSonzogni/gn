@@ -721,6 +721,11 @@ void cxxbridge1$196$NewScope(::Scope const &parent_scope, ::rust::Slice<::rust::
   new (return$) ::SliceAny(NewScope$(parent_scope, keys, out_scope));
 }
 
+void cxxbridge1$196$NewStruct(::Settings const &settings, ::rust::Slice<::rust::Str const> keys, ::std::unique_ptr<::Scope> &out_scope, ::SliceAny *return$) noexcept {
+  ::SliceAny (*NewStruct$)(::Settings const &, ::rust::Slice<::rust::Str const>, ::std::unique_ptr<::Scope> &) = ::NewStruct;
+  new (return$) ::SliceAny(NewStruct$(settings, keys, out_scope));
+}
+
 void cxxbridge1$196$GetScopeItems(::Scope const &scope, ::SliceAny *return$) noexcept {
   ::SliceAny (*GetScopeItems$)(::Scope const &) = ::GetScopeItems;
   new (return$) ::SliceAny(GetScopeItems$(scope));

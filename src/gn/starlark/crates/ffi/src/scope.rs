@@ -18,6 +18,15 @@ impl Scope {
         (nested_scope, values.into())
     }
 
+    pub(crate) fn new_struct<'b>(
+        settings: &crate::Settings,
+        keys: &[&str],
+    ) -> (cxx::UniquePtr<Self>, OwnedSlice<Pin<&'b mut Value>>) {
+        let mut nested_scope = cxx::UniquePtr::<Self>::null();
+        let values = crate::bridge::NewStruct(settings, keys, &mut nested_scope);
+        (nested_scope, values.into())
+    }
+
     /// Returns the settings for the given scope.
     pub fn settings(&self) -> &crate::Settings {
         // Safety: Settings pointer is always valid and non-null.
@@ -49,12 +58,11 @@ impl types::Scope for OwnedScope {
         let (keys, vals): (Vec<&str>, Vec<StarlarkValue<'v>>) = kv.unzip();
         let (mut child_scope, mut placeholders) = Scope::new(parent, &keys);
 
-        // Safety: The child scope will always be non-null.
-        let child_ref = unsafe { child_scope.as_mut().unwrap().get_unchecked_mut() };
+        let child_pin = child_scope.as_mut().unwrap();
         for (placeholder, val) in placeholders.as_slice_mut().iter_mut().zip(vals) {
             placeholder
                 .as_mut()
-                .assign(val, child_ref, Default::default());
+                .assign(val, child_pin.settings(), Default::default());
         }
 
         Self(child_scope)
@@ -81,7 +89,7 @@ mod tests {
         let mut setup = TestWithScope::new();
         let parent_scope = setup.scope();
 
-        let (child_ptr, _) = Scope::new(parent_scope, &[]);
+        let (child_ptr, _) = Scope::new(&*parent_scope, &[]);
         let owned_scope = OwnedScope(child_ptr);
 
         starlark::environment::Module::with_temp_heap(|module| {

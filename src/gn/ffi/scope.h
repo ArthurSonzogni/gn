@@ -10,8 +10,9 @@
 #include "cxx.h"
 
 class Scope;
-class Value;
+class Settings;
 struct SliceAny;
+class Value;
 
 // Constructs a new child Scope, populates placeholder Values for the given
 // keys, and returns a "std::vector<Value&>" where vec[i] is the value for
@@ -21,6 +22,19 @@ struct SliceAny;
 SliceAny NewScope(const Scope& parent_scope,
                   rust::Slice<const rust::Str> keys,
                   std::unique_ptr<Scope>& out_scope);
+
+// Constructs a new "struct", populates placeholder Values for the given
+// keys, and returns a "std::vector<Value&>" where vec[i] is the value for
+// keys[i].
+//
+// A "struct" is a scope which can only be used for dot-lookup. It has no
+// parent scope, as that would allow struct.foo to lookup the parent
+// scope's foo.
+//
+// Safety: Rust is required to convert this to an OwnedSlice<&Value>.
+SliceAny NewStruct(const Settings& settings,
+                   rust::Slice<const rust::Str> keys,
+                   std::unique_ptr<Scope>& out_scope);
 
 // Returns a "std::vector<KeyValue>"-like object.
 //

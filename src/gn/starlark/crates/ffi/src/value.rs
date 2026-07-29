@@ -8,7 +8,7 @@ use starlark::values::{list::ListRef, structs::StructRef};
 
 use crate::{
     bridge::{SliceAny, Value, ValueType},
-    Immutable, Scope, Slice,
+    Immutable, Scope, Settings, Slice,
 };
 
 impl Value {
@@ -41,7 +41,7 @@ impl Value {
     pub fn assign<'v>(
         mut self: Pin<&mut Self>,
         val: starlark::values::Value<'v>,
-        scope: &mut Scope,
+        settings: &Settings,
         origin: crate::bridge::ParseNodePtr,
     ) {
         if val.is_none() {
@@ -59,17 +59,17 @@ impl Value {
             }
             .into();
             for (el_pin, src) in slice.iter_mut().zip(l.iter()) {
-                el_pin.assign(src, scope, origin);
+                el_pin.assign(src, settings, origin);
             }
         } else if let Some(s) = StructRef::from_value(val) {
             let keys: Vec<&str> = s.iter().map(|(k, _)| k.as_str()).collect();
-            let (nested_scope, mut values) = Scope::new(scope, &keys);
+            let (r#struct, mut values) = Scope::new_struct(settings, &keys);
 
             for (v_starlark, v_cxx) in s.iter().map(|(_, v)| v).zip(values.as_slice_mut()) {
-                v_cxx.as_mut().assign(v_starlark, scope, origin);
+                v_cxx.as_mut().assign(v_starlark, settings, origin);
             }
 
-            crate::bridge::SetValueScope(self.as_mut(), origin, nested_scope);
+            crate::bridge::SetValueScope(self.as_mut(), origin, r#struct);
         } else {
             todo!("Arbitrary starlark values not (yet) supported");
         }
@@ -93,7 +93,7 @@ mod tests {
         let mut value = crate::bridge::NewValueForTesting();
         value.pin_mut().assign(
             val,
-            scope,
+            scope.settings(),
             crate::bridge::ParseNodePtr {
                 ptr: std::ptr::null(),
             },
@@ -193,6 +193,46 @@ mod tests {
             };
             assert_eq!(get_field("foo").unwrap().unpack_i32(), Some(100));
             assert_eq!(get_field("bar").unwrap().unpack_str(), Some("baz"));
+        });
+    }
+
+    #[test]
+    fn test_nested_struct_conversion() {
+        starlark::environment::Module::with_temp_heap(|module| {
+            let heap = module.heap();
+            let inner_struct =
+                starlark::values::structs::AllocStruct(vec![("inner_foo", heap.alloc(42))]);
+            let struct_ref = StructRef::from_value(back_and_forth(
+                &heap,
+                heap.alloc(starlark::values::structs::AllocStruct(vec![
+                    ("outer_foo", heap.alloc(100)),
+                    ("nested", heap.alloc(inner_struct)),
+                ]))
+                .to_value(),
+            ))
+            .unwrap();
+
+            let outer_foo = struct_ref
+                .iter()
+                .find(|(k, _)| k.as_str() == "outer_foo")
+                .map(|(_, v)| v)
+                .unwrap()
+                .unpack_i32();
+            assert_eq!(outer_foo, Some(100));
+
+            let nested_val = struct_ref
+                .iter()
+                .find(|(k, _)| k.as_str() == "nested")
+                .map(|(_, v)| v)
+                .unwrap();
+            let nested_ref = StructRef::from_value(nested_val).unwrap();
+            let inner_foo = nested_ref
+                .iter()
+                .find(|(k, _)| k.as_str() == "inner_foo")
+                .map(|(_, v)| v)
+                .unwrap()
+                .unpack_i32();
+            assert_eq!(inner_foo, Some(42));
         });
     }
 }

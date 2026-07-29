@@ -16,19 +16,31 @@ SliceAny NewScope(const Scope& parent_scope,
                   std::unique_ptr<Scope>& out_scope) {
   auto new_scope = std::make_unique<Scope>(&parent_scope);
   new_scope->set_source_dir(parent_scope.GetSourceDir());
-  // We detach because GN always detaches when result_mode of the parse tree is
-  // RETURNS_SCOPE (which is what starlark creates new scopes for).
-  new_scope->DetachFromContaining();
 
   std::vector<Value*> placeholders;
   placeholders.reserve(keys.size());
   for (const auto& key : keys) {
-    std::string_view key_sv(key.data(), key.size());
-    Value* val = new_scope->SetValue(key_sv, Value(), nullptr);
-    placeholders.push_back(val);
+    placeholders.push_back(
+        new_scope->SetValue(std::string_view(key), Value(), nullptr));
   }
 
   out_scope = std::move(new_scope);
+  return IntoSlice(std::move(placeholders));
+}
+
+SliceAny NewStruct(const Settings& settings,
+                   rust::Slice<const rust::Str> keys,
+                   std::unique_ptr<Scope>& out) {
+  out = std::make_unique<Scope>(&settings);
+
+  std::vector<Value*> placeholders;
+  placeholders.reserve(keys.size());
+  for (const auto& key : keys) {
+    placeholders.push_back(
+        out->SetValue(std::string_view(key), Value(), nullptr));
+  }
+  // Not all fields in a struct need to be used.
+  out->MarkAllUsed();
   return IntoSlice(std::move(placeholders));
 }
 
