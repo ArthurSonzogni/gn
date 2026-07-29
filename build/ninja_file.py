@@ -55,17 +55,33 @@ class DummyRule:
 
 class Rule(DummyRule):
 
-  def __init__(self, name, ninja_file, command, description=None, inputs=None):
+  def __init__(
+      self,
+      name,
+      ninja_file,
+      command,
+      description=None,
+      inputs=None,
+      depfile=None,
+      deps=None,
+      restat=None,
+      pool=None,
+  ):
     super().__init__(name, ninja_file, inputs)
     self.command = command
     self.description = description
+    self.depfile = depfile
+    self.deps = deps
+    self.restat = restat
+    self.pool = pool
     self.ninja_file.rules.append(self)
 
 
 class NinjaFile:
 
-  def __init__(self, platform, source_root, out_dir):
+  def __init__(self, platform, source_root, out_dir, debug=False):
     self.platform = platform
+    self.debug = debug
     self.out_dir = pathlib.Path(out_dir).resolve()
     # source_root is relative to out_dir
     self.source_root = pathlib.Path(os.path.relpath(source_root, self.out_dir))
@@ -125,6 +141,25 @@ class NinjaFile:
         inputs=[compare_script],
     )
 
+    run_cargo_rel_path = 'build/run_cargo.py'
+    run_cargo_script = self.source_file(run_cargo_rel_path)
+    self.Cargo = Rule(
+        name='cargo',
+        ninja_file=self,
+        command=python(
+            run_cargo_rel_path,
+            '$target_type $out $cargo_out_dir $cxx "$cxxflags"'
+            ' cargo build --color=always'
+            ' --manifest-path=$manifest_path $cargo_target_dir $cargo_flags' + ('' if self.debug else ' --release'),
+        ),
+        description='CARGO build $out',
+        inputs=[run_cargo_script],
+        depfile='$depfile',
+        deps='gcc',
+        restat='1',
+        pool='cargo_pool',
+    )
+
   def chain(self, *commands):
     joined = ' && '.join(commands)
     if self.platform.is_windows():
@@ -133,6 +168,36 @@ class NinjaFile:
 
   def source_file(self, path):
     return self.source_root / path
+
+  @property
+  def rust_profile(self):
+    return 'debug' if self.debug else 'release'
+
+  def CargoLibTarget(self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs):
+    return self.Cargo(
+        name,
+        inputs=self.directory(crate_dir, ['target', 'testdata']),
+        manifest_path=crate_dir / 'Cargo.toml',
+        cargo_target_dir=f'--target-dir={target_dir}',
+        cargo_flags=cargo_flags + ' --lib',
+        target_type='lib',
+        cargo_out_dir=f'{target_dir}/{self.rust_profile}',
+        depfile=f'{name}.d',
+        **kwargs,
+    )
+
+  def CargoTestTarget(self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs):
+    return self.Cargo(
+        name,
+        inputs=self.directory(crate_dir, ['target']),
+        manifest_path=crate_dir / 'Cargo.toml',
+        cargo_target_dir=f'--target-dir={target_dir}',
+        cargo_flags=cargo_flags + ' --tests',
+        target_type='test',
+        cargo_out_dir=f'{target_dir}/{self.rust_profile}',
+        depfile=f'{name}.d',
+        **kwargs,
+    )
 
   def directory(self, dir_path, exclude_dirs):
     # Join out_dir with dir_path (which is relative to out_dir) to get absolute path for filesystem walk
@@ -170,6 +235,14 @@ class NinjaFile:
       out.append(f'rule {rule.name}')
       out.append(f'  command = {getattr(rule, "command", "")}')
       out.append(f'  description = {getattr(rule, "description", "")}')
+      if rule.depfile is not None:
+        out.append(f'  depfile = {rule.depfile}')
+      if rule.deps is not None:
+        out.append(f'  deps = {rule.deps}')
+      if rule.restat is not None:
+        out.append(f'  restat = {rule.restat}')
+      if rule.pool is not None:
+        out.append(f'  pool = {rule.pool}')
       out.append('')
 
     for action in self.actions:
