@@ -10,6 +10,9 @@ workspace = true
 crate-type = ["staticlib"]
 test = false
 
+[dependencies]
+ffi = { path = "crates/ffi" }
+
 [workspace]
 members = [
     ".",

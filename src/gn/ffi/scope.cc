@@ -8,6 +8,7 @@
 #include "gn/ffi/bridge.h"
 #include "gn/ffi/scope.h"
 #include "gn/ffi/slice.h"
+#include "gn/range_utils.h"
 #include "gn/scope.h"
 #include "gn/value.h"
 
@@ -71,13 +72,16 @@ SliceAny NewStruct(const Settings& settings,
 SliceAny GetScopeItems(const Scope& scope) {
   auto range =
       scope.GetCurrentScopeValues() | std::views::transform([](auto pair) {
-        return KeyValue{rust::Str(pair.first.data(), pair.first.size()),
-                        *pair.second};
+        return KeyValue{rust::Str(pair.first), *pair.second};
       });
-  return IntoSlice(std::vector<KeyValue>(range.begin(), range.end()));
+  return IntoSlice(to_vec(range));
 }
 
 const Value* GetValue(const Scope& scope, rust::Str ident) {
   std::string_view ident_sv(ident.data(), ident.size());
   return scope.GetValue(ident_sv);
+}
+
+Value& SetValue(Scope& scope, rust::Str ident, ParseNodePtr origin) {
+  return *scope.SetValue(std::string_view(ident), Value(), origin.ptr);
 }

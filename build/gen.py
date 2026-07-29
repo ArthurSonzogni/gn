@@ -764,6 +764,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
               'src/gn/ffi/bridge.cc',
               'src/gn/ffi/scope.cc',
               'src/gn/ffi/value.cc',
+              'src/gn/ffi/session.cc',
               'src/gn/filesystem_utils.cc',
               'src/gn/file_writer.cc',
               'src/gn/frameworks_utils.cc',
@@ -966,6 +967,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/path_output_unittest.cc',
         'src/gn/pattern_unittest.cc',
         'src/gn/pointer_set_unittest.cc',
+        'src/gn/range_utils_unittest.cc',
         'src/gn/resolved_target_data_unittest.cc',
         'src/gn/resolved_target_deps_unittest.cc',
         'src/gn/runtime_deps_unittest.cc',
@@ -1058,6 +1060,12 @@ def WriteGNNinja(path, platform, host, options, args_list):
   # we just build static libraries that GN needs
   executables['gn']['libs'].extend(static_libraries.keys())
   executables['gn_unittests']['libs'].extend(static_libraries.keys())
+
+  if options.starlark:
+    executables['gn_unittests']['sources'].extend([
+        'src/gn/ffi/session_unittest.cc',
+    ])
+    executables['gn_unittests']['libs'].append('gn_starlark')
 
   # Write the absolute path of the source root to a file in the output directory
   # so that tests can locate the source tree robustly.

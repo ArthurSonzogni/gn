@@ -18,13 +18,17 @@
 //! these types in their own files.
 mod bridge;
 mod err;
+mod errors;
+mod eval_context;
 mod label;
 mod mutability;
 mod opaque;
 mod output_file;
 mod scope;
+mod session;
 mod settings;
 mod slice;
+mod target_ref;
 mod test_with_scope;
 mod value;
 
@@ -32,5 +36,6 @@ pub use bridge::{Err, KeyValue, Label, OutputFile, Scope, Settings, SourceDir, V
 pub use mutability::Immutable;
 pub use opaque::{NonOpaque, OpaqueSized};
 pub use scope::OwnedScope;
+pub use session::Session;
 pub use slice::{OwnedSlice, Slice};
 pub use test_with_scope::TestWithScope;

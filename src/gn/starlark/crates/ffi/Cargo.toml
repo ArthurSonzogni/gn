@@ -10,8 +10,15 @@ workspace = true
 doctest = false
 
 [dependencies]
+allocative = { workspace = true }
+anyhow = { workspace = true }
+attr = { path = "../attr" }
+cxx = { workspace = true }
+depset = { path = "../depset" }
+loader = { path = "../loader" }
+providers = { path = "../providers" }
+rule = { path = "../rule" }
 starlark = { workspace = true }
 starlark_derive = { workspace = true }
-cxx = { workspace = true }
-types = { path = "../types" }
 thiserror = { workspace = true }
+types = { path = "../types" }

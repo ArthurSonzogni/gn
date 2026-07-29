@@ -12,7 +12,12 @@
 ///   * This allows for C++ code to #include rust types
 /// * The `cxxbridge` command generates shims to allow us to use C++ types in
 ///   rust.
+use crate::session::Session;
+
 #[cxx::bridge]
+// Allow let_underscore_drop because the cxx::bridge generated code has non-binding
+// lets on C++ types with destructors.
+#[allow(let_underscore_drop)]
 // CxxBridge requires a module, but we don't want one. So we make a private one
 // and re-export all fields.
 mod dummy {
@@ -132,6 +137,11 @@ mod dummy {
         // Returns an OwnedSlice<KeyValue> corresponding to references to each element.
         pub(in crate::scope) fn GetScopeItems(scope: &Scope) -> SliceAny;
         pub(in crate::scope) fn GetValue(scope: &Scope, ident: &str) -> *const Value;
+        pub(in crate::scope) fn SetValue<'a>(
+            scope: Pin<&'a mut Scope>,
+            ident: &str,
+            origin: ParseNodePtr,
+        ) -> Pin<&'a mut Value>;
         #[rust_name = "settings_cxx"]
         pub(in crate::scope) fn settings(self: &Scope) -> *const Settings;
 
@@ -173,6 +183,28 @@ mod dummy {
             val: Pin<&mut Value>,
             origin: ParseNodePtr,
             scope: UniquePtr<Scope>,
+        );
+    }
+
+    extern "Rust" {
+        type Session;
+
+        #[Self = "Session"]
+        #[cxx_name = "new_cxx"]
+        fn new(source_root: &str, source_root_rel: &str) -> Box<Session>;
+
+        #[Self = "Session"]
+        fn new_for_testing() -> Box<Session>;
+
+        fn load_values(
+            self: &'static Session,
+            label: &str,
+            relative_to: &str,
+            keys: &[&str],
+            scope: Pin<&mut Scope>,
+            settings: &Settings,
+            origin: ParseNodePtr,
+            err: Pin<&mut Err>,
         );
     }
 }

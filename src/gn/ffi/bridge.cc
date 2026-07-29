@@ -32,6 +32,7 @@
 
 #ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
+#pragma GCC diagnostic ignored "-Wshadow"
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wdollar-in-identifier-extension"
 #endif // __clang__
@@ -53,8 +54,6 @@ namespace {
 template <typename T>
 class impl;
 } // namespace
-
-class Opaque;
 
 template <typename T>
 ::std::size_t size_of();
@@ -504,6 +503,172 @@ void Slice<T>::swap(Slice &rhs) noexcept {
 }
 #endif // CXXBRIDGE1_RUST_SLICE
 
+#ifndef CXXBRIDGE1_RUST_BOX
+#define CXXBRIDGE1_RUST_BOX
+template <typename T>
+class Box final {
+public:
+  using element_type = T;
+  using const_pointer =
+      typename std::add_pointer<typename std::add_const<T>::type>::type;
+  using pointer = typename std::add_pointer<T>::type;
+
+  Box() = delete;
+  Box(Box &&) noexcept;
+  ~Box() noexcept;
+
+  explicit Box(const T &);
+  explicit Box(T &&);
+
+  Box &operator=(Box &&) & noexcept;
+
+  const T *operator->() const noexcept;
+  const T &operator*() const noexcept;
+  T *operator->() noexcept;
+  T &operator*() noexcept;
+
+  template <typename... Fields>
+  static Box in_place(Fields &&...);
+
+  void swap(Box &) noexcept;
+
+  static Box from_raw(T *) noexcept;
+
+  T *into_raw() noexcept;
+
+  /* Deprecated */ using value_type = element_type;
+
+private:
+  class uninit;
+  class allocation;
+  Box(uninit) noexcept;
+  void drop() noexcept;
+
+  friend void swap(Box &lhs, Box &rhs) noexcept { lhs.swap(rhs); }
+
+  T *ptr;
+};
+
+template <typename T>
+class Box<T>::uninit {};
+
+template <typename T>
+class Box<T>::allocation {
+  static T *alloc() noexcept;
+  static void dealloc(T *) noexcept;
+
+public:
+  allocation() noexcept : ptr(alloc()) {}
+  ~allocation() noexcept {
+    if (this->ptr) {
+      dealloc(this->ptr);
+    }
+  }
+  T *ptr;
+};
+
+template <typename T>
+Box<T>::Box(Box &&other) noexcept : ptr(other.ptr) {
+  other.ptr = nullptr;
+}
+
+template <typename T>
+Box<T>::Box(const T &val) {
+  allocation alloc;
+  ::new (alloc.ptr) T(val);
+  this->ptr = alloc.ptr;
+  alloc.ptr = nullptr;
+}
+
+template <typename T>
+Box<T>::Box(T &&val) {
+  allocation alloc;
+  ::new (alloc.ptr) T(std::move(val));
+  this->ptr = alloc.ptr;
+  alloc.ptr = nullptr;
+}
+
+template <typename T>
+Box<T>::~Box() noexcept {
+  if (this->ptr) {
+    this->drop();
+  }
+}
+
+template <typename T>
+Box<T> &Box<T>::operator=(Box &&other) & noexcept {
+  if (this->ptr) {
+    this->drop();
+  }
+  this->ptr = other.ptr;
+  other.ptr = nullptr;
+  return *this;
+}
+
+template <typename T>
+const T *Box<T>::operator->() const noexcept {
+  return this->ptr;
+}
+
+template <typename T>
+const T &Box<T>::operator*() const noexcept {
+  return *this->ptr;
+}
+
+template <typename T>
+T *Box<T>::operator->() noexcept {
+  return this->ptr;
+}
+
+template <typename T>
+T &Box<T>::operator*() noexcept {
+  return *this->ptr;
+}
+
+template <typename T>
+template <typename... Fields>
+Box<T> Box<T>::in_place(Fields &&...fields) {
+  allocation alloc;
+  auto ptr = alloc.ptr;
+  ::new (ptr) T{std::forward<Fields>(fields)...};
+  alloc.ptr = nullptr;
+  return from_raw(ptr);
+}
+
+template <typename T>
+void Box<T>::swap(Box &rhs) noexcept {
+  using std::swap;
+  swap(this->ptr, rhs.ptr);
+}
+
+template <typename T>
+Box<T> Box<T>::from_raw(T *raw) noexcept {
+  Box box = uninit{};
+  box.ptr = raw;
+  return box;
+}
+
+template <typename T>
+T *Box<T>::into_raw() noexcept {
+  T *raw = this->ptr;
+  this->ptr = nullptr;
+  return raw;
+}
+
+template <typename T>
+Box<T>::Box(uninit) noexcept {}
+#endif // CXXBRIDGE1_RUST_BOX
+
+#ifndef CXXBRIDGE1_RUST_OPAQUE
+#define CXXBRIDGE1_RUST_OPAQUE
+class Opaque {
+public:
+  Opaque() = delete;
+  Opaque(const Opaque &) = delete;
+  ~Opaque() = delete;
+};
+#endif // CXXBRIDGE1_RUST_OPAQUE
+
 #ifndef CXXBRIDGE1_IS_COMPLETE
 #define CXXBRIDGE1_IS_COMPLETE
 namespace detail {
@@ -572,6 +737,13 @@ std::size_t align_of() {
 }
 #endif // CXXBRIDGE1_LAYOUT
 
+template <typename T>
+union ManuallyDrop {
+  T value;
+  ManuallyDrop(T &&value) : value(::std::move(value)) {}
+  ~ManuallyDrop() {}
+};
+
 namespace {
 template <bool> struct deleter_if {
   template <typename T> void operator()(T *) {}
@@ -604,6 +776,7 @@ using Scope = ::Scope;
 using TestWithScope = ::TestWithScope;
 using Value = ::Value;
 using ParseNode = ::ParseNode;
+struct Session;
 
 #ifndef CXXBRIDGE1_STRUCT_Any
 #define CXXBRIDGE1_STRUCT_Any
@@ -654,6 +827,23 @@ enum class ValueType : ::std::uint8_t {
   Scope = 5,
 };
 #endif // CXXBRIDGE1_ENUM_ValueType
+
+#ifndef CXXBRIDGE1_STRUCT_Session
+#define CXXBRIDGE1_STRUCT_Session
+struct Session final : public ::rust::Opaque {
+  static ::rust::Box<::Session> new_cxx(::rust::Str source_root, ::rust::Str source_root_rel) noexcept;
+  static ::rust::Box<::Session> new_for_testing() noexcept;
+  void load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept;
+  ~Session() = delete;
+
+private:
+  friend ::rust::layout;
+  struct layout {
+    static ::std::size_t size() noexcept;
+    static ::std::size_t align() noexcept;
+  };
+};
+#endif // CXXBRIDGE1_STRUCT_Session
 
 extern "C" {
 bool cxxbridge1$196$Err$has_error(::Err const &self) noexcept {
@@ -734,6 +924,11 @@ void cxxbridge1$196$GetScopeItems(::Scope const &scope, ::SliceAny *return$) noe
 ::Value const *cxxbridge1$196$GetValue(::Scope const &scope, ::rust::Str ident) noexcept {
   ::Value const *(*GetValue$)(::Scope const &, ::rust::Str) = ::GetValue;
   return GetValue$(scope, ident);
+}
+
+::Value *cxxbridge1$196$SetValue(::Scope &scope, ::rust::Str ident, ::ParseNodePtr *origin) noexcept {
+  ::Value &(*SetValue$)(::Scope &, ::rust::Str, ::ParseNodePtr) = ::SetValue;
+  return &SetValue$(scope, ident, ::std::move(*origin));
 }
 
 ::Settings const *cxxbridge1$196$Scope$settings_cxx(::Scope const &self) noexcept {
@@ -820,7 +1015,38 @@ void cxxbridge1$196$SetValueScope(::Value &val, ::ParseNodePtr *origin, ::Scope 
   void (*SetValueScope$)(::Value &, ::ParseNodePtr, ::std::unique_ptr<::Scope>) = ::SetValueScope;
   SetValueScope$(val, ::std::move(*origin), ::std::unique_ptr<::Scope>(scope));
 }
+::std::size_t cxxbridge1$196$Session$operator$sizeof() noexcept;
+::std::size_t cxxbridge1$196$Session$operator$alignof() noexcept;
 
+::Session *cxxbridge1$196$Session$new(::rust::Str source_root, ::rust::Str source_root_rel) noexcept;
+
+::Session *cxxbridge1$196$Session$new_for_testing() noexcept;
+
+void cxxbridge1$196$Session$load_values(::Session const &self, ::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr *origin, ::Err &err) noexcept;
+} // extern "C"
+
+::std::size_t Session::layout::size() noexcept {
+  return cxxbridge1$196$Session$operator$sizeof();
+}
+
+::std::size_t Session::layout::align() noexcept {
+  return cxxbridge1$196$Session$operator$alignof();
+}
+
+::rust::Box<::Session> Session::new_cxx(::rust::Str source_root, ::rust::Str source_root_rel) noexcept {
+  return ::rust::Box<::Session>::from_raw(cxxbridge1$196$Session$new(source_root, source_root_rel));
+}
+
+::rust::Box<::Session> Session::new_for_testing() noexcept {
+  return ::rust::Box<::Session>::from_raw(cxxbridge1$196$Session$new_for_testing());
+}
+
+void Session::load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept {
+  ::rust::ManuallyDrop<::ParseNodePtr> origin$(::std::move(origin));
+  cxxbridge1$196$Session$load_values(*this, label, relative_to, keys, scope, settings, &origin$.value, err);
+}
+
+extern "C" {
 static_assert(::rust::detail::is_complete<::std::remove_extent<::Err>::type>::value, "definition of `::Err` is required");
 static_assert(sizeof(::std::unique_ptr<::Err>) == sizeof(void *), "");
 static_assert(alignof(::std::unique_ptr<::Err>) == alignof(void *), "");
@@ -896,4 +1122,25 @@ void cxxbridge1$unique_ptr$Value$raw(::std::unique_ptr<::Value> *ptr, ::std::uni
 void cxxbridge1$unique_ptr$Value$drop(::std::unique_ptr<::Value> *ptr) noexcept {
   ::rust::deleter_if<::rust::detail::is_complete<::Value>::value>{}(ptr);
 }
+
+::Session *cxxbridge1$box$Session$alloc() noexcept;
+void cxxbridge1$box$Session$dealloc(::Session *) noexcept;
+void cxxbridge1$box$Session$drop(::rust::Box<::Session> *ptr) noexcept;
 } // extern "C"
+
+namespace rust {
+inline namespace cxxbridge1 {
+template <>
+::Session *Box<::Session>::allocation::alloc() noexcept {
+  return cxxbridge1$box$Session$alloc();
+}
+template <>
+void Box<::Session>::allocation::dealloc(::Session *ptr) noexcept {
+  cxxbridge1$box$Session$dealloc(ptr);
+}
+template <>
+void Box<::Session>::drop() noexcept {
+  cxxbridge1$box$Session$drop(this);
+}
+} // namespace cxxbridge1
+} // namespace rust

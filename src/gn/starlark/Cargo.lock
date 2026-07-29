@@ -671,7 +671,14 @@ dependencies = [
 name = "ffi"
 version = "0.1.0"
 dependencies = [
+ "allocative",
+ "anyhow",
+ "attr",
  "cxx",
+ "depset",
+ "loader",
+ "providers",
+ "rule",
  "starlark",
  "starlark_derive",
  "thiserror",
@@ -739,6 +746,9 @@ dependencies = [
 [[package]]
 name = "gn_starlark"
 version = "0.1.0"
+dependencies = [
+ "ffi",
+]
 
 [[package]]
 name = "hash32"
