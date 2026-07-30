@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <ranges>
 #include <set>
 #include <string>
 #include <string_view>
@@ -233,6 +234,14 @@ class Scope {
   // Returns all values set in the current scope, without going to the parent
   // scopes.
   void GetCurrentScopeValues(KeyValueMap* output) const;
+
+  // Returns all values set in the current scope as a lazy view of
+  // std::pair<std::string_view, const Value*>.
+  auto GetCurrentScopeValues() const {
+    return values_ | std::views::transform([](const auto& pair) {
+             return std::make_pair(pair.first, &pair.second.value);
+           });
+  }
 
   // Returns true if the values in the current scope are the same as all
   // values in the given scope, without going to the parent scopes. Returns
