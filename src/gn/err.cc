@@ -92,12 +92,37 @@ void OutputErrString(bool is_fatal,
   }
 }
 
+}  // namespace
+
+struct ErrOutput {
+  virtual ~ErrOutput() = default;
+  virtual void Write(std::string_view text,
+                     TextDecoration dec = DECORATION_NONE) = 0;
+};
+
+namespace {
+
+struct StdoutErrOutput : public ErrOutput {
+  StdoutErrOutput(bool is_fatal) : is_fatal(is_fatal) {}
+  void Write(std::string_view text, TextDecoration dec) override {
+    OutputErrString(is_fatal, text, dec);
+  }
+  bool is_fatal;
+};
+
+struct StringErrOutput : public ErrOutput {
+  void Write(std::string_view text, TextDecoration dec) override {
+    out.append(text);
+  }
+  std::string out;
+};
+
 // The line length is used to clip the maximum length of the markers we'll
 // make if the error spans more than one line (like unterminated literals).
-void OutputHighlighedPosition(const Location& location,
-                              const Err::RangeList& ranges,
-                              size_t line_length,
-                              bool is_fatal) {
+void OutputHighlightedPosition(const Location& location,
+                               const Err::RangeList& ranges,
+                               size_t line_length,
+                               ErrOutput& output) {
   // Make a buffer of the line in spaces.
   std::string highlight;
   highlight.resize(line_length);
@@ -119,7 +144,7 @@ void OutputHighlighedPosition(const Location& location,
     highlight.resize(highlight.size() - 1);
 
   highlight += "\n";
-  OutputErrString(is_fatal, highlight, DECORATION_BLUE);
+  output.Write(highlight, DECORATION_BLUE);
 }
 
 }  // namespace
@@ -209,11 +234,23 @@ bool Err::InternalPrintToStdout(bool is_sub_err, bool is_fatal) const {
         return false;
       }
     }
+  }
 
+  StdoutErrOutput output(is_fatal);
+  InternalFormat(output, is_sub_err, is_fatal);
+  return true;
+}
+
+void Err::InternalFormat(ErrOutput& output,
+                         bool is_sub_err,
+                         bool is_fatal) const {
+  DCHECK(info_);
+
+  if (!is_sub_err) {
     if (is_fatal)
-      OutputString("ERROR ", DECORATION_RED);
+      output.Write("ERROR ", DECORATION_RED);
     else
-      OutputLogString("WARNING ", DECORATION_MAGENTA);
+      output.Write("WARNING ", DECORATION_MAGENTA);
   }
 
   // File name and location.
@@ -235,27 +272,32 @@ bool Err::InternalPrintToStdout(bool is_sub_err, bool is_fatal) const {
   std::string colon;
   if (!loc_str.empty() || !toolchain_str.empty())
     colon = ": ";
-  OutputErrString(is_fatal,
-                  loc_str + toolchain_str + colon + info_->message + "\n");
+  output.Write(loc_str + toolchain_str + colon + info_->message + "\n");
 
   // Quoted line.
   if (input_file) {
     std::string line =
         GetNthLine(input_file->contents(), info_->location.line_number());
     if (!base::ContainsOnlyChars(line, base::kWhitespaceASCII)) {
-      OutputErrString(is_fatal, line + "\n", DECORATION_DIM);
-      OutputHighlighedPosition(info_->location, info_->ranges, line.size(),
-                               is_fatal);
+      output.Write(line + "\n", DECORATION_DIM);
+      OutputHighlightedPosition(info_->location, info_->ranges, line.size(),
+                                output);
     }
   }
 
   // Optional help text.
   if (!info_->help_text.empty())
-    OutputErrString(is_fatal, info_->help_text + "\n");
+    output.Write(info_->help_text + "\n");
 
   // Sub errors.
   for (const auto& sub_err : info_->sub_errs)
-    sub_err.InternalPrintToStdout(true, is_fatal);
+    sub_err.InternalFormat(output, true, is_fatal);
+}
 
-  return true;
+std::string Err::to_string() const {
+  if (!has_error())
+    return std::string();
+  StringErrOutput output;
+  InternalFormat(output, false, true);
+  return std::move(output.out);
 }

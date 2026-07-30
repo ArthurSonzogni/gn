@@ -91,3 +91,26 @@ TEST(Template, MemoryBlowUp) {
   input.parsed()->Execute(setup.scope(), &err);
   ASSERT_SUCCESS(input);
 }
+
+TEST(Template, ErrorStackTrace) {
+  TestWithScope setup;
+  TestParseInput input(
+      "template(\"my_template\") {\n"
+      "  print(invoker.undefined_var)\n"
+      "}\n"
+      "my_template(\"lala\") {\n"
+      "}");
+  ASSERT_SUCCESS(input);
+
+  Err err;
+  input.parsed()->Execute(setup.scope(), &err);
+  EXPECT_TRUE(err.has_error());
+  EXPECT_EQ(err.to_string(),
+            "ERROR at //test:2:17: No value named \"undefined_var\" in scope "
+            "\"invoker\"\n"
+            "  print(invoker.undefined_var)\n"
+            "                ^------------\n"
+            "See //test:4:1: whence my_template was called.\n"
+            "my_template(\"lala\") {\n"
+            "^--------------------\n");
+}

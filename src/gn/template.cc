@@ -106,7 +106,8 @@ Value Template::Invoke(Scope* scope,
   if (err->has_error()) {
     // If there was an error, append the caller location so the error message
     // displays a stack trace of how it got here.
-    err->AppendSubErr(Err(invocation, "whence it was called."));
+    err->AppendSubErr(
+        Err(invocation, "whence " + template_name + " was called."));
     return Value();
   }
 
@@ -124,7 +125,8 @@ Value Template::Invoke(Scope* scope,
     if (!invoker_value->scope_value()->CheckForUnusedVars(err)) {
       // If there was an error, append the caller location so the error message
       // displays a stack trace of how it got here.
-      err->AppendSubErr(Err(invocation, "whence it was called."));
+      err->AppendSubErr(
+          Err(invocation, "whence " + template_name + " was called."));
       return Value();
     }
   }
@@ -133,7 +135,8 @@ Value Template::Invoke(Scope* scope,
   if (!template_scope.CheckForUnusedVars(err)) {
     // If there was an error, append the caller location so the error message
     // displays a stack trace of how it got here.
-    err->AppendSubErr(Err(invocation, "whence it was called."));
+    err->AppendSubErr(
+        Err(invocation, "whence " + template_name + " was called."));
     return Value();
   }
 

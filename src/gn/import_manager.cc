@@ -42,7 +42,8 @@ std::unique_ptr<Scope> UncachedImport(const Settings* settings,
   if (err->has_error()) {
     // If there was an error, append the caller location so the error message
     // displays a why the file was imported (esp. useful for failed asserts).
-    err->AppendSubErr(Err(node_for_err, "whence it was imported."));
+    err->AppendSubErr(
+        Err(node_for_err, "whence " + file.value() + " was imported."));
     return nullptr;
   }
   scope->ClearProcessingImport();

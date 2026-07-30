@@ -15,6 +15,7 @@
 
 class ParseNode;
 class Value;
+struct ErrOutput;
 
 // Result of doing some operation. Check has_error() to see if an error
 // occurred.
@@ -105,6 +106,10 @@ class Err {
   // newlines or separators.
   bool PrintToStdout() const;
 
+  // Converts the error to a string, formatted as it would be if calling
+  // PrintToStdout with text decoration disabled.
+  std::string to_string() const;
+
   // Prints to standard out but uses a "WARNING" messaging instead of the
   // normal "ERROR" messaging. This is a property of the printing system rather
   // than of the Err class because there is no expectation that code calling a
@@ -121,6 +126,7 @@ class Err {
 
  private:
   bool InternalPrintToStdout(bool is_sub_err, bool is_fatal) const;
+  void InternalFormat(ErrOutput& output, bool is_sub_err, bool is_fatal) const;
 
   std::unique_ptr<ErrInfo> info_;  // Non-null indicates error.
 };
