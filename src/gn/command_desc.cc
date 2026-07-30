@@ -604,7 +604,7 @@ Printing deps
       tree.
 
       Tree output can not be used with the filtering or output flags: --as,
-      --type, --testonly.
+      --type, --exclude-type, --testonly.
 
 )"
 

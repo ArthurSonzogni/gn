@@ -202,6 +202,11 @@ class CommandSwitches {
     return target_types_;
   }
 
+  // For --exclude-type=TARGET_TYPE
+  const std::vector<Target::OutputType>& target_exclude_types() const {
+    return target_exclude_types_;
+  }
+
   enum TestonlyMode {
     TESTONLY_NONE,   // no --testonly used.
     TESTONLY_FALSE,  // --testonly=false
@@ -248,6 +253,7 @@ class CommandSwitches {
 
   TargetPrintMode target_print_mode_ = TARGET_PRINT_LABEL;
   std::vector<Target::OutputType> target_types_;
+  std::vector<Target::OutputType> target_exclude_types_;
   TestonlyMode testonly_mode_ = TESTONLY_NONE;
 
   std::string meta_rebase_dir_;
@@ -362,21 +368,32 @@ bool FilterPatternsFromString(const BuildSettings* build_settings,
   "      output\n"                                                            \
   "          Prints the first output file for the target relative to the\n"   \
   "          root build directory.\n"
-#define TARGET_TYPE_FILTER_COMMAND_LINE_HELP                              \
-  "  --type=(action|bundle_data|copy|create_bundle|executable|\n"         \
-  "          generated_file|group|loadable_module|rust_library|\n"        \
-  "          rust_proc_macro|shared_library|source_set|static_library)\n" \
-  "      Restrict outputs to targets matching the given type. If\n"       \
-  "      unspecified, no filtering will be performed. You can specify\n"  \
-  "      a comma-separated list of types to match multiple types.\n"
+#define TARGET_TYPE_FILTER_COMMAND_LINE_HELP                               \
+  "  --type=(action|bundle_data|copy|create_bundle|executable|\n"          \
+  "          generated_file|group|loadable_module|rust_library|\n"         \
+  "          rust_proc_macro|shared_library|source_set|static_library)\n"  \
+  "      Restrict outputs to targets matching the given type. If\n"        \
+  "      unspecified, no filtering will be performed. You can specify\n"   \
+  "      a comma-separated list of types to match multiple types.\n"       \
+  "      Can not be used with --exclude-type.\n"                           \
+  "\n"                                                                     \
+  "  --exclude-type=(action|bundle_data|copy|create_bundle|executable|\n"  \
+  "                  generated_file|group|loadable_module|rust_library|\n" \
+  "                  rust_proc_macro|shared_library|source_set|\n"         \
+  "                  static_library)\n"                                    \
+  "      Exclude targets matching the given type from the outputs. If\n"   \
+  "      unspecified, no filtering will be performed. You can specify\n"   \
+  "      a comma-separated list of types to match multiple types.\n"       \
+  "      Can not be used with --type.\n"
 #define TARGET_TESTONLY_FILTER_COMMAND_LINE_HELP                           \
   "  --testonly=(true|false)\n"                                            \
   "      Restrict outputs to targets with the testonly flag set\n"         \
   "      accordingly. When unspecified, the target's testonly flags are\n" \
   "      ignored.\n"
 
-// Applies any testonly and type filters specified on the command line,
-// and prints the targets as specified by the --as command line flag.
+// Applies any testonly, type, and exclude-type filters specified on the
+// command line, and prints the targets as specified by the --as command line
+// flag.
 //
 // If indent is true, the results will be indented two spaces.
 //

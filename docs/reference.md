@@ -670,7 +670,7 @@
       tree.
 
       Tree output can not be used with the filtering or output flags: --as,
-      --type, --testonly.
+      --type, --exclude-type, --testonly.
 
   --type=(action|bundle_data|copy|create_bundle|executable|
           generated_file|group|loadable_module|rust_library|
@@ -678,6 +678,16 @@
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed. You can specify
       a comma-separated list of types to match multiple types.
+      Can not be used with --exclude-type.
+
+  --exclude-type=(action|bundle_data|copy|create_bundle|executable|
+                  generated_file|group|loadable_module|rust_library|
+                  rust_proc_macro|shared_library|source_set|
+                  static_library)
+      Exclude targets matching the given type from the outputs. If
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
+      Can not be used with --type.
 ```
 
 #### **Note**
@@ -1047,7 +1057,7 @@
 ```
 ### <a name="cmd_ls"></a>**gn ls &lt;out_dir&gt; [&lt;label_pattern&gt;] [\--default-toolchain] [\--as=...]**&nbsp;[Back to Top](#gn-reference)
 ```
-      [--type=...] [--testonly=...]
+      [--type=...|--exclude-type=...] [--testonly=...]
 
   Lists all targets matching the given pattern for the given build directory.
   By default, only targets in the default toolchain will be matched unless a
@@ -1092,6 +1102,16 @@
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed. You can specify
       a comma-separated list of types to match multiple types.
+      Can not be used with --exclude-type.
+
+  --exclude-type=(action|bundle_data|copy|create_bundle|executable|
+                  generated_file|group|loadable_module|rust_library|
+                  rust_proc_macro|shared_library|source_set|
+                  static_library)
+      Exclude targets matching the given type from the outputs. If
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
+      Can not be used with --type.
 ```
 
 #### **Examples**
@@ -1276,7 +1296,8 @@
 
 ```
   gn refs <out_dir> (<label_pattern>|<label>|<file>|@<response_file>)* [--all]
-          [--default-toolchain] [--as=...] [--testonly=...] [--type=...]
+          [--default-toolchain] [--as=...] [--testonly=...]
+          [--type=...|--exclude-type=...]
 
   Finds reverse dependencies (which targets reference something). The input is
   a list containing:
@@ -1348,7 +1369,7 @@
       be elided. Combine with --all to see a full dependency tree.
 
       Tree output can not be used with the filtering or output flags: --as,
-      --type, --testonly.
+      --type, --exclude-type, --testonly.
 
   --type=(action|bundle_data|copy|create_bundle|executable|
           generated_file|group|loadable_module|rust_library|
@@ -1356,6 +1377,16 @@
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed. You can specify
       a comma-separated list of types to match multiple types.
+      Can not be used with --exclude-type.
+
+  --exclude-type=(action|bundle_data|copy|create_bundle|executable|
+                  generated_file|group|loadable_module|rust_library|
+                  rust_proc_macro|shared_library|source_set|
+                  static_library)
+      Exclude targets matching the given type from the outputs. If
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
+      Can not be used with --type.
 
   --relation=(source|public|input|data|script|output)
       Restricts output to targets which refer to input files by a specific

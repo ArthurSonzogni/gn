@@ -4,6 +4,7 @@
 
 #include "gn/commands.h"
 
+#include <algorithm>
 #include <fstream>
 #include <optional>
 
@@ -153,6 +154,18 @@ bool GetTargetTypeFilter(std::vector<Target::OutputType>* types) {
   return true;
 }
 
+// Returns the target exclude type filter based on the command line flags for
+// the current process. Returns true on success. On error, prints a message to
+// the console and returns false.
+//
+// The vector will be empty if there is no filter. Target::ACTION_FOREACH
+// will never be returned. Code applying the filters should apply Target::ACTION
+// to both ACTION and ACTION_FOREACH.
+bool GetTargetExcludeTypeFilter(std::vector<Target::OutputType>* types) {
+  *types = CommandSwitches::Get().target_exclude_types();
+  return true;
+}
+
 // Applies any testonly filtering specified on the command line to the given
 // target set. On failure, prints an error and returns false.
 bool ApplyTestonlyFilter(std::vector<const Target*>* targets) {
@@ -177,13 +190,16 @@ bool ApplyTestonlyFilter(std::vector<const Target*>* targets) {
   return true;
 }
 
-// Applies any target type filtering specified on the command line to the given
-// target set. On failure, prints an error and returns false.
+// Applies any target type and exclude type filtering specified on the command
+// line to the given target set. On failure, prints an error and returns false.
 bool ApplyTypeFilter(std::vector<const Target*>* targets) {
   std::vector<Target::OutputType> types;
   if (!GetTargetTypeFilter(&types))
     return false;
-  if (targets->empty() || types.empty())
+  std::vector<Target::OutputType> exclude_types;
+  if (!GetTargetExcludeTypeFilter(&exclude_types))
+    return false;
+  if (targets->empty() || (types.empty() && exclude_types.empty()))
     return true;  // Nothing to filter out.
 
   // Filter into a copy of the vector, then replace the output.
@@ -191,14 +207,18 @@ bool ApplyTypeFilter(std::vector<const Target*>* targets) {
   result.reserve(targets->size());
 
   for (const Target* target : *targets) {
-    if (std::ranges::any_of(types, [target](Target::OutputType type) {
-          // Make "action" also apply to ACTION_FOREACH.
-          return target->output_type() == type ||
-                 (type == Target::ACTION &&
-                  target->output_type() == Target::ACTION_FOREACH);
-        })) {
-      result.push_back(target);
+    Target::OutputType target_type =
+        target->output_type() == Target::ACTION_FOREACH ? Target::ACTION
+                                                        : target->output_type();
+    if (!types.empty() &&
+        std::ranges::find(types, target_type) == types.end()) {
+      continue;
     }
+    if (!exclude_types.empty() &&
+        std::ranges::find(exclude_types, target_type) != exclude_types.end()) {
+      continue;
+    }
+    result.push_back(target);
   }
 
   *targets = std::move(result);
@@ -464,8 +484,19 @@ bool CommandSwitches::InitFrom(const base::CommandLine& cmdline) {
   }
 
   std::string_view target_type_switch = "type";
-  if (cmdline.HasSwitch(target_type_switch)) {
-    std::string value = cmdline.GetSwitchValueString(target_type_switch);
+  std::string_view target_exclude_type_switch = "exclude-type";
+  if (cmdline.HasSwitch(target_type_switch) &&
+      cmdline.HasSwitch(target_exclude_type_switch)) {
+    Err(Location(), "Can't specify both \"--type\" and \"--exclude-type\".")
+        .PrintToStdout();
+    return false;
+  }
+  if (cmdline.HasSwitch(target_type_switch) ||
+      cmdline.HasSwitch(target_exclude_type_switch)) {
+    std::string_view switch_name = cmdline.HasSwitch(target_type_switch)
+                                       ? target_type_switch
+                                       : target_exclude_type_switch;
+    std::string value = cmdline.GetSwitchValueString(switch_name);
     std::vector<std::string> tokens = base::SplitString(
         value, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     static const struct {
@@ -486,17 +517,21 @@ bool CommandSwitches::InitFrom(const base::CommandLine& cmdline) {
         {"bundle_data", Target::BUNDLE_DATA},
         {"create_bundle", Target::CREATE_BUNDLE},
     };
+    std::vector<Target::OutputType>& target_types_vector =
+        cmdline.HasSwitch(target_type_switch) ? result.target_types_
+                                              : result.target_exclude_types_;
     for (const std::string& token : tokens) {
       bool found = false;
       for (const auto& type : kTypes) {
         if (token == type.name) {
-          result.target_types_.push_back(type.type);
+          target_types_vector.push_back(type.type);
           found = true;
           break;
         }
       }
       if (!found) {
-        Err(Location(), "Invalid value \"" + token + "\" for \"--type\".")
+        Err(Location(), "Invalid value \"" + token + "\" for \"--" +
+                            std::string(switch_name) + "\".")
             .PrintToStdout();
         return false;
       }

@@ -109,4 +109,125 @@ TEST(Commands, ApplyTypeFilter) {
     commands::CommandSwitches empty_switches;
     commands::CommandSwitches::Set(empty_switches);
   }
+
+  for (const auto& test_case : cases) {
+    std::vector<const Target*> targets_to_filter = all_targets;
+
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("exclude-type", test_case.first);
+
+    commands::CommandSwitches::Init(cmdline);
+
+    base::ListValue out;
+    commands::FilterAndPrintTargets(&targets_to_filter, &out);
+
+    ASSERT_EQ(all_targets.size() - 1u, targets_to_filter.size())
+        << "Failed for type: " << test_case.first;
+    EXPECT_FALSE(std::ranges::any_of(targets_to_filter,
+                                     [&test_case](const Target* target) {
+                                       return target->output_type() ==
+                                              test_case.second;
+                                     }))
+        << "Failed for type: " << test_case.first;
+
+    commands::CommandSwitches empty_switches;
+    commands::CommandSwitches::Set(empty_switches);
+  }
+
+  // Test multiple exclude types separated by a comma.
+  {
+    std::vector<const Target*> targets_to_filter = all_targets;
+
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("exclude-type", "executable,rust_library");
+
+    commands::CommandSwitches::Init(cmdline);
+
+    base::ListValue out;
+    commands::FilterAndPrintTargets(&targets_to_filter, &out);
+
+    ASSERT_EQ(all_targets.size() - 2u, targets_to_filter.size());
+    EXPECT_FALSE(
+        std::ranges::any_of(targets_to_filter, [](const Target* target) {
+          return target->output_type() == Target::EXECUTABLE;
+        }));
+    EXPECT_FALSE(
+        std::ranges::any_of(targets_to_filter, [](const Target* target) {
+          return target->output_type() == Target::RUST_LIBRARY;
+        }));
+
+    commands::CommandSwitches empty_switches;
+    commands::CommandSwitches::Set(empty_switches);
+  }
+
+  // Test that supplying both --type and --exclude-type fails.
+  {
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("type", "executable");
+    cmdline.AppendSwitch("exclude-type", "shared_library");
+
+    EXPECT_FALSE(commands::CommandSwitches::Init(cmdline));
+  }
+
+  // Test invalid switch values for --type and --exclude-type.
+  {
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("type", "invalid_type");
+    EXPECT_FALSE(commands::CommandSwitches::Init(cmdline));
+  }
+  {
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("exclude-type", "invalid_type");
+    EXPECT_FALSE(commands::CommandSwitches::Init(cmdline));
+  }
+
+  // Test Target::ACTION_FOREACH aliasing with --exclude-type=action.
+  {
+    auto action_foreach_target = std::make_unique<Target>(
+        setup.settings(), Label(SourceDir("//a/"), "action_foreach_target"));
+    action_foreach_target->set_output_type(Target::ACTION_FOREACH);
+    std::vector<const Target*> targets_to_filter = all_targets;
+    targets_to_filter.push_back(action_foreach_target.get());
+
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("exclude-type", "action");
+
+    commands::CommandSwitches::Init(cmdline);
+
+    base::ListValue out;
+    commands::FilterAndPrintTargets(&targets_to_filter, &out);
+
+    EXPECT_FALSE(
+        std::ranges::any_of(targets_to_filter, [](const Target* target) {
+          return target->output_type() == Target::ACTION ||
+                 target->output_type() == Target::ACTION_FOREACH;
+        }));
+
+    commands::CommandSwitches empty_switches;
+    commands::CommandSwitches::Set(empty_switches);
+  }
+
+  // Test combined --exclude-type and --testonly filtering.
+  {
+    std::vector<const Target*> targets_to_filter = all_targets;
+    // Mark one target as testonly=true.
+    created_targets[0]->set_testonly(true);
+
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitch("exclude-type", "shared_library");
+    cmdline.AppendSwitch("testonly", "true");
+
+    commands::CommandSwitches::Init(cmdline);
+
+    base::ListValue out;
+    commands::FilterAndPrintTargets(&targets_to_filter, &out);
+
+    for (const Target* target : targets_to_filter) {
+      EXPECT_TRUE(target->testonly());
+      EXPECT_NE(target->output_type(), Target::SHARED_LIBRARY);
+    }
+
+    commands::CommandSwitches empty_switches;
+    commands::CommandSwitches::Set(empty_switches);
+  }
 }
