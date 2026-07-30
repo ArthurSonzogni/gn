@@ -552,3 +552,34 @@ script_executable = ""
   EXPECT_EQ(setup.build_settings().python_path(), script_executable);
 #endif
 }
+
+TEST_F(SetupTest, SourceRelativeScriptExecutable) {
+  base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+
+  const char kDotfileContents[] = R"(
+buildconfig = "//BUILDCONFIG.gn"
+script_executable = "//third_party/python/bin/python3"
+)";
+
+  base::ScopedTempDir in_temp_dir;
+  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
+  WriteFile(dot_gn_name, kDotfileContents);
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  cmdline.AppendSwitchPath(switches::kRoot, in_path);
+
+  base::FilePath build_dir = in_path.Append(FILE_PATH_LITERAL("out"))
+                                 .Append(FILE_PATH_LITERAL("default"));
+
+  Setup setup;
+  Err err;
+  EXPECT_TRUE(
+      setup.DoSetupWithErr(FilePathToUTF8(build_dir), true, cmdline, &err));
+  EXPECT_TRUE(setup.build_settings().python_path_is_relative_to_build_dir());
+  EXPECT_EQ(
+      setup.build_settings().python_path(),
+      base::FilePath(FILE_PATH_LITERAL("../../third_party/python/bin/python3"))
+          .NormalizePathSeparatorsTo('/'));
+}

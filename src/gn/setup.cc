@@ -191,6 +191,10 @@ Variables
       calls using the Python interpreter found in PATH. This value specifies the
       Python executable or other interpreter to use instead.
 
+      If set to a path starting with "//", it will be interpreted as relative
+      to the source root directory and converted to a build-directory-relative
+      path in the generated Ninja files.
+
       If set to the empty string, the scripts will be executed directly.
 
       The command-line switch --script-executable will override this value (see
@@ -868,7 +872,15 @@ bool Setup::FillPythonPath(const base::CommandLine& cmdline, Err* err) {
   if (cmdline.HasSwitch(switches::kScriptExecutable)) {
     auto script_executable =
         cmdline.GetSwitchValuePath(switches::kScriptExecutable);
-    build_settings_.SetPythonPath(ProcessFileExtensions(script_executable));
+    std::string str_val = FilePathToUTF8(script_executable);
+    base::FilePath python_path;
+    if (str_val.starts_with("//")) {
+      SourceFile source_file(std::move(str_val));
+      python_path = build_settings_.GetFullPath(source_file);
+    } else {
+      python_path = std::move(script_executable);
+    }
+    build_settings_.SetPythonPath(ProcessFileExtensions(python_path));
   } else if (value) {
     if (!value->VerifyTypeIs(Value::STRING, err)) {
       return false;
@@ -877,8 +889,14 @@ bool Setup::FillPythonPath(const base::CommandLine& cmdline, Err* err) {
     // invoked by actions will be run directly.
     base::FilePath python_path;
     if (!value->string_value().empty()) {
-      python_path =
-          ProcessFileExtensions(UTF8ToFilePath(value->string_value()));
+      const std::string& str_val = value->string_value();
+      if (str_val.starts_with("//")) {
+        SourceFile source_file(str_val);
+        python_path = build_settings_.GetFullPath(source_file);
+      } else {
+        python_path = UTF8ToFilePath(str_val);
+      }
+      python_path = ProcessFileExtensions(python_path);
       if (python_path.empty()) {
         *err = Err(Location(), "Could not find \"" + value->string_value() +
                                    "\" from dotfile in PATH.");

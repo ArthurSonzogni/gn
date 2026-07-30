@@ -7583,6 +7583,10 @@
       calls using the Python interpreter found in PATH. This value specifies the
       Python executable or other interpreter to use instead.
 
+      If set to a path starting with "//", it will be interpreted as relative
+      to the source root directory and converted to a build-directory-relative
+      path in the generated Ninja files.
+
       If set to the empty string, the scripts will be executed directly.
 
       The command-line switch --script-executable will override this value (see

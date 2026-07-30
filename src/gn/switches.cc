@@ -153,6 +153,10 @@ const char kScriptExecutable_Help[] =
   action targets and exec_script calls. By default GN searches the
   PATH for Python to execute these scripts.
 
+  If set to a path starting with "//", it will be interpreted as relative
+  to the source root directory and converted to a build-directory-relative
+  path in the generated Ninja files.
+
   If set to the empty string, the path of scripts specified in action
   targets and exec_script calls will be executed directly.
 )";
