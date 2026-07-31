@@ -5,11 +5,12 @@
 use std::pin::Pin;
 
 use starlark::values::{Heap, Value as StarlarkValue};
+use types::intern_string;
 
 use crate::{bridge::Value, Immutable, OwnedSlice, Scope};
 
 impl Scope {
-    pub(crate) fn new<'b>(
+    fn new<'b>(
         parent: &Self,
         keys: &[&str],
     ) -> (cxx::UniquePtr<Self>, OwnedSlice<Pin<&'b mut Value>>) {
@@ -55,7 +56,11 @@ pub struct OwnedScope(pub cxx::UniquePtr<Scope>);
 impl types::Scope for OwnedScope {
     fn copy_with<'a, 'v>(&self, kv: impl Iterator<Item = (&'a str, StarlarkValue<'v>)>) -> Self {
         let parent = self.0.as_ref().unwrap();
-        let (keys, vals): (Vec<&str>, Vec<StarlarkValue<'v>>) = kv.unzip();
+        // Scope stores a map from string_view to value. Since we don't know the
+        // lifetime of the string we were given, we must intern it in order to
+        // guarantee it can be safely dereferenced.
+        let (keys, vals): (Vec<&str>, Vec<StarlarkValue<'v>>) =
+            kv.map(|(s, v)| (intern_string(s), v)).unzip();
         let (mut child_scope, mut placeholders) = Scope::new(parent, &keys);
 
         let child_pin = child_scope.as_mut().unwrap();

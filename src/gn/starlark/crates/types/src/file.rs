@@ -36,6 +36,15 @@ pub struct File(#[allocative(skip)] &'static str);
 
 starlark_simple_value!(File);
 
+/// Interns a string for the duration of the program.
+pub fn intern_string(s: &str) -> &'static str {
+    extern "C" {
+        fn intern_string(s: &str) -> &'static str;
+    }
+    // Safety: Just an ffi function
+    unsafe { intern_string(s) }
+}
+
 impl File {
     /// Creates a `File` from a string representing a path.
     /// The path is relative to the root_build_dir.
@@ -46,11 +55,7 @@ impl File {
     /// Creates a `File` by interning a string representing a path.
     /// The path is relative to the root_build_dir.
     pub fn intern(s: &str) -> Self {
-        extern "C" {
-            fn intern_string(s: &str) -> &'static str;
-        }
-        // Safety: Just an ffi function
-        Self(unsafe { intern_string(s) })
+        Self(intern_string(s))
     }
 
     /// Returns the file path relative to the root_build_dir.
