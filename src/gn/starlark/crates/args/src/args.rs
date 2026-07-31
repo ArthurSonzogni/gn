@@ -296,9 +296,6 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
         Ok(this)
     }
 
-    // Clippy allow: Many arguments are required to match Starlark's Args.add_all
-    // API.
-    #[allow(clippy::too_many_arguments)]
     fn add_all<'v>(
         this: Value<'v>,
         arg_name_or_values: Value<'v>,
@@ -334,9 +331,6 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
         Ok(this)
     }
 
-    // Clippy allow: Many arguments are required to match Starlark's Args.add_joined
-    // API.
-    #[allow(clippy::too_many_arguments)]
     fn add_joined<'v>(
         this: Value<'v>,
         arg_name_or_values: Value<'v>,

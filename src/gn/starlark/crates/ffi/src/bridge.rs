@@ -73,7 +73,6 @@ mod dummy {
         #[allow(dead_code)]
         pub(in crate::err) fn ErrToString(err: &Err) -> String;
 
-        #[allow(clippy::too_many_arguments)]
         pub(in crate::err) fn PopulateErrWithLocation(
             err: Pin<&mut Err>,
             message: &str,

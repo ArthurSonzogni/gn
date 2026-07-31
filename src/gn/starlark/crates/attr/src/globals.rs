@@ -125,7 +125,6 @@ pub fn attr_methods(builder: &mut MethodsBuilder) {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn label<'v>(
         #[starlark(this)] this: &AttrModule,
         #[starlark(require = named)] default: Option<Value<'v>>,
@@ -174,7 +173,6 @@ pub fn attr_methods(builder: &mut MethodsBuilder) {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn label_list<'v>(
         #[starlark(this)] this: &AttrModule,
         #[starlark(require = named)] default: Option<Value<'v>>,
@@ -200,7 +198,6 @@ pub fn attr_methods(builder: &mut MethodsBuilder) {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn label_list_dict<'v>(
         #[starlark(this)] this: &AttrModule,
         #[starlark(require = named)] default: Option<Value<'v>>,
@@ -269,7 +266,6 @@ pub fn attr_methods(builder: &mut MethodsBuilder) {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn string_keyed_label_dict<'v>(
         #[starlark(this)] this: &AttrModule,
         #[starlark(require = named)] default: Option<Value<'v>>,

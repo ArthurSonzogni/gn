@@ -89,6 +89,8 @@ ref_option = "warn"
 semicolon_if_nothing_returned = "warn"
 single_char_pattern = "warn"
 stable_sort_primitive = "warn"
+# This just isn't a particularly useful lint. We should let users be the judge.
+too_many_arguments = "allow"
 uninlined_format_args = "warn"
 unnecessary_literal_bound = "warn"
 unnecessary_semicolon = "warn"
