@@ -27,7 +27,9 @@ members = [
 [workspace.dependencies]
 allocative = "0.3"
 anyhow = "1.0"
-cxx = "1.0"
+# cxx's C++ version must be <= GN's C++ version. This does not need to be kept
+# in sync unless you're trying to use new C++ features in the bridge.
+cxx = { version = "1.0", features = ["c++20"] }
 either = "1.16"
 starlark = "0.14"
 starlark_derive = "0.14"
