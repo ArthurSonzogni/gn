@@ -1,3 +1,23 @@
+# Building and running code
+
+* Prefer to run `build/gen.py --debug` unless you need a release build.
+* **NEVER** run `ninja` without an explicit list of targets to build
+  * Build `gn_unittests` if you want to run unittests
+    * You can manually run them with a filter in the hot-path of the
+      development loop (eg. `./out/gn_unittests --gtest_filter=Functions.*`)
+  * Build `gn` if you want to run gn itself (but if you want to run it on
+    chromium, prefer building GN in a separate output directory with
+    `--release`, as the debug build is very slow on a project of chromium's
+    size).
+* Before uploading code, make sure to:
+  * Run the *full* test suite via building the target `run_tests`
+  * Run `tools/run_formatter.sh` to format the code
+  * Run `tools/update_reference.sh` to ensure documentation is up to date.
+  * If you changed rust code, also run `tools/run_linter.sh`
+* **NEVER** delete the build output directory without permission to fix build
+  errors. If you feel the need to do so, there is likely a *far* more
+  fundamental issue.
+
 # Rust Style Guidelines & Best Practices
 
 Please adhere to the following conventions and best practices when writing or
