@@ -275,7 +275,7 @@ mod tests {
     #[test]
     fn test_simple_load() {
         let loader = FileLoader::default();
-        let module = load(&loader, "//load:absolute.bzl").unwrap();
+        let module = load(&loader, "//load:absolute.scl").unwrap();
         assert_eq!(
             module.get("absolute").unwrap().unpack_str(),
             Some("absolute")
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn test_transitive_load() {
         let loader = FileLoader::default();
-        let module = load(&loader, "//load:root.bzl").unwrap();
+        let module = load(&loader, "//load:root.scl").unwrap();
         assert_eq!(
             module.get("absolute_value").unwrap().unpack_str(),
             Some("absolute")
@@ -315,8 +315,8 @@ mod tests {
     #[test]
     fn test_load_error_caching() {
         let loader = FileLoader::default();
-        let first_err = load(&loader, "//load:does_not_exist.bzl").unwrap_err();
-        let second_err = load(&loader, "//load:does_not_exist.bzl").unwrap_err();
+        let first_err = load(&loader, "//load:does_not_exist.scl").unwrap_err();
+        let second_err = load(&loader, "//load:does_not_exist.scl").unwrap_err();
 
         assert!(first_err.to_string().contains("Failed to read"));
         assert!(second_err.to_string().contains("Failed to read"));
