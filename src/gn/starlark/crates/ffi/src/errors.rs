@@ -9,6 +9,8 @@ use types::Label;
 pub(crate) enum Error {
     #[error("Key '{0}' not found in module '{1}'")]
     KeyNotFound(String, Label),
+    #[error("Passing a custom starlark type to builtin GN target types is not supported: {0}")]
+    PassingNonFrozenStarlarkValueToGn(String),
     #[error("This is not allowed while executing a function loaded from a starlark file.")]
     RequiresBzlFile,
 }

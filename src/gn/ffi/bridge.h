@@ -754,6 +754,7 @@ using TestWithScope = ::TestWithScope;
 using Value = ::Value;
 using ParseNode = ::ParseNode;
 struct Session;
+struct OwnedFrozenValue;
 
 #ifndef CXXBRIDGE1_STRUCT_Any
 #define CXXBRIDGE1_STRUCT_Any
@@ -802,6 +803,7 @@ enum class ValueType : ::std::uint8_t {
   String = 3,
   List = 4,
   Scope = 5,
+  StarlarkValue = 6,
 };
 #endif // CXXBRIDGE1_ENUM_ValueType
 
@@ -821,3 +823,20 @@ private:
   };
 };
 #endif // CXXBRIDGE1_STRUCT_Session
+
+#ifndef CXXBRIDGE1_STRUCT_OwnedFrozenValue
+#define CXXBRIDGE1_STRUCT_OwnedFrozenValue
+struct OwnedFrozenValue final : public ::rust::Opaque {
+  ::rust::Box<::OwnedFrozenValue> clone() const noexcept;
+  ::rust::String to_string() const noexcept;
+  bool eq(::OwnedFrozenValue const &other) const noexcept;
+  ~OwnedFrozenValue() = delete;
+
+private:
+  friend ::rust::layout;
+  struct layout {
+    static ::std::size_t size() noexcept;
+    static ::std::size_t align() noexcept;
+  };
+};
+#endif // CXXBRIDGE1_STRUCT_OwnedFrozenValue

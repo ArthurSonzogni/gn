@@ -14,6 +14,22 @@
 ///   rust.
 use crate::session::Session;
 
+pub struct OwnedFrozenValue(pub starlark::values::OwnedFrozenValue);
+
+impl OwnedFrozenValue {
+    pub fn clone_cxx(&self) -> Box<Self> {
+        Box::new(Self(self.0.clone()))
+    }
+
+    pub fn to_string_cxx(&self) -> String {
+        self.0.value().to_string()
+    }
+
+    pub fn eq_cxx(&self, other: &Self) -> bool {
+        self.0.value() == other.0.value()
+    }
+}
+
 #[cxx::bridge]
 // Allow let_underscore_drop because the cxx::bridge generated code has non-binding
 // lets on C++ types with destructors.
@@ -52,6 +68,7 @@ mod dummy {
         String = 3,
         List = 4,
         Scope = 5,
+        StarlarkValue = 6,
     }
     unsafe extern "C++" {
         // include! simply tells cxxbridge to put the #include in the generated C++
@@ -186,6 +203,12 @@ mod dummy {
             origin: ParseNodePtr,
             scope: UniquePtr<Scope>,
         );
+        pub(in crate::value) fn SetValueStarlark(
+            val: Pin<&mut Value>,
+            origin: ParseNodePtr,
+            starlark_val: Box<OwnedFrozenValue>,
+        );
+        pub(in crate::value) fn starlark_value(self: &Value) -> &OwnedFrozenValue;
     }
 
     extern "Rust" {
@@ -208,6 +231,14 @@ mod dummy {
             origin: ParseNodePtr,
             err: Pin<&mut Err>,
         );
+
+        type OwnedFrozenValue;
+        #[rust_name = "clone_cxx"]
+        fn clone(self: &OwnedFrozenValue) -> Box<OwnedFrozenValue>;
+        #[rust_name = "to_string_cxx"]
+        fn to_string(self: &OwnedFrozenValue) -> String;
+        #[rust_name = "eq_cxx"]
+        fn eq(self: &OwnedFrozenValue, other: &OwnedFrozenValue) -> bool;
     }
 }
 

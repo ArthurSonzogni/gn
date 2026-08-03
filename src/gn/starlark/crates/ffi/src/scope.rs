@@ -54,7 +54,10 @@ impl Scope {
 pub struct OwnedScope(pub cxx::UniquePtr<Scope>);
 
 impl types::Scope for OwnedScope {
-    fn copy_with<'a, 'v>(&self, kv: impl Iterator<Item = (&'a str, StarlarkValue<'v>)>) -> Self {
+    fn copy_with<'a, 'v>(
+        &self,
+        kv: impl Iterator<Item = (&'a str, StarlarkValue<'v>)>,
+    ) -> starlark::Result<Self> {
         let parent = self.0.as_ref().unwrap();
         // Scope stores a map from string_view to value. Since we don't know the
         // lifetime of the string we were given, we must intern it in order to
@@ -67,10 +70,10 @@ impl types::Scope for OwnedScope {
         for (placeholder, val) in placeholders.as_slice_mut().iter_mut().zip(vals) {
             placeholder
                 .as_mut()
-                .assign(val, child_pin.settings(), Default::default());
+                .assign(val, None, child_pin.settings(), Default::default())?;
         }
 
-        Self(child_scope)
+        Ok(Self(child_scope))
     }
 
     fn get<'v>(&self, key: &str, heap: &Heap<'v>) -> Option<StarlarkValue<'v>> {
@@ -103,8 +106,9 @@ mod tests {
             let val_int = heap.alloc(42);
             let val_str = heap.alloc("hello");
 
-            let grandchild =
-                owned_scope.copy_with(vec![("foo", val_int), ("bar", val_str)].into_iter());
+            let grandchild = owned_scope
+                .copy_with(vec![("foo", val_int), ("bar", val_str)].into_iter())
+                .unwrap();
 
             assert_eq!(grandchild.get("foo", &heap).unwrap().unpack_i32(), Some(42));
             assert_eq!(

@@ -9,6 +9,7 @@
 
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "gn/ffi/bridge.h"
 #include "gn/scope.h"
 
 ValueList::ValueList() = default;
@@ -37,6 +38,10 @@ Value::Value(const ParseNode* origin, Type t) : type_(t), origin_(origin) {
     case SCOPE:
       new (&scope_value_) std::unique_ptr<Scope>();
       break;
+    case STARLARK_VALUE:
+      // There's no "default" value for a starlark value.
+      NOTREACHED();
+      break;
   }
 }
 
@@ -54,6 +59,11 @@ Value::Value(const ParseNode* origin, const char* str_val)
 
 Value::Value(const ParseNode* origin, std::unique_ptr<Scope> scope)
     : type_(SCOPE), origin_(origin), scope_value_(std::move(scope)) {}
+
+Value::Value(const ParseNode* origin, rust::Box<OwnedFrozenValue> starlark_val)
+    : type_(STARLARK_VALUE),
+      origin_(origin),
+      starlark_value_(std::move(starlark_val)) {}
 
 Value::Value(const Value& other) : type_(other.type_), origin_(other.origin_) {
   switch (type_) {
@@ -75,6 +85,10 @@ Value::Value(const Value& other) : type_(other.type_), origin_(other.origin_) {
       new (&scope_value_) std::unique_ptr<Scope>(
           other.scope_value_.get() ? other.scope_value_->MakeClosure()
                                    : nullptr);
+      break;
+    case STARLARK_VALUE:
+      new (&starlark_value_)
+          rust::Box<OwnedFrozenValue>(other.starlark_value().clone());
       break;
   }
 }
@@ -98,6 +112,10 @@ Value::Value(Value&& other) noexcept
       break;
     case SCOPE:
       new (&scope_value_) std::unique_ptr<Scope>(std::move(other.scope_value_));
+      break;
+    case STARLARK_VALUE:
+      new (&starlark_value_)
+          rust::Box<OwnedFrozenValue>(std::move(other.starlark_value_));
       break;
   }
 }
@@ -130,6 +148,9 @@ Value::~Value() {
     case SCOPE:
       scope_value_.~unique_ptr();
       break;
+    case STARLARK_VALUE:
+      starlark_value_.~Box();
+      break;
     default:;
   }
 }
@@ -149,6 +170,8 @@ const char* Value::DescribeType(Type t) {
       return "list";
     case SCOPE:
       return "scope";
+    case STARLARK_VALUE:
+      return "starlark value";
     default:
       NOTREACHED();
       return "UNKNOWN";
@@ -245,6 +268,8 @@ std::string Value::ToString(bool quote_string) const {
 
       return result;
     }
+    case STARLARK_VALUE:
+      return std::string(starlark_value().to_string());
   }
   return std::string();
 }
@@ -276,6 +301,8 @@ bool Value::operator==(const Value& other) const {
       return list_value() == other.list_value();
     case Value::SCOPE:
       return scope_value()->CheckCurrentScopeValuesEqual(other.scope_value());
+    case Value::STARLARK_VALUE:
+      return starlark_value().eq(other.starlark_value());
     case Value::NONE:
       return false;
     default:

@@ -14,8 +14,10 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
+#include "cxx.h"
 #include "gn/err.h"
 
+struct OwnedFrozenValue;
 class ParseNode;
 class Scope;
 class Value;
@@ -43,6 +45,7 @@ class Value {
     STRING,
     LIST,
     SCOPE,
+    STARLARK_VALUE,
   };
 
   Value();
@@ -57,6 +60,7 @@ class Value {
   // you can pass a null scope here if you promise to set it before any other
   // code gets it (code will generally assume the scope is not null).
   Value(const ParseNode* origin, std::unique_ptr<Scope> scope);
+  Value(const ParseNode* origin, rust::Box<OwnedFrozenValue> starlark_val);
 
   Value(const Value& other);
   Value(Value&& other) noexcept;
@@ -114,6 +118,11 @@ class Value {
   }
   void SetScopeValue(std::unique_ptr<Scope> scope);
 
+  const OwnedFrozenValue& starlark_value() const {
+    DCHECK(type_ == STARLARK_VALUE);
+    return *starlark_value_;
+  }
+
   // Converts the given value to a string. Returns true if strings should be
   // quoted or the ToString of a string should be the string itself. If the
   // string is quoted, it will also enable escaping.
@@ -145,6 +154,7 @@ class Value {
     // copied, only performing a real copy when a modification is attempted.
     scoped_refptr<ValueList> list_ptr_;
     std::unique_ptr<Scope> scope_value_;
+    rust::Box<OwnedFrozenValue> starlark_value_;
   };
 };
 

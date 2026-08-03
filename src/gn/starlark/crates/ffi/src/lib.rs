@@ -32,7 +32,10 @@ mod target_ref;
 mod test_with_scope;
 mod value;
 
-pub use bridge::{Err, KeyValue, Label, OutputFile, Scope, Settings, SourceDir, Value, ValueType};
+pub use bridge::{
+    Err, KeyValue, Label, OutputFile, OwnedFrozenValue, Scope, Settings, SourceDir, Value,
+    ValueType,
+};
 pub use mutability::Immutable;
 pub use opaque::{NonOpaque, OpaqueSized};
 pub use scope::OwnedScope;

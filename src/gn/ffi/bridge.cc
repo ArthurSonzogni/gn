@@ -737,11 +737,31 @@ std::size_t align_of() {
 }
 #endif // CXXBRIDGE1_LAYOUT
 
+namespace detail {
+template <typename T, typename = void *>
+struct operator_new {
+  void *operator()(::std::size_t sz) { return ::operator new(sz); }
+};
+
+template <typename T>
+struct operator_new<T, decltype(T::operator new(sizeof(T)))> {
+  void *operator()(::std::size_t sz) { return T::operator new(sz); }
+};
+} // namespace detail
+
 template <typename T>
 union ManuallyDrop {
   T value;
   ManuallyDrop(T &&value) : value(::std::move(value)) {}
   ~ManuallyDrop() {}
+};
+
+template <typename T>
+union MaybeUninit {
+  T value;
+  void *operator new(::std::size_t sz) { return detail::operator_new<T>{}(sz); }
+  MaybeUninit() {}
+  ~MaybeUninit() {}
 };
 
 namespace {
@@ -777,6 +797,7 @@ using TestWithScope = ::TestWithScope;
 using Value = ::Value;
 using ParseNode = ::ParseNode;
 struct Session;
+struct OwnedFrozenValue;
 
 #ifndef CXXBRIDGE1_STRUCT_Any
 #define CXXBRIDGE1_STRUCT_Any
@@ -825,6 +846,7 @@ enum class ValueType : ::std::uint8_t {
   String = 3,
   List = 4,
   Scope = 5,
+  StarlarkValue = 6,
 };
 #endif // CXXBRIDGE1_ENUM_ValueType
 
@@ -844,6 +866,23 @@ private:
   };
 };
 #endif // CXXBRIDGE1_STRUCT_Session
+
+#ifndef CXXBRIDGE1_STRUCT_OwnedFrozenValue
+#define CXXBRIDGE1_STRUCT_OwnedFrozenValue
+struct OwnedFrozenValue final : public ::rust::Opaque {
+  ::rust::Box<::OwnedFrozenValue> clone() const noexcept;
+  ::rust::String to_string() const noexcept;
+  bool eq(::OwnedFrozenValue const &other) const noexcept;
+  ~OwnedFrozenValue() = delete;
+
+private:
+  friend ::rust::layout;
+  struct layout {
+    static ::std::size_t size() noexcept;
+    static ::std::size_t align() noexcept;
+  };
+};
+#endif // CXXBRIDGE1_STRUCT_OwnedFrozenValue
 
 extern "C" {
 void cxxbridge1$196$free_vector_buffer(::Any *ptr) noexcept {
@@ -1020,6 +1059,16 @@ void cxxbridge1$196$SetValueScope(::Value &val, ::ParseNodePtr *origin, ::Scope 
   void (*SetValueScope$)(::Value &, ::ParseNodePtr, ::std::unique_ptr<::Scope>) = ::SetValueScope;
   SetValueScope$(val, ::std::move(*origin), ::std::unique_ptr<::Scope>(scope));
 }
+
+void cxxbridge1$196$SetValueStarlark(::Value &val, ::ParseNodePtr *origin, ::OwnedFrozenValue *starlark_val) noexcept {
+  void (*SetValueStarlark$)(::Value &, ::ParseNodePtr, ::rust::Box<::OwnedFrozenValue>) = ::SetValueStarlark;
+  SetValueStarlark$(val, ::std::move(*origin), ::rust::Box<::OwnedFrozenValue>::from_raw(starlark_val));
+}
+
+void cxxbridge1$196$Value$starlark_value(::Value const &self, ::OwnedFrozenValue const **return$) noexcept {
+  ::OwnedFrozenValue const &(::Value::*starlark_value$)() const = &::Value::starlark_value;
+  new (return$) ::OwnedFrozenValue const *(&(self.*starlark_value$)());
+}
 ::std::size_t cxxbridge1$196$Session$operator$sizeof() noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$alignof() noexcept;
 
@@ -1028,6 +1077,14 @@ void cxxbridge1$196$SetValueScope(::Value &val, ::ParseNodePtr *origin, ::Scope 
 ::Session *cxxbridge1$196$Session$new_for_testing() noexcept;
 
 void cxxbridge1$196$Session$load_values(::Session const &self, ::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr *origin, ::Err &err) noexcept;
+::std::size_t cxxbridge1$196$OwnedFrozenValue$operator$sizeof() noexcept;
+::std::size_t cxxbridge1$196$OwnedFrozenValue$operator$alignof() noexcept;
+
+::OwnedFrozenValue *cxxbridge1$196$OwnedFrozenValue$clone_cxx(::OwnedFrozenValue const &self) noexcept;
+
+void cxxbridge1$196$OwnedFrozenValue$to_string_cxx(::OwnedFrozenValue const &self, ::rust::String *return$) noexcept;
+
+bool cxxbridge1$196$OwnedFrozenValue$eq_cxx(::OwnedFrozenValue const &self, ::OwnedFrozenValue const &other) noexcept;
 } // extern "C"
 
 ::std::size_t Session::layout::size() noexcept {
@@ -1049,6 +1106,28 @@ void cxxbridge1$196$Session$load_values(::Session const &self, ::rust::Str label
 void Session::load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept {
   ::rust::ManuallyDrop<::ParseNodePtr> origin$(::std::move(origin));
   cxxbridge1$196$Session$load_values(*this, label, relative_to, keys, scope, settings, &origin$.value, err);
+}
+
+::std::size_t OwnedFrozenValue::layout::size() noexcept {
+  return cxxbridge1$196$OwnedFrozenValue$operator$sizeof();
+}
+
+::std::size_t OwnedFrozenValue::layout::align() noexcept {
+  return cxxbridge1$196$OwnedFrozenValue$operator$alignof();
+}
+
+::rust::Box<::OwnedFrozenValue> OwnedFrozenValue::clone() const noexcept {
+  return ::rust::Box<::OwnedFrozenValue>::from_raw(cxxbridge1$196$OwnedFrozenValue$clone_cxx(*this));
+}
+
+::rust::String OwnedFrozenValue::to_string() const noexcept {
+  ::rust::MaybeUninit<::rust::String> return$;
+  cxxbridge1$196$OwnedFrozenValue$to_string_cxx(*this, &return$.value);
+  return ::std::move(return$.value);
+}
+
+bool OwnedFrozenValue::eq(::OwnedFrozenValue const &other) const noexcept {
+  return cxxbridge1$196$OwnedFrozenValue$eq_cxx(*this, other);
 }
 
 extern "C" {
@@ -1128,6 +1207,10 @@ void cxxbridge1$unique_ptr$Value$drop(::std::unique_ptr<::Value> *ptr) noexcept 
   ::rust::deleter_if<::rust::detail::is_complete<::Value>::value>{}(ptr);
 }
 
+::OwnedFrozenValue *cxxbridge1$box$OwnedFrozenValue$alloc() noexcept;
+void cxxbridge1$box$OwnedFrozenValue$dealloc(::OwnedFrozenValue *) noexcept;
+void cxxbridge1$box$OwnedFrozenValue$drop(::rust::Box<::OwnedFrozenValue> *ptr) noexcept;
+
 ::Session *cxxbridge1$box$Session$alloc() noexcept;
 void cxxbridge1$box$Session$dealloc(::Session *) noexcept;
 void cxxbridge1$box$Session$drop(::rust::Box<::Session> *ptr) noexcept;
@@ -1135,6 +1218,18 @@ void cxxbridge1$box$Session$drop(::rust::Box<::Session> *ptr) noexcept;
 
 namespace rust {
 inline namespace cxxbridge1 {
+template <>
+::OwnedFrozenValue *Box<::OwnedFrozenValue>::allocation::alloc() noexcept {
+  return cxxbridge1$box$OwnedFrozenValue$alloc();
+}
+template <>
+void Box<::OwnedFrozenValue>::allocation::dealloc(::OwnedFrozenValue *ptr) noexcept {
+  cxxbridge1$box$OwnedFrozenValue$dealloc(ptr);
+}
+template <>
+void Box<::OwnedFrozenValue>::drop() noexcept {
+  cxxbridge1$box$OwnedFrozenValue$drop(this);
+}
 template <>
 ::Session *Box<::Session>::allocation::alloc() noexcept {
   return cxxbridge1$box$Session$alloc();

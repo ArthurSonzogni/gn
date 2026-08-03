@@ -48,6 +48,12 @@ void SetValueScope(Value& self,
   new (&self) Value(origin.ptr, std::move(scope));
 }
 
+void SetValueStarlark(Value& self,
+                      ParseNodePtr origin,
+                      rust::Box<OwnedFrozenValue> starlark_val) {
+  new (&self) Value(origin.ptr, std::move(starlark_val));
+}
+
 SliceAny GetValueList(const Value& self) {
   return AsSlice(self.list_value());
 }

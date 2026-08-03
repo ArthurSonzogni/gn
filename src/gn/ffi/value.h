@@ -13,6 +13,7 @@
 class Scope;
 struct ParseNodePtr;
 struct SliceAny;
+struct OwnedFrozenValue;
 
 enum class ValueType : uint8_t;
 
@@ -38,6 +39,9 @@ Any* SetValueList(Value& self, ParseNodePtr origin, size_t size);
 void SetValueScope(Value& self,
                    ParseNodePtr origin,
                    std::unique_ptr<Scope> scope);
+void SetValueStarlark(Value& self,
+                      ParseNodePtr origin,
+                      rust::Box<OwnedFrozenValue> starlark_val);
 // Returns a "std::vector<Value>".
 //
 // Safety: Rust is required to convert this to a Slice<Value>.

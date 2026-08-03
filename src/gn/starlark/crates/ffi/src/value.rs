@@ -4,10 +4,12 @@
 
 use std::pin::Pin;
 
-use starlark::values::{list::ListRef, structs::StructRef};
+use starlark::values::{list::ListRef, structs::StructRef, OwnedFrozenValue};
 
 use crate::{
+    bridge,
     bridge::{SliceAny, Value, ValueType},
+    errors::Error,
     Immutable, Scope, Settings, Slice,
 };
 
@@ -34,6 +36,13 @@ impl Value {
                 let scope = unsafe { &*scope_ptr };
                 heap.alloc(starlark::values::structs::AllocStruct(scope.get_kv(heap)))
             },
+            ValueType::StarlarkValue => {
+                let rust_val = self.starlark_value();
+                heap.add_reference(rust_val.0.owner());
+                // Safety: This is safe when combined with the above line, which ensures it will
+                // not get GC'd.
+                starlark::values::Value::new_frozen(unsafe { rust_val.0.unchecked_frozen_value() })
+            },
             _ => unreachable!(),
         }
     }
@@ -41,9 +50,10 @@ impl Value {
     pub fn assign<'v>(
         mut self: Pin<&mut Self>,
         val: starlark::values::Value<'v>,
+        owner: Option<&starlark::values::FrozenHeapRef>,
         settings: &Settings,
         origin: crate::bridge::ParseNodePtr,
-    ) {
+    ) -> starlark::Result<()> {
         if val.is_none() {
             crate::bridge::SetValueNone(self.as_mut(), origin);
         } else if let Some(s) = val.unpack_str() {
@@ -59,20 +69,27 @@ impl Value {
             }
             .into();
             for (el_pin, src) in slice.iter_mut().zip(l.iter()) {
-                el_pin.assign(src, settings, origin);
+                el_pin.assign(src, owner, settings, origin)?;
             }
         } else if let Some(s) = StructRef::from_value(val) {
             let keys: Vec<&str> = s.iter().map(|(k, _)| k.as_str()).collect();
             let (r#struct, mut values) = Scope::new_struct(settings, &keys);
 
             for (v_starlark, v_cxx) in s.iter().map(|(_, v)| v).zip(values.as_slice_mut()) {
-                v_cxx.as_mut().assign(v_starlark, settings, origin);
+                v_cxx.as_mut().assign(v_starlark, owner, settings, origin)?;
             }
 
             crate::bridge::SetValueScope(self.as_mut(), origin, r#struct);
         } else {
-            todo!("Arbitrary starlark values not (yet) supported");
+            let owned_frozen = if let (Some(owner), Some(frozen)) = (owner, val.unpack_frozen()) {
+                // Safety: The caller guarantees that owner owns val.
+                bridge::OwnedFrozenValue(unsafe { OwnedFrozenValue::new(owner.clone(), frozen) })
+            } else {
+                return Err(Error::PassingNonFrozenStarlarkValueToGn(val.to_string()).into());
+            };
+            crate::bridge::SetValueStarlark(self.as_mut(), origin, Box::new(owned_frozen));
         }
+        Ok(())
     }
 }
 
@@ -91,13 +108,17 @@ mod tests {
         let scope = setup.scope();
 
         let mut value = crate::bridge::NewValueForTesting();
-        value.pin_mut().assign(
-            val,
-            scope.settings(),
-            crate::bridge::ParseNodePtr {
-                ptr: std::ptr::null(),
-            },
-        );
+        value
+            .pin_mut()
+            .assign(
+                val,
+                None,
+                scope.settings(),
+                crate::bridge::ParseNodePtr {
+                    ptr: std::ptr::null(),
+                },
+            )
+            .unwrap();
         value.to_rust(heap)
     }
 

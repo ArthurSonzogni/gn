@@ -11,7 +11,12 @@ use starlark::values::{Heap, Value};
 /// over that.
 pub trait Scope {
     /// Creates a copy of the scope with some additional values set.
-    fn copy_with<'a, 'v>(&self, kv: impl Iterator<Item = (&'a str, Value<'v>)>) -> Self;
+    fn copy_with<'a, 'v>(
+        &self,
+        kv: impl Iterator<Item = (&'a str, Value<'v>)>,
+    ) -> starlark::Result<Self>
+    where
+        Self: Sized;
 
     /// Retrieves a value from the key-value store.
     /// May allocate the value it retrieves on the heap.

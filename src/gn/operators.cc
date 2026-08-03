@@ -266,7 +266,8 @@ void RemoveMatchesFromList(const BinaryOpNode* op_node,
     case Value::BOOLEAN:
     case Value::INTEGER:  // Filter out the individual int/string.
     case Value::STRING:
-    case Value::SCOPE: {
+    case Value::SCOPE:
+    case Value::STARLARK_VALUE: {
       bool found_match = false;
       for (size_t i = 0; i < v.size(); /* nothing */) {
         if (v[i] == to_remove) {

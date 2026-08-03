@@ -747,22 +747,40 @@ TEST(Functions, Load) {
     setup.scope()->set_source_dir(SourceDir("//"));
 
     std::string scl_content = R"scl(
-a = "hello"
+def my_rule_impl(ctx):
+  pass
+
+my_rule = rule(
+  implementation = my_rule_impl
+)
+hello = "hello"
 )scl";
     base::FilePath scl_path = temp_dir.GetPath().AppendASCII("rules.scl");
     ASSERT_EQ(
         static_cast<int>(scl_content.size()),
         base::WriteFile(scl_path, scl_content.c_str(), scl_content.size()));
 
-    TestParseInput input(R"gn(load("//:rules.scl", "a"))gn");
+    TestParseInput input(R"gn(
+load("//:rules.scl", "hello", "my_rule", "my_rule_impl")
+
+assert(my_rule == my_rule)
+assert(my_rule != my_rule_impl)
+assert("${my_rule}" == "<rule: my_rule>")
+copy_of_rule = my_rule
+assert(copy_of_rule == my_rule)
+)gn");
     ASSERT_SUCCESS(input);
     Err err;
     input.parsed()->Execute(setup.scope(), &err);
     ASSERT_FALSE(err.has_error()) << err.message();
 
-    const Value* val_a = setup.scope()->GetValue("a");
-    ASSERT_TRUE(val_a);
-    EXPECT_EQ(Value::STRING, val_a->type());
-    EXPECT_EQ("hello", val_a->string_value());
+    const Value* val_hello = setup.scope()->GetValue("hello");
+    ASSERT_TRUE(val_hello);
+    EXPECT_EQ(Value::STRING, val_hello->type());
+    EXPECT_EQ("hello", val_hello->string_value());
+
+    const Value* val_my_rule = setup.scope()->GetValue("my_rule");
+    ASSERT_TRUE(val_my_rule);
+    EXPECT_EQ(Value::STARLARK_VALUE, val_my_rule->type());
   }
 }

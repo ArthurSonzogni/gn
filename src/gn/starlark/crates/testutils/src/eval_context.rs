@@ -19,7 +19,7 @@ use crate::{FakeSession, FakeTarget, FakeTargetRef};
 pub struct FakeScope(HashMap<String, Value<'static>>);
 
 impl Scope for FakeScope {
-    fn copy_with<'a, 'v>(&self, kv: impl Iterator<Item = (&'a str, Value<'v>)>) -> Self {
+    fn copy_with<'a, 'v>(&self, kv: impl Iterator<Item = (&'a str, Value<'v>)>) -> Result<Self> {
         let mut values = self.0.clone();
         for (k, v) in kv {
             // Safety: Transmuting 'v to 'static is safe because this mock scope
@@ -28,7 +28,7 @@ impl Scope for FakeScope {
             let static_val = unsafe { std::mem::transmute::<Value<'v>, Value<'static>>(v) };
             values.insert(k.to_owned(), static_val);
         }
-        Self(values)
+        Ok(Self(values))
     }
 
     fn get<'v>(&self, key: &str, _heap: &Heap<'v>) -> Option<Value<'v>> {
