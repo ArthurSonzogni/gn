@@ -13,7 +13,7 @@ use starlark::{
     values::{FrozenHeap, FrozenValue, StarlarkValue, Value},
 };
 use starlark_derive::{starlark_value, NoSerialize};
-use types::{EvaluatorContextExt, Scope, TargetRef};
+use types::{EvaluatorContextExt, Scope};
 
 use crate::rule::{build_signature, OutputType};
 
@@ -113,16 +113,15 @@ where
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let target = if let Some(builtin) = self.builtin {
+            if let Some(builtin) = self.builtin {
                 // Collect all the arguments we don't recognise and pass them to the native
                 // implementation.
                 let kwargs: SmallMap<String, Value<'v>> = param_parser.next()?;
                 let child_scope = scope.copy_with(kwargs.iter().map(|(k, v)| (k.as_str(), *v)))?;
-                context.create_target(Some(builtin), target_name, &*child_scope, me, attrs)?
+                context.create_target(Some(builtin), target_name, &*child_scope, me, attrs)?;
             } else {
-                context.create_target(None, target_name, scope, me, attrs)?
-            };
-            target.register_dependencies(context.session(), context.current_toolchain());
+                context.create_target(None, target_name, scope, me, attrs)?;
+            }
 
             Ok(Value::new_none())
         })

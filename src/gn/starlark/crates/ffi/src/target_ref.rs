@@ -61,14 +61,6 @@ impl types::TargetRef for TargetRef {
         todo!()
     }
 
-    fn register_dependencies<S: types::Session<TargetRef = Self>>(
-        &self,
-        _session: &S,
-        _toolchain: LabelRef<'_>,
-    ) {
-        todo!()
-    }
-
     fn output_type(&self) -> Option<types::OutputType> {
         todo!()
     }

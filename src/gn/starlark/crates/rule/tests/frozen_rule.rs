@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Mutex,
-};
+use std::collections::{HashMap, HashSet};
 
 use attr::{Attr, LabelOrFile};
 use rule::FrozenRule;
@@ -95,7 +92,7 @@ child_rule(
             output_type: Some(OutputType::SharedLibrary),
             rule: rule(&native, "custom_shared_library"),
             cxx_attrs: unknown_attrs.clone(),
-            dependencies: Mutex::new(HashSet::new()),
+            dependencies: HashSet::new(),
         }
     );
 
@@ -109,7 +106,7 @@ child_rule(
             output_type: Some(OutputType::StaticLibrary),
             rule: rule(&native, "static_library"),
             cxx_attrs: unknown_attrs.clone(),
-            dependencies: Mutex::new(HashSet::new()),
+            dependencies: HashSet::new(),
         }
     );
 
@@ -134,10 +131,10 @@ child_rule(
             output_type: None,
             rule: rule(&pure, "parent_rule"),
             cxx_attrs: HashMap::new(),
-            dependencies: Mutex::new(HashSet::from([(
+            dependencies: HashSet::from([(
                 Label::new(PackageRef::root().to_owned(), "parent".to_owned()),
                 toolchain.clone(),
-            )])),
+            )]),
         }
     );
 
@@ -158,10 +155,10 @@ child_rule(
             output_type: None,
             rule: rule(&pure, "child_rule"),
             cxx_attrs: HashMap::new(),
-            dependencies: Mutex::new(HashSet::from([(
+            dependencies: HashSet::from([(
                 Label::new(PackageRef::root().to_owned(), "child".to_owned()),
                 toolchain.clone(),
-            )])),
+            )]),
         }
     );
 
@@ -182,10 +179,10 @@ child_rule(
             output_type: None,
             rule: rule(&pure, "child_rule"),
             cxx_attrs: HashMap::new(),
-            dependencies: Mutex::new(HashSet::from([(
+            dependencies: HashSet::from([(
                 Label::new(PackageRef::root().to_owned(), "custom_val".to_owned()),
                 toolchain.clone(),
-            )])),
+            )]),
         }
     );
 }

@@ -232,8 +232,6 @@ impl Attr {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use starlark::{
         environment::Module,
         values::{list::UnpackList, UnpackValue as _, ValueLike as _},
@@ -446,19 +444,11 @@ mod tests {
             )
             .unwrap();
 
-            let source_target = session.insert_empty_target(PackageRef::root(), "source");
-            attr.register_dependencies(
-                &session,
-                source_target.clone(),
-                session.default_toolchain.as_ref(),
-            );
-
+            let mut deps = SmallSet::new();
+            attr.add_dependencies(session.default_toolchain.as_ref(), &mut deps);
             assert_eq!(
-                source_target.registered_deps(),
-                HashSet::from([(
-                    target_single.label().to_owned(),
-                    session.default_toolchain.clone()
-                )])
+                deps,
+                SmallSet::from_iter([(target_single.label(), session.default_toolchain.as_ref(),)])
             );
 
             let AttrValue {

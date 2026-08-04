@@ -113,13 +113,4 @@ impl TypesSession for Session {
     fn get_target(&self, _label: LabelRef<'_>, _toolchain: LabelRef<'_>) -> Self::TargetRef {
         todo!()
     }
-
-    fn register_dependency<'a>(
-        &self,
-        _source: Self::TargetRef,
-        _label: LabelRef<'a>,
-        _toolchain: LabelRef<'a>,
-    ) {
-        todo!()
-    }
 }

@@ -94,17 +94,4 @@ impl Session for FakeSession {
             );
         }
     }
-
-    fn register_dependency<'a>(
-        &self,
-        source: Self::TargetRef,
-        target: LabelRef<'a>,
-        toolchain: LabelRef<'a>,
-    ) {
-        source
-            .dependencies
-            .lock()
-            .unwrap()
-            .insert((target.to_owned(), toolchain.to_owned()));
-    }
 }

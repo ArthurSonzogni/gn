@@ -5,7 +5,7 @@
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 use allocative::Allocative;
@@ -15,9 +15,7 @@ use starlark::{
     values::{Heap, ProvidesStaticType, StarlarkValue, Value, ValueLike},
 };
 use starlark_derive::{starlark_value, NoSerialize};
-use types::{
-    File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, Session, TargetRef,
-};
+use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, TargetRef};
 
 use crate::FakeEvalContext;
 
@@ -36,7 +34,7 @@ pub struct FakeTarget {
     pub cxx_attrs: HashMap<String, Value<'static>>,
     /// Registered target dependencies.
     #[allocative(skip)]
-    pub dependencies: Mutex<HashSet<(Label, Label)>>,
+    pub dependencies: HashSet<(Label, Label)>,
 }
 
 impl PartialEq for FakeTarget {
@@ -54,7 +52,7 @@ impl PartialEq for FakeTarget {
                     .get(k)
                     .is_some_and(|ov| v.equals(*ov).unwrap_or(false))
             })
-            && *self.dependencies.lock().unwrap() == *other.dependencies.lock().unwrap()
+            && self.dependencies == other.dependencies
     }
 }
 
@@ -77,7 +75,7 @@ impl FakeTargetRef {
 
     /// Returns the registered dependencies of this target.
     pub fn registered_deps(&self) -> HashSet<(Label, Label)> {
-        self.dependencies.lock().unwrap().clone()
+        self.dependencies.clone()
     }
 }
 
@@ -158,16 +156,6 @@ impl TargetRef for FakeTargetRef {
 
     fn target_out_dir(&self, prefix: &str, suffix: &str, _separator: &str) -> String {
         format!("{prefix}$TOOLCHAIN/{suffix}$LABEL")
-    }
-
-    fn register_dependencies<S: Session<TargetRef = Self>>(
-        &self,
-        session: &S,
-        toolchain: LabelRef<'_>,
-    ) {
-        for attr in &self.get().attrs {
-            attr.register_dependencies(session, self.clone(), toolchain);
-        }
     }
 
     fn builtin_attrs<'v>(&self, _heap: &Heap<'v>) -> Vec<Value<'v>> {

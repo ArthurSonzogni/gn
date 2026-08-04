@@ -97,6 +97,6 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
         _rule: starlark::values::FrozenValue,
         _attrs: Vec<attr::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef> {
-        todo!()
+        todo!("Create C++ target and register dependencies");
     }
 }
