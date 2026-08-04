@@ -3,6 +3,7 @@
 #include "gn/err.h"
 #include "gn/ffi/err.h"
 #include "gn/ffi/scope.h"
+#include "gn/ffi/target.h"
 #include "gn/ffi/test_with_scope.h"
 #include "gn/ffi/value.h"
 #include "gn/label.h"
@@ -10,6 +11,7 @@
 #include "gn/scope.h"
 #include "gn/settings.h"
 #include "gn/source_dir.h"
+#include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "gn/value.h"
 #include <array>
@@ -811,6 +813,7 @@ using InputFile = ::InputFile;
 using OutputFile = ::OutputFile;
 using SourceDir = ::SourceDir;
 using Label = ::Label;
+using Target = ::Target;
 using Settings = ::Settings;
 using Scope = ::Scope;
 using TestWithScope = ::TestWithScope;
@@ -964,6 +967,21 @@ void cxxbridge1$196$Label$dir(::Label const &self, ::SourceDir const **return$) 
 void cxxbridge1$196$Label$name(::Label const &self, ::rust::Str *return$) noexcept {
   const std::string& (::Label::*name$)() const = &::Label::name;
   new (return$) ::rust::Str(::rust::cxx_to_rust((self.*name$)()));
+}
+
+void cxxbridge1$196$Target$label(::Target const &self, ::Label const **return$) noexcept {
+  ::Label const &(::Target::*label$)() const = &::Target::label;
+  new (return$) ::Label const *(&(self.*label$)());
+}
+
+::Settings const *cxxbridge1$196$Target$settings_cxx(::Target const &self) noexcept {
+  ::Settings const *(::Target::*settings_cxx$)() const = &::Target::settings;
+  return (self.*settings_cxx$)();
+}
+
+void cxxbridge1$196$register_dependency(::Target &target, ::rust::Str package, ::rust::Str name, ::rust::Str toolchain_package, ::rust::Str toolchain_name) noexcept {
+  void (*register_dependency$)(::Target &, ::rust::Str, ::rust::Str, ::rust::Str, ::rust::Str) = ::register_dependency;
+  register_dependency$(target, package, name, toolchain_package, toolchain_name);
 }
 
 void cxxbridge1$196$Settings$toolchain_label(::Settings const &self, ::Label const **return$) noexcept {

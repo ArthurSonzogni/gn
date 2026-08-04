@@ -129,6 +129,7 @@ mod dummy {
         include!("gn/err.h");
         include!("gn/ffi/err.h");
         include!("gn/ffi/scope.h");
+        include!("gn/ffi/target.h");
         include!("gn/ffi/test_with_scope.h");
         include!("gn/ffi/value.h");
         include!("gn/label.h");
@@ -136,6 +137,7 @@ mod dummy {
         include!("gn/scope.h");
         include!("gn/settings.h");
         include!("gn/source_dir.h");
+        include!("gn/target.h");
         include!("gn/test_with_scope.h");
         include!("gn/value.h");
 
@@ -186,6 +188,19 @@ mod dummy {
         pub(in crate::label) fn dir(self: &Label) -> &SourceDir;
         #[cxx_return_type = "const std::string&"]
         pub fn name(self: &Label) -> &str;
+
+        #[rust_name = "CxxTarget"]
+        type Target;
+        pub(in crate::target) fn label(self: &CxxTarget) -> &Label;
+        #[rust_name = "settings_cxx"]
+        pub(in crate::target) fn settings(self: &CxxTarget) -> *const Settings;
+        pub(in crate::target) fn register_dependency(
+            target: Pin<&mut CxxTarget>,
+            package: &str,
+            name: &str,
+            toolchain_package: &str,
+            toolchain_name: &str,
+        );
 
         type Settings;
         pub(in crate::settings) fn toolchain_label(self: &Settings) -> &Label;

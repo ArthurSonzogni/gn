@@ -81,9 +81,7 @@ impl types::EvalContext for EvalContext {
             .ok_or_else(|| Error::RequiresBzlFile.into())
     }
 
-    fn require_rule_impl(
-        &self,
-    ) -> starlark::Result<&mut types::CtxState<crate::target_ref::TargetRef>> {
+    fn require_rule_impl(&self) -> starlark::Result<&mut types::CtxState<crate::TargetRef>> {
         todo!()
     }
 }
