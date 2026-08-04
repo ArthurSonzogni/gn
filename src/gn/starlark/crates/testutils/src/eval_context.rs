@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 use std::{cell::UnsafeCell, collections::HashMap, rc::Rc};
 
-use attr::{Attr, EvalContext as AttrEvalContext, EvalContextAttrExt, Session as AttrSession};
+use attr::{Attr, EvalContext as AttrEvalContext, EvalContextAttrExt};
 use starlark::{
     values::{FrozenValue, FrozenValueTyped, Heap, ProvidesStaticType, Value},
     Result,
@@ -135,34 +135,48 @@ impl EvalContextAttrExt for FakeEvalContext {
         target_type: Option<OutputType>,
         target_name: &str,
         scope: &FakeScope,
-        rule: FrozenValue,
-        attrs: Vec<Attr>,
-    ) -> Result<<Self::Session as AttrSession>::TargetRef> {
+    ) -> Result<std::pin::Pin<&'static mut FakeTarget>> {
         let label = Label::new(self.package.clone(), target_name.to_owned());
         let toolchain = self.current_toolchain().to_owned();
-        let mut deps = starlark::collections::SmallSet::new();
-        for attr in &attrs {
-            attr.add_dependencies(toolchain.as_ref(), &mut deps);
-        }
-        Ok(self.session.insert_target(FakeTarget {
+        let target = FakeTarget {
             label,
-            dependencies: deps
-                .into_iter()
-                .map(|(l, tc)| (l.to_owned(), tc.to_owned()))
-                .collect(),
+            dependencies: Default::default(),
             toolchain,
             output_type: target_type,
-            rule: if rule.is_none() {
-                None
-            } else {
-                let typed =
-                    FrozenValueTyped::<rule::FrozenRule<FakeEvalContext>>::new(rule).unwrap();
-                Some(typed.as_ref())
-            },
+            rule: None,
             cxx_attrs: scope.0.clone(),
             outputs: vec![],
-            attrs,
-        }))
+            attrs: vec![],
+        };
+        let mut targets = self.session.targets_under_construction.borrow_mut();
+        targets.push(Box::new(target));
+        // Safety: The Box inside the RefCell's vector is stable in memory and lasts as
+        // long as the FakeSession in tests.
+        let target_ref = unsafe { &mut *(&mut **targets.last_mut().unwrap() as *mut FakeTarget) };
+        Ok(unsafe { std::pin::Pin::new_unchecked(target_ref) })
+    }
+
+    fn register_target(
+        &self,
+        cxx_target: std::pin::Pin<&'static mut FakeTarget>,
+        rule: FrozenValue,
+        attrs: Vec<Attr>,
+    ) -> Result<FakeTargetRef> {
+        let target_ptr = &*cxx_target as *const FakeTarget;
+        let mut targets = self.session.targets_under_construction.borrow_mut();
+        let idx = targets
+            .iter()
+            .position(|t| std::ptr::eq(&**t, target_ptr))
+            .expect("Registering target that was not created in this context");
+        let mut target = targets.remove(idx);
+        target.rule = if rule.is_none() {
+            None
+        } else {
+            let typed = FrozenValueTyped::<rule::FrozenRule<FakeEvalContext>>::new(rule).unwrap();
+            Some(typed.as_ref())
+        };
+        target.attrs = attrs;
+        Ok(self.session.insert_target(*target))
     }
 }
 

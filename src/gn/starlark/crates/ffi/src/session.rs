@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::pin::Pin;
+use std::{collections::HashMap, pin::Pin, sync::RwLock};
 
 use loader::FileLoader;
 use starlark::environment::{FrozenModule, Globals};
@@ -10,13 +10,16 @@ use types::{
     util::extend_lifetime, Label, LabelRef, PackageRef, PathResolver, Session as TypesSession,
 };
 
-use crate::errors::Error;
+use crate::{errors::Error, target::Target};
+
+type TargetMap = HashMap<(Label, Label), Pin<Box<Target>>>;
 
 /// Represents a Starlark evaluation session exposed to C++ via FFI.
 pub struct Session {
     loader: FileLoader,
     pub(crate) path_resolver: PathResolver,
     globals: Globals,
+    targets: RwLock<TargetMap>,
 }
 
 fn make_attr_schema<'v>(
@@ -51,6 +54,7 @@ impl Session {
             loader: FileLoader::default(),
             path_resolver,
             globals: build_globals(),
+            targets: Default::default(),
         }
     }
 
@@ -65,6 +69,23 @@ impl Session {
     /// Associated function for C++ constructor.
     pub fn new_for_testing() -> Box<Self> {
         Box::new(Self::from_resolver(PathResolver::new_for_testing()))
+    }
+
+    pub(crate) fn register_target(&self, target: Target) -> crate::TargetRef {
+        let label = target.label().as_ref().to_owned();
+        let toolchain = target.toolchain().to_owned();
+
+        let pinned = Box::pin(target);
+        // Safety: A target object can never be deleted.
+        let static_ref: &'static Target = unsafe { extend_lifetime(&*pinned) };
+
+        let mut targets = self.targets.write().unwrap();
+        assert!(
+            targets.insert((label, toolchain), pinned).is_none(),
+            "Target already registered"
+        );
+
+        crate::TargetRef(static_ref)
     }
 
     fn load(&'static self, label: LabelRef<'_>) -> starlark::Result<FrozenModule> {
@@ -108,9 +129,15 @@ impl Session {
 }
 
 impl TypesSession for Session {
-    type TargetRef = crate::target_ref::TargetRef;
+    type TargetRef = crate::TargetRef;
 
-    fn get_target(&self, _label: LabelRef<'_>, _toolchain: LabelRef<'_>) -> Self::TargetRef {
-        todo!()
+    fn get_target(&self, label: LabelRef<'_>, toolchain: LabelRef<'_>) -> Self::TargetRef {
+        let targets = self.targets.read().unwrap();
+        let target_pin = targets
+            .get(&(label.to_owned(), toolchain.to_owned()))
+            .expect("Requested target was not registered in the session");
+        // Safety: A target object can never be deleted.
+        let static_ref: &'static Target = unsafe { extend_lifetime(&**target_pin) };
+        crate::TargetRef(static_ref)
     }
 }

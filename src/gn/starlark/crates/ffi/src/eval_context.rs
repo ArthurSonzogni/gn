@@ -92,9 +92,25 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
         _target_type: Option<types::OutputType>,
         _target_name: &str,
         _scope: &Scope,
+    ) -> starlark::Result<
+        std::pin::Pin<
+            &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
+        >,
+    > {
+        todo!()
+    }
+
+    fn register_target(
+        &self,
+        cxx_target: std::pin::Pin<
+            &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
+        >,
         _rule: starlark::values::FrozenValue,
         _attrs: Vec<attr::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef> {
-        todo!("Create C++ target and register dependencies");
+        let ffi_target = std::ptr::NonNull::from(&*cxx_target);
+        Ok(self
+            .session
+            .register_target(crate::target::Target { cxx: ffi_target }))
     }
 }

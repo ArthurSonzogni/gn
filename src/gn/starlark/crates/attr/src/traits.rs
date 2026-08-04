@@ -14,11 +14,25 @@ pub trait TargetAttrExt: TargetRef {
 
 /// Extension trait for EvalContext to support target creation.
 pub trait EvalContextAttrExt: types::EvalContext {
+    /// Creates a new C++ target, returning a mutable reference to it.
     fn create_target(
         &self,
         target_type: Option<OutputType>,
         target_name: &str,
         scope: &Self::Scope,
+    ) -> starlark::Result<
+        std::pin::Pin<
+            &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
+        >,
+    >;
+
+    /// Registers the C++ target in the session, wrapping it and returning an
+    /// immutable TargetRef.
+    fn register_target(
+        &self,
+        cxx_target: std::pin::Pin<
+            &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
+        >,
         rule: starlark::values::FrozenValue,
         attrs: Vec<crate::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef>;

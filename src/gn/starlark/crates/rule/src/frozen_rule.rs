@@ -113,15 +113,23 @@ where
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            if let Some(builtin) = self.builtin {
+            let mut cxx_target = if let Some(builtin) = self.builtin {
                 // Collect all the arguments we don't recognise and pass them to the native
                 // implementation.
                 let kwargs: SmallMap<String, Value<'v>> = param_parser.next()?;
                 let child_scope = scope.copy_with(kwargs.iter().map(|(k, v)| (k.as_str(), *v)))?;
-                context.create_target(Some(builtin), target_name, &*child_scope, me, attrs)?;
+                context.create_target(Some(builtin), target_name, &*child_scope)?
             } else {
-                context.create_target(None, target_name, scope, me, attrs)?;
+                context.create_target(None, target_name, scope)?
+            };
+            let mut deps = starlark::collections::SmallSet::new();
+            for attr in &attrs {
+                attr.add_dependencies(context.current_toolchain(), &mut deps);
             }
+            for (label, toolchain) in deps {
+                types::TargetMut::register_dependency(cxx_target.as_mut(), label, toolchain);
+            }
+            context.register_target(cxx_target, me, attrs)?;
 
             Ok(Value::new_none())
         })

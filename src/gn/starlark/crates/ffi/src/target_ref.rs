@@ -67,6 +67,7 @@ impl<'v> AllocValue<'v> for TargetRef {
 }
 
 impl types::TargetRef for TargetRef {
+    type Cxx = crate::bridge::CxxTarget;
     type Rule = rule::FrozenRule<crate::eval_context::EvalContext>;
 
     fn label(&self) -> LabelRef<'_> {
@@ -95,5 +96,21 @@ impl types::TargetRef for TargetRef {
 
     fn builtin_attrs<'v>(&self, _heap: &Heap<'v>) -> Vec<Value<'v>> {
         todo!()
+    }
+}
+
+impl types::TargetMut for crate::bridge::CxxTarget {
+    fn register_dependency(
+        self: std::pin::Pin<&mut Self>,
+        label: LabelRef<'_>,
+        toolchain: LabelRef<'_>,
+    ) {
+        crate::bridge::register_dependency(
+            self,
+            label.package().as_str(),
+            label.name(),
+            toolchain.package().as_str(),
+            toolchain.name(),
+        );
     }
 }

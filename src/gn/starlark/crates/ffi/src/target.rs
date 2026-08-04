@@ -9,7 +9,7 @@ pub struct Target {
     // We maintain a 0-1 relationship between starlark Targets and rust targets.
     // starlark targets store a reference to C++ targets, and C++ targets store an optional
     // reference to starlark targets.
-    cxx: NonNull<crate::bridge::CxxTarget>,
+    pub(crate) cxx: NonNull<crate::bridge::CxxTarget>,
     // Note: This is not a lightweight reference type.
     // Fields such as rules, attr, and providers will be added in the future.
 }
@@ -48,20 +48,5 @@ impl crate::bridge::CxxTarget {
     /// Returns the toolchain label for the target.
     pub fn toolchain(&self) -> types::LabelRef<'_> {
         self.settings().toolchain_label().as_ref()
-    }
-
-    /// Registers a dependency on this target.
-    pub fn register_dependency(
-        self: std::pin::Pin<&mut Self>,
-        label: types::LabelRef<'_>,
-        toolchain: types::LabelRef<'_>,
-    ) {
-        crate::bridge::register_dependency(
-            self,
-            label.package().as_str(),
-            label.name(),
-            toolchain.package().as_str(),
-            toolchain.name(),
-        );
     }
 }

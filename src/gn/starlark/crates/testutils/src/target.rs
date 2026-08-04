@@ -132,6 +132,7 @@ impl Deref for FakeTargetRef {
 }
 
 impl TargetRef for FakeTargetRef {
+    type Cxx = FakeTarget;
     type Rule = rule::FrozenRule<FakeEvalContext>;
 
     fn label(&self) -> LabelRef<'_> {
@@ -166,6 +167,17 @@ impl TargetRef for FakeTargetRef {
                 vec![Value::new_none(); file_fields.len() + target_fields.len()]
             })
             .unwrap_or_default()
+    }
+}
+
+impl types::TargetMut for FakeTarget {
+    fn register_dependency(
+        mut self: std::pin::Pin<&mut Self>,
+        label: LabelRef<'_>,
+        toolchain: LabelRef<'_>,
+    ) {
+        self.dependencies
+            .insert((label.to_owned(), toolchain.to_owned()));
     }
 }
 

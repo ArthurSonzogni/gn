@@ -30,5 +30,5 @@ pub use package_ref::PackageRef;
 pub use path_resolver::PathResolver;
 pub use scope::Scope;
 pub use session::Session;
-pub use target_ref::{IPromiseToImplementStarlarkEqAndHash, TargetRef};
+pub use target_ref::{IPromiseToImplementStarlarkEqAndHash, TargetMut, TargetRef};
 pub use unpacked_owned_value::UnpackedOwnedValue;

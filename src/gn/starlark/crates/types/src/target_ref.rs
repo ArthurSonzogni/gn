@@ -23,6 +23,7 @@ pub trait TargetRef:
     /// Returns the toolchain the label was defined in.
     fn toolchain(&self) -> LabelRef<'_>;
 
+    type Cxx: TargetMut;
     type Rule: for<'v> StarlarkValue<'v>;
 
     /// Returns the rule that this target was built from.
@@ -42,10 +43,19 @@ pub trait TargetRef:
         label_prefix: &str,
         package_name_separator: &str,
     ) -> String;
-
     /// Returns the target's output type.
     fn output_type(&self) -> Option<OutputType>;
 
     /// Returns the resolved built-in attributes as Starlark values.
     fn builtin_attrs<'v>(&self, heap: &Heap<'v>) -> Vec<Value<'v>>;
+}
+
+/// A trait for mutating a target before it is registered in the session.
+pub trait TargetMut {
+    /// Registers a dependency on this target.
+    fn register_dependency(
+        self: std::pin::Pin<&mut Self>,
+        label: LabelRef<'_>,
+        toolchain: LabelRef<'_>,
+    );
 }

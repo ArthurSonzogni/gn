@@ -194,7 +194,7 @@ mod dummy {
         pub(in crate::target) fn label(self: &CxxTarget) -> &Label;
         #[rust_name = "settings_cxx"]
         pub(in crate::target) fn settings(self: &CxxTarget) -> *const Settings;
-        pub(in crate::target) fn register_dependency(
+        pub(in crate::target_ref) fn register_dependency(
             target: Pin<&mut CxxTarget>,
             package: &str,
             name: &str,
