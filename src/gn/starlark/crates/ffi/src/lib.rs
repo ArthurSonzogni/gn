@@ -38,7 +38,6 @@ pub use bridge::{
 };
 pub use mutability::Immutable;
 pub use opaque::{NonOpaque, OpaqueSized};
-pub use scope::OwnedScope;
 pub use session::Session;
 pub use slice::{OwnedSlice, Slice};
 pub use test_with_scope::TestWithScope;

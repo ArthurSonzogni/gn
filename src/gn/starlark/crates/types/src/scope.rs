@@ -10,13 +10,13 @@ use starlark::values::{Heap, Value};
 /// the API we actually wish to use from rust, which may be an abstraction
 /// over that.
 pub trait Scope {
+    type Owned: std::ops::Deref<Target = Self>;
+
     /// Creates a copy of the scope with some additional values set.
     fn copy_with<'a, 'v>(
         &self,
         kv: impl Iterator<Item = (&'a str, Value<'v>)>,
-    ) -> starlark::Result<Self>
-    where
-        Self: Sized;
+    ) -> starlark::Result<Self::Owned>;
 
     /// Retrieves a value from the key-value store.
     /// May allocate the value it retrieves on the heap.

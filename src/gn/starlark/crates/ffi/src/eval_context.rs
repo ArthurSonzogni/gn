@@ -36,7 +36,7 @@ impl EvalContext {
 }
 
 impl types::EvalContext for EvalContext {
-    type Scope = crate::scope::OwnedScope;
+    type Scope = crate::Scope;
     type Session = crate::session::Session;
 
     fn current_package(&self) -> &types::PackageRef {

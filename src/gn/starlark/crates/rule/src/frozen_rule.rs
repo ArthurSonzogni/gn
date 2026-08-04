@@ -118,7 +118,7 @@ where
                 // implementation.
                 let kwargs: SmallMap<String, Value<'v>> = param_parser.next()?;
                 let child_scope = scope.copy_with(kwargs.iter().map(|(k, v)| (k.as_str(), *v)))?;
-                context.create_target(Some(builtin), target_name, &child_scope, me, attrs)?
+                context.create_target(Some(builtin), target_name, &*child_scope, me, attrs)?
             } else {
                 context.create_target(None, target_name, scope, me, attrs)?
             };
