@@ -303,6 +303,13 @@ class Target : public Item {
   const LabelTargetVector& gen_deps() const { return gen_deps_; }
   LabelTargetVector& gen_deps() { return gen_deps_; }
 
+  // Dependencies only known to starlark.
+  // The only purpose of this field is to ensure that all of a target's starlark
+  // dependencies are resolved before itself, ensuring that starlark rule
+  // implementations run in correct order.
+  const LabelTargetVector& starlark_deps() const { return starlark_deps_; }
+  LabelTargetVector& starlark_deps() { return starlark_deps_; }
+
   // List of configs that this class inherits settings from. Once a target is
   // resolved, this will also list all-dependent and public configs.
   const UniqueVector<LabelConfigPair>& configs() const { return configs_; }
@@ -580,6 +587,7 @@ class Target : public Item {
   LabelTargetVector data_deps_;
   LabelTargetVector validations_;
   LabelTargetVector gen_deps_;
+  LabelTargetVector starlark_deps_;
 
   // See getters for more info.
   UniqueVector<LabelConfigPair> configs_;
