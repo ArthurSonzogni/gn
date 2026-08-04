@@ -23,6 +23,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 #if __cplusplus >= 201703L
 #include <string_view>
 #endif
@@ -765,11 +766,30 @@ union MaybeUninit {
 };
 
 namespace {
+template <typename T>
+void destroy(T *ptr) {
+  ptr->~T();
+}
+
 template <bool> struct deleter_if {
   template <typename T> void operator()(T *) {}
 };
 template <> struct deleter_if<true> {
   template <typename T> void operator()(T *ptr) { ptr->~T(); }
+};
+
+template <typename T, bool = ::std::is_move_constructible<T>::value>
+struct if_move_constructible {
+  static bool reserve(::std::vector<T> &, ::std::size_t) noexcept {
+    return false;
+  }
+};
+template <typename T>
+struct if_move_constructible<T, true> {
+  static bool reserve(::std::vector<T> &vec, ::std::size_t new_cap) {
+    vec.reserve(new_cap);
+    return true;
+  }
 };
 } // namespace
 } // namespace cxxbridge1
@@ -873,6 +893,7 @@ struct OwnedFrozenValue final : public ::rust::Opaque {
   ::rust::Box<::OwnedFrozenValue> clone() const noexcept;
   ::rust::String to_string() const noexcept;
   bool eq(::OwnedFrozenValue const &other) const noexcept;
+  void invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope const &scope, ::ParseNodePtr origin, ::Err &err) const noexcept;
   ~OwnedFrozenValue() = delete;
 
 private:
@@ -980,6 +1001,11 @@ void cxxbridge1$196$GetScopeItems(::Scope const &scope, ::SliceAny *return$) noe
   return (self.*settings_cxx$)();
 }
 
+void cxxbridge1$196$Scope$package_cxx(::Scope const &self, ::SourceDir const **return$) noexcept {
+  ::SourceDir const &(::Scope::*package_cxx$)() const = &::Scope::GetSourceDir;
+  new (return$) ::SourceDir const *(&(self.*package_cxx$)());
+}
+
 ::TestWithScope *cxxbridge1$196$NewTestWithScope() noexcept {
   ::std::unique_ptr<::TestWithScope> (*NewTestWithScope$)() = ::NewTestWithScope;
   return NewTestWithScope$().release();
@@ -1085,6 +1111,8 @@ void cxxbridge1$196$Session$load_values(::Session const &self, ::rust::Str label
 void cxxbridge1$196$OwnedFrozenValue$to_string_cxx(::OwnedFrozenValue const &self, ::rust::String *return$) noexcept;
 
 bool cxxbridge1$196$OwnedFrozenValue$eq_cxx(::OwnedFrozenValue const &self, ::OwnedFrozenValue const &other) noexcept;
+
+void cxxbridge1$196$OwnedFrozenValue$invoke(::OwnedFrozenValue const &self, ::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope const &scope, ::ParseNodePtr *origin, ::Err &err) noexcept;
 } // extern "C"
 
 ::std::size_t Session::layout::size() noexcept {
@@ -1128,6 +1156,11 @@ void Session::load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Sl
 
 bool OwnedFrozenValue::eq(::OwnedFrozenValue const &other) const noexcept {
   return cxxbridge1$196$OwnedFrozenValue$eq_cxx(*this, other);
+}
+
+void OwnedFrozenValue::invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope const &scope, ::ParseNodePtr origin, ::Err &err) const noexcept {
+  ::rust::ManuallyDrop<::ParseNodePtr> origin$(::std::move(origin));
+  cxxbridge1$196$OwnedFrozenValue$invoke(*this, session, args, kwargs, out_val, scope, &origin$.value, err);
 }
 
 extern "C" {
@@ -1214,6 +1247,40 @@ void cxxbridge1$box$OwnedFrozenValue$drop(::rust::Box<::OwnedFrozenValue> *ptr) 
 ::Session *cxxbridge1$box$Session$alloc() noexcept;
 void cxxbridge1$box$Session$dealloc(::Session *) noexcept;
 void cxxbridge1$box$Session$drop(::rust::Box<::Session> *ptr) noexcept;
+
+::std::vector<::Value> *cxxbridge1$std$vector$Value$new() noexcept {
+  return new ::std::vector<::Value>();
+}
+::std::size_t cxxbridge1$std$vector$Value$size(::std::vector<::Value> const &s) noexcept {
+  return s.size();
+}
+::std::size_t cxxbridge1$std$vector$Value$capacity(::std::vector<::Value> const &s) noexcept {
+  return s.capacity();
+}
+::Value *cxxbridge1$std$vector$Value$get_unchecked(::std::vector<::Value> *s, ::std::size_t pos) noexcept {
+  return &(*s)[pos];
+}
+bool cxxbridge1$std$vector$Value$reserve(::std::vector<::Value> *s, ::std::size_t new_cap) noexcept {
+  return ::rust::if_move_constructible<::Value>::reserve(*s, new_cap);
+}
+static_assert(::rust::detail::is_complete<::std::remove_extent<::std::vector<::Value>>::type>::value, "definition of `::std::vector<::Value>` is required");
+static_assert(sizeof(::std::unique_ptr<::std::vector<::Value>>) == sizeof(void *), "");
+static_assert(alignof(::std::unique_ptr<::std::vector<::Value>>) == alignof(void *), "");
+void cxxbridge1$unique_ptr$std$vector$Value$null(::std::unique_ptr<::std::vector<::Value>> *ptr) noexcept {
+  ::new (ptr) ::std::unique_ptr<::std::vector<::Value>>();
+}
+void cxxbridge1$unique_ptr$std$vector$Value$raw(::std::unique_ptr<::std::vector<::Value>> *ptr, ::std::unique_ptr<::std::vector<::Value>>::pointer raw) noexcept {
+  ::new (ptr) ::std::unique_ptr<::std::vector<::Value>>(raw);
+}
+::std::unique_ptr<::std::vector<::Value>>::element_type const *cxxbridge1$unique_ptr$std$vector$Value$get(::std::unique_ptr<::std::vector<::Value>> const &ptr) noexcept {
+  return ptr.get();
+}
+::std::unique_ptr<::std::vector<::Value>>::pointer cxxbridge1$unique_ptr$std$vector$Value$release(::std::unique_ptr<::std::vector<::Value>> &ptr) noexcept {
+  return ptr.release();
+}
+void cxxbridge1$unique_ptr$std$vector$Value$drop(::std::unique_ptr<::std::vector<::Value>> *ptr) noexcept {
+  ::rust::deleter_if<::rust::detail::is_complete<::std::vector<::Value>>::value>{}(ptr);
+}
 } // extern "C"
 
 namespace rust {

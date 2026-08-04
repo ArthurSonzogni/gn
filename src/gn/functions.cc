@@ -754,6 +754,11 @@ Value RunLoad(Scope* scope,
   session_load(loader, values[0], std::span(values).subspan(1), *scope,
                ParseNodePtr{function}, *err);
 
+  if (err->has_error()) {
+    err->AppendSubErr(Err(function, "whence 'load' was called."));
+    return Value();
+  }
+
   return Value();
 }
 
@@ -1654,6 +1659,40 @@ Value RunFunction(Scope* scope,
   FunctionInfoMap::const_iterator found_function =
       function_map.find(name.value());
   if (found_function == function_map.end()) {
+    // Check if the function name matches a loaded Starlark macro.
+    const Value* val = scope->GetValue(name.value(), true);
+    if (val && val->type() == Value::STARLARK_VALUE) {
+      Value args = args_list->Execute(scope, err);
+      if (err->has_error())
+        return Value();
+
+      std::unique_ptr<Scope> block_scope;
+      if (block) {
+        NonNestableBlock non_nestable(scope, function, "macro invocation");
+        if (!non_nestable.Enter(err))
+          return Value();
+
+        block_scope = std::make_unique<Scope>(scope);
+        block->Execute(block_scope.get(), err);
+        if (err->has_error())
+          return Value();
+      } else {
+        block_scope = std::make_unique<Scope>(scope);
+      }
+
+      Value result;
+      val->starlark_value().invoke(
+          scope->settings()->build_settings()->starlark_session(),
+          args.list_value(), *block_scope, result, *scope,
+          ParseNodePtr{function}, *err);
+
+      if (err->has_error()) {
+        err->AppendSubErr(Err(function, "whence '" + std::string(name.value()) +
+                                            "' was called."));
+        return Value();
+      }
+      return result;
+    }
     *err = Err(name, "Unknown function.");
     return Value();
   }

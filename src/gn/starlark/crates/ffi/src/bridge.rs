@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use types::EvaluatorContextExt as _;
+
 /// The consolidated cxx FFI bridge defining all shared C++ classes, structs,
 /// methods, and constructors utilized by the high-level Rust wrappers.
 ///
@@ -27,6 +29,57 @@ impl OwnedFrozenValue {
 
     pub fn eq_cxx(&self, other: &Self) -> bool {
         self.0.value() == other.0.value()
+    }
+
+    pub fn invoke(
+        &self,
+        session: &'static Session,
+        args: &cxx::CxxVector<Value>,
+        kwargs: &Scope,
+        mut out_val: std::pin::Pin<&mut Value>,
+        scope: &'static Scope,
+        origin: ParseNodePtr,
+        mut err: std::pin::Pin<&mut Err>,
+    ) {
+        // Safety: `self` (and thus self.0.owner()) is guaranteed to outlive
+        // the temp module and thus this cannot be GC'd during this call.
+        let func_val = unsafe { self.0.unchecked_frozen_value() };
+        err.as_mut().handle((|| {
+            let val = starlark::environment::Module::with_temp_heap(
+                |module| -> starlark::Result<Self> {
+                    let heap = module.heap();
+                    let args: Vec<_> = args.iter().map(|arg| arg.to_rust(&heap)).collect();
+                    let kwargs: Vec<_> = kwargs
+                        .items()
+                        .as_slice()
+                        .iter()
+                        .map(|kw| (kw.key, kw.value.to_rust(&heap)))
+                        .collect();
+
+                    let package = scope.package();
+                    let eval_context =
+                        crate::eval_context::EvalContext::new_macro(session, package, scope);
+
+                    let res = {
+                        let mut eval = starlark::eval::Evaluator::new(&module);
+                        eval.set_context(&eval_context);
+                        eval.eval_function(func_val.to_value(), &args, &kwargs)
+                    };
+
+                    module.set_extra_value(res?);
+                    let frozen_module = module.freeze().map_err(starlark::Error::new_other)?;
+                    Ok(Self(frozen_module.owned_extra_value().unwrap()))
+                },
+            )?;
+
+            out_val.as_mut().assign(
+                val.0.value(),
+                Some(val.0.owner()),
+                scope.settings(),
+                origin,
+            )?;
+            Ok(())
+        })());
     }
 }
 
@@ -163,6 +216,8 @@ mod dummy {
         ) -> Pin<&'a mut Value>;
         #[rust_name = "settings_cxx"]
         pub(in crate::scope) fn settings(self: &Scope) -> *const Settings;
+        #[cxx_name = "GetSourceDir"]
+        pub(in crate::scope) fn package_cxx(self: &Scope) -> &SourceDir;
 
         type TestWithScope;
         pub(in crate::test_with_scope) fn NewTestWithScope() -> UniquePtr<TestWithScope>;
@@ -239,6 +294,16 @@ mod dummy {
         fn to_string(self: &OwnedFrozenValue) -> String;
         #[rust_name = "eq_cxx"]
         fn eq(self: &OwnedFrozenValue, other: &OwnedFrozenValue) -> bool;
+        fn invoke(
+            self: &OwnedFrozenValue,
+            session: &'static Session,
+            args: &CxxVector<Value>,
+            kwargs: &Scope,
+            out_val: Pin<&mut Value>,
+            scope: &'static Scope,
+            origin: ParseNodePtr,
+            err: Pin<&mut Err>,
+        );
     }
 }
 

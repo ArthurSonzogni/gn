@@ -403,6 +403,9 @@ def WriteGenericNinja(path, static_libraries, executables,
 
   ninja_lines = []
   def build_source(src_file, settings):
+    file_cflags = list(settings.get('cflags', cflags))
+    if 'source_cflags' in settings and src_file in settings['source_cflags']:
+      file_cflags.extend(settings['source_cflags'][src_file])
     ninja_lines.extend([
         'build %s: cxx %s' % (src_to_obj(src_file),
                               escape_path_ninja(
@@ -411,7 +414,7 @@ def WriteGenericNinja(path, static_libraries, executables,
                                       os.path.dirname(path)))),
         '  includes = %s' % ' '.join(
             ['-I' + escape_path_ninja(dirname) for dirname in include_dirs]),
-        '  cflags = %s' % ' '.join(settings.get('cflags', cflags)),
+        '  cflags = %s' % ' '.join(file_cflags),
     ])
 
   for library, settings in static_libraries.items():
@@ -970,7 +973,13 @@ def WriteGNNinja(path, platform, host, options, args_list):
               'src/util/ticks.cc',
               'src/util/worker_pool.cc',
               'src/gn/test_with_scope.cc',
-          ]
+          ],
+          'source_cflags': {
+              # cxxbridge generates helper templates in anonymous namespaces that
+              # may be unused depending on which bridge features are referenced.
+              # Note: -Wno-unused-template is unavailable on gcc
+              'src/gn/ffi/bridge.cc': ['-Wno-unused-template'] if not is_gcc(cxx) and not platform.is_msvc() else [],
+          },
       },
   }
 

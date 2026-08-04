@@ -6,11 +6,11 @@ use allocative::Allocative;
 use starlark::values::ProvidesStaticType;
 use types::{LabelRef, PackageRef, PathResolver};
 
-use crate::errors::Error;
+use crate::{errors::Error, Scope};
 
-#[derive(Allocative)]
 enum EvalContextKind {
     BzlFile,
+    Macro(&'static Scope),
 }
 
 #[derive(Allocative, ProvidesStaticType)]
@@ -19,6 +19,7 @@ pub struct EvalContext {
     session: &'static crate::session::Session,
     #[allocative(skip)]
     package: &'static PackageRef,
+    #[allocative(skip)]
     kind: EvalContextKind,
 }
 
@@ -31,6 +32,18 @@ impl EvalContext {
             session,
             package,
             kind: EvalContextKind::BzlFile,
+        }
+    }
+
+    pub fn new_macro(
+        session: &'static crate::session::Session,
+        package: &'static PackageRef,
+        scope: &'static Scope,
+    ) -> Self {
+        Self {
+            session,
+            package,
+            kind: EvalContextKind::Macro(scope),
         }
     }
 }
@@ -56,7 +69,10 @@ impl types::EvalContext for EvalContext {
     }
 
     fn require_macro(&self) -> starlark::Result<&Self::Scope> {
-        todo!()
+        match &self.kind {
+            EvalContextKind::Macro(scope) => Ok(*scope),
+            _ => Err(Error::RequiresMacro.into()),
+        }
     }
 
     fn require_bzl(&self) -> starlark::Result<()> {
@@ -77,7 +93,7 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
         &self,
         _target_type: Option<types::OutputType>,
         _target_name: &str,
-        _scope: &Self::Scope,
+        _scope: &Scope,
         _rule: starlark::values::FrozenValue,
         _attrs: Vec<attr::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef> {

@@ -13,6 +13,8 @@ pub(crate) enum Error {
     PassingNonFrozenStarlarkValueToGn(String),
     #[error("This is not allowed while executing a function loaded from a starlark file.")]
     RequiresBzlFile,
+    #[error("This is only allowed while executing a macro (function called from GN).")]
+    RequiresMacro,
 }
 
 impl From<Error> for starlark::Error {

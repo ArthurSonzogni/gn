@@ -66,6 +66,9 @@ impl CxxErr {
     fn fill_frames(mut self: Pin<&mut Self>, err: &starlark::Error) {
         // Process call stack frames and append them as nested errors.
         for frame in err.call_stack().frames.iter().rev() {
+            if err.span() == frame.location.as_ref() {
+                continue;
+            }
             if let Some(loc) = &frame.location {
                 let frame_filename = loc.filename();
                 let frame_source = loc.file.source();

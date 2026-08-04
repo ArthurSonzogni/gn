@@ -5,7 +5,7 @@
 use std::pin::Pin;
 
 use starlark::values::{Heap, Value as StarlarkValue};
-use types::intern_string;
+use types::{intern_string, PackageRef};
 
 use crate::{bridge::Value, Immutable, OwnedSlice, Scope};
 
@@ -48,6 +48,10 @@ impl Scope {
             items.push((pair.key, pair.value.to_rust(heap)));
         }
         items
+    }
+
+    pub fn package(&self) -> &PackageRef {
+        self.package_cxx().as_rust().unwrap()
     }
 }
 
