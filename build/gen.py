@@ -20,6 +20,35 @@ assert sys.version_info >= (3, 9, 0)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
+def rust_arch():
+  """Determines the target CPU architecture normalized for Rust."""
+  cflags = os.environ.get('CFLAGS', '').split()
+  ldflags = os.environ.get('LDFLAGS', '').split()
+
+  target_triple = None
+  for flag in cflags + ldflags:
+    if flag.startswith('--target='):
+      target_triple = flag.split('=', 1)[1]
+      break
+    elif flag.startswith('-target='):
+      target_triple = flag.split('=', 1)[1]
+      break
+
+  if target_triple:
+    arch = target_triple.split('-')[0].lower()
+  else:
+    import platform as py_platform
+    arch = py_platform.machine().lower()
+
+  if arch in ('amd64', 'x86_64'):
+    return 'x86_64'
+  elif arch in ('arm64', 'aarch64'):
+    return 'aarch64'
+  elif arch == 'riscv64':
+    return 'riscv64'
+  return arch
+
+
 class Platform(object):
   """Represents a host/target platform."""
   def __init__(self, platform):
@@ -102,6 +131,21 @@ class Platform(object):
   @property
   def exe_suffix(self):
     return '.exe' if self.is_windows() else ''
+
+  def rust_triple(self):
+    """Returns the Rust target triple for this platform."""
+    arch = rust_arch()
+
+    if self.is_linux():
+      return f"{arch}-unknown-linux-gnu"
+    elif self.is_darwin():
+      return f"{arch}-apple-darwin"
+    elif self.is_msvc():
+      return f"{arch}-pc-windows-msvc"
+    elif self.is_mingw() or self.is_msys():
+      return f"{arch}-pc-windows-gnu"
+    else:
+      raise NotImplementedError(f"Unsupported Rust target platform: {self._platform}")
 
 
 class ArgumentsList:
@@ -399,6 +443,7 @@ def WriteGenericNinja(path, static_libraries, executables,
         'crate_dir': ninja.source_file('src/gn/starlark'),
         'target_dir': 'starlark',
         'cxxflags': ' '.join(cflags),
+        'ldflags': ' '.join(ldflags),
     }
     ninja.CargoLibTarget(
         library_to_a('gn_starlark'),
@@ -1030,7 +1075,9 @@ def WriteGNNinja(path, platform, host, options, args_list):
       libs.extend([
           'advapi32.lib',
           'dbghelp.lib',
+          'gdi32.lib',
           'kernel32.lib',
+          'ntdll.lib',
           'ole32.lib',
           'shell32.lib',
           'user32.lib',
@@ -1044,7 +1091,9 @@ def WriteGNNinja(path, platform, host, options, args_list):
       libs.extend([
           '-ladvapi32',
           '-ldbghelp',
+          '-lgdi32',
           '-lkernel32',
+          '-lntdll',
           '-lole32',
           '-lshell32',
           '-luser32',

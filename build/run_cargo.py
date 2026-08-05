@@ -17,12 +17,14 @@ It is invoked by the Ninja 'cargo' rule to:
    build directory.
 """
 
+import contextlib
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 _ESC = '\u001e'
 
@@ -93,23 +95,54 @@ def process_lib_target(out_path: Path, cargo_out_dir: Path) -> list[Path]:
 
 
 def process_test_target(out_path: Path, cargo_out_dir: Path) -> list[Path]:
-  """Generates a test runner script and returns all test binary source depfiles."""
+  """Generates a test runner script.
+
+  Returns all test binary source depfiles.
+  """
   # When cargo builds tests, it builds one test binary per crate.
   # So we find all those test binaries, then make the generated "test binary"
   # just a script that invokes each of those binaries one by one.
+
+  # Note that the layout of the output directory of cargo has changed. Thus, we
+  # must match both:
+  # Old layout: deps/<crate>-<hash>(.exe)
+  # New layout: build/<crate>/<hash>/out/<crate>-<hash>(.exe)
+  layout_pattern = re.compile(
+      r'^(?:'
+      r'deps'
+      r'|'
+      r'build/[^/]+/[0-9a-f]{16}/out'
+      r')/(?P<crate_name>[a-zA-Z0-9_-]+)-[0-9a-f]{16}(?:\.exe)?$'
+  )
+
   groups = {}
-  for c in (cargo_out_dir / 'deps').iterdir():
-    is_executable = c.suffix.lower() == '.exe' if sys.platform == 'win32' else os.access(c, os.X_OK)
-    if c.is_file() and is_executable and c.suffix.lower() not in ('.so', '.dylib', '.dll'):
-      parts = c.name.split('-')
+  for root, _, files in os.walk(cargo_out_dir):
+    root_path = Path(root)
+    for name in files:
+      c = root_path / name
+      rel_path = c.relative_to(cargo_out_dir).as_posix()
+      m = layout_pattern.search(rel_path)
+      if not m:
+        continue
+
+      # Ensure it is actually an executable test binary
+      if (
+          c.suffix.lower() != '.exe'
+          if sys.platform == 'win32'
+          else not os.access(c, os.X_OK)
+      ):
+        continue
+
+      crate_name = m.group('crate_name')
       # Cargo can cache your test binary under different configurations.
-      # Eg. The test binary might be called `mytest-hash1`, then after updating your lockfile,
-      # it might keep that binary but future tests would be called `mytest-hash2`.
-      # When this happens, we should use the newest one.
-      if len(parts) >= 2:
-        crate_name = '-'.join(parts[:-1])
-        if crate_name not in groups or c.stat().st_mtime > groups[crate_name].stat().st_mtime:
-          groups[crate_name] = c
+      # E.g. the test binary might be called `mytest-hash1`, then after
+      # updating your lockfile, it might keep that binary but future tests
+      # would be called `mytest-hash2`. When this happens, we should use the
+      # newest one.
+      existing = groups.get(crate_name)
+      if not existing or c.stat().st_mtime > existing.stat().st_mtime:
+        groups[crate_name] = c
+
   newest_binaries = list(groups.values())
 
   out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -148,30 +181,103 @@ def process_test_target(out_path: Path, cargo_out_dir: Path) -> list[Path]:
 
 
 def main():
-  if len(sys.argv) < 7:
+  if len(sys.argv) < 10:
     print(
-        'Usage: run_cargo.py <test|lib> <out> <cargo_out_dir> <cxx> <cxxflags> <command...>',
+        'Usage: run_cargo.py <test|lib> <out> <cargo_out_dir> <cxx> '
+        '<cxxflags> <ldflags> <target_triple> <ld> <command...>',
         file=sys.stderr,
     )
     sys.exit(1)
 
-  target_type, out_path_str, cargo_out_dir_str, cxx, cxxflags, *cmd_args = sys.argv[1:]
+  (
+      target_type,
+      out_path_str,
+      cargo_out_dir_str,
+      cxx,
+      cxxflags,
+      ldflags,
+      target_triple,
+      linker,
+      *cmd_args,
+  ) = sys.argv[1:]
   out_path = Path(out_path_str)
   cargo_out_dir = Path(cargo_out_dir_str)
 
   os.environ['CXX'] = cxx
   os.environ['CXXFLAGS'] = cxxflags
-  # Since Ninja runs commands from the build output directory, CWD is the ninja out dir.
+  # Since Ninja runs commands from the build output directory, CWD is the
+  # ninja out dir.
   ninja_out_dir = os.getcwd()
   os.environ['NINJA_OUT_DIR'] = ninja_out_dir
-  os.environ['RUSTFLAGS'] = f"-L {ninja_out_dir}"
+  if sys.platform == 'win32':
+    # Linker flags in GN can contain relative paths (e.g. /MANIFESTINPUT)
+    # which are relative to the Ninja output directory. Since Cargo runs the
+    # linker from different build directories, we must normalize these paths
+    # to be absolute.
+    def replace_path(match):
+      prefix = match.group('prefix')
+      path_val = Path(match.group('path'))
+      if not path_val.is_absolute():
+        abs_path = os.path.normpath(Path(ninja_out_dir) / path_val)
+        return f"{prefix}{abs_path}"
+      return match.group(0)
+
+    pattern = re.compile(
+        r'(?i)(?P<prefix>[-/](?:manifestinput|natvis|pdb|def|implib|libpath):)'
+        r'(?P<path>[^\s]+)'
+    )
+    ldflags = pattern.sub(replace_path, ldflags)
+
+  target_rustflags = [f"-C linker={linker}", f"-L {ninja_out_dir}"] + [
+      f"-C link-arg={flag}" for flag in ldflags.split()
+  ]
+
+  if sys.platform == 'win32':
+    # GN compiles C++ code on Windows with the static C runtime (/MT or /MTd) by
+    # default. We must configure rustc to also link statically to prevent linker
+    # runtime library mismatch errors (LNK2038).
+    target_rustflags.append("-C target-feature=+crt-static")
+
+    # Optimize the ffi crate in debug mode to strip unused cxx shims and
+    # resolve MSVC link failures.
+    os.environ['CARGO_PROFILE_DEV_PACKAGE_FFI_OPT_LEVEL'] = '1'
+
+    # Compiling the cxx crate requires symlink support.
+    # Cargo's internal Git client (libgit2) does not respect environment
+    # variables like GIT_CONFIG_COUNT. Instead, we override HOME/USERPROFILE
+    # to point to a temporary directory containing a .gitconfig with
+    # core.symlinks = true.
+    with contextlib.suppress(RuntimeError):
+      os.environ.setdefault('CARGO_HOME', str(Path.home() / '.cargo'))
+
+    temp_home = tempfile.mkdtemp()
+    with open(os.path.join(temp_home, '.gitconfig'), 'w') as f:
+      f.write('[core]\n\tsymlinks = true\n')
+
+    os.environ['USERPROFILE'] = temp_home
+    os.environ['HOME'] = temp_home
+    os.environ['HOMEDRIVE'] = ''
+    os.environ['HOMEPATH'] = ''
+
+  # When linking C++ objects instrumented with ASan/UBSan, we must allow the
+  # linker to link its default libraries so it pulls in the sanitizer runtimes.
+  if '-fsanitize=' in ldflags:
+    target_rustflags.append("-C default-linker-libraries=yes")
+
+  env_var = f"CARGO_TARGET_{target_triple.upper().replace('-', '_')}_RUSTFLAGS"
+  os.environ[env_var] = ' '.join(target_rustflags)
+  # The link flags are specifically for the target. When cross-compiling, the
+  # target and host platforms are the same, but we don't want the link flags
+  # when building build tools.
+  os.environ['CARGO_TARGET_APPLIES_TO_HOST'] = 'false'
 
   # Now we run the `cargo build` command
   res = subprocess.run(cmd_args)
   if res.returncode != 0:
     sys.exit(res.returncode)
 
-  # Cargo build doesn't output files in a format ninja can use. So we now need to convert them.
+  # Cargo build doesn't output files in a format ninja can use. So we now
+  # need to convert them.
   if target_type == 'lib':
     src_depfiles = process_lib_target(out_path, cargo_out_dir)
   elif target_type == 'test':

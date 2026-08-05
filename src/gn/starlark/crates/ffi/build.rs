@@ -5,5 +5,5 @@
 include!("../build_helper.rs");
 
 fn main() {
-    require_libs(&["base", "gn_lib"]);
+    require_libs(&["gn_lib", "base"]);
 }

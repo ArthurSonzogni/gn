@@ -148,8 +148,8 @@ class NinjaFile:
         ninja_file=self,
         command=python(
             run_cargo_rel_path,
-            '$target_type $out $cargo_out_dir $cxx "$cxxflags"'
-            ' cargo build --color=always'
+            '$target_type $out $cargo_out_dir $cxx "$cxxflags" "$ldflags" $target_triple $ld'
+            ' cargo build --color=always --target=$target_triple'
             ' --manifest-path=$manifest_path $cargo_target_dir $cargo_flags' + ('' if self.debug else ' --release'),
         ),
         description='CARGO build $out',
@@ -174,6 +174,7 @@ class NinjaFile:
     return 'debug' if self.debug else 'release'
 
   def CargoLibTarget(self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs):
+    target_triple = self.platform.rust_triple()
     return self.Cargo(
         name,
         inputs=self.directory(crate_dir, ['target', 'testdata']),
@@ -181,12 +182,14 @@ class NinjaFile:
         cargo_target_dir=f'--target-dir={target_dir}',
         cargo_flags=cargo_flags + ' --lib',
         target_type='lib',
-        cargo_out_dir=f'{target_dir}/{self.rust_profile}',
+        target_triple=target_triple,
+        cargo_out_dir=f'{target_dir}/{target_triple}/{self.rust_profile}',
         depfile=f'{name}.d',
         **kwargs,
     )
 
   def CargoTestTarget(self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs):
+    target_triple = self.platform.rust_triple()
     return self.Cargo(
         name,
         inputs=self.directory(crate_dir, ['target']),
@@ -194,7 +197,8 @@ class NinjaFile:
         cargo_target_dir=f'--target-dir={target_dir}',
         cargo_flags=cargo_flags + ' --tests',
         target_type='test',
-        cargo_out_dir=f'{target_dir}/{self.rust_profile}',
+        target_triple=target_triple,
+        cargo_out_dir=f'{target_dir}/{target_triple}/{self.rust_profile}',
         depfile=f'{name}.d',
         **kwargs,
     )
