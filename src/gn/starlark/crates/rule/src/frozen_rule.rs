@@ -144,4 +144,3 @@ impl<C: EvalContextAttrExt> fmt::Display for FrozenRule<C> {
         write!(f, "<rule: {}>", self.name)
     }
 }
-

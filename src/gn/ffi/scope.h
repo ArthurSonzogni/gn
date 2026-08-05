@@ -48,4 +48,7 @@ const Value* GetValue(const Scope& scope, rust::Str ident);
 // Adds a value slot to the scope under `ident` and returns a reference to it.
 Value& SetValue(Scope& scope, rust::Str ident, ParseNodePtr origin);
 
+struct Any;
+void free_vector_buffer(Any* ptr);
+
 #endif  // TOOLS_GN_FFI_SCOPE_H_

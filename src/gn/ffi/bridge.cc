@@ -846,6 +846,11 @@ private:
 #endif // CXXBRIDGE1_STRUCT_Session
 
 extern "C" {
+void cxxbridge1$196$free_vector_buffer(::Any *ptr) noexcept {
+  void (*free_vector_buffer$)(::Any *) = ::free_vector_buffer;
+  free_vector_buffer$(ptr);
+}
+
 bool cxxbridge1$196$Err$has_error(::Err const &self) noexcept {
   bool (::Err::*has_error$)() const = &::Err::has_error;
   return (self.*has_error$)();

@@ -85,3 +85,7 @@ const Value* GetValue(const Scope& scope, rust::Str ident) {
 Value& SetValue(Scope& scope, rust::Str ident, ParseNodePtr origin) {
   return *scope.SetValue(std::string_view(ident), Value(), origin.ptr);
 }
+
+void free_vector_buffer(Any* ptr) {
+  ::operator delete(ptr);
+}
