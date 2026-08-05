@@ -39,11 +39,17 @@ impl<'v> AllocValue<'v> for TargetRef {
 }
 
 impl types::TargetRef for TargetRef {
+    type Rule = rule::FrozenRule<crate::eval_context::EvalContext>;
+
     fn label(&self) -> LabelRef<'_> {
         todo!()
     }
 
     fn toolchain(&self) -> LabelRef<'_> {
+        todo!()
+    }
+
+    fn rule(&self) -> Option<&'static Self::Rule> {
         todo!()
     }
 
@@ -60,6 +66,14 @@ impl types::TargetRef for TargetRef {
         _session: &S,
         _toolchain: LabelRef<'_>,
     ) {
+        todo!()
+    }
+
+    fn output_type(&self) -> Option<types::OutputType> {
+        todo!()
+    }
+
+    fn builtin_attrs<'v>(&self, _heap: &Heap<'v>) -> Vec<Value<'v>> {
         todo!()
     }
 }
