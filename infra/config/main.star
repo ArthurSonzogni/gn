@@ -41,14 +41,15 @@ luci.project(
     ],
 )
 
-def builder(name, bucket, os, caches = None, triggered_by = None):
+def builder(name, bucket, os, ref, suffix, caches = None, triggered_by = None):
     luci.builder(
-        name = name,
+        name = name + suffix,
         bucket = bucket,
         executable = luci.recipe(
-            name = "gn",
+            name = "gn" + suffix,
+            recipe = "gn",
             cipd_package = "infra/recipe_bundles/gn.googlesource.com/gn",
-            cipd_version = "refs/heads/main",
+            cipd_version = ref,
         ),
         caches = caches,
         service_account = "gn-%s-builder@chops-service-accounts.iam.gserviceaccount.com" % bucket,
@@ -63,21 +64,6 @@ luci.logdog(
 
 luci.milo(
     logo = "https://storage.googleapis.com/chrome-infra-public/logo/gn-logo.png",
-)
-
-luci.console_view(
-    name = "gn",
-    title = "gn",
-    repo = "https://gn.googlesource.com/gn",
-    refs = ["refs/heads/main"],
-    favicon = "https://storage.googleapis.com/chrome-infra-public/logo/favicon.ico",
-)
-
-luci.gitiles_poller(
-    name = "gn-trigger",
-    bucket = "ci",
-    repo = "https://gn.googlesource.com/gn",
-    refs = ["refs/heads/main"],
 )
 
 luci.bucket(name = "ci", acls = [
@@ -109,50 +95,18 @@ luci.bucket(
     dynamic = True,
 )
 
-def ci_builder(name, os, caches = None):
-    builder(name, "ci", os, caches, triggered_by = ["gn-trigger"])
+def ci_builder(name, os, ref, suffix, caches = None):
+    builder(name, "ci", os, ref = ref, suffix = suffix, caches = caches, triggered_by = ["gn-trigger" + suffix])
     luci.console_view_entry(
-        console_view = "gn",
-        builder = "ci/" + name,
+        console_view = "gn" + suffix,
+        builder = "ci/" + name + suffix,
         short_name = name,
     )
-
-ci_builder("linux", "Ubuntu-24.04")
-
-# macOS version for this builder should be synced with
-# https://source.corp.google.com/h/chromium/infra/infra_superproject/+/main:infra_internal/infra/config/subprojects/gn.star
-ci_builder("mac", "Mac-13", caches = [swarming.cache("macos_sdk")])
-ci_builder("win", "Windows-10", caches = [swarming.cache("windows_sdk")])
 
 luci.cq(
     submit_max_burst = 4,
     submit_burst_delay = 8 * time.minute,
     gerrit_listener_type = cq.GERRIT_LISTENER_TYPE_LEGACY_POLLER,
-)
-
-luci.cq_group(
-    name = "gn",
-    watch = cq.refset(
-        repo = "https://gn.googlesource.com/gn",
-        refs = ["refs/heads/main"],
-    ),
-    acls = [
-        acl.entry(
-            [acl.CQ_COMMITTER],
-            groups = ["project-gn-committers"],
-        ),
-        acl.entry(
-            [acl.CQ_DRY_RUNNER],
-            groups = ["project-gn-tryjob-access"],
-        ),
-    ],
-    retry_config = cq.retry_config(
-        single_quota = 1,
-        global_quota = 2,
-        failure_weight = 1,
-        transient_failure_weight = 1,
-        timeout_weight = 2,
-    ),
 )
 
 luci.bucket(name = "try", acls = [
@@ -191,16 +145,78 @@ luci.binding(
     groups = "flex-try-led-users",
 )
 
-def try_builder(name, os, caches = None):
-    builder(name, "try", os, caches)
+def try_builder(name, os, ref, suffix, caches = None):
+    builder(name, "try", os, ref = ref, suffix = suffix, caches = caches)
     luci.cq_tryjob_verifier(
-        builder = "try/" + name,
-        cq_group = "gn",
+        builder = "try/" + name + suffix,
+        cq_group = "gn" + suffix,
     )
 
-try_builder("linux", "Ubuntu-24.04")
+def setup_branch(ref, suffix):
+    # CI builders should only be enabled for the main branch, since they push
+    # to CIPD.
+    enable_ci = suffix == ""
 
-# macOS version for this builder should be synced with
-# https://source.corp.google.com/h/chromium/infra/infra_superproject/+/main:infra_internal/infra/config/subprojects/gn.star
-try_builder("mac", "Mac-13", caches = [swarming.cache("macos_sdk")])
-try_builder("win", "Windows-10", caches = [swarming.cache("windows_sdk")])
+    if enable_ci:
+        luci.gitiles_poller(
+            name = "gn-trigger" + suffix,
+            bucket = "ci",
+            repo = "https://gn.googlesource.com/gn",
+            refs = [ref],
+        )
+
+        luci.console_view(
+            name = "gn" + suffix,
+            title = "gn" + suffix,
+            repo = "https://gn.googlesource.com/gn",
+            refs = [ref],
+            favicon = "https://storage.googleapis.com/chrome-infra-public/logo/favicon.ico",
+        )
+
+    luci.cq_group(
+        name = "gn" + suffix,
+        watch = cq.refset(
+            repo = "https://gn.googlesource.com/gn",
+            refs = [ref],
+        ),
+        acls = [
+            acl.entry([acl.CQ_COMMITTER], groups = ["project-gn-committers"]),
+            acl.entry([acl.CQ_DRY_RUNNER], groups = ["project-gn-tryjob-access"]),
+        ],
+        retry_config = cq.retry_config(
+            single_quota = 1,
+            global_quota = 2,
+            failure_weight = 1,
+            transient_failure_weight = 1,
+            timeout_weight = 2,
+        ),
+    )
+
+    # macOS version for this builder should be synced with
+    # https://source.corp.google.com/h/chromium/infra/infra_superproject/+/main:infra_internal/infra/config/subprojects/gn.star
+    for name, os, caches in [
+        ("linux", "Ubuntu-24.04", None),
+        ("mac", "Mac-13", [swarming.cache("macos_sdk")]),
+        ("win", "Windows-10", [swarming.cache("windows_sdk")]),
+    ]:
+        if enable_ci:
+            ci_builder(
+                name = name,
+                os = os,
+                ref = ref,
+                suffix = suffix,
+                caches = caches,
+            )
+
+        try_builder(
+            name = name,
+            os = os,
+            ref = ref,
+            suffix = suffix,
+            caches = caches,
+        )
+
+setup_branch(
+    ref = "refs/heads/main",
+    suffix = "",
+)
