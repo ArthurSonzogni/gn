@@ -286,7 +286,11 @@ def main():
 
   # Cargo build doesn't output files in a format ninja can use. So we now
   # need to convert them.
-  if target_type == 'lib':
+  if target_type == 'clippy':
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.touch()
+    sys.exit(0)
+  elif target_type == 'lib':
     src_depfiles = process_lib_target(out_path, cargo_out_dir)
   elif target_type == 'test':
     src_depfiles = process_test_target(out_path, cargo_out_dir)

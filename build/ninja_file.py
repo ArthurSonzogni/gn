@@ -160,6 +160,21 @@ class NinjaFile:
         pool='cargo_pool',
     )
 
+    self.CargoClippy = Rule(
+        name='cargo_clippy',
+        ninja_file=self,
+        command=python(
+            run_cargo_rel_path,
+            '$target_type $out $cargo_out_dir $cxx "$cxxflags" "$ldflags" $target_triple $ld'
+            ' cargo clippy --color=always --target=$target_triple'
+            ' --manifest-path=$manifest_path $cargo_target_dir $cargo_flags'
+            + ('' if self.debug else ' --release')
+            + ' -- $clippy_flags',
+        ),
+        description='CARGO clippy $out',
+        inputs=[run_cargo_script],
+    )
+
   def chain(self, *commands):
     joined = ' && '.join(commands)
     if self.platform.is_windows():
@@ -200,6 +215,21 @@ class NinjaFile:
         target_triple=target_triple,
         cargo_out_dir=f'{target_dir}/{target_triple}/{self.rust_profile}',
         depfile=f'{name}.d',
+        **kwargs,
+    )
+
+  def CargoClippyTarget(self, name, *, crate_dir, target_dir, cargo_flags='', clippy_flags='', **kwargs):
+    target_triple = self.platform.rust_triple()
+    return self.CargoClippy(
+        name,
+        inputs=self.directory(crate_dir, ['target']),
+        manifest_path=crate_dir / 'Cargo.toml',
+        cargo_target_dir=f'--target-dir={target_dir}',
+        cargo_flags=cargo_flags,
+        clippy_flags=clippy_flags,
+        target_type='clippy',
+        target_triple=target_triple,
+        cargo_out_dir=f'{target_dir}/{target_triple}/{self.rust_profile}',
         **kwargs,
     )
 
