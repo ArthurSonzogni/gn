@@ -141,7 +141,7 @@ impl<C: EvalContextAttrExt> starlark::values::AllocFrozenValue for FrozenRule<C>
 
 impl<C: EvalContextAttrExt> fmt::Display for FrozenRule<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<rule: {}>", &self.name)
+        write!(f, "<rule: {}>", self.name)
     }
 }
 
