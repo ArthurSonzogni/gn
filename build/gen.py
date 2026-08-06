@@ -409,7 +409,7 @@ def WriteGenericNinja(path, static_libraries, executables,
                                       os.path.dirname(path)))),
         '  includes = %s' % ' '.join(
             ['-I' + escape_path_ninja(dirname) for dirname in include_dirs]),
-        '  cflags = %s' % ' '.join(cflags),
+        '  cflags = %s' % ' '.join(settings.get('cflags', cflags)),
     ])
 
   for library, settings in static_libraries.items():
@@ -757,7 +757,13 @@ def WriteGNNinja(path, platform, host, options, args_list):
           'sources': [
               'src/gn/string_atom.cc',
               'src/gn/ffi/intern_string.cc',
-          ]
+          ],
+          # Strip /GL from string_atom.
+          # The Rust types crate references intern_string via a raw extern "C"
+          # declaration. If compiled with /GL, the MSVC linker discards this
+          # symbol during the LTCG phase because it has no references from
+          # C++ /GL objects, causing LNK2001 link errors in Rust test binaries.
+          'cflags': [f for f in cflags if f != '/GL']
       },
       'gn_lib': {
           'sources': [
