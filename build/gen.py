@@ -224,7 +224,7 @@ def main(argv):
                     help='Enable the use of UndefinedBehaviorSanitizer')
   args_list.add('--no-last-commit-position', action='store_true',
                     help='Do not generate last_commit_position.h.')
-  args_list.add('--out-path', type=str,
+  args_list.add('--out-path', type=os.path.abspath,
                     default=os.path.join(REPO_ROOT, 'out'),
                     help='The path to generate the build files in.')
   args_list.add('--no-strip', action='store_true',
@@ -478,6 +478,28 @@ def WriteGenericNinja(path, static_libraries, executables,
               args='--quiet',
           )
       ] if options.starlark else []),
+  )
+
+  ninja.Phony(
+      'check_all',
+      inputs=[
+          ninja.RunBinary(
+              'check_formatter',
+              inputs=[ninja.source_file('tools/run_formatter.sh')],
+              implicit_inputs=ninja.directory(ninja.source_file('src'), ['target']),
+              args='--diff',
+          ),
+          ninja.RunBinary(
+              'check_reference',
+              inputs=[ninja.source_file('tools/update_reference.sh')],
+              implicit_inputs=[
+                  'gn' + platform.exe_suffix,
+                  ninja.source_file('docs/reference.md'),
+              ],
+              args='--diff',
+              env=f'NOBUILD=1 NINJA_OUT_DIR={os.path.relpath(build_dir, REPO_ROOT)}',
+          ),
+      ],
   )
 
   with open(path, 'w') as f:

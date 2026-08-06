@@ -108,7 +108,7 @@ class NinjaFile:
         name='run_binary',
         ninja_file=self,
         command=self.chain(
-            f'{build_prefix}$in $args', python('tools/touch.py', '$out')
+            f'$env {build_prefix}$in $args', python('tools/touch.py', '$out')
         ),
         description='RUN BINARY $in',
     )
