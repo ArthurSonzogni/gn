@@ -689,6 +689,8 @@ def WriteGNNinja(path, platform, host, options, args_list):
         # Enable __cplusplus macro to report the correct C++ standard version,
         # otherwise it defaults to C++98.
         '/Zc:__cplusplus',
+        # Enable use of __VA_OPT__ in macros.
+        '/Zc:preprocessor',
         '/GR-',
         '/D_HAS_EXCEPTIONS=0',
     ])

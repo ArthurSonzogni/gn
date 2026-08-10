@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/strings/stringprintf.h"
+#include "gn/err.h"
 
 // This is a minimal googletest-like testing framework. It's originally derived
 // from Ninja's src/test.h. You might prefer that one if you have different
@@ -94,6 +95,7 @@ std::string DiffStrings(std::string_view expected, std::string_view actual);
 
 std::string Pretty(bool value);
 std::string Pretty(const char* value);
+std::string Pretty(const Err& err);
 
 // Explicitly write this for enum, because otherwise it tries to cast enums
 // to bools.
@@ -175,6 +177,17 @@ std::string Pretty(const std::vector<T>& value) {
   return ss.str();
 }
 
+template <typename T>
+std::string Pretty(const Result<T>& result) {
+  if (!result.has_value()) {
+    return "Err(" + Pretty(result.error()) + ")";
+  }
+  if constexpr (requires { Pretty(*result); }) {
+    return "Ok(" + Pretty(*result) + ")";
+  }
+  return "Ok(<unprintable value>)";
+}
+
 template <typename T, typename U>
 std::string TryDiffStrings(const T& expected, const U& actual) {
   if constexpr (requires {
@@ -191,6 +204,38 @@ std::string TryDiffStrings(const T& expected, const U& actual) {
   } else {
     return "";
   }
+}
+
+inline std::optional<std::string> CheckSuccess(const auto& err) {
+  if (err.has_error()) {
+    return "Expected success but got error:\n" + err.message();
+  }
+  return std::nullopt;
+}
+
+template <typename T, typename U>
+inline std::optional<std::string> CheckSuccess(const Result<T>& result,
+                                               const U& expected) {
+  if (auto msg = CheckSuccess(result); msg.has_value()) {
+    return msg;
+  }
+  if (*result != expected) {
+    return ::testing::TryDiffStrings(*result, expected);
+  }
+  return std::nullopt;
+}
+
+inline std::optional<std::string> CheckFailure(
+    auto&& result,
+    std::string_view expected_msg = "") {
+  if (!result.has_error()) {
+    return "Expected failure but got " + Pretty(result);
+  }
+  if (!expected_msg.empty() && !result.message().contains(expected_msg)) {
+    return "Expected error message to contain \"" + std::string(expected_msg) +
+           "\", but actual was:\n" + result.message();
+  }
+  return std::nullopt;
 }
 
 }  // namespace testing
@@ -238,34 +283,39 @@ void RegisterTest(testing::Test* (*)(), const char*);
   return ::testing::AssertHelper(__FILE__, __LINE__, message) = \
              ::testing::Message()
 
-#define EXPECT_EQ(a, b)                                        \
-  TEST_AMBIGUOUS_ELSE_BLOCKER_                                 \
-  if (const ::testing::TestResult test_result =                \
-          ::testing::TestResult(a == b, #a " == " #b))         \
-    ;                                                          \
-  else                                                         \
-    ::testing::AssertHelper(__FILE__, __LINE__, test_result) = \
-        ::testing::Message() << ::testing::TryDiffStrings(a, b)
+#define EXPECT_EQ(a, ...)                                                    \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                               \
+  if (const ::testing::TestResult test_result =                              \
+          ::testing::TestResult(a == (__VA_ARGS__), #a " == " #__VA_ARGS__)) \
+    ;                                                                        \
+  else                                                                       \
+    ::testing::AssertHelper(__FILE__, __LINE__, test_result) =               \
+        ::testing::Message() << ::testing::TryDiffStrings(a, (__VA_ARGS__))
 
-#define EXPECT_NE(a, b)                                     \
-  TEST_ASSERT_(::testing::TestResult(a != b, #a " != " #b), \
-               TEST_NONFATAL_FAILURE_)
+#define EXPECT_NE(a, ...)                                                \
+  TEST_ASSERT_(                                                          \
+      ::testing::TestResult(a != (__VA_ARGS__), #a " != " #__VA_ARGS__), \
+      TEST_NONFATAL_FAILURE_)
 
-#define EXPECT_LT(a, b)                                   \
-  TEST_ASSERT_(::testing::TestResult(a < b, #a " < " #b), \
-               TEST_NONFATAL_FAILURE_)
+#define EXPECT_LT(a, ...)                                              \
+  TEST_ASSERT_(                                                        \
+      ::testing::TestResult(a < (__VA_ARGS__), #a " < " #__VA_ARGS__), \
+      TEST_NONFATAL_FAILURE_)
 
-#define EXPECT_GT(a, b)                                   \
-  TEST_ASSERT_(::testing::TestResult(a > b, #a " > " #b), \
-               TEST_NONFATAL_FAILURE_)
+#define EXPECT_GT(a, ...)                                              \
+  TEST_ASSERT_(                                                        \
+      ::testing::TestResult(a > (__VA_ARGS__), #a " > " #__VA_ARGS__), \
+      TEST_NONFATAL_FAILURE_)
 
-#define EXPECT_LE(a, b)                                     \
-  TEST_ASSERT_(::testing::TestResult(a <= b, #a " <= " #b), \
-               TEST_NONFATAL_FAILURE_)
+#define EXPECT_LE(a, ...)                                                \
+  TEST_ASSERT_(                                                          \
+      ::testing::TestResult(a <= (__VA_ARGS__), #a " <= " #__VA_ARGS__), \
+      TEST_NONFATAL_FAILURE_)
 
-#define EXPECT_GE(a, b)                                     \
-  TEST_ASSERT_(::testing::TestResult(a >= b, #a " >= " #b), \
-               TEST_NONFATAL_FAILURE_)
+#define EXPECT_GE(a, ...)                                                \
+  TEST_ASSERT_(                                                          \
+      ::testing::TestResult(a >= (__VA_ARGS__), #a " >= " #__VA_ARGS__), \
+      TEST_NONFATAL_FAILURE_)
 
 #define EXPECT_TRUE(a)                                          \
   TEST_ASSERT_(::testing::TestResult(static_cast<bool>(a), #a), \
@@ -275,33 +325,45 @@ void RegisterTest(testing::Test* (*)(), const char*);
   TEST_ASSERT_(::testing::TestResult(!static_cast<bool>(a), #a), \
                TEST_NONFATAL_FAILURE_)
 
-#define EXPECT_STREQ(a, b)                                                \
-  TEST_ASSERT_(::testing::TestResult(strcmp(a, b) == 0, #a " str== " #b), \
+#define EXPECT_STREQ(a, ...)                                        \
+  TEST_ASSERT_(::testing::TestResult(strcmp(a, (__VA_ARGS__)) == 0, \
+                                     #a " str== " #__VA_ARGS__),    \
                TEST_NONFATAL_FAILURE_)
 
-#define ASSERT_EQ(a, b)                                               \
-  TEST_AMBIGUOUS_ELSE_BLOCKER_                                        \
-  if (const ::testing::TestResult test_result =                       \
-          ::testing::TestResult(a == b, #a " == " #b))                \
-    ;                                                                 \
-  else                                                                \
-    return ::testing::AssertHelper(__FILE__, __LINE__, test_result) = \
-               ::testing::Message() << ::testing::TryDiffStrings(a, b)
+#define ASSERT_EQ(a, ...)                                                    \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                               \
+  if (const ::testing::TestResult test_result =                              \
+          ::testing::TestResult(a == (__VA_ARGS__), #a " == " #__VA_ARGS__)) \
+    ;                                                                        \
+  else                                                                       \
+    return ::testing::AssertHelper(__FILE__, __LINE__, test_result) =        \
+               ::testing::Message()                                          \
+               << ::testing::TryDiffStrings(a, (__VA_ARGS__))
 
-#define ASSERT_NE(a, b) \
-  TEST_ASSERT_(::testing::TestResult(a != b, #a " != " #b), TEST_FATAL_FAILURE_)
+#define ASSERT_NE(a, ...)                                                \
+  TEST_ASSERT_(                                                          \
+      ::testing::TestResult(a != (__VA_ARGS__), #a " != " #__VA_ARGS__), \
+      TEST_FATAL_FAILURE_)
 
-#define ASSERT_LT(a, b) \
-  TEST_ASSERT_(::testing::TestResult(a < b, #a " < " #b), TEST_FATAL_FAILURE_)
+#define ASSERT_LT(a, ...)                                              \
+  TEST_ASSERT_(                                                        \
+      ::testing::TestResult(a < (__VA_ARGS__), #a " < " #__VA_ARGS__), \
+      TEST_FATAL_FAILURE_)
 
-#define ASSERT_GT(a, b) \
-  TEST_ASSERT_(::testing::TestResult(a > b, #a " > " #b), TEST_FATAL_FAILURE_)
+#define ASSERT_GT(a, ...)                                              \
+  TEST_ASSERT_(                                                        \
+      ::testing::TestResult(a > (__VA_ARGS__), #a " > " #__VA_ARGS__), \
+      TEST_FATAL_FAILURE_)
 
-#define ASSERT_LE(a, b) \
-  TEST_ASSERT_(::testing::TestResult(a <= b, #a " <= " #b), TEST_FATAL_FAILURE_)
+#define ASSERT_LE(a, ...)                                                \
+  TEST_ASSERT_(                                                          \
+      ::testing::TestResult(a <= (__VA_ARGS__), #a " <= " #__VA_ARGS__), \
+      TEST_FATAL_FAILURE_)
 
-#define ASSERT_GE(a, b) \
-  TEST_ASSERT_(::testing::TestResult(a >= b, #a " >= " #b), TEST_FATAL_FAILURE_)
+#define ASSERT_GE(a, ...)                                                \
+  TEST_ASSERT_(                                                          \
+      ::testing::TestResult(a >= (__VA_ARGS__), #a " >= " #__VA_ARGS__), \
+      TEST_FATAL_FAILURE_)
 
 #define ASSERT_TRUE(a)                                          \
   TEST_ASSERT_(::testing::TestResult(static_cast<bool>(a), #a), \
@@ -311,26 +373,53 @@ void RegisterTest(testing::Test* (*)(), const char*);
   TEST_ASSERT_(::testing::TestResult(!static_cast<bool>(a), #a), \
                TEST_FATAL_FAILURE_)
 
-#define ASSERT_STREQ(a, b)                                                \
-  TEST_ASSERT_(::testing::TestResult(strcmp(a, b) == 0, #a " str== " #b), \
+#define ASSERT_STREQ(a, ...)                                        \
+  TEST_ASSERT_(::testing::TestResult(strcmp(a, (__VA_ARGS__)) == 0, \
+                                     #a " str== " #__VA_ARGS__),    \
                TEST_FATAL_FAILURE_)
 
-#define EXPECT_SUCCESS(err)                                       \
-  TEST_AMBIGUOUS_ELSE_BLOCKER_                                    \
-  if (const auto& test_err = (err); !test_err.has_error())        \
-    ;                                                             \
-  else                                                            \
-    TEST_NONFATAL_FAILURE_(                                       \
-        ::testing::TestResult(false, "EXPECT_SUCCESS(" #err ")")) \
-        << test_err.message()
+#define EXPECT_SUCCESS(err, ...)                                          \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                            \
+  if (const std::optional<std::string> test_err_msg =                     \
+          ::testing::CheckSuccess((err)__VA_OPT__(, (__VA_ARGS__)));      \
+      !test_err_msg.has_value())                                          \
+    ;                                                                     \
+  else                                                                    \
+    TEST_NONFATAL_FAILURE_(::testing::TestResult(                         \
+        false, "EXPECT_SUCCESS(" #err __VA_OPT__(", " #__VA_ARGS__) ")")) \
+        << *test_err_msg
 
-#define ASSERT_SUCCESS(err)                                       \
-  TEST_AMBIGUOUS_ELSE_BLOCKER_                                    \
-  if (const auto& test_err = (err); !test_err.has_error())        \
-    ;                                                             \
-  else                                                            \
-    TEST_FATAL_FAILURE_(                                          \
-        ::testing::TestResult(false, "ASSERT_SUCCESS(" #err ")")) \
-        << test_err.message()
+#define ASSERT_SUCCESS(err, ...)                                          \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                            \
+  if (const std::optional<std::string> test_err_msg =                     \
+          ::testing::CheckSuccess((err)__VA_OPT__(, (__VA_ARGS__)));      \
+      !test_err_msg.has_value())                                          \
+    ;                                                                     \
+  else                                                                    \
+    TEST_FATAL_FAILURE_(::testing::TestResult(                            \
+        false, "ASSERT_SUCCESS(" #err __VA_OPT__(", " #__VA_ARGS__) ")")) \
+        << *test_err_msg
+
+#define EXPECT_FAILURE(err, ...)                                          \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                            \
+  if (const std::optional<std::string> test_err_msg =                     \
+          ::testing::CheckFailure((err)__VA_OPT__(, (__VA_ARGS__)));      \
+      !test_err_msg.has_value())                                          \
+    ;                                                                     \
+  else                                                                    \
+    TEST_NONFATAL_FAILURE_(::testing::TestResult(                         \
+        false, "EXPECT_FAILURE(" #err __VA_OPT__(", " #__VA_ARGS__) ")")) \
+        << *test_err_msg
+
+#define ASSERT_FAILURE(err, ...)                                          \
+  TEST_AMBIGUOUS_ELSE_BLOCKER_                                            \
+  if (const std::optional<std::string> test_err_msg =                     \
+          ::testing::CheckFailure((err)__VA_OPT__(, (__VA_ARGS__)));      \
+      !test_err_msg.has_value())                                          \
+    ;                                                                     \
+  else                                                                    \
+    TEST_FATAL_FAILURE_(::testing::TestResult(                            \
+        false, "ASSERT_FAILURE(" #err __VA_OPT__(", " #__VA_ARGS__) ")")) \
+        << *test_err_msg
 
 #endif  // UTIL_TEST_TEST_H_
