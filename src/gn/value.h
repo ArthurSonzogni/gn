@@ -122,6 +122,7 @@ class Value {
   // Verifies that the value is of the given type. If it isn't, returns
   // false and sets the error.
   bool VerifyTypeIs(Type t, Err* err) const;
+  Err VerifyTypeIs(Type t) const;
 
   // Compares values. Only the "value" is compared, not the origin. Scope
   // values check only the contents of the current scope, and do not go to

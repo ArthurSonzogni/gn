@@ -209,19 +209,16 @@ struct LabelPatternResolver {
 
 }  // namespace
 
-bool ExtractListOfStringValues(const Value& value,
-                               std::vector<std::string>* dest,
-                               Err* err) {
-  if (!value.VerifyTypeIs(Value::LIST, err))
-    return false;
+Result<std::vector<std::string>> ExtractListOfStringValues(const Value& value) {
+  RETURN_IF_ERROR(value.VerifyTypeIs(Value::LIST));
   const std::vector<Value>& input_list = value.list_value();
-  dest->reserve(input_list.size());
+  std::vector<std::string> dest;
+  dest.reserve(input_list.size());
   for (const auto& item : input_list) {
-    if (!item.VerifyTypeIs(Value::STRING, err))
-      return false;
-    dest->push_back(item.string_value());
+    RETURN_IF_ERROR(item.VerifyTypeIs(Value::STRING));
+    dest.push_back(item.string_value());
   }
-  return true;
+  return dest;
 }
 
 bool ExtractListOfRelativeFiles(const BuildSettings* build_settings,

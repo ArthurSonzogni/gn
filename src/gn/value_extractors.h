@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "gn/err.h"
 #include "gn/label_ptr.h"
 #include "gn/lib_file.h"
 #include "gn/unique_vector.h"
@@ -20,10 +21,9 @@ class SourceDir;
 class SourceFile;
 class Value;
 
-// On failure, returns false and sets the error.
-bool ExtractListOfStringValues(const Value& value,
-                               std::vector<std::string>* dest,
-                               Err* err);
+// Extracts the list of strings from the value.
+// Returns an error if the value is not a list of strings.
+Result<std::vector<std::string>> ExtractListOfStringValues(const Value& value);
 
 // Looks for a list of source files relative to a given current dir.
 bool ExtractListOfRelativeFiles(const BuildSettings* build_settings,

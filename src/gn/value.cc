@@ -259,6 +259,12 @@ bool Value::VerifyTypeIs(Type t, Err* err) const {
   return false;
 }
 
+Err Value::VerifyTypeIs(Type t) const {
+  Err err;
+  VerifyTypeIs(t, &err);
+  return err;
+}
+
 bool Value::operator==(const Value& other) const {
   if (type_ != other.type_)
     return false;
