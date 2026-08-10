@@ -341,6 +341,8 @@ def WriteGenericNinja(path, static_libraries, executables,
   if args:
     args = " " + args
 
+  rel_self = os.path.relpath(os.path.join(SCRIPT_DIR, 'gen.py'), build_dir)
+
   ninja_header_lines = [
     'cxx = ' + cxx,
     'ar = ' + ar,
@@ -349,7 +351,7 @@ def WriteGenericNinja(path, static_libraries, executables,
     '  depth = 1',
     '',
     'rule regen',
-    '  command = %s ../build/gen.py%s' % (sys.executable, args),
+    '  command = %s %s%s' % (sys.executable, rel_self, args),
     '  description = Regenerating ninja files',
     '',
     'build build.ninja: regen',
