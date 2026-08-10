@@ -6,6 +6,8 @@ use allocative::Allocative;
 use starlark::values::ProvidesStaticType;
 use types::{LabelRef, PackageRef, PathResolver};
 
+use crate::errors::Error;
+
 #[derive(Allocative)]
 enum EvalContextKind {
     BzlFile,
@@ -58,7 +60,9 @@ impl types::EvalContext for EvalContext {
     }
 
     fn require_bzl(&self) -> starlark::Result<()> {
-        todo!()
+        matches!(self.kind, EvalContextKind::BzlFile)
+            .then_some(())
+            .ok_or_else(|| Error::RequiresBzlFile.into())
     }
 
     fn require_rule_impl(
