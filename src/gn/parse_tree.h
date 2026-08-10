@@ -93,6 +93,32 @@ class ParseNode {
   virtual const LiteralNode* AsLiteral() const;
   virtual const UnaryOpNode* AsUnaryOp() const;
 
+  // We add "Mut" suffixes here because ParseNodes should really not be mutated
+  // without being very intentional about it.
+  // const_cast is safe because this is a non-const method.
+  AccessorNode* AsAccessorMut() {
+    return const_cast<AccessorNode*>(AsAccessor());
+  }
+  BinaryOpNode* AsBinaryOpMut() {
+    return const_cast<BinaryOpNode*>(AsBinaryOp());
+  }
+  BlockCommentNode* AsBlockCommentMut() {
+    return const_cast<BlockCommentNode*>(AsBlockComment());
+  }
+  BlockNode* AsBlockMut() { return const_cast<BlockNode*>(AsBlock()); }
+  ConditionNode* AsConditionMut() {
+    return const_cast<ConditionNode*>(AsCondition());
+  }
+  EndNode* AsEndMut() { return const_cast<EndNode*>(AsEnd()); }
+  FunctionCallNode* AsFunctionCallMut() {
+    return const_cast<FunctionCallNode*>(AsFunctionCall());
+  }
+  IdentifierNode* AsIdentifierMut() {
+    return const_cast<IdentifierNode*>(AsIdentifier());
+  }
+  ListNode* AsListMut() { return const_cast<ListNode*>(AsList()); }
+  LiteralNode* AsLiteralMut() { return const_cast<LiteralNode*>(AsLiteral()); }
+
   virtual Value Execute(Scope* scope, Err* err) const = 0;
 
   virtual LocationRange GetRange() const = 0;
@@ -300,6 +326,7 @@ class BlockNode : public ParseNode {
   const std::vector<std::unique_ptr<ParseNode>>& statements() const {
     return statements_;
   }
+  std::vector<std::unique_ptr<ParseNode>>& statements() { return statements_; }
   void append_statement(std::unique_ptr<ParseNode> s) {
     statements_.push_back(std::move(s));
   }
@@ -394,6 +421,7 @@ class FunctionCallNode : public ParseNode {
   void set_args(std::unique_ptr<ListNode> a);
 
   const BlockNode* block() const { return block_.get(); }
+  BlockNode* block() { return block_.get(); }
   void set_block(std::unique_ptr<BlockNode> b) { block_ = std::move(b); }
 
   void SetNewLocation(int line_number);
@@ -465,6 +493,9 @@ class ListNode : public ParseNode {
     contents_.push_back(std::move(s));
   }
   const std::vector<std::unique_ptr<const ParseNode>>& contents() const {
+    return contents_;
+  }
+  std::vector<std::unique_ptr<const ParseNode>>& contents() {
     return contents_;
   }
 

@@ -51,6 +51,7 @@ class Value {
   Value(const ParseNode* origin, int64_t int_val);
   Value(const ParseNode* origin, std::string str_val);
   Value(const ParseNode* origin, const char* str_val);
+  Value(const ParseNode* origin, std::vector<Value>&& list_val);
   // Values "shouldn't" have null scopes when type == Scope, so be sure to
   // always set one. However, this is not asserted since there are some
   // use-cases for creating values and immediately setting the scope on it. So

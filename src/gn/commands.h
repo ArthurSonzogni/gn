@@ -70,6 +70,11 @@ extern const char kFormat_HelpShort[];
 extern const char kFormat_Help[];
 int RunFormat(const std::vector<std::string>& args);
 
+extern const char kEdit[];
+extern const char kEdit_HelpShort[];
+extern const char kEdit_Help[];
+int RunEdit(const std::vector<std::string>& args);
+
 extern const char kHelp[];
 extern const char kHelp_HelpShort[];
 extern const char kHelp_Help[];

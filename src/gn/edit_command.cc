@@ -1,0 +1,146 @@
+// Copyright 2026 The GN Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "gn/edit_command.h"
+
+#include <iomanip>
+#include <sstream>
+#include <utility>
+#include <vector>
+
+#include "gn/build_file_editor.h"
+#include "gn/commands.h"
+#include "gn/edit_subcommands.h"
+#include "gn/filesystem_utils.h"
+#include "gn/setup.h"
+#include "gn/source_file.h"
+#include "gn/standard_out.h"
+#include "gn/value.h"
+
+namespace commands {
+
+const char kEdit[] = "edit";
+const char kEdit_HelpShort[] =
+    "edit: Edit BUILD.gn files from the command line.";
+const char kEdit_Help[] =
+    "gn edit <command> <labels/patterns...>\n"
+    "\n"
+    "  Executes a command to modify a set of targets\n"
+    "\n"
+    "  Note: Because GN is an imperative language, it's not always entirely\n"
+    "  clear what the \"correct\" thing is to do.\n"
+    "\n"
+    "  In cases of ambiguity (eg. conditionals), `gn edit` will leave notes\n"
+    "  in your build files instructing you what to do.\n"
+    "\n"
+    "Commands:\n"
+    "  set <attribute>[:list] <value(s)>\n"
+    "      Sets or overwrites the target's <attribute> to <value(s)>.\n"
+    "      If multiple values are provided, or if the \":list\" suffix is\n"
+    "      appended to the attribute, <value(s)> is interpreted as a list.\n"
+    "\n"
+    "Examples:\n"
+    "  gn edit \"set testonly true\" //src/tools:*\n"
+    "      Sets 'testonly' to 'true' for all targets in\n"
+    "      `//src/tools/BUILD.gn`.\n"
+    "  gn edit \"set srcs:list foo.cc foo.h\" //:foo\n"
+    "      Sets 'srcs' to '[ \"foo.cc\", \"foo.h\" ]' for //:foo.\n";
+
+Result<std::pair<std::vector<SourceFile>, EditState>> RunEditImpl(
+    const std::vector<std::string>& args,
+    Setup& setup) {
+  if (args.size() < 2) {
+    return Err(Location(), "Insufficient arguments.",
+               "Usage: gn edit <command> <labels...>\n"
+               "Example: gn edit \"set testonly true\" //foo:*");
+  }
+
+  // We use std::quoted to tokenize the command.
+  // eg. set foo "bar baz" -> ["set", "foo", "bar baz"].
+  std::stringstream ss(args[0]);
+  std::vector<std::string> command_tokens;
+  std::string token;
+  while (ss >> std::ws && !ss.eof()) {
+    if (!(ss >> std::quoted(token))) {
+      return Err(Location(), "Unclosed quote in command string.");
+    }
+    command_tokens.push_back(std::move(token));
+  }
+  if (command_tokens.empty()) {
+    return Err(Location(), "Empty command string.");
+  }
+
+  ASSIGN_OR_RETURN(EditCommand command,
+                   ParseCommand(std::move(command_tokens)));
+  const SourceDir current_dir =
+      SourceDirForCurrentDirectory(setup.build_settings().root_path());
+  const std::string source_root = setup.build_settings().root_path_utf8();
+
+  std::vector<LabelPattern> patterns;
+  for (size_t i = 1; i < args.size(); ++i) {
+    Value val(nullptr, args[i]);
+    Err err;
+    LabelPattern pattern =
+        LabelPattern::GetPattern(current_dir, source_root, val, &err);
+    if (err.has_error()) {
+      return err;
+    }
+    patterns.push_back(std::move(pattern));
+  }
+
+  ASSIGN_OR_RETURN(std::vector<BuildFile> build_files,
+                   ::ResolvePatternsToBuildFiles(&setup.build_settings(),
+                                                 setup.loader(), patterns));
+
+  EditState state(args[0]);
+  for (auto& build_file : build_files) {
+    RETURN_IF_ERROR(command(build_file, state));
+    RETURN_IF_ERROR(build_file.label_matcher().done());
+  }
+
+  std::vector<SourceFile> modified_files;
+  for (auto& build_file : build_files) {
+    ASSIGN_OR_RETURN(bool wrote, build_file.Write());
+    if (wrote) {
+      modified_files.push_back(build_file.source_file());
+    }
+  }
+
+  return std::make_pair(std::move(modified_files), std::move(state));
+}
+
+int RunEdit(const std::vector<std::string>& args) {
+  Setup setup;
+  if (!setup.DoSetupForEditing()) {
+    return 1;
+  }
+  auto result = RunEditImpl(args, setup);
+  if (result.has_error()) {
+    result.error().PrintToStdout();
+    return 1;
+  }
+  for (const auto& file : result->first) {
+    OutputString("Wrote '" + file.value() + "'.\n");
+  }
+  for (const auto& warning : result->second.warnings) {
+    warning.PrintNonfatalToStdout();
+  }
+  const auto& review_needed = result->second.needs_manual_review;
+  if (!review_needed.empty()) {
+    OutputString("\nThe following targets need manual review:\n",
+                 DECORATION_YELLOW);
+    for (const Label& label : review_needed) {
+      OutputString("* ");
+      OutputString(label.GetUserVisibleName(false) + "\n", DECORATION_GREEN);
+    }
+
+    OutputString(
+        "\nWhere manual review is required, comments have been added to the "
+        "build file of the form:\n'# TODO(gn edit: <command>): ...'\n",
+        DECORATION_DIM);
+  }
+  return 0;
+}
+
+}  // namespace commands

@@ -10,6 +10,7 @@
 #include <concepts>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -178,14 +179,27 @@ std::string Pretty(const std::vector<T>& value) {
 }
 
 template <typename T>
+  requires requires(T t) { Pretty(t); }
+std::string Pretty(const std::set<T>& value) {
+  std::stringstream ss;
+  ss << "{\n";
+  for (const auto& v : value) {
+    ss << Indent(Pretty(v)) << ",\n";
+  }
+  ss << "}";
+  return ss.str();
+}
+
+template <typename T>
 std::string Pretty(const Result<T>& result) {
   if (!result.has_value()) {
     return "Err(" + Pretty(result.error()) + ")";
   }
   if constexpr (requires { Pretty(*result); }) {
     return "Ok(" + Pretty(*result) + ")";
+  } else {
+    return "Ok(<unprintable value>)";
   }
-  return "Ok(<unprintable value>)";
 }
 
 template <typename T, typename U>

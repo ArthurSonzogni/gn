@@ -1468,6 +1468,13 @@ bool FormatStringToString(const std::string& input,
   return true;
 }
 
+Result<std::string> FormatNodeToString(const ParseNode* root) {
+  std::string output;
+  std::string dump;
+  DoFormat(root, TreeDumpMode::kInactive, kDefaultFormatWidth, &output, &dump);
+  return output;
+}
+
 int RunFormat(const std::vector<std::string>& args) {
 #if defined(OS_WIN)
   // Set to binary mode to prevent converting newlines to \r\n.

@@ -52,6 +52,11 @@ Value::Value(const ParseNode* origin, std::string str_val)
 Value::Value(const ParseNode* origin, const char* str_val)
     : type_(STRING), origin_(origin), string_value_(str_val) {}
 
+Value::Value(const ParseNode* origin, std::vector<Value>&& list_val)
+    : type_(LIST), origin_(origin) {
+  new (&list_ptr_) scoped_refptr<ValueList>(new ValueList(std::move(list_val)));
+}
+
 Value::Value(const ParseNode* origin, std::unique_ptr<Scope> scope)
     : type_(SCOPE), origin_(origin), scope_value_(std::move(scope)) {}
 

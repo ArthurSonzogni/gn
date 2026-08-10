@@ -57,6 +57,10 @@ class LabelPattern {
   // Returns a string representation of this pattern.
   std::string Describe() const;
 
+  bool operator==(const LabelPattern& other) const = default;
+
+  size_t hash() const;
+
   Type type() const { return type_; }
 
   const SourceDir& dir() const { return dir_; }
@@ -80,5 +84,14 @@ class LabelPattern {
   // exactly.
   std::string name_;
 };
+
+namespace std {
+
+template <>
+struct hash<LabelPattern> {
+  std::size_t operator()(const LabelPattern& v) const { return v.hash(); }
+};
+
+}  // namespace std
 
 #endif  // TOOLS_GN_LABEL_PATTERN_H_

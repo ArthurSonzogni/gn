@@ -407,6 +407,7 @@ const CommandInfoMap& GetCommands() {
     INSERT_COMMAND(Desc)
     INSERT_COMMAND(Gen)
     INSERT_COMMAND(Format)
+    INSERT_COMMAND(Edit)
     INSERT_COMMAND(Help)
     INSERT_COMMAND(Meta)
     INSERT_COMMAND(Ls)
