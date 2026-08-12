@@ -740,6 +740,12 @@
       Example:
         gn edit "remove testonly" //src/tools:*
 
+  remove <attribute> <value(s)>
+      Removes <value(s)> from the list attribute <attribute>.
+
+      Example:
+        gn edit "remove deps //base" //src/tools:*
+
   set <attribute>[:list] <value(s)>
       Sets or overwrites the target's <attribute> to <value(s)>.
       If multiple values are provided, or if the ":list" suffix is

@@ -38,6 +38,9 @@ class TreeNode {
     return stack_.size() > 1 ? stack_[stack_.size() - 2] : nullptr;
   }
 
+  // Returns the BinaryOpNode if the node is an assignment ("=" or "+=").
+  BinaryOpNode* AsAssignment() const;
+
   // Returns whether the node is conditional in a target.
   // Note that if the target itself is conditional, this will return false.
   bool is_conditional() const;
@@ -54,6 +57,10 @@ class TreeNode {
   void RemoveSelf(EditState& state, const EditTarget& target) const;
 
   ParseNode* operator->() const { return stack_.back(); }
+
+  const std::vector<ParseNode*>& stack() const { return stack_; }
+
+  TreeNode Descend(ParseNode* child) const;
 
  private:
   // Low-level deletion from parent block or list.
@@ -105,6 +112,12 @@ std::vector<T> FindStatement(
   FindStatementRecursive<T>(root, stack, transform, &results);
   return results;
 }
+
+// Finds an element in an assignment expression ("=" or "+=") whose right-hand
+// side likely evaluates to a list.
+std::vector<TreeNode> FindListElementInAssignment(const EditTarget& target,
+                                                  const TreeNode& root,
+                                                  const Value& value);
 
 // Represents a set of patterns within a build file.
 class LabelMatcher {

@@ -24,19 +24,99 @@
 
 namespace {
 
-std::optional<std::string> AsStringLiteral(const ParseNode* node) {
+std::optional<Value> AsLiteralValue(const ParseNode* node) {
   auto* literal = node->AsLiteral();
-  if (!literal || literal->value().type() != Token::STRING) {
+  if (!literal) {
     return std::nullopt;
   }
   Scope scope(static_cast<const Settings*>(nullptr));
   Err err;
   Value v = literal->Execute(&scope, &err);
-  // Because we provide an empty scope, "${b}" will result in an error.
-  if (err.has_error() || v.type() != Value::STRING) {
+  // Literals should *usually* not error out, but there are some cases they do.
+  // Eg. the string literal "${foo}" with no variable foo in scope.
+  // When this happens, just treat them as if they're opaque things we don't
+  // know about.
+  if (err.has_error()) {
     return std::nullopt;
   }
-  return std::move(v.string_value());
+  return v;
+}
+
+std::optional<std::string> AsStringLiteral(const ParseNode* node) {
+  auto val = AsLiteralValue(node);
+  if (val && val->type() == Value::STRING) {
+    return std::move(val->string_value());
+  }
+  return std::nullopt;
+}
+
+// Returns true if a node in the tree is a literal node matching the user's
+// request.
+bool Matches(const EditTarget& target,
+             const ParseNode* node,
+             const Value& value) {
+  auto got_value = AsLiteralValue(node);
+  if (!got_value) {
+    return false;
+  }
+  if (*got_value == value) {
+    return true;
+  }
+  if (got_value->type() == Value::STRING && value.type() == Value::STRING) {
+    // If the user requests "remove deps //foo:bar" //foo:baz, and //foo:baz
+    // contains the literal ":bar", that should match.
+    Err err;
+    Label got_label =
+        Label::Resolve(target.label.dir(), "", target.label.GetToolchainLabel(),
+                       *got_value, &err);
+    Label want_label = Label::Resolve(
+        target.label.dir(), "", target.label.GetToolchainLabel(), value, &err);
+    return !err.has_error() && got_label == want_label;
+  }
+  return false;
+}
+
+// Finds matching nodes in an expression.
+template <typename T>
+void FindExpressionRecursive(
+    ParseNode* node,
+    std::vector<ParseNode*>& stack,
+    const std::function<std::optional<T>(TreeNode&)>& transform,
+    std::vector<T>* results) {
+  if (!node)
+    return;
+
+  stack.push_back(node);
+
+  TreeNode node_ref(stack);
+  if (auto mapped = transform(node_ref)) {
+    results->push_back(std::move(*mapped));
+  }
+
+  if (auto* list = node->AsListMut()) {
+    for (auto& item : list->contents()) {
+      FindExpressionRecursive(item.get(), stack, transform, results);
+    }
+  } else if (auto* op = node->AsBinaryOpMut()) {
+    if (op->op().type() == Token::PLUS) {
+      FindExpressionRecursive(op->left(), stack, transform, results);
+      FindExpressionRecursive(op->right(), stack, transform, results);
+    }
+  }
+
+  stack.pop_back();
+}
+
+// Finds matching nodes in an expression.
+template <typename T>
+std::vector<T> FindExpression(
+    const TreeNode& root,
+    const std::function<std::optional<T>(TreeNode&)>& transform) {
+  std::vector<T> results;
+  std::vector<ParseNode*> stack = root.stack();
+  stack.pop_back();
+  FindExpressionRecursive<T>(root.node(), stack, transform, &results);
+  return results;
 }
 
 // Resolves a single LabelPattern to matching SourceFiles.
@@ -87,6 +167,39 @@ Result<std::vector<SourceFile>> ResolvePatternToFiles(
 }
 
 }  // namespace
+
+std::vector<TreeNode> FindListElementInAssignment(const EditTarget& target,
+                                                  const TreeNode& root,
+                                                  const Value& value) {
+  auto* node = root.AsAssignment();
+  if (!node)
+    return {};
+  return FindExpression<TreeNode>(
+      root.Descend(node->right()),
+      [&](TreeNode& node_ref) -> std::optional<TreeNode> {
+        if (node_ref.parent() && node_ref.parent()->AsList() &&
+            Matches(target, node_ref.node(), value)) {
+          return node_ref;
+        }
+        return std::nullopt;
+      });
+}
+
+TreeNode TreeNode::Descend(ParseNode* child) const {
+  std::vector<ParseNode*> s = stack_;
+  s.push_back(child);
+  return TreeNode(std::move(s));
+}
+
+BinaryOpNode* TreeNode::AsAssignment() const {
+  if (auto* op = node()->AsBinaryOpMut()) {
+    if (op->op().type() == Token::EQUAL ||
+        op->op().type() == Token::PLUS_EQUALS) {
+      return op;
+    }
+  }
+  return nullptr;
+}
 
 bool TreeNode::is_conditional() const {
   DCHECK(!stack_.empty()) << "stack should never be empty";

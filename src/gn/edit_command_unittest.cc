@@ -203,6 +203,53 @@ executable("foo") {
                             "attribute \"nonexistent_attribute\".")}}));
 }
 
+TEST_F(EditCommandTest, RemoveFromAttributeSubcommand) {
+  EXPECT_SUCCESS(DoEdit("remove deps //base :bar",
+                        R"(
+executable("foo") {
+  deps = [
+    "//base",
+    "//:bar",
+    "//other:bar",
+  ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = [ "//other:bar" ]
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("remove deps //base //nonexistent:glob",
+                        R"(
+executable("foo") {
+  deps = [ "//base" ] + [ "//foo:bar" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = [] + [ "//foo:bar" ]
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("remove deps //nonexistent", {"//:foo"},
+                        R"(
+executable("foo") {
+  deps = [ "//base" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = [ "//base" ]
+}
+)",
+                        EditState{{},
+                                  {Err(Location(),
+                                       "Target \"//:foo\" does not contain the "
+                                       "value \"//nonexistent\" in attribute "
+                                       "\"deps\".")}}));
+}
+
 TEST_F(EditCommandTest, SetSubcommand) {
   // New bool attribute
   EXPECT_SUCCESS(DoEdit("set testonly true",
