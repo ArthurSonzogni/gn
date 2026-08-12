@@ -196,11 +196,11 @@ TEST(ParseTree, ShortenTargets) {
   ASSERT_EQ(7u, contents.size());
 
   auto all_elements_are_literal_nodes =
-      [](base::span<const std::unique_ptr<const ParseNode>> container) -> bool {
-    return std::ranges::all_of(
-        container, [](const std::unique_ptr<const ParseNode>& element) {
-          return element->AsLiteral();
-        });
+      [](base::span<const std::unique_ptr<ParseNode>> container) -> bool {
+    return std::ranges::all_of(container,
+                               [](const std::unique_ptr<ParseNode>& element) {
+                                 return element->AsLiteral();
+                               });
   };
 
   auto get_literal_value = [](const ParseNode& node) {

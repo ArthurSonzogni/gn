@@ -78,20 +78,17 @@ void FindStatementRecursive(
     results->push_back(std::move(*mapped));
   }
 
-  if (auto* block = node->AsBlock()) {
+  if (auto* block = node->AsBlockMut()) {
     for (const auto& stmt : block->statements()) {
       FindStatementRecursive(stmt.get(), stack, transform, results);
     }
-  } else if (auto* condition = node->AsCondition()) {
-    FindStatementRecursive(const_cast<BlockNode*>(condition->if_true()), stack,
-                           transform, results);
+  } else if (auto* condition = node->AsConditionMut()) {
+    FindStatementRecursive(condition->if_true(), stack, transform, results);
     if (condition->if_false()) {
-      FindStatementRecursive(const_cast<ParseNode*>(condition->if_false()),
-                             stack, transform, results);
+      FindStatementRecursive(condition->if_false(), stack, transform, results);
     }
-  } else if (auto* func = node->AsFunctionCall(); func && func->block()) {
-    FindStatementRecursive(const_cast<BlockNode*>(func->block()), stack,
-                           transform, results);
+  } else if (auto* func = node->AsFunctionCallMut(); func && func->block()) {
+    FindStatementRecursive(func->block(), stack, transform, results);
   }
 
   stack.pop_back();

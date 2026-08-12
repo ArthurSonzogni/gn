@@ -272,9 +272,11 @@ class BinaryOpNode : public ParseNode {
   void set_op(const Token& t) { op_ = t; }
 
   const ParseNode* left() const { return left_.get(); }
+  ParseNode* left() { return left_.get(); }
   void set_left(std::unique_ptr<ParseNode> left) { left_ = std::move(left); }
 
   const ParseNode* right() const { return right_.get(); }
+  ParseNode* right() { return right_.get(); }
   void set_right(std::unique_ptr<ParseNode> right) {
     right_ = std::move(right);
   }
@@ -371,16 +373,19 @@ class ConditionNode : public ParseNode {
   void set_if_token(const Token& token) { if_token_ = token; }
 
   const ParseNode* condition() const { return condition_.get(); }
+  ParseNode* condition() { return condition_.get(); }
   void set_condition(std::unique_ptr<ParseNode> c) {
     condition_ = std::move(c);
   }
 
   const BlockNode* if_true() const { return if_true_.get(); }
+  BlockNode* if_true() { return if_true_.get(); }
   void set_if_true(std::unique_ptr<BlockNode> t) { if_true_ = std::move(t); }
 
   // This is either empty, a block (for the else clause), or another
   // condition.
   const ParseNode* if_false() const { return if_false_.get(); }
+  ParseNode* if_false() { return if_false_.get(); }
   void set_if_false(std::unique_ptr<ParseNode> f) { if_false_ = std::move(f); }
 
   static constexpr const char* kDumpNodeName = "CONDITION";
@@ -418,6 +423,7 @@ class FunctionCallNode : public ParseNode {
   void set_function(Token t) { function_ = t; }
 
   const ListNode* args() const { return args_.get(); }
+  ListNode* args() { return args_.get(); }
   void set_args(std::unique_ptr<ListNode> a);
 
   const BlockNode* block() const { return block_.get(); }
@@ -492,12 +498,10 @@ class ListNode : public ParseNode {
   void append_item(std::unique_ptr<ParseNode> s) {
     contents_.push_back(std::move(s));
   }
-  const std::vector<std::unique_ptr<const ParseNode>>& contents() const {
+  const std::vector<std::unique_ptr<ParseNode>>& contents() const {
     return contents_;
   }
-  std::vector<std::unique_ptr<const ParseNode>>& contents() {
-    return contents_;
-  }
+  std::vector<std::unique_ptr<ParseNode>>& contents() { return contents_; }
 
   void ShortenTargets();
   void SortAsStringsList();
@@ -523,7 +527,7 @@ class ListNode : public ParseNode {
   Token begin_token_;
   std::unique_ptr<EndNode> end_;
 
-  std::vector<std::unique_ptr<const ParseNode>> contents_;
+  std::vector<std::unique_ptr<ParseNode>> contents_;
 
   ListNode(const ListNode&) = delete;
   ListNode& operator=(const ListNode&) = delete;

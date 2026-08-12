@@ -995,8 +995,8 @@ void ListNode::SortList(Comparator comparator) {
     int start_line = contents_[sr.begin]->GetRange().begin().line_number();
     const ParseNode* original_first = contents_[sr.begin].get();
     std::sort(contents_.begin() + sr.begin, contents_.begin() + sr.end,
-              [&comparator](const std::unique_ptr<const ParseNode>& a,
-                            const std::unique_ptr<const ParseNode>& b) {
+              [&comparator](const std::unique_ptr<ParseNode>& a,
+                            const std::unique_ptr<ParseNode>& b) {
                 return comparator(a.get(), b.get());
               });
     // If the beginning of the range had before comments, and the first node
@@ -1005,9 +1005,7 @@ void ListNode::SortList(Comparator comparator) {
     if (original_first->comments() &&
         contents_[sr.begin].get() != original_first) {
       for (const auto& hc : original_first->comments()->before()) {
-        const_cast<ParseNode*>(contents_[sr.begin].get())
-            ->comments_mutable()
-            ->append_before(hc);
+        contents_[sr.begin]->comments_mutable()->append_before(hc);
       }
       const_cast<ParseNode*>(original_first)
           ->comments_mutable()
