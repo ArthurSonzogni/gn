@@ -125,6 +125,84 @@ executable("foo") {
                  "Target(s) not found: //:nonexistent");
 }
 
+TEST_F(EditCommandTest, DeleteSubcommand) {
+  EXPECT_SUCCESS(DoEdit("delete", {"//:bar"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+executable("bar") {
+  sources = [ "bar.cc" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("delete", {"//:bar"},
+                        R"(
+if (is_win) {
+  executable("bar") {
+    sources = [ "bar.cc" ]
+  }
+} else {
+  executable("bar") {
+    sources = [ "bar.cc" ]
+  }
+}
+)"),
+                 Edited(R"(
+if (is_win) {
+  # TODO(gn edit: delete):
+  # This would normally be deleted but is conditional.
+  # Manual intervention is required to decide whether it should actually be deleted.
+  executable("bar") {
+    sources = [ "bar.cc" ]
+  }
+} else {
+  # TODO(gn edit: delete):
+  # This would normally be deleted but is conditional.
+  # Manual intervention is required to decide whether it should actually be deleted.
+  executable("bar") {
+    sources = [ "bar.cc" ]
+  }
+}
+)",
+                        EditState({Label(SourceDir("//"), "bar")})));
+}
+
+TEST_F(EditCommandTest, RemoveAttributeSubcommand) {
+  EXPECT_SUCCESS(DoEdit("remove testonly",
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+  testonly = true
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"));
+
+  EXPECT_SUCCESS(
+      DoEdit("remove nonexistent_attribute", {"//:foo"},
+             R"(
+executable("foo") {
+}
+)"),
+      Edited(R"(
+executable("foo") {
+}
+)",
+             EditState{{},
+                       {Err(Location(),
+                            "Target \"//:foo\" does not contain the "
+                            "attribute \"nonexistent_attribute\".")}}));
+}
+
 TEST_F(EditCommandTest, SetSubcommand) {
   // New bool attribute
   EXPECT_SUCCESS(DoEdit("set testonly true",

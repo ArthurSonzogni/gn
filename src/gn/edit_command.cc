@@ -35,17 +35,27 @@ const char kEdit_Help[] =
     "  in your build files instructing you what to do.\n"
     "\n"
     "Commands:\n"
+    "  delete\n"
+    "      Deletes the matched targets entirely.\n"
+    "\n"
+    "      Example:\n"
+    "        gn edit \"delete\" //src/tools:old_target\n"
+    "\n"
+    "  remove <attribute>\n"
+    "      Removes <attribute> entirely.\n"
+    "\n"
+    "      Example:\n"
+    "        gn edit \"remove testonly\" //src/tools:*\n"
+    "\n"
     "  set <attribute>[:list] <value(s)>\n"
     "      Sets or overwrites the target's <attribute> to <value(s)>.\n"
     "      If multiple values are provided, or if the \":list\" suffix is\n"
     "      appended to the attribute, <value(s)> is interpreted as a list.\n"
     "\n"
-    "Examples:\n"
-    "  gn edit \"set testonly true\" //src/tools:*\n"
-    "      Sets 'testonly' to 'true' for all targets in\n"
-    "      `//src/tools/BUILD.gn`.\n"
-    "  gn edit \"set srcs:list foo.cc foo.h\" //:foo\n"
-    "      Sets 'srcs' to '[ \"foo.cc\", \"foo.h\" ]' for //:foo.\n";
+    "      Examples:\n"
+    "        gn edit \"set testonly true\" //src/tools:*\n"
+    "        gn edit \"set srcs:list foo.cc\" //:foo\n"
+    "        gn edit \"set deps :bar :baz\" //:foo\n";
 
 Result<std::pair<std::vector<SourceFile>, EditState>> RunEditImpl(
     const std::vector<std::string>& args,

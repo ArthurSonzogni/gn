@@ -728,19 +728,27 @@
 
 #### **Commands**:
 ```
+  delete
+      Deletes the matched targets entirely.
+
+      Example:
+        gn edit "delete" //src/tools:old_target
+
+  remove <attribute>
+      Removes <attribute> entirely.
+
+      Example:
+        gn edit "remove testonly" //src/tools:*
+
   set <attribute>[:list] <value(s)>
       Sets or overwrites the target's <attribute> to <value(s)>.
       If multiple values are provided, or if the ":list" suffix is
       appended to the attribute, <value(s)> is interpreted as a list.
-```
 
-#### **Examples**:
-```
-  gn edit "set testonly true" //src/tools:*
-      Sets 'testonly' to 'true' for all targets in
-      `//src/tools/BUILD.gn`.
-  gn edit "set srcs:list foo.cc foo.h" //:foo
-      Sets 'srcs' to '[ "foo.cc", "foo.h" ]' for //:foo.
+      Examples:
+        gn edit "set testonly true" //src/tools:*
+        gn edit "set srcs:list foo.cc" //:foo
+        gn edit "set deps :bar :baz" //:foo
 ```
 ### <a name="cmd_format"></a>**gn format [\--dump-tree] [\--format-width=WIDTH] (\--stdin | &lt;list of build_files...&gt;)**&nbsp;[Back to Top](#gn-reference)
 

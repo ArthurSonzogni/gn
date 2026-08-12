@@ -65,6 +65,30 @@ EditCommand EditTargetCommand(
   };
 }
 
+EditCommand DeleteCommand() {
+  return EditTargetCommand([](BuildFile& build_file, const EditTarget& target,
+                              EditState& state) -> Err {
+    target.node.RemoveSelf(state, target);
+    return Ok();
+  });
+}
+
+EditCommand RemoveAttributeCommand(std::string attribute) {
+  return EditTargetCommand([attribute = std::move(attribute)](
+                               BuildFile& build_file, const EditTarget& target,
+                               EditState& state) -> Err {
+    auto assignments = target.assignments(attribute);
+    for (auto& assignment : assignments) {
+      assignment.RemoveSelf(state, target);
+    }
+    if (assignments.empty() && target.is_explicit) {
+      target.add_warning(
+          state, "does not contain the attribute \"" + attribute + "\".");
+    }
+    return Ok();
+  });
+}
+
 // Sets an attribute to a value.
 EditCommand SetCommand(std::string attribute, Value value) {
   return EditTargetCommand([=](BuildFile& build_file, const EditTarget& target,
@@ -95,7 +119,18 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
     return Err(Location(), "Empty command.");
   }
 
-  if (args[0] == "set") {
+  if (args[0] == "delete") {
+    if (args.size() != 1) {
+      return Err(Location(), "Invalid delete command.", "Usage: delete");
+    }
+    return DeleteCommand();
+  } else if (args[0] == "remove") {
+    if (args.size() != 2) {
+      return Err(Location(), "Invalid remove command.",
+                 "Usage: remove <attribute>");
+    }
+    return RemoveAttributeCommand(args[1]);
+  } else if (args[0] == "set") {
     if (args.size() < 3) {
       return Err(Location(),
                  "Invalid set command: missing attribute or value.\n"
@@ -121,10 +156,10 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
     }
 
     return SetCommand(std::string(attribute), std::move(val));
+  } else {
+    return Err(Location(),
+               "Unknown edit command: " + std::string(args[0]) +
+                   "\n"
+                   "See `gn help edit` for list of supported commands.");
   }
-
-  return Err(Location(),
-             "Unknown edit command: " + std::string(args[0]) +
-                 "\n"
-                 "See `gn help edit` for list of supported commands.");
 }
