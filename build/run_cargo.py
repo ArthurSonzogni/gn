@@ -274,10 +274,9 @@ def main():
     os.environ['HOMEDRIVE'] = ''
     os.environ['HOMEPATH'] = ''
 
-  # When linking C++ objects instrumented with ASan/UBSan, we must allow the
-  # linker to link its default libraries so it pulls in the sanitizer runtimes.
-  if '-fsanitize=' in ldflags:
-    target_rustflags.append("-C default-linker-libraries=yes")
+  # When linking C++ objects, we must allow the linker to link its default
+  # libraries so it pulls in libc++ and any potential sanititzers.
+  target_rustflags.append("-C default-linker-libraries=yes")
 
   env_var = f"CARGO_TARGET_{target_triple.upper().replace('-', '_')}_RUSTFLAGS"
   os.environ[env_var] = ' '.join(target_rustflags)

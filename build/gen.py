@@ -44,8 +44,8 @@ def rust_arch():
     return 'x86_64'
   elif arch in ('arm64', 'aarch64'):
     return 'aarch64'
-  elif arch == 'riscv64':
-    return 'riscv64'
+  elif arch in ('riscv64', 'riscv64gc'):
+    return 'riscv64gc'
   return arch
 
 
