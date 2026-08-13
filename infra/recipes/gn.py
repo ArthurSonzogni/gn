@@ -137,6 +137,8 @@ def RunSteps(api, repository):
     pkgs.add_package('fuchsia/third_party/rust/host/${platform}', rust_version)
     if api.platform.is_linux:
       pkgs.add_package('fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu', rust_version)
+      pkgs.add_package('fuchsia/third_party/rust/target/aarch64-unknown-linux-gnu', rust_version)
+      pkgs.add_package('fuchsia/third_party/rust/target/riscv64gc-unknown-linux-gnu', rust_version)
     elif api.platform.is_mac:
       pkgs.add_package('fuchsia/third_party/rust/target/x86_64-apple-darwin', rust_version)
       pkgs.add_package('fuchsia/third_party/rust/target/aarch64-apple-darwin', rust_version)
