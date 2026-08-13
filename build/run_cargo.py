@@ -211,6 +211,13 @@ def main():
     # causing it to discard the shims as unused and leading to LNK2001 link errors.
     cxxflags = cxxflags.replace('/GL', '')
 
+  # Disable -Wunused-template for cargo C++ dependencies compiled with Clang.
+  # Some third-party dependencies (like the `cxx` crate) contain templates that
+  # are only used inside asserts. In release builds (with -DNDEBUG), these asserts
+  # are compiled away, triggering -Wunused-template causing failures with -Werror.
+  if 'clang' in cxx:
+    cxxflags += ' -Wno-unused-template'
+
   os.environ['CXX'] = cxx
   os.environ['CXXFLAGS'] = cxxflags
   # Since Ninja runs commands from the build output directory, CWD is the
