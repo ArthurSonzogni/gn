@@ -748,6 +748,7 @@ name = "gn_starlark"
 version = "0.1.0"
 dependencies = [
  "ffi",
+ "link-cplusplus",
 ]
 
 [[package]]

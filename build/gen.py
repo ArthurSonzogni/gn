@@ -449,11 +449,12 @@ def WriteGenericNinja(path, static_libraries, executables,
     }
     ninja.CargoLibTarget(
         library_to_a('gn_starlark'),
+        cargo_flags='--features ninja',
         **starlark_common_args,
     )
     rust_tests = ninja.CargoTestTarget(
         'rust_unittests',
-        cargo_flags='--workspace',
+        cargo_flags='--workspace --features ninja',
         implicit_inputs=[
             library_to_a('base'),
             library_to_a('gn_lib'),

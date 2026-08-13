@@ -12,6 +12,7 @@ test = false
 
 [dependencies]
 ffi = { path = "crates/ffi" }
+link-cplusplus = { workspace = true }
 
 [workspace]
 members = [
@@ -34,10 +35,16 @@ anyhow = "1.0"
 # in sync unless you're trying to use new C++ features in the bridge.
 cxx = { version = "1.0", features = ["c++20"] }
 either = "1.16"
+link-cplusplus = "1.0"
 starlark = "0.14"
 starlark_derive = "0.14"
 thiserror = "2.0"
 strum = { version = "0.26", features = ["derive"] }
+
+[features]
+# When compiling with ninja, ninja has its own set of link flags.
+# Thus, we need to tell link-cplusplus not to generate any of its own.
+ninja = ["link-cplusplus/nothing"]
 
 # A short-lived fork until my PR gets merged.
 # Basically all it does is make some pub(crate) things public, so that we can
