@@ -280,6 +280,8 @@ class BinaryOpNode : public ParseNode {
   void set_right(std::unique_ptr<ParseNode> right) {
     right_ = std::move(right);
   }
+  std::unique_ptr<ParseNode> take_left() { return std::move(left_); }
+  std::unique_ptr<ParseNode> take_right() { return std::move(right_); }
 
   static constexpr const char* kDumpNodeName = "BINARY";
 

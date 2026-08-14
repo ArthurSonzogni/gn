@@ -185,6 +185,23 @@ std::vector<TreeNode> FindListElementInAssignment(const EditTarget& target,
       });
 }
 
+std::optional<ListNode*> FindListInAssignment(const TreeNode& assignment) {
+  auto* op = assignment.AsAssignment();
+  if (!op)
+    return std::nullopt;
+  auto results = FindExpression<ListNode*>(
+      assignment.Descend(op->right()),
+      [](TreeNode& node_ref) -> std::optional<ListNode*> {
+        if (auto* list = node_ref->AsListMut()) {
+          return list;
+        }
+        return std::nullopt;
+      });
+  if (results.empty())
+    return std::nullopt;
+  return results.front();
+}
+
 TreeNode TreeNode::Descend(ParseNode* child) const {
   std::vector<ParseNode*> s = stack_;
   s.push_back(child);
@@ -243,11 +260,11 @@ void TreeNode::RemoveSelf(EditState& state, const EditTarget& target) const {
   if (is_conditional()) {
     add_todo(state, target);
   } else {
-    RemoveSelf();
+    RemoveSelfUnconditionally();
   }
 }
 
-void TreeNode::RemoveSelf() const {
+void TreeNode::RemoveSelfUnconditionally() const {
   DCHECK(parent());
   if (auto* block = parent()->AsBlockMut()) {
     auto& stmts = block->statements();

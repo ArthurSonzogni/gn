@@ -56,6 +56,9 @@ class TreeNode {
   // probably be removed.
   void RemoveSelf(EditState& state, const EditTarget& target) const;
 
+  // Removes self from the tree unconditionally without adding TODO comments.
+  void RemoveSelfUnconditionally() const;
+
   ParseNode* operator->() const { return stack_.back(); }
 
   const std::vector<ParseNode*>& stack() const { return stack_; }
@@ -63,9 +66,6 @@ class TreeNode {
   TreeNode Descend(ParseNode* child) const;
 
  private:
-  // Low-level deletion from parent block or list.
-  void RemoveSelf() const;
-
   std::vector<ParseNode*> stack_;
 };
 
@@ -118,6 +118,9 @@ std::vector<T> FindStatement(
 std::vector<TreeNode> FindListElementInAssignment(const EditTarget& target,
                                                   const TreeNode& root,
                                                   const Value& value);
+
+// Finds the first list node within an assignment expression.
+std::optional<ListNode*> FindListInAssignment(const TreeNode& assignment);
 
 // Represents a set of patterns within a build file.
 class LabelMatcher {

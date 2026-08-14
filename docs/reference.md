@@ -728,6 +728,13 @@
 
 #### **Commands**:
 ```
+  add <attribute> <value(s)>
+      Adds <value(s)> to the list attribute <attribute>.
+      If the attribute does not exist, it is created.
+
+      Example:
+        gn edit "add deps //base //src/tools:utils" //src/tools:*
+
   delete
       Deletes the matched targets entirely.
 

@@ -125,6 +125,94 @@ executable("foo") {
                  "Target(s) not found: //:nonexistent");
 }
 
+TEST_F(EditCommandTest, AddSubcommand) {
+  EXPECT_SUCCESS(DoEdit("add deps //add1 //add2 //add3 :dep2",
+                        R"(
+executable("foo") {
+  deps = [ "//dep1" ]
+  deps += [ "//:dep2" ]
+  if (is_linux) {
+    deps += [ "//add3" ]
+  }
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = [
+    "//add1",
+    "//add2",
+    "//add3",
+    "//dep1",
+  ]
+  deps += [ "//:dep2" ]
+  if (is_linux) {
+    deps += []
+  }
+}
+)"));
+
+  // Adding to a target where attribute is not defined should it at the end
+  EXPECT_SUCCESS(DoEdit("add deps //base",
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+  deps = [ "//base" ]
+}
+)"));
+
+  // Attribute defined only conditionally should hoist to start of block and
+  // convert = to +=
+  EXPECT_SUCCESS(DoEdit("add deps //base",
+                        R"(
+executable("foo") {
+  if (is_linux) {
+    deps = [ "//dep" ]
+  }
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = [ "//base" ]
+
+  if (is_linux) {
+    deps += [ "//dep" ]
+  }
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("add deps //base",
+                        R"(
+executable("foo") {
+  deps = foo + bar + [ "//baz" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = foo + bar + [
+           "//base",
+           "//baz",
+         ]
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("add deps //base",
+                        R"(
+executable("foo") {
+  deps = other_deps
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = [ "//base" ] + other_deps
+}
+)"));
+}
+
 TEST_F(EditCommandTest, DeleteSubcommand) {
   EXPECT_SUCCESS(DoEdit("delete", {"//:bar"},
                         R"(
