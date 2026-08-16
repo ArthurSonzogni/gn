@@ -261,6 +261,35 @@ if (is_win) {
                         EditState({Label(SourceDir("//"), "bar")})));
 }
 
+TEST_F(EditCommandTest, MoveSubcommand) {
+  EXPECT_SUCCESS(
+      DoEdit("move deps public_deps //a //b //nonexistent", {"//:foo"},
+             R"(
+executable("foo") {
+  deps = [
+    "//a",
+    "//b",
+    "//c",
+  ]
+  public_deps = [ "//d" ]
+}
+)"),
+      Edited(R"(
+executable("foo") {
+  deps = [ "//c" ]
+  public_deps = [
+    "//a",
+    "//b",
+    "//d",
+  ]
+}
+)",
+             EditState{{},
+                       {Err(Location(),
+                            "Target \"//:foo\" does not contain the value "
+                            "\"//nonexistent\" in attribute \"deps\".")}}));
+}
+
 TEST_F(EditCommandTest, RemoveAttributeSubcommand) {
   EXPECT_SUCCESS(DoEdit("remove testonly",
                         R"(

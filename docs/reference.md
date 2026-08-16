@@ -741,6 +741,13 @@
       Example:
         gn edit "delete" //src/tools:old_target
 
+  move <from_attribute> <to_attribute> <value(s)>
+      Moves <value(s)> from the list <from_attribute> to <to_attribute>.
+      If <to_attribute> does not exist, it is created.
+
+      Example:
+        gn edit "move deps public_deps //base" //src/tools:*
+
   remove <attribute>
       Removes <attribute> entirely.
 

@@ -184,6 +184,27 @@ EditCommand DeleteCommand() {
   });
 }
 
+EditCommand MoveCommand(std::string from_attribute,
+                        std::string to_attribute,
+                        std::vector<Value> values) {
+  return EditTargetCommand([from_attribute = std::move(from_attribute),
+                            to_attribute = std::move(to_attribute),
+                            values = std::move(values)](
+                               BuildFile& build_file, const EditTarget& target,
+                               EditState& state) -> Err {
+    std::vector<Value> moved_values;
+    for (const auto& value : values) {
+      if (RemoveFromTarget(target, from_attribute, value, state)) {
+        moved_values.push_back(value);
+      }
+    }
+    if (!moved_values.empty()) {
+      AddToTarget(build_file, target, to_attribute, moved_values);
+    }
+    return Ok();
+  });
+}
+
 EditCommand RemoveAttributeCommand(std::string attribute) {
   return EditTargetCommand([attribute = std::move(attribute)](
                                BuildFile& build_file, const EditTarget& target,
@@ -256,6 +277,14 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
       return Err(Location(), "Invalid delete command.", "Usage: delete");
     }
     return DeleteCommand();
+  } else if (args[0] == "move") {
+    if (args.size() < 4) {
+      return Err(Location(), "Invalid move command.",
+                 "Usage: move <from_attribute> <to_attribute> <value(s)>");
+    }
+    ASSIGN_OR_RETURN(std::vector<Value> values,
+                     ParseValues(base::make_span(args).subspan(3)));
+    return MoveCommand(args[1], args[2], std::move(values));
   } else if (args[0] == "remove") {
     if (args.size() < 2) {
       return Err(Location(), "Invalid remove command.",
