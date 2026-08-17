@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use starlark::values::ValueLike as _;
 use types::EvaluatorContextExt as _;
 
 /// The consolidated cxx FFI bridge defining all shared C++ classes, structs,
@@ -47,20 +48,35 @@ impl OwnedFrozenValue {
         // Safety: The Scope reference is valid and non-null for the duration of the
         // invocation.
         let scope_ptr = unsafe { std::ptr::NonNull::new_unchecked(scope.get_unchecked_mut()) };
+        // Safety: The Err reference is valid and non-null for the duration of the
+        // invocation.
+        let mut err_ptr = unsafe { std::ptr::NonNull::new_unchecked(err.get_unchecked_mut()) };
         // Safety: The Scope pointer is valid and non-null.
         let settings = unsafe { scope_ptr.as_ref() }.settings();
-        let eval_context = crate::eval_context::EvalContext::new_macro(session, scope_ptr);
+        let eval_context = crate::eval_context::EvalContext::new_macro(session, scope_ptr, err_ptr);
         let res = (|| {
             let val = starlark::environment::Module::with_temp_heap(
                 |module| -> starlark::Result<Self> {
                     let heap = module.heap();
-                    let args: Vec<_> = args.iter().map(|arg| arg.to_rust(&heap)).collect();
-                    let kwargs: Vec<_> = kwargs
+                    let mut args: Vec<_> = args.iter().map(|arg| arg.to_rust(&heap)).collect();
+                    let mut kwargs: Vec<_> = kwargs
                         .items()
                         .as_slice()
                         .iter()
                         .map(|kw| (kw.key, kw.value.to_rust(&heap)))
                         .collect();
+                    if func_val
+                        .downcast_ref::<rule::FrozenRule<crate::eval_context::EvalContext>>()
+                        .is_some()
+                    {
+                        // Rules require the parameter name, but GN uses rule(name, **kwargs).
+                        if let [name] = args.as_slice() {
+                            kwargs.push(("name", *name));
+                            args.clear();
+                        } else {
+                            return Err(crate::errors::Error::RuleRequiresTargetName.into());
+                        }
+                    }
 
                     let res = {
                         let mut eval = starlark::eval::Evaluator::new(&module);
@@ -79,7 +95,9 @@ impl OwnedFrozenValue {
                 .assign(val.0.value(), Some(val.0.owner()), settings, origin)?;
             Ok(())
         })();
-        err.handle(res);
+        // Safety: The Err pointer is valid, non-null, and pinned.
+        let err_pin = unsafe { std::pin::Pin::new_unchecked(err_ptr.as_mut()) };
+        err_pin.handle(res);
     }
 }
 
@@ -148,8 +166,6 @@ mod dummy {
         // Dead code for production, used in tests only
         #[allow(dead_code)]
         pub fn NewErr() -> UniquePtr<Err>;
-        // Dead code for production, used in tests only
-        #[allow(dead_code)]
         pub(crate) fn ErrToString(err: &Err) -> String;
 
         pub(in crate::err) fn PopulateErrWithLocation(
@@ -194,8 +210,6 @@ mod dummy {
         pub(in crate::target) fn label(self: &CxxTarget) -> &Label;
         #[rust_name = "settings_cxx"]
         pub(in crate::target) fn settings(self: &CxxTarget) -> *const Settings;
-        // Dead code until create_target is implemented in eval_context.
-        #[allow(dead_code)]
         pub(in crate::eval_context) fn create_target(
             scope: Pin<&mut Scope>,
             name: &str,

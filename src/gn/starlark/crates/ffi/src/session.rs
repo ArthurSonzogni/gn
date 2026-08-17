@@ -50,8 +50,12 @@ fn build_globals() -> Globals {
 impl Session {
     /// Creates a new `Session`.
     pub fn from_resolver(path_resolver: PathResolver) -> Self {
+        let loader = FileLoader::default();
+        loader.preload(rule::register_builtin_rules::<
+            crate::eval_context::EvalContext,
+        >());
         Self {
-            loader: FileLoader::default(),
+            loader,
             path_resolver,
             globals: build_globals(),
             targets: Default::default(),

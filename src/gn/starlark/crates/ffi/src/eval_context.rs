@@ -12,7 +12,10 @@ use crate::{errors::Error, Scope};
 
 enum EvalContextKind {
     BzlFile,
-    Macro(NonNull<Scope>),
+    Macro {
+        scope: NonNull<Scope>,
+        err: NonNull<crate::bridge::Err>,
+    },
 }
 
 #[derive(Allocative, ProvidesStaticType)]
@@ -37,7 +40,11 @@ impl EvalContext {
         }
     }
 
-    pub fn new_macro(session: &'static crate::session::Session, scope: NonNull<Scope>) -> Self {
+    pub fn new_macro(
+        session: &'static crate::session::Session,
+        scope: NonNull<Scope>,
+        err: NonNull<crate::bridge::Err>,
+    ) -> Self {
         // Safety: The Scope pointer is valid and non-null for the duration of macro
         // evaluation.
         let scope_ref = unsafe { scope.as_ref() };
@@ -49,7 +56,7 @@ impl EvalContext {
         Self {
             session,
             package,
-            kind: EvalContextKind::Macro(scope),
+            kind: EvalContextKind::Macro { scope, err },
         }
     }
 }
@@ -72,7 +79,7 @@ impl types::EvalContext for EvalContext {
 
     fn current_toolchain(&self) -> LabelRef<'_> {
         match &self.kind {
-            EvalContextKind::Macro(scope) => {
+            EvalContextKind::Macro { scope, .. } => {
                 // Safety: The eval context is single-threaded, so we cannot have multiple
                 // references at the same time.
                 unsafe { scope.as_ref() }.settings().toolchain()
@@ -87,7 +94,7 @@ impl types::EvalContext for EvalContext {
     #[allow(clippy::mut_from_ref)]
     fn require_macro(&self) -> starlark::Result<std::pin::Pin<&mut Self::Scope>> {
         match &self.kind {
-            EvalContextKind::Macro(mut scope) => {
+            EvalContextKind::Macro { mut scope, .. } => {
                 // Safety: The eval context is single-threaded, so we cannot have multiple
                 // references at the same time.
                 Ok(unsafe { std::pin::Pin::new_unchecked(scope.as_mut()) })
@@ -110,15 +117,29 @@ impl types::EvalContext for EvalContext {
 impl attr::traits::EvalContextAttrExt for EvalContext {
     fn create_target(
         &self,
-        _target_type: Option<types::OutputType>,
-        _target_name: &str,
-        _scope: std::pin::Pin<&mut Scope>,
+        target_type: Option<types::OutputType>,
+        target_name: &str,
+        scope: std::pin::Pin<&mut Scope>,
     ) -> starlark::Result<
         std::pin::Pin<
             &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
         >,
     > {
-        todo!()
+        let output_type = target_type.map_or("noop", |t| t.into());
+        let mut err_ptr = match &self.kind {
+            EvalContextKind::Macro { err, .. } => *err,
+            _ => return Err(Error::RequiresMacro.into()),
+        };
+        // Safety: err_ptr is valid and pinned for evaluation duration.
+        let err_pin = unsafe { std::pin::Pin::new_unchecked(err_ptr.as_mut()) };
+        let target_ptr = crate::bridge::create_target(scope, target_name, output_type, err_pin);
+        // Safety: err_ptr is valid for evaluation duration.
+        unsafe { err_ptr.as_ref() }.into_result()?;
+        let mut target_non_null =
+            NonNull::new(target_ptr).expect("Target pointer is null but no error was set");
+        // Safety: Target created in GN Scope item collector is heap-allocated, pinned,
+        // and lives for session.
+        Ok(unsafe { std::pin::Pin::new_unchecked(target_non_null.as_mut()) })
     }
 
     fn register_target(

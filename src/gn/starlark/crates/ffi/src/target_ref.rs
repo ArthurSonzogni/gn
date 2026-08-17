@@ -99,6 +99,12 @@ impl types::TargetRef for TargetRef {
     }
 }
 
+impl attr::TargetAttrExt for TargetRef {
+    fn attrs(&self) -> &[attr::Attr] {
+        &[]
+    }
+}
+
 impl types::TargetMut for crate::bridge::CxxTarget {
     fn register_dependency(
         self: std::pin::Pin<&mut Self>,

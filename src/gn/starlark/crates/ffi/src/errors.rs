@@ -15,6 +15,8 @@ pub(crate) enum Error {
     RequiresBzlFile,
     #[error("This is only allowed while executing a macro (function called from GN).")]
     RequiresMacro,
+    #[error("Rules require exactly one string argument for the target name.")]
+    RuleRequiresTargetName,
 }
 
 impl From<Error> for starlark::Error {

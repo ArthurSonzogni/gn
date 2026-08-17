@@ -751,11 +751,20 @@ TEST(Functions, Load) {
     setup.scope()->set_source_dir(SourceDir("//"));
 
     std::string scl_content = R"scl(
+load("//builtins:rules.scl", "static_library")
+
 def my_rule_impl(ctx):
   pass
 
 my_rule = rule(
-  implementation = my_rule_impl
+  implementation = my_rule_impl,
+  attrs = {"my_attr": attr.string()},
+)
+
+my_rule_extension = rule(
+  implementation = my_rule_impl,
+  parent = static_library,
+  attrs = {"my_attr": attr.string()},
 )
 
 hello = "hello"
@@ -774,7 +783,7 @@ def sum_wrapper(*args, **kwargs):
 
     {
       TestParseInput input(R"gn(
-load("//:rules.scl", "hello", "my_rule", "my_rule_impl", "sum")
+load("//:rules.scl", "hello", "my_rule", "my_rule_extension", "my_rule_impl", "sum")
 
 assert(my_rule == my_rule)
 assert(my_rule != my_rule_impl)
@@ -791,6 +800,14 @@ assert(sum() {
   b = "b"
   c = "c"
 } == "abc")
+
+my_rule_extension("foo_extension") {
+  my_attr = "bar"
+}
+
+my_rule("foo") {
+  my_attr = "bar"
+}
 )gn");
       ASSERT_SUCCESS(input);
       Err err;
@@ -805,6 +822,20 @@ assert(sum() {
       const Value* val_my_rule = setup.scope()->GetValue("my_rule");
       ASSERT_TRUE(val_my_rule);
       EXPECT_EQ(Value::STARLARK_VALUE, val_my_rule->type());
+
+      const Scope::ItemVector* items = setup.scope()->GetItemCollector();
+      ASSERT_TRUE(items);
+      ASSERT_EQ(2u, items->size());
+
+      const Target* target_extension = (*items)[0]->AsTarget();
+      ASSERT_TRUE(target_extension);
+      EXPECT_EQ(Target::STATIC_LIBRARY, target_extension->output_type());
+      EXPECT_EQ("//:foo_extension",
+                target_extension->label().GetUserVisibleName(false));
+
+      const Target* target_custom = (*items)[1]->AsTarget();
+      ASSERT_TRUE(target_custom);
+      EXPECT_EQ("//:foo", target_custom->label().GetUserVisibleName(false));
     }
 
     // Verify failure when loading a nonexistent variable.
@@ -877,7 +908,7 @@ sum_wrapper(1, 2, 3) {
       fail_input.parsed()->Execute(setup.scope(), &err);
       ASSERT_TRUE(err.has_error());
       EXPECT_EQ(
-          "ERROR at //:rules.scl:15:10: Found `d` extra named parameter(s) for "
+          "ERROR at //:rules.scl:24:10: Found `d` extra named parameter(s) for "
           "call to //:rules.scl.sum\n"
           "  return sum(*args, **kwargs)\n"
           "         ^-------------------\n"

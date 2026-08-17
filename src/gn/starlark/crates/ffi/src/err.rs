@@ -7,6 +7,19 @@ use std::pin::Pin;
 use crate::bridge::Err as CxxErr;
 
 impl CxxErr {
+    /// Returns an error result containing the C++ error message if this Err has
+    /// an error.
+    pub fn into_result(&self) -> starlark::Result<()> {
+        if self.has_error() {
+            Err(starlark::Error::new_other(anyhow::anyhow!(
+                "{}",
+                crate::bridge::ErrToString(self)
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
     /// Translates a Starlark evaluation result to a C++ GN error if it failed.
     ///
     /// If the result is Ok, returns `Some(v)`.
@@ -25,6 +38,11 @@ impl CxxErr {
     /// Populates this C++ `Err` object with the details of the given Starlark
     /// error.
     pub fn fill(mut self: Pin<&mut Self>, err: &starlark::Error) {
+        if self.has_error() {
+            self.fill_frames(err);
+            return;
+        }
+
         // The "diagnostic" contains the location.
         // Since the GN error type already deals with the location, instead of
         // having the diagnostic in the error message, we just pass the metadata to gn.
