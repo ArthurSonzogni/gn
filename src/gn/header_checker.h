@@ -24,10 +24,10 @@
 #include "gn/err.h"
 #include "gn/hash_table_base.h"
 #include "gn/source_dir.h"
+#include "gn/source_file.h"
 
 class BuildSettings;
 class InputFile;
-class SourceFile;
 class Target;
 class WorkerPool;
 
@@ -54,6 +54,19 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   };
   using Chain = std::vector<ChainLink>;
 
+  // Represents a header dependency violation found during checking.
+  struct Violation {
+    // The diagnostic error describing the violation.
+    Err error;
+
+    // The source file that contained the invalid #include directive.
+    SourceFile source_file;
+
+    // The header file that was included without appropriate build dependency.
+    // May be null if we were unable to find the header file.
+    SourceFile included_file;
+  };
+
   // check_generated, if true, will also check generated
   // files. Something that can only be done after running a build that
   // has generated them.
@@ -65,14 +78,14 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // Runs the check. The targets in to_check will be checked.
   //
   // This assumes that the current thread already has a message loop. On
-  // error, fills the given vector with the errors and returns false. Returns
-  // true on success.
+  // error, fills the given vector with the violations and returns false.
+  // Returns true on success.
   //
   // force_check, if true, will override targets opting out of header checking
   // with "check_includes = false" and will check them anyway.
   bool Run(const std::vector<const Target*>& to_check,
            bool force_check,
-           std::vector<Err>* errors);
+           std::vector<Violation>* violations);
 
  private:
   friend class base::RefCountedThreadSafe<HeaderChecker>;
@@ -270,7 +283,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // error messages.
   bool CheckFile(const TargetVector& targets,
                  const SourceFile& file,
-                 std::vector<Err>* errors) const;
+                 std::vector<Violation>* violations) const;
 
   // Checks that the given file in the given target can include the
   // given include file. If disallowed, adds the error or errors to
@@ -341,7 +354,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
 
   mutable std::mutex errors_lock_;
 
-  std::vector<Err> errors_;
+  std::vector<Violation> violations_;
 
   mutable std::array<DependencyCacheShard, kNumShards> dependency_cache_;
 

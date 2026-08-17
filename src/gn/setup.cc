@@ -598,8 +598,11 @@ bool Setup::RunPostMessageLoop(const base::CommandLine& cmdline) {
       to_check = all_targets;
     }
 
+    bool fix = cmdline.HasSwitch("fix");
+
     if (!commands::CheckPublicHeaders(&build_settings_, all_targets, to_check,
-                                      false, false, check_system_includes_)) {
+                                      false, false, check_system_includes_, fix,
+                                      this)) {
       return false;
     }
   }

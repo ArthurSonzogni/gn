@@ -38,8 +38,15 @@ struct TestProject {
 
     files.try_emplace(SourceFile("//.gn"),
                       "buildconfig = \"//BUILDCONFIG.gn\"\n");
-    files.try_emplace(SourceFile("//BUILDCONFIG.gn"),
-                      "set_default_toolchain(\"//toolchain:default\")\n");
+    files.try_emplace(SourceFile("//BUILDCONFIG.gn"), R"(
+set_default_toolchain("//toolchain:default")
+set_defaults("executable") {
+  include_dirs = [ "//" ]
+}
+set_defaults("source_set") {
+  include_dirs = [ "//" ]
+}
+)");
     files.try_emplace(SourceFile("//toolchain/BUILD.gn"), R"(
 toolchain("default") {
   tool("cxx") {
@@ -599,4 +606,50 @@ source_set("included") {
 }
 )";
   EXPECT_EQ(expected_build_gn, project.Read(SourceFile("//BUILD.gn")));
+}
+
+TEST_F(SuggestTest, CheckAppliesSuggestions) {
+  TestProject project({
+      {SourceFile("//BUILD.gn"), R"(
+group("all") {
+  deps = [
+    "//included",
+    "//includer",
+  ]
+}
+)"},
+      {SourceFile("//includer/BUILD.gn"), R"(executable("includer") {
+  sources = [ "includer.cc" ]
+}
+)"},
+      {SourceFile("//included/BUILD.gn"), R"(source_set("included") {
+  sources = [ "included.h" ]
+}
+)"},
+      {SourceFile("//includer/includer.cc"),
+       "#include \"included/included.h\""},
+      {SourceFile("//included/included.h"), ""},
+  });
+
+  std::string output;
+  auto collect = [&](std::string_view s, TextDecoration, HtmlEscaping) {
+    output.append(s);
+  };
+
+  EXPECT_TRUE(commands::CheckPublicHeaders(
+      &project.setup.build_settings(), project.targets(), project.targets(),
+      false, false, false, true, &project.setup, collect));
+  EXPECT_EQ(
+      "ERROR at //includer/includer.cc:1:11: Include not allowed.\n"
+      "#include \"included/included.h\"\n"
+      "          ^\n"
+      "[APPLIED] Suggestion: Add deps = [ \"//included:included\" ] to "
+      ":includer (defined at //includer/BUILD.gn:1)\n",
+      output);
+  std::string expected_build_gn = R"(executable("includer") {
+  sources = [ "includer.cc" ]
+  deps = [ "//included" ]
+}
+)";
+  EXPECT_EQ(expected_build_gn, project.Read(SourceFile("//includer/BUILD.gn")));
 }

@@ -178,7 +178,7 @@ HeaderChecker::~HeaderChecker() = default;
 
 bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
                         bool force_check,
-                        std::vector<Err>* errors) {
+                        std::vector<Violation>* violations) {
   FileMap files_to_check;
   for (auto* check : to_check) {
     // This function will get called with all target types, but check only
@@ -227,9 +227,10 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
 
   RunCheckOverFiles(files_to_check, force_check, &pool);
 
-  if (errors_.empty())
+  if (violations_.empty())
     return true;
-  *errors = errors_;
+  if (violations)
+    *violations = violations_;
   return false;
 }
 
@@ -284,10 +285,12 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files,
 
 void HeaderChecker::DoWork(const TargetVector& targets,
                            const SourceFile& file) {
-  std::vector<Err> errors;
-  if (!CheckFile(targets, file, &errors)) {
+  std::vector<Violation> violations;
+  if (!CheckFile(targets, file, &violations)) {
     std::lock_guard<std::mutex> lock(errors_lock_);
-    errors_.insert(errors_.end(), errors.begin(), errors.end());
+    violations_.insert(violations_.end(),
+                       std::make_move_iterator(violations.begin()),
+                       std::make_move_iterator(violations.end()));
   }
 
   if (!task_count_.Decrement()) {
@@ -488,7 +491,7 @@ bool HeaderChecker::ReachabilityCache::SearchBreadcrumbs(
 
 bool HeaderChecker::CheckFile(const TargetVector& targets,
                               const SourceFile& file,
-                              std::vector<Err>* errors) const {
+                              std::vector<Violation>* violations) const {
   ScopedTrace trace(TraceItem::TRACE_CHECK_HEADER, file.value());
 
   // Sometimes you have generated source files included as sources in another
@@ -508,11 +511,13 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
 
     for (const TargetInfo& from_target_info : targets) {
       const Target* from_target = from_target_info.target;
-      errors->emplace_back(
-          from_target->defined_from(), "Source file not found.",
-          "The target:\n  " + from_target->label().GetUserVisibleName(false) +
-              "\nhas a source file:\n  " + file.value() +
-              "\nwhich was not found.");
+      violations->emplace_back(
+          Err(from_target->defined_from(), "Source file not found.",
+              "The target:\n  " +
+                  from_target->label().GetUserVisibleName(false) +
+                  "\nhas a source file:\n  " + file.value() +
+                  "\nwhich was not found."),
+          file, SourceFile());
     }
     return false;
   }
@@ -532,7 +537,7 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
   if (includes.empty())
     return true;
 
-  size_t error_count_before = errors->size();
+  size_t violations_count_before = violations->size();
 
   for (const TargetInfo& from_target_info : targets) {
     const Target* from_target = from_target_info.target;
@@ -553,15 +558,20 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
       SourceFile included_file =
           SourceFileForInclude(inc, include_dirs, input_file, &err);
       if (!included_file.is_null()) {
+        std::vector<Err> include_errors;
         CheckInclude(from_target_cache,
                      from_target_info.is_public &&
                          file.GetType() == SourceFile::SOURCE_H,
-                     input_file, included_file, inc.location, errors);
+                     input_file, included_file, inc.location, &include_errors);
+        for (auto& e : include_errors) {
+          violations->emplace_back(std::move(e), file,
+                                   std::move(included_file));
+        }
       }
     }
   }
 
-  return errors->size() == error_count_before;
+  return violations->size() == violations_count_before;
 }
 
 // If the file exists:

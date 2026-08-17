@@ -366,7 +366,7 @@
     given arguments set (which may affect the values of other
     arguments).
 ```
-### <a name="cmd_check"></a>**gn check &lt;out_dir&gt; [&lt;label_pattern&gt;] [\--force] [\--check-generated]**&nbsp;[Back to Top](#gn-reference)
+### <a name="cmd_check"></a>**gn check &lt;out_dir&gt; [&lt;label_pattern&gt;] [\--force] [\--check-generated] [\--fix]**&nbsp;[Back to Top](#gn-reference)
 
 ```
   GN's include header checker validates that the includes for C-like source
@@ -392,6 +392,9 @@
   --check-system
      Check system style includes (using <angle brackets>) in addition to
      "double quote" includes.
+
+  --fix
+      Automatically apply suggestions to resolve header dependency errors.
 
   --default-toolchain
       Normally wildcard targets are matched in all toolchains. This
