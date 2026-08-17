@@ -37,14 +37,20 @@ impl OwnedFrozenValue {
         args: &cxx::CxxVector<Value>,
         kwargs: &Scope,
         mut out_val: std::pin::Pin<&mut Value>,
-        scope: &'static Scope,
+        scope: std::pin::Pin<&mut Scope>,
         origin: ParseNodePtr,
-        mut err: std::pin::Pin<&mut Err>,
+        err: std::pin::Pin<&mut Err>,
     ) {
         // Safety: `self` (and thus self.0.owner()) is guaranteed to outlive
         // the temp module and thus this cannot be GC'd during this call.
         let func_val = unsafe { self.0.unchecked_frozen_value() };
-        err.as_mut().handle((|| {
+        // Safety: The Scope reference is valid and non-null for the duration of the
+        // invocation.
+        let scope_ptr = unsafe { std::ptr::NonNull::new_unchecked(scope.get_unchecked_mut()) };
+        // Safety: The Scope pointer is valid and non-null.
+        let settings = unsafe { scope_ptr.as_ref() }.settings();
+        let eval_context = crate::eval_context::EvalContext::new_macro(session, scope_ptr);
+        let res = (|| {
             let val = starlark::environment::Module::with_temp_heap(
                 |module| -> starlark::Result<Self> {
                     let heap = module.heap();
@@ -55,10 +61,6 @@ impl OwnedFrozenValue {
                         .iter()
                         .map(|kw| (kw.key, kw.value.to_rust(&heap)))
                         .collect();
-
-                    let package = scope.package();
-                    let eval_context =
-                        crate::eval_context::EvalContext::new_macro(session, package, scope);
 
                     let res = {
                         let mut eval = starlark::eval::Evaluator::new(&module);
@@ -72,14 +74,12 @@ impl OwnedFrozenValue {
                 },
             )?;
 
-            out_val.as_mut().assign(
-                val.0.value(),
-                Some(val.0.owner()),
-                scope.settings(),
-                origin,
-            )?;
+            out_val
+                .as_mut()
+                .assign(val.0.value(), Some(val.0.owner()), settings, origin)?;
             Ok(())
-        })());
+        })();
+        err.handle(res);
     }
 }
 
@@ -150,7 +150,7 @@ mod dummy {
         pub fn NewErr() -> UniquePtr<Err>;
         // Dead code for production, used in tests only
         #[allow(dead_code)]
-        pub(in crate::err) fn ErrToString(err: &Err) -> String;
+        pub(crate) fn ErrToString(err: &Err) -> String;
 
         pub(in crate::err) fn PopulateErrWithLocation(
             err: Pin<&mut Err>,
@@ -194,6 +194,14 @@ mod dummy {
         pub(in crate::target) fn label(self: &CxxTarget) -> &Label;
         #[rust_name = "settings_cxx"]
         pub(in crate::target) fn settings(self: &CxxTarget) -> *const Settings;
+        // Dead code until create_target is implemented in eval_context.
+        #[allow(dead_code)]
+        pub(in crate::eval_context) fn create_target(
+            scope: Pin<&mut Scope>,
+            name: &str,
+            output_type: &str,
+            err: Pin<&mut Err>,
+        ) -> *mut CxxTarget;
         pub(in crate::target_ref) fn register_dependency(
             target: Pin<&mut CxxTarget>,
             package: &str,
@@ -212,7 +220,7 @@ mod dummy {
         // [scope["foo"], scope["bar"]].
         // The caller is then responsible for filling in the values as needed.
         pub(in crate::scope) fn NewScope(
-            parent_scope: &Scope,
+            parent_scope: Pin<&mut Scope>,
             keys: &[&str],
             out_scope: &mut UniquePtr<Scope>,
         ) -> SliceAny;
@@ -315,7 +323,7 @@ mod dummy {
             args: &CxxVector<Value>,
             kwargs: &Scope,
             out_val: Pin<&mut Value>,
-            scope: &'static Scope,
+            scope: Pin<&mut Scope>,
             origin: ParseNodePtr,
             err: Pin<&mut Err>,
         );

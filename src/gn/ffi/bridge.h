@@ -834,7 +834,7 @@ struct OwnedFrozenValue final : public ::rust::Opaque {
   ::rust::Box<::OwnedFrozenValue> clone() const noexcept;
   ::rust::String to_string() const noexcept;
   bool eq(::OwnedFrozenValue const &other) const noexcept;
-  void invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope const &scope, ::ParseNodePtr origin, ::Err &err) const noexcept;
+  void invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope &scope, ::ParseNodePtr origin, ::Err &err) const noexcept;
   ~OwnedFrozenValue() = delete;
 
 private:

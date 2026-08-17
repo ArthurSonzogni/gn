@@ -22,7 +22,7 @@ impl Scope for FakeScope {
     type Owned = Box<Self>;
 
     fn copy_with<'a, 'v>(
-        &self,
+        self: std::pin::Pin<&mut Self>,
         kv: impl Iterator<Item = (&'a str, Value<'v>)>,
     ) -> Result<Self::Owned> {
         let mut values = self.0.clone();
@@ -34,6 +34,10 @@ impl Scope for FakeScope {
             values.insert(k.to_owned(), static_val);
         }
         Ok(Box::new(Self(values)))
+    }
+
+    fn as_pin_mut(owned: &mut Self::Owned) -> std::pin::Pin<&mut Self> {
+        std::pin::Pin::new(owned.as_mut())
     }
 
     fn get<'v>(&self, key: &str, _heap: &Heap<'v>) -> Option<Value<'v>> {
@@ -63,7 +67,7 @@ pub struct FakeEvalContext {
     pub rule_state: UnsafeCell<CtxState<FakeTargetRef>>,
     /// The fake scope.
     #[allocative(skip)]
-    pub scope: FakeScope,
+    pub scope: UnsafeCell<FakeScope>,
 }
 
 unsafe impl<'v> ProvidesStaticType<'v> for FakeEvalContext {
@@ -90,7 +94,7 @@ impl FakeEvalContext {
             session,
             path_resolver: PathResolver::new_for_testing(),
             rule_state: CtxState::new(target).into(),
-            scope: FakeScope::default(),
+            scope: FakeScope::default().into(),
         }
     }
 }
@@ -115,8 +119,10 @@ impl AttrEvalContext for FakeEvalContext {
         self.current_toolchain.as_ref()
     }
 
-    fn require_macro(&self) -> Result<&FakeScope> {
-        Ok(&self.scope)
+    #[allow(clippy::mut_from_ref)]
+    fn require_macro(&self) -> Result<std::pin::Pin<&mut FakeScope>> {
+        // Safety: The Scope pointer is non-null and valid during macro evaluation.
+        Ok(std::pin::Pin::new(unsafe { &mut (*self.scope.get()) }))
     }
 
     fn require_bzl(&self) -> Result<()> {
@@ -134,7 +140,7 @@ impl EvalContextAttrExt for FakeEvalContext {
         &self,
         target_type: Option<OutputType>,
         target_name: &str,
-        scope: &FakeScope,
+        scope: std::pin::Pin<&mut FakeScope>,
     ) -> Result<std::pin::Pin<&'static mut FakeTarget>> {
         let label = Label::new(self.package.clone(), target_name.to_owned());
         let toolchain = self.current_toolchain().to_owned();

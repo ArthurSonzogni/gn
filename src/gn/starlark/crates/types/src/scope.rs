@@ -14,9 +14,12 @@ pub trait Scope {
 
     /// Creates a copy of the scope with some additional values set.
     fn copy_with<'a, 'v>(
-        &self,
+        self: std::pin::Pin<&mut Self>,
         kv: impl Iterator<Item = (&'a str, Value<'v>)>,
     ) -> starlark::Result<Self::Owned>;
+
+    /// Returns a pinned mutable reference to the owned scope.
+    fn as_pin_mut(owned: &mut Self::Owned) -> std::pin::Pin<&mut Self>;
 
     /// Retrieves a value from the key-value store.
     /// May allocate the value it retrieves on the heap.

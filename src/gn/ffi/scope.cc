@@ -12,7 +12,7 @@
 #include "gn/scope.h"
 #include "gn/value.h"
 
-SliceAny NewScope(const Scope& parent_scope,
+SliceAny NewScope(Scope& parent_scope,
                   rust::Slice<const rust::Str> keys,
                   std::unique_ptr<Scope>& out_scope) {
   auto new_scope = std::make_unique<Scope>(&parent_scope);

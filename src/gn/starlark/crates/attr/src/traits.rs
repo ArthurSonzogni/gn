@@ -19,7 +19,7 @@ pub trait EvalContextAttrExt: types::EvalContext {
         &self,
         target_type: Option<OutputType>,
         target_name: &str,
-        scope: &Self::Scope,
+        scope: std::pin::Pin<&mut Self::Scope>,
     ) -> starlark::Result<
         std::pin::Pin<
             &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,

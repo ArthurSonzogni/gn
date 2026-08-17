@@ -20,7 +20,7 @@ class Value;
 // keys[i].
 //
 // Safety: Rust is required to convert this to an OwnedSlice<&Value>.
-SliceAny NewScope(const Scope& parent_scope,
+SliceAny NewScope(Scope& parent_scope,
                   rust::Slice<const rust::Str> keys,
                   std::unique_ptr<Scope>& out_scope);
 

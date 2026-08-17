@@ -896,7 +896,7 @@ struct OwnedFrozenValue final : public ::rust::Opaque {
   ::rust::Box<::OwnedFrozenValue> clone() const noexcept;
   ::rust::String to_string() const noexcept;
   bool eq(::OwnedFrozenValue const &other) const noexcept;
-  void invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope const &scope, ::ParseNodePtr origin, ::Err &err) const noexcept;
+  void invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope &scope, ::ParseNodePtr origin, ::Err &err) const noexcept;
   ~OwnedFrozenValue() = delete;
 
 private:
@@ -979,6 +979,11 @@ void cxxbridge1$196$Target$label(::Target const &self, ::Label const **return$) 
   return (self.*settings_cxx$)();
 }
 
+::Target *cxxbridge1$196$create_target(::Scope &scope, ::rust::Str name, ::rust::Str output_type, ::Err &err) noexcept {
+  ::Target *(*create_target$)(::Scope &, ::rust::Str, ::rust::Str, ::Err &) = ::create_target;
+  return create_target$(scope, name, output_type, err);
+}
+
 void cxxbridge1$196$register_dependency(::Target &target, ::rust::Str package, ::rust::Str name, ::rust::Str toolchain_package, ::rust::Str toolchain_name) noexcept {
   void (*register_dependency$)(::Target &, ::rust::Str, ::rust::Str, ::rust::Str, ::rust::Str) = ::register_dependency;
   register_dependency$(target, package, name, toolchain_package, toolchain_name);
@@ -989,8 +994,8 @@ void cxxbridge1$196$Settings$toolchain_label(::Settings const &self, ::Label con
   new (return$) ::Label const *(&(self.*toolchain_label$)());
 }
 
-void cxxbridge1$196$NewScope(::Scope const &parent_scope, ::rust::Slice<::rust::Str const> keys, ::std::unique_ptr<::Scope> &out_scope, ::SliceAny *return$) noexcept {
-  ::SliceAny (*NewScope$)(::Scope const &, ::rust::Slice<::rust::Str const>, ::std::unique_ptr<::Scope> &) = ::NewScope;
+void cxxbridge1$196$NewScope(::Scope &parent_scope, ::rust::Slice<::rust::Str const> keys, ::std::unique_ptr<::Scope> &out_scope, ::SliceAny *return$) noexcept {
+  ::SliceAny (*NewScope$)(::Scope &, ::rust::Slice<::rust::Str const>, ::std::unique_ptr<::Scope> &) = ::NewScope;
   new (return$) ::SliceAny(NewScope$(parent_scope, keys, out_scope));
 }
 
@@ -1130,7 +1135,7 @@ void cxxbridge1$196$OwnedFrozenValue$to_string_cxx(::OwnedFrozenValue const &sel
 
 bool cxxbridge1$196$OwnedFrozenValue$eq_cxx(::OwnedFrozenValue const &self, ::OwnedFrozenValue const &other) noexcept;
 
-void cxxbridge1$196$OwnedFrozenValue$invoke(::OwnedFrozenValue const &self, ::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope const &scope, ::ParseNodePtr *origin, ::Err &err) noexcept;
+void cxxbridge1$196$OwnedFrozenValue$invoke(::OwnedFrozenValue const &self, ::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope &scope, ::ParseNodePtr *origin, ::Err &err) noexcept;
 } // extern "C"
 
 ::std::size_t Session::layout::size() noexcept {
@@ -1176,7 +1181,7 @@ bool OwnedFrozenValue::eq(::OwnedFrozenValue const &other) const noexcept {
   return cxxbridge1$196$OwnedFrozenValue$eq_cxx(*this, other);
 }
 
-void OwnedFrozenValue::invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope const &scope, ::ParseNodePtr origin, ::Err &err) const noexcept {
+void OwnedFrozenValue::invoke(::Session const &session, ::std::vector<::Value> const &args, ::Scope const &kwargs, ::Value &out_val, ::Scope &scope, ::ParseNodePtr origin, ::Err &err) const noexcept {
   ::rust::ManuallyDrop<::ParseNodePtr> origin$(::std::move(origin));
   cxxbridge1$196$OwnedFrozenValue$invoke(*this, session, args, kwargs, out_val, scope, &origin$.value, err);
 }

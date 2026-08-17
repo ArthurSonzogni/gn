@@ -11,7 +11,7 @@ use crate::{bridge::Value, Immutable, OwnedSlice, Scope};
 
 impl Scope {
     fn new<'b>(
-        parent: &Self,
+        parent: Pin<&mut Self>,
         keys: &[&str],
     ) -> (cxx::UniquePtr<Self>, OwnedSlice<Pin<&'b mut Value>>) {
         let mut nested_scope = cxx::UniquePtr::<Self>::null();
@@ -58,8 +58,12 @@ impl Scope {
 impl types::Scope for Scope {
     type Owned = cxx::UniquePtr<Self>;
 
+    fn as_pin_mut(owned: &mut Self::Owned) -> std::pin::Pin<&mut Self> {
+        owned.pin_mut()
+    }
+
     fn copy_with<'b, 'v>(
-        &self,
+        self: std::pin::Pin<&mut Self>,
         kv: impl Iterator<Item = (&'b str, StarlarkValue<'v>)>,
     ) -> starlark::Result<Self::Owned> {
         let parent = self;
@@ -98,16 +102,15 @@ mod tests {
     #[test]
     fn test_owned_scope_methods() {
         let mut setup = TestWithScope::new();
-        let parent_scope = setup.scope();
 
-        let (child_ptr, _) = Scope::new(&*parent_scope, &[]);
+        let (mut child_ptr, _) = Scope::new(setup.scope(), &[]);
         starlark::environment::Module::with_temp_heap(|module| {
             let heap = module.heap();
 
             let val_int = heap.alloc(42);
             let val_str = heap.alloc("hello");
 
-            let grandchild_ptr = child_ptr
+            let grandchild_ptr = Scope::as_pin_mut(&mut child_ptr)
                 .copy_with(vec![("foo", val_int), ("bar", val_str)].into_iter())
                 .unwrap();
 

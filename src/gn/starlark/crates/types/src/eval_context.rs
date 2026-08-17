@@ -37,7 +37,8 @@ pub trait EvalContext:
     /// Use when a function cannot be called from other contexts (eg.
     /// `static_library` cannot be called inside rule evaluation).
     /// Returns the scope of the place the macro was called from.
-    fn require_macro(&self) -> starlark::Result<&Self::Scope>;
+    #[allow(clippy::mut_from_ref)]
+    fn require_macro(&self) -> starlark::Result<std::pin::Pin<&mut Self::Scope>>;
 
     /// Asserts that the current evaluation context is a bzl file context.
     fn require_bzl(&self) -> starlark::Result<()>;
