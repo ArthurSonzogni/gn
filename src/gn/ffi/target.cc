@@ -10,6 +10,16 @@
 #include "gn/label_ptr.h"
 #include "gn/source_dir.h"
 #include "gn/target.h"
+#include "gn/target_generator.h"
+
+Target* create_target(Scope& scope,
+                      rust::Str name,
+                      rust::Str output_type,
+                      Err& err) {
+  return TargetGenerator::GenerateTarget(&scope, nullptr,
+                                         std::string_view(name),
+                                         std::string_view(output_type), &err);
+}
 
 void register_dependency(Target& target,
                          rust::Str package,

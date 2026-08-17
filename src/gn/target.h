@@ -54,6 +54,7 @@ class Target : public Item {
     GENERATED_FILE,
     RUST_LIBRARY,
     RUST_PROC_MACRO,
+    NOOP,
   };
 
   enum DepsIterationType {

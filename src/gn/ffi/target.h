@@ -7,7 +7,15 @@
 
 #include "cxx.h"
 
+class Err;
+class Scope;
 class Target;
+
+// Creates and generates a new target in the given scope.
+Target* create_target(Scope& scope,
+                      rust::Str name,
+                      rust::Str output_type,
+                      Err& err);
 
 // Enforces that `target` cannot be resolved until the target for the label has
 // been resolved.

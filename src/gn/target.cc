@@ -562,6 +562,8 @@ const char* Target::GetStringForOutputType(OutputType type) {
       return functions::kRustLibrary;
     case RUST_PROC_MACRO:
       return functions::kRustProcMacro;
+    case NOOP:
+      return "noop";
     default:
       return "";
   }

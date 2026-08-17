@@ -25,6 +25,7 @@ pub enum OutputType {
     GeneratedFile,
     RustLibrary,
     RustProcMacro,
+    Noop,
 }
 
 impl OutputType {
