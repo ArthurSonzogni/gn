@@ -416,7 +416,9 @@ Target::~Target() = default;
 Location Target::user_friendly_location() const {
   if (!user_friendly_location_.is_null())
     return user_friendly_location_;
-  return defined_from()->GetRange().begin();
+  if (defined_from())
+    return defined_from()->GetRange().begin();
+  return Location();
 }
 
 // A technical note on accessors defined below: Using a static global

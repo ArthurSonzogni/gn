@@ -112,12 +112,21 @@ int RunSuggest(const std::vector<std::string>& args);
 
 using OutputStringFunc =
     std::function<void(std::string_view, TextDecoration, HtmlEscaping)>;
-bool OutputSuggestions(const std::vector<const Target*>& all_targets,
-                       const BuildSettings* build_settings,
-                       const Label& default_toolchain,
-                       std::string_view includer_name,
-                       std::string_view included_name,
-                       OutputStringFunc output_fn);
+
+enum class SuggestResult {
+  kSuccess = 0,
+  kFailure = 1,
+  kUnapplied = 2,
+};
+
+SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
+                                const BuildSettings* build_settings,
+                                const Label& default_toolchain,
+                                std::string_view includer_name,
+                                std::string_view included_name,
+                                OutputStringFunc output_fn,
+                                bool apply = false,
+                                Setup* setup = nullptr);
 
 extern const char kCleanStale[];
 extern const char kCleanStale_HelpShort[];

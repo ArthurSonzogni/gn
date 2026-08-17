@@ -15,11 +15,80 @@
 #include "gn/location.h"
 #include "gn/setup.h"
 #include "gn/standard_out.h"
+#include "gn/switches.h"
 #include "gn/target.h"
+#include "gn/test_with_scheduler.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
 
-TEST(Suggest, ResolveModuleName) {
+using SuggestTest = TestWithScheduler;
+
+struct TestProject {
+  base::ScopedTempDir in_temp_dir;
+  base::ScopedTempDir build_temp_dir;
+  base::FilePath in_path;
+  base::FilePath build_path;
+  Setup setup;
+
+  TestProject(std::map<SourceFile, std::string> files) {
+    EXPECT_TRUE(in_temp_dir.CreateUniqueTempDir());
+    in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+    EXPECT_TRUE(build_temp_dir.CreateUniqueTempDir());
+    build_path = base::MakeAbsoluteFilePath(build_temp_dir.GetPath());
+
+    files.try_emplace(SourceFile("//.gn"),
+                      "buildconfig = \"//BUILDCONFIG.gn\"\n");
+    files.try_emplace(SourceFile("//BUILDCONFIG.gn"),
+                      "set_default_toolchain(\"//toolchain:default\")\n");
+    files.try_emplace(SourceFile("//toolchain/BUILD.gn"), R"(
+toolchain("default") {
+  tool("cxx") {
+    command = "cxx"
+    outputs = [ "{{source_out_dir}}/{{source_file_part}}.o" ]
+  }
+  tool("link") {
+    command = "link"
+    outputs = [ "{{root_out_dir}}/{{target_output_name}}{{output_extension}}" ]
+  }
+  tool("stamp") {
+    command = "stamp"
+  }
+}
+)");
+
+    for (const auto& [file, content] : files) {
+      base::FilePath full_path = in_path.AppendASCII(file.value().substr(2));
+      base::CreateDirectory(full_path.DirName());
+      WriteFile(full_path, content, nullptr);
+    }
+
+    base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+    cmdline.AppendSwitchPath(switches::kRoot, in_path);
+    EXPECT_TRUE(setup.DoSetup(FilePathToUTF8(build_path), true, cmdline));
+    EXPECT_TRUE(setup.Run());
+  }
+
+  TestProject(std::string build_gn)
+      : TestProject(std::map<SourceFile, std::string>{
+            {SourceFile("//BUILD.gn"), std::move(build_gn)}}) {}
+
+  std::vector<const Target*> targets() {
+    return setup.builder().GetAllResolvedTargets();
+  }
+
+  const Label& default_toolchain() {
+    return setup.loader()->default_toolchain_label();
+  }
+
+  std::string Read(const SourceFile& file) const {
+    std::string content;
+    base::FilePath full_path = in_path.AppendASCII(file.value().substr(2));
+    base::ReadFileToString(full_path, &content);
+    return content;
+  }
+};
+
+TEST_F(SuggestTest, ResolveModuleName) {
   TestWithScope setup_scope;
   SourceDir current_dir("//");
   Label default_toolchain(SourceDir("//toolchain/"), "default");
@@ -52,7 +121,7 @@ TEST(Suggest, ResolveModuleName) {
   }
 }
 
-TEST(Suggest, ResolveTargetName) {
+TEST_F(SuggestTest, ResolveTargetName) {
   TestWithScope setup_scope;
   SourceDir current_dir("//");
   Label default_toolchain = setup_scope.toolchain()->label();
@@ -88,7 +157,7 @@ TEST(Suggest, ResolveTargetName) {
   EXPECT_TRUE(ok_toolchain);
 }
 
-TEST(Suggest, ResolveFileName) {
+TEST_F(SuggestTest, ResolveFileName) {
   TestWithScope setup_scope;
   SourceDir current_dir("//");
   Label default_toolchain = setup_scope.toolchain()->label();
@@ -286,7 +355,7 @@ TEST(Suggest, ResolveFileName) {
   }
 }
 
-TEST(Suggest, OutputSuggestions) {
+TEST_F(SuggestTest, OutputSuggestions) {
   TestWithScope setup_scope;
   Label default_toolchain = setup_scope.toolchain()->label();
 
@@ -488,4 +557,46 @@ TEST(Suggest, OutputSuggestions) {
       "(defined at //BUILD.gn:1)\n"
       "  (`gn edit \"add public_deps :private_target\" //:includer`)\n",
       run_suggest("private_target_Private"));
+}
+
+TEST_F(SuggestTest, ApplyValidSuggestion) {
+  TestProject project({
+      {SourceFile("//BUILD.gn"), R"(executable("includer") {
+  sources = [ "includer.cc" ]
+}
+
+source_set("included") {
+  sources = [ "included.h" ]
+}
+)"},
+      {SourceFile("//includer.cc"), ""},
+      {SourceFile("//included.h"), ""},
+  });
+
+  std::string output;
+  auto collect = [&](std::string_view s, TextDecoration, HtmlEscaping) {
+    output.append(s);
+  };
+
+  commands::SuggestResult result = commands::OutputSuggestions(
+      project.targets(), &project.setup.build_settings(),
+      project.default_toolchain(), "//includer.cc", "//included.h", collect,
+      true, &project.setup);
+
+  EXPECT_EQ(commands::SuggestResult::kSuccess, result);
+  EXPECT_EQ(
+      "[APPLIED] Suggestion: Add deps = [ \":included\" ] to :includer "
+      "(defined at //BUILD.gn:1)\n",
+      output);
+
+  std::string expected_build_gn = R"(executable("includer") {
+  sources = [ "includer.cc" ]
+  deps = [ ":included" ]
+}
+
+source_set("included") {
+  sources = [ "included.h" ]
+}
+)";
+  EXPECT_EQ(expected_build_gn, project.Read(SourceFile("//BUILD.gn")));
 }

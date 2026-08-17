@@ -1504,7 +1504,7 @@
 ### <a name="cmd_suggest"></a>**suggest**: Suggest fixes to build graph based on includes.&nbsp;[Back to Top](#gn-reference)
 
 ```
-  gn suggest <out_dir> includer1=included1 includer2=included2...
+  gn suggest [--apply] <out_dir> includer1=included1 includer2=included2...
 
   Where each includer or included is either:
   * A label
@@ -1519,6 +1519,13 @@
   Request: path/to/target.cc wants to depend on foo/bar.h
   Suggestion: Add deps = [ "//foo:bar" ] to //path/to:target (defined in //path/to/BUILD.gn:1234)
     (`gn edit "add deps //foo:bar" //path/to:target`)
+```
+
+#### **Options**:
+```
+  --apply
+      Automatically applies the suggested edits to the respective BUILD.gn
+      files.
 ```
 ## <a name="targets"></a>Target declarations
 
