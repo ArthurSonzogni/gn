@@ -234,6 +234,25 @@ EditCommand RemoveFromAttributeCommand(std::string attribute,
       });
 }
 
+EditCommand RenameAttributeCommand(std::string_view from_attribute,
+                                   std::string_view to_attribute) {
+  return EditTargetCommand([from_attribute = std::string(from_attribute),
+                            to_attribute = std::string(to_attribute)](
+                               BuildFile& build_file, const EditTarget& target,
+                               EditState& state) -> Err {
+    auto assignments = target.assignments(from_attribute);
+    for (auto& assignment : assignments) {
+      assignment->AsBinaryOpMut()->set_left(
+          build_file.create_identifier(to_attribute));
+    }
+    if (assignments.empty() && target.is_explicit) {
+      target.add_warning(
+          state, "does not contain the attribute \"" + from_attribute + "\".");
+    }
+    return Ok();
+  });
+}
+
 // Sets an attribute to a value.
 EditCommand SetCommand(std::string attribute, Value value) {
   return EditTargetCommand([=](BuildFile& build_file, const EditTarget& target,
@@ -295,6 +314,12 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
     ASSIGN_OR_RETURN(std::vector<Value> values,
                      ParseValues(base::make_span(args).subspan(2)));
     return RemoveFromAttributeCommand(args[1], std::move(values));
+  } else if (args[0] == "rename") {
+    if (args.size() != 3) {
+      return Err(Location(), "Invalid rename command.",
+                 "Usage: rename <from_attribute> <to_attribute>");
+    }
+    return RenameAttributeCommand(args[1], args[2]);
   } else if (args[0] == "set") {
     if (args.size() < 3) {
       return Err(Location(),
