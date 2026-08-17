@@ -329,14 +329,14 @@ TEST(Suggest, OutputSuggestions) {
 
   auto includer = create_target("includer", Target::GROUP, [](Target*) {});
 
-  auto run_suggest = [&](const Target& want) {
+  auto run_suggest = [&](std::string_view want) {
     std::string output;
     auto collect = [&](std::string_view s, TextDecoration, HtmlEscaping) {
       output.append(s);
     };
     commands::OutputSuggestions(all_targets, setup_scope.build_settings(),
-                                default_toolchain, "//:includer",
-                                want.module_name(), collect);
+                                default_toolchain, "//:includer", want,
+                                collect);
     return output;
   };
 
@@ -349,9 +349,10 @@ TEST(Suggest, OutputSuggestions) {
       });
   // Prefer the real target over the group that exposes it.
   EXPECT_EQ(
-      "Suggestion: Add public_deps = [ \":visible\" ] to :includer (defined at "
-      "//BUILD.gn:1)\n",
-      run_suggest(*visible));
+      "Suggestion: Add public_deps = [ \":visible\" ] to :includer (defined "
+      "at //BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps :visible\" //:includer`)\n",
+      run_suggest(visible->module_name()));
 
   auto invisible =
       create_target("invisible", Target::SOURCE_SET, [&](Target* t) {});
@@ -360,8 +361,9 @@ TEST(Suggest, OutputSuggestions) {
       "Suggestion: Carefully consider whether you want to change the "
       "visibility so that you can depend on it\n"
       "Suggestion: Add public_deps = [ \":invisible\" ] to :includer (defined "
-      "at //BUILD.gn:1)\n",
-      run_suggest(*invisible));
+      "at //BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps :invisible\" //:includer`)\n",
+      run_suggest(invisible->module_name()));
 
   auto exposer_invisible =
       create_target("exposer_invisible", Target::GROUP, [&](Target* t) {
@@ -374,9 +376,10 @@ TEST(Suggest, OutputSuggestions) {
       "visibility so that you can depend on one of them\n"
       "Suggestion: Add one of the following to public_deps in :includer "
       "(defined at //BUILD.gn:1):\n"
-      "* :exposer_invisible\n"
-      "* :invisible\n",
-      run_suggest(*invisible));
+      "* :exposer_invisible (`gn edit \"add public_deps :exposer_invisible\" "
+      "//:includer`)\n"
+      "* :invisible (`gn edit \"add public_deps :invisible\" //:includer`)\n",
+      run_suggest(invisible->module_name()));
 
   auto exposer_visible =
       create_target("exposer_visible", Target::GROUP, [&](Target* t) {
@@ -385,8 +388,9 @@ TEST(Suggest, OutputSuggestions) {
       });
   EXPECT_EQ(
       "Suggestion: Add public_deps = [ \":exposer_visible\" ] to :includer "
-      "(defined at //BUILD.gn:1)\n",
-      run_suggest(*invisible));
+      "(defined at //BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps :exposer_visible\" //:includer`)\n",
+      run_suggest(invisible->module_name()));
 
   auto exposer_visible2 =
       create_target("exposer_visible2", Target::GROUP, [&](Target* t) {
@@ -399,9 +403,11 @@ TEST(Suggest, OutputSuggestions) {
       "targets is visible to //:includer\n"
       "Suggestion: Add one of the following to public_deps in :includer "
       "(defined at //BUILD.gn:1):\n"
-      "* :exposer_visible\n"
-      "* :exposer_visible2\n",
-      run_suggest(*invisible));
+      "* :exposer_visible (`gn edit \"add public_deps :exposer_visible\" "
+      "//:includer`)\n"
+      "* :exposer_visible2 (`gn edit \"add public_deps :exposer_visible2\" "
+      "//:includer`)\n",
+      run_suggest(invisible->module_name()));
 
   auto exposer_specific =
       create_target("exposer_specific", Target::GROUP, [&](Target* t) {
@@ -410,8 +416,9 @@ TEST(Suggest, OutputSuggestions) {
       });
   EXPECT_EQ(
       "Suggestion: Add public_deps = [ \":exposer_specific\" ] to :includer "
-      "(defined at //BUILD.gn:1)\n",
-      run_suggest(*invisible));
+      "(defined at //BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps :exposer_specific\" //:includer`)\n",
+      run_suggest(invisible->module_name()));
 
   auto cyclic = create_target("cyclic", Target::SOURCE_SET, [&](Target* t) {
     t->public_deps().push_back(LabelTargetPair(includer.get()));
@@ -426,8 +433,9 @@ TEST(Suggest, OutputSuggestions) {
       "Suggestion: Find the part of the dependency chain where there is no "
       "#include and remove that dependency.\n"
       "Suggestion: Add public_deps = [ \":cyclic\" ] to :includer (defined at "
-      "//BUILD.gn:1)\n",
-      run_suggest(*cyclic));
+      "//BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps :cyclic\" //:includer`)\n",
+      run_suggest(cyclic->module_name()));
 
   auto cyclic_circular_includes = create_target(
       "cyclic_circular_includes", Target::STATIC_LIBRARY, [&](Target* t) {
@@ -458,8 +466,26 @@ TEST(Suggest, OutputSuggestions) {
       "  # public_deps, and any link variables from :cyclic_circular_includes\n"
       "}\n"
       "Suggestion: Add public_deps = [ \":cyclic_circular_includes_sources\" ] "
-      "to "
-      ":includer "
-      "(defined at //BUILD.gn:1)\n",
-      run_suggest(*cyclic_circular_includes));
+      "to :includer (defined at //BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps :cyclic_circular_includes_sources\" "
+      "//:includer`)\n",
+      run_suggest(cyclic_circular_includes->module_name()));
+
+  auto private_target =
+      create_target("private_target", Target::SOURCE_SET, [&](Target* t) {
+        t->set_all_headers_public(false);
+        t->sources().push_back(SourceFile("//private_target.h"));
+        t->visibility().SetPublic();
+      });
+  EXPECT_EQ(
+      "Warning: \"private_target_Private\" is in the private API of "
+      "//:private_target\n"
+      "Suggestion: Move \"private_target.h\" from `sources` to `public` "
+      "in :private_target (defined at //BUILD.gn:1)\n"
+      "  (`gn edit \"move sources public private_target.h\" "
+      "//:private_target`)\n"
+      "Suggestion: Add public_deps = [ \":private_target\" ] to :includer "
+      "(defined at //BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps :private_target\" //:includer`)\n",
+      run_suggest("private_target_Private"));
 }

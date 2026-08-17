@@ -1517,7 +1517,8 @@
 
   Will print a suggestion like:
   Request: path/to/target.cc wants to depend on foo/bar.h
-  Suggestion: add deps = [ "//foo:bar" ] to "//path/to:target" (defined in //path/to/BUILD.gn:1234)
+  Suggestion: Add deps = [ "//foo:bar" ] to //path/to:target (defined in //path/to/BUILD.gn:1234)
+    (`gn edit "add deps //foo:bar" //path/to:target`)
 ```
 ## <a name="targets"></a>Target declarations
 
