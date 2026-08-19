@@ -366,3 +366,30 @@ TEST(ParseTree, Integers) {
     EXPECT_TRUE(err.has_error());
   }
 }
+
+TEST(ParseTree, Clone) {
+  TestParseInput input(
+      "# Top comment\n"
+      "a = [ \"foo\", \"bar\" ]\n"
+      "if (a != []) {\n"
+      "  b = a[0]\n"
+      "  c = !false\n"
+      "}\n"
+      "print(a)\n");
+  EXPECT_SUCCESS(input);
+
+  const ParseNode* original = input.parsed();
+  std::unique_ptr<ParseNode> cloned = original->Clone();
+  ASSERT_NE(nullptr, cloned);
+  EXPECT_EQ(original->GetJSONNode(), cloned->GetJSONNode());
+
+  TestWithScope setup_orig;
+  Err err_orig;
+  original->Execute(setup_orig.scope(), &err_orig);
+  EXPECT_SUCCESS(err_orig);
+
+  TestWithScope setup_clone;
+  Err err_clone;
+  cloned->Execute(setup_clone.scope(), &err_clone);
+  EXPECT_SUCCESS(err_clone);
+}

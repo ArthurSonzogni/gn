@@ -184,6 +184,10 @@ Comments::Comments() = default;
 
 Comments::~Comments() = default;
 
+std::unique_ptr<Comments> Comments::Clone() const {
+  return std::unique_ptr<Comments>(new Comments(*this));
+}
+
 void Comments::ReverseSuffix() {
   for (int i = 0, j = static_cast<int>(suffix_.size() - 1); i < j; ++i, --j)
     std::swap(suffix_[i], suffix_[j]);
@@ -278,6 +282,14 @@ void ParseNode::AddCommentsJSONNodes(base::Value* out_value) const {
   }
 }
 
+std::unique_ptr<ParseNode> ParseNode::Clone() const {
+  std::unique_ptr<ParseNode> clone = CloneImpl();
+  if (comments_) {
+    clone->comments_ = comments_->Clone();
+  }
+  return clone;
+}
+
 // static
 std::unique_ptr<ParseNode> ParseNode::BuildFromJSON(const base::Value& value) {
   const std::string& str_type = value.FindKey(kJsonNodeType)->GetString();
@@ -352,6 +364,16 @@ base::Value AccessorNode::GetJSONNode() const {
   }
   dict.SetKey(kJsonNodeChild, std::move(child));
   return dict;
+}
+
+std::unique_ptr<ParseNode> AccessorNode::CloneImpl() const {
+  auto node = std::make_unique<AccessorNode>();
+  node->set_base(base_);
+  if (subscript_)
+    node->set_subscript(subscript_->Clone());
+  if (member_)
+    node->set_member(member_->Clone());
+  return node;
 }
 
 #define DECLARE_CHILD_AS_LIST_OR_FAIL()                     \
@@ -553,6 +575,16 @@ base::Value BinaryOpNode::GetJSONNode() const {
   return dict;
 }
 
+std::unique_ptr<ParseNode> BinaryOpNode::CloneImpl() const {
+  auto node = std::make_unique<BinaryOpNode>();
+  node->set_op(op_);
+  if (left_)
+    node->set_left(left_->Clone());
+  if (right_)
+    node->set_right(right_->Clone());
+  return node;
+}
+
 // static
 std::unique_ptr<BinaryOpNode> BinaryOpNode::NewFromJSON(
     const base::Value& value) {
@@ -660,6 +692,18 @@ base::Value BlockNode::GetJSONNode() const {
   return dict;
 }
 
+std::unique_ptr<ParseNode> BlockNode::CloneImpl() const {
+  auto node = std::make_unique<BlockNode>(result_mode_);
+  node->set_begin_token(begin_token_);
+  if (end_)
+    node->set_end(end_->Clone());
+  for (const auto& statement : statements_) {
+    if (statement)
+      node->append_statement(statement->Clone());
+  }
+  return node;
+}
+
 // static
 std::unique_ptr<BlockNode> BlockNode::NewFromJSON(const base::Value& value) {
   const std::string& result_mode = value.FindKey(kDumpResultMode)->GetString();
@@ -748,6 +792,18 @@ base::Value ConditionNode::GetJSONNode() const {
   return dict;
 }
 
+std::unique_ptr<ParseNode> ConditionNode::CloneImpl() const {
+  auto node = std::make_unique<ConditionNode>();
+  node->set_if_token(if_token_);
+  if (condition_)
+    node->set_condition(condition_->Clone());
+  if (if_true_)
+    node->set_if_true(if_true_->Clone());
+  if (if_false_)
+    node->set_if_false(if_false_->Clone());
+  return node;
+}
+
 // static
 std::unique_ptr<ConditionNode> ConditionNode::NewFromJSON(
     const base::Value& value) {
@@ -803,6 +859,16 @@ base::Value FunctionCallNode::GetJSONNode() const {
   }
   dict.SetKey(kJsonNodeChild, std::move(child));
   return dict;
+}
+
+std::unique_ptr<ParseNode> FunctionCallNode::CloneImpl() const {
+  auto node = std::make_unique<FunctionCallNode>();
+  node->set_function(function_);
+  if (args_)
+    node->set_args(args_->Clone());
+  if (block_)
+    node->set_block(block_->Clone());
+  return node;
 }
 
 // static
@@ -881,6 +947,10 @@ base::Value IdentifierNode::GetJSONNode() const {
   return CreateJSONNode(kDumpNodeName, value_.value(), GetRange());
 }
 
+std::unique_ptr<ParseNode> IdentifierNode::CloneImpl() const {
+  return std::make_unique<IdentifierNode>(value_);
+}
+
 // static
 std::unique_ptr<IdentifierNode> IdentifierNode::NewFromJSON(
     const base::Value& value) {
@@ -945,6 +1015,18 @@ base::Value ListNode::GetJSONNode() const {
   dict.SetKey(kJsonNodeChild, std::move(child));
   dict.SetKey(kJsonBeginToken, base::Value(begin_token_.value()));
   return dict;
+}
+
+std::unique_ptr<ParseNode> ListNode::CloneImpl() const {
+  auto node = std::make_unique<ListNode>();
+  node->set_begin_token(begin_token_);
+  if (end_)
+    node->set_end(end_->Clone());
+  for (const auto& item : contents_) {
+    if (item)
+      node->append_item(item->Clone());
+  }
+  return node;
 }
 
 // static
@@ -1212,6 +1294,16 @@ base::Value LiteralNode::GetJSONNode() const {
   return CreateJSONNode(kDumpNodeName, value_.value(), GetRange());
 }
 
+std::unique_ptr<ParseNode> LiteralNode::CloneImpl() const {
+  auto node = std::make_unique<LiteralNode>(value_);
+  if (!shortened_value_.empty()) {
+    node->shortened_value_ = shortened_value_;
+    node->value_ =
+        Token(value_.location(), value_.type(), node->shortened_value_);
+  }
+  return node;
+}
+
 // static
 std::unique_ptr<LiteralNode> LiteralNode::NewFromJSON(
     const base::Value& value) {
@@ -1302,6 +1394,14 @@ base::Value UnaryOpNode::GetJSONNode() const {
   return dict;
 }
 
+std::unique_ptr<ParseNode> UnaryOpNode::CloneImpl() const {
+  auto node = std::make_unique<UnaryOpNode>();
+  node->set_op(op_);
+  if (operand_)
+    node->set_operand(operand_->Clone());
+  return node;
+}
+
 // static
 std::unique_ptr<UnaryOpNode> UnaryOpNode::NewFromJSON(
     const base::Value& value) {
@@ -1341,6 +1441,12 @@ base::Value BlockCommentNode::GetJSONNode() const {
   return CreateJSONNode(kDumpNodeName, comment_.value(), GetRange());
 }
 
+std::unique_ptr<ParseNode> BlockCommentNode::CloneImpl() const {
+  auto node = std::make_unique<BlockCommentNode>();
+  node->set_comment(comment_);
+  return node;
+}
+
 // static
 std::unique_ptr<BlockCommentNode> BlockCommentNode::NewFromJSON(
     const base::Value& value) {
@@ -1376,6 +1482,10 @@ Err EndNode::MakeErrorDescribing(const std::string& msg,
 
 base::Value EndNode::GetJSONNode() const {
   return CreateJSONNode(kDumpNodeName, value_.value(), GetRange());
+}
+
+std::unique_ptr<ParseNode> EndNode::CloneImpl() const {
+  return std::make_unique<EndNode>(value_);
 }
 
 // static

@@ -44,6 +44,8 @@ class Comments {
   Comments();
   virtual ~Comments();
 
+  std::unique_ptr<Comments> Clone() const;
+
   const std::vector<Token>& before() const { return before_; }
   void append_before(Token c) { before_.push_back(c); }
   void clear_before() { before_.clear(); }
@@ -59,6 +61,9 @@ class Comments {
   void append_after(Token c) { after_.push_back(c); }
 
  private:
+  Comments(const Comments&) = default;
+  Comments& operator=(const Comments&) = delete;
+
   // Whole line comments before the expression.
   std::vector<Token> before_;
 
@@ -68,9 +73,6 @@ class Comments {
   // For top-level expressions only, after_ lists whole-line comments
   // following the expression.
   std::vector<Token> after_;
-
-  Comments(const Comments&) = delete;
-  Comments& operator=(const Comments&) = delete;
 };
 
 // ParseNode -------------------------------------------------------------------
@@ -133,12 +135,16 @@ class ParseNode {
   // exporting the tree as a JSON or formatted text with indents.
   virtual base::Value GetJSONNode() const = 0;
 
+  // Clones the node. Useful for AST manipulation.
+  std::unique_ptr<ParseNode> Clone() const;
+
   const Comments* comments() const { return comments_.get(); }
   Comments* comments_mutable();
 
   static std::unique_ptr<ParseNode> BuildFromJSON(const base::Value& value);
 
  protected:
+  virtual std::unique_ptr<ParseNode> CloneImpl() const = 0;
   // Helper functions for GetJSONNode. Creates and fills a Value object with
   // given type (and value).
   base::Value CreateJSONNode(const char* type, LocationRange location) const;
@@ -224,6 +230,9 @@ class AccessorNode : public ParseNode {
 
   static constexpr const char* kDumpNodeName = "ACCESSOR";
 
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
+
  private:
   Value ExecuteSubscriptAccess(Scope* scope, Err* err) const;
   Value ExecuteArrayAccess(Scope* scope,
@@ -285,6 +294,9 @@ class BinaryOpNode : public ParseNode {
 
   static constexpr const char* kDumpNodeName = "BINARY";
 
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
+
  private:
   std::unique_ptr<ParseNode> left_;
   Token op_;
@@ -319,6 +331,10 @@ class BlockNode : public ParseNode {
       const std::string& msg,
       const std::string& help = std::string()) const override;
   base::Value GetJSONNode() const override;
+  std::unique_ptr<BlockNode> Clone() const {
+    return std::unique_ptr<BlockNode>(
+        static_cast<BlockNode*>(ParseNode::Clone().release()));
+  }
   static std::unique_ptr<BlockNode> NewFromJSON(const base::Value& value);
 
   void set_begin_token(const Token& t) { begin_token_ = t; }
@@ -336,6 +352,9 @@ class BlockNode : public ParseNode {
   }
 
   static constexpr const char* kDumpNodeName = "BLOCK";
+
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
 
  private:
   static constexpr const char* kDumpResultMode = "result_mode";
@@ -392,6 +411,9 @@ class ConditionNode : public ParseNode {
 
   static constexpr const char* kDumpNodeName = "CONDITION";
 
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
+
  private:
   // Token corresponding to the "if" string.
   Token if_token_;
@@ -436,6 +458,9 @@ class FunctionCallNode : public ParseNode {
 
   static constexpr const char* kDumpNodeName = "FUNCTION";
 
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
+
  private:
   Token function_;
   std::unique_ptr<ListNode> args_;
@@ -460,6 +485,10 @@ class IdentifierNode : public ParseNode {
       const std::string& msg,
       const std::string& help = std::string()) const override;
   base::Value GetJSONNode() const override;
+  std::unique_ptr<IdentifierNode> Clone() const {
+    return std::unique_ptr<IdentifierNode>(
+        static_cast<IdentifierNode*>(ParseNode::Clone().release()));
+  }
   static std::unique_ptr<IdentifierNode> NewFromJSON(const base::Value& value);
 
   const Token& value() const { return value_; }
@@ -468,6 +497,9 @@ class IdentifierNode : public ParseNode {
   void SetNewLocation(int line_number);
 
   static constexpr const char* kDumpNodeName = "IDENTIFIER";
+
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
 
  private:
   Token value_;
@@ -490,6 +522,10 @@ class ListNode : public ParseNode {
       const std::string& msg,
       const std::string& help = std::string()) const override;
   base::Value GetJSONNode() const override;
+  std::unique_ptr<ListNode> Clone() const {
+    return std::unique_ptr<ListNode>(
+        static_cast<ListNode*>(ParseNode::Clone().release()));
+  }
   static std::unique_ptr<ListNode> NewFromJSON(const base::Value& value);
 
   void set_begin_token(const Token& t) { begin_token_ = t; }
@@ -519,6 +555,9 @@ class ListNode : public ParseNode {
   std::vector<SortRange> GetSortRanges() const;
 
   static constexpr const char* kDumpNodeName = "LIST";
+
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
 
  private:
   template <typename Comparator>
@@ -560,6 +599,9 @@ class LiteralNode : public ParseNode {
 
   static constexpr const char* kDumpNodeName = "LITERAL";
 
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
+
  private:
   Token value_;
   std::string shortened_value_;
@@ -593,6 +635,9 @@ class UnaryOpNode : public ParseNode {
   }
 
   static constexpr const char* kDumpNodeName = "UNARY";
+
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
 
  private:
   Token op_;
@@ -629,6 +674,9 @@ class BlockCommentNode : public ParseNode {
 
   static constexpr const char* kDumpNodeName = "BLOCK_COMMENT";
 
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
+
  private:
   Token comment_;
 
@@ -654,12 +702,19 @@ class EndNode : public ParseNode {
       const std::string& msg,
       const std::string& help = std::string()) const override;
   base::Value GetJSONNode() const override;
+  std::unique_ptr<EndNode> Clone() const {
+    return std::unique_ptr<EndNode>(
+        static_cast<EndNode*>(ParseNode::Clone().release()));
+  }
   static std::unique_ptr<EndNode> NewFromJSON(const base::Value& value);
 
   const Token& value() const { return value_; }
   void set_value(const Token& t) { value_ = t; }
 
   static constexpr const char* kDumpNodeName = "END";
+
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override;
 
  private:
   Token value_;
