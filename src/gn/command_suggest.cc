@@ -677,6 +677,14 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     OutputEditCommand(edit, included);
   }
 
+  // If a public header attempts to include a private header, we output "suggest
+  // making private header public". We also suggest depending on the target that
+  // declares the private header. If it's all within the same target though, we
+  // should stop here and not suggest adding the dependency.
+  if (includer == included) {
+    return result;
+  }
+
   // TODO: There are a bunch of optimizations we can perform here to make better
   // suggestions. They may be considered in the future. Some initial thoughts
   // include:
