@@ -4,6 +4,12 @@
 
 #include "gn/edit_subcommands.h"
 
+#include <optional>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "gn/build_file_editor.h"
@@ -311,6 +317,130 @@ EditCommand SetCommand(std::string attribute, Value value) {
   });
 }
 
+Result<std::string> GetShardName(const LocationRange& location,
+                                 std::string_view path) {
+  if (path.empty() || path.starts_with("/")) {
+    return Err(
+        location,
+        "Cannot shard target with non-relative source path: " +
+            std::string(path),
+        "Determining a shard name is not supported for non-relative paths.");
+  }
+  if (path.starts_with("./")) {
+    path.remove_prefix(2);
+  }
+
+  size_t last_slash = path.rfind('/');
+  size_t last_dot = path.rfind('.');
+  if (last_dot != std::string_view::npos &&
+      (last_slash == std::string_view::npos || last_dot > last_slash)) {
+    path = path.substr(0, last_dot);
+  }
+
+  std::string shard_name;
+  shard_name.reserve(path.size());
+  for (char c : path) {
+    if (c == '/' || c == '\\' || c == '.' || c == '-') {
+      shard_name.push_back('_');
+    } else {
+      shard_name.push_back(c);
+    }
+  }
+  return shard_name;
+}
+
+EditCommand ShardCommand(
+    std::optional<std::string> shard_target_type = std::nullopt,
+    std::string group_type = "group") {
+  return EditTargetCommand([shard_target_type, group_type](
+                               BuildFile& build_file, const EditTarget& target,
+                               EditState& state) -> Err {
+    std::set<std::string> shards;
+    for (auto assign : target.assignments({"sources", "public"})) {
+      for (const auto& item : FindAllListElements(assign)) {
+        if (auto lit = AsStringLiteral(item.node()); lit) {
+          ASSIGN_OR_RETURN(std::string shard_name,
+                           GetShardName(item->GetRange(), *lit));
+          shards.insert(std::move(shard_name));
+        }
+      }
+    }
+
+    if (shards.size() <= 1) {
+      target.add_warning(state, "does not need to be sharded.");
+      return Ok();
+    }
+
+    for (auto assign : target.assignments({"public_deps", "deps"})) {
+      assign.RemoveSelfUnconditionally();
+    }
+
+    std::vector<Value> target_names;
+    auto [container, it] = target.node.node_location();
+    // Ensure we insert the shard after the group.
+    ++it;
+
+    for (const auto& shard : shards) {
+      // Note: If a target "foo" contains both "foo.cc" and "foo_foo.cc", both
+      // would map to "foo_foo". This is a rare edge case that is not worth
+      // complex disambiguation logic.
+      std::string target_name = (shard == target.label.name())
+                                    ? (target.label.name() + "_" + shard)
+                                    : shard;
+      target_names.push_back(Value(nullptr, ":" + target_name));
+      state.needs_fix_deps.insert(Label(target.label.dir(), target_name));
+
+      auto node = target.node.node()->Clone();
+      auto* func = node->AsFunctionCallMut();
+      if (shard_target_type) {
+        func->set_function(Token(func->function().location(), Token::IDENTIFIER,
+                                 *shard_target_type));
+      }
+      it = container.insert(it, std::move(node));
+      ++it;
+
+      func->args()->contents()[0] =
+          build_file.to_node(Value(nullptr, target_name));
+
+      for (auto assign :
+           TreeNode({func->block()}).assignments({"sources", "public"})) {
+        for (const auto& item : FindAllListElements(assign)) {
+          if (auto lit = AsStringLiteral(item.node()); lit) {
+            auto res = GetShardName(item->GetRange(), *lit);
+            DCHECK(!res.has_error()) << "should have failed above";
+            if (*res != shard) {
+              item.RemoveSelfUnconditionally();
+            }
+          }
+        }
+      }
+    }
+
+    auto* orig_func = target.node.node()->AsFunctionCallMut();
+    orig_func->set_function(
+        Token(orig_func->function().location(), Token::IDENTIFIER, group_type));
+
+    std::vector<std::unique_ptr<ParseNode>> group_stmts;
+    group_stmts.push_back(build_file.create_assignment(
+        "public_deps",
+        build_file.to_node(Value(nullptr, std::move(target_names)))));
+    for (const auto& assign : target.assignments({"testonly", "visibility"})) {
+      auto node = assign.node()->Clone();
+      if (assign.is_conditional()) {
+        TreeNode({node.get()})
+            .add_todo(
+                state, target,
+                "This was conditional in the original target. Manual review is "
+                "required to decide if it applies to this group target.");
+      }
+      group_stmts.push_back(std::move(node));
+    }
+
+    target.block->statements() = std::move(group_stmts);
+    return Ok();
+  });
+}
+
 }  // namespace
 
 Result<EditCommand> ParseCommand(std::vector<std::string> args) {
@@ -411,6 +541,17 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
     }
 
     return SetCommand(std::string(attribute), std::move(val));
+  } else if (args[0] == "shard") {
+    if (args.size() == 1) {
+      return ShardCommand();
+    } else if (args.size() == 2) {
+      return ShardCommand(args[1]);
+    } else if (args.size() == 3) {
+      return ShardCommand(args[1], args[2]);
+    } else {
+      return Err(Location(), "Invalid shard command.",
+                 "Usage: shard [sharded target type] [group type]");
+    }
   } else {
     return Err(Location(),
                "Unknown edit command: " + std::string(args[0]) +

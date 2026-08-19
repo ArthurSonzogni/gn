@@ -91,7 +91,21 @@ const char kEdit_Help[] =
     "      Examples:\n"
     "        gn edit \"set testonly true\" //src/tools:*\n"
     "        gn edit \"set srcs:list foo.cc\" //:foo\n"
-    "        gn edit \"set deps :bar :baz\" //:foo\n";
+    "        gn edit \"set deps :bar :baz\" //:foo\n"
+    "\n"
+    "  shard [sharded_target_type] [group_type]\n"
+    "      Splits the target's sources into fine-grained shard targets,\n"
+    "      inheriting compilation flags, and updates the parent\n"
+    "      target to depend on the newly created shards.\n"
+    "      Note: Sharding strips existing deps and clones conditional blocks\n"
+    "      into each shard. For conditional sources (e.g. `if (is_win)`),\n"
+    "      manual cleanup is often needed, such as:\n"
+    "        * Moving the condition to wrap the shard instead of the sources\n"
+    "        * Stripping empty conditions\n"
+    "\n"
+    "      Examples:\n"
+    "        gn edit \"shard\" //:large_target\n"
+    "        gn edit \"shard source_set static_library\" //:large_target\n";
 
 Result<std::pair<std::vector<SourceFile>, EditState>> RunEditImpl(
     const std::vector<std::string>& args,
@@ -185,6 +199,19 @@ int RunEdit(const std::vector<std::string>& args) {
         "\nWhere manual review is required, comments have been added to the "
         "build file of the form:\n'# TODO(gn edit: <command>): ...'\n",
         DECORATION_DIM);
+  }
+  const auto& needs_fix_deps = result->second.needs_fix_deps;
+  if (!needs_fix_deps.empty()) {
+    OutputString(
+        "\nTo automatically resolve and populate dependencies for sharded "
+        "targets, run:\n",
+        DECORATION_YELLOW);
+    std::string check_cmd = "gn check <out_dir>";
+    for (const Label& label : needs_fix_deps) {
+      check_cmd += " " + label.GetUserVisibleName(false);
+    }
+    check_cmd += " --fix\n";
+    OutputString(check_cmd, DECORATION_GREEN);
   }
   return 0;
 }

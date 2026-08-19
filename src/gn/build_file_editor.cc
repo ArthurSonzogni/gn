@@ -42,14 +42,6 @@ std::optional<Value> AsLiteralValue(const ParseNode* node) {
   return v;
 }
 
-std::optional<std::string> AsStringLiteral(const ParseNode* node) {
-  auto val = AsLiteralValue(node);
-  if (val && val->type() == Value::STRING) {
-    return std::move(val->string_value());
-  }
-  return std::nullopt;
-}
-
 // Returns true if a node in the tree is a literal node matching the user's
 // request.
 bool Matches(const EditTarget& target,
@@ -168,6 +160,28 @@ Result<std::vector<SourceFile>> ResolvePatternToFiles(
 
 }  // namespace
 
+std::optional<std::string> AsStringLiteral(const ParseNode* node) {
+  auto val = AsLiteralValue(node);
+  if (val && val->type() == Value::STRING) {
+    return std::move(val->string_value());
+  }
+  return std::nullopt;
+}
+
+std::vector<TreeNode> FindAllListElements(const TreeNode& assignment) {
+  auto* op = assignment.AsAssignment();
+  if (!op)
+    return {};
+  return FindExpression<TreeNode>(
+      assignment.Descend(op->right()),
+      [](TreeNode& node_ref) -> std::optional<TreeNode> {
+        if (node_ref.parent() && node_ref.parent()->AsList()) {
+          return node_ref;
+        }
+        return std::nullopt;
+      });
+}
+
 std::vector<TreeNode> FindListElementInAssignment(const EditTarget& target,
                                                   const TreeNode& root,
                                                   const Value& value) {
@@ -240,25 +254,24 @@ bool TreeNode::is_modification() const {
   return false;
 }
 
-void TreeNode::add_todo(EditState& state, const EditTarget& target) const {
-  const std::vector<std::string> lines = {
-      "# TODO(gn edit: " + state.context + "):",
-      "# This would normally be deleted but is conditional.",
-      "# Manual intervention is required to decide whether it should "
-      "actually be deleted.",
-  };
-  for (const auto& line : lines) {
-    StringAtom atom(line);
-    Token comment_token(node()->GetRange().begin(), Token::LINE_COMMENT,
-                        atom.str());
-    node()->comments_mutable()->append_before(std::move(comment_token));
-  }
+void TreeNode::add_todo(EditState& state,
+                        const EditTarget& target,
+                        std::string_view message) const {
+  std::string line =
+      "# TODO(gn edit: " + state.context + "): " + std::string(message);
+  StringAtom atom(line);
+  Token comment_token(node()->GetRange().begin(), Token::LINE_COMMENT,
+                      atom.str());
+  node()->comments_mutable()->append_before(std::move(comment_token));
   state.needs_manual_review.insert(target.label);
 }
 
 void TreeNode::RemoveSelf(EditState& state, const EditTarget& target) const {
   if (is_conditional()) {
-    add_todo(state, target);
+    add_todo(state, target,
+             "This would normally be deleted but is conditional. Manual "
+             "intervention is required to decide whether it should actually be "
+             "deleted.");
   } else {
     RemoveSelfUnconditionally();
   }
@@ -348,22 +361,38 @@ Err LabelMatcher::done() const {
   return Ok();
 }
 
-std::vector<TreeNode> EditTarget::assignments(std::string_view attr) const {
+std::vector<TreeNode> TreeNode::assignments(
+    std::initializer_list<std::string_view> attrs) const {
   return FindStatement<TreeNode>(
-      block, [attr](TreeNode& node_ref) -> std::optional<TreeNode> {
+      node(), [attrs](TreeNode& node_ref) -> std::optional<TreeNode> {
         if (const auto* op = node_ref->AsBinaryOp()) {
           if (op->op().type() == Token::EQUAL ||
               op->op().type() == Token::PLUS_EQUALS ||
               op->op().type() == Token::MINUS_EQUALS) {
             if (const auto* left = op->left()->AsIdentifier()) {
-              if (left->value().value() == attr) {
-                return node_ref;
+              for (auto attr : attrs) {
+                if (left->value().value() == attr) {
+                  return node_ref;
+                }
               }
             }
           }
         }
         return std::nullopt;
       });
+}
+
+std::vector<TreeNode> TreeNode::assignments(std::string_view attr) const {
+  return assignments({attr});
+}
+
+std::vector<TreeNode> EditTarget::assignments(
+    std::initializer_list<std::string_view> attrs) const {
+  return node.Descend(block).assignments(attrs);
+}
+
+std::vector<TreeNode> EditTarget::assignments(std::string_view attr) const {
+  return assignments({attr});
 }
 
 void EditTarget::add_warning(EditState& state, std::string_view message) const {

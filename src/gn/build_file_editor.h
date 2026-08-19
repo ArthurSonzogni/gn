@@ -6,8 +6,10 @@
 #define TOOLS_GN_BUILD_FILE_EDITOR_H_
 
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -50,7 +52,9 @@ class TreeNode {
 
   // Adds a todo comment to the build file to show the user where manual
   // intervention is required.
-  void add_todo(EditState& state, const EditTarget& target) const;
+  void add_todo(EditState& state,
+                const EditTarget& target,
+                std::string_view message) const;
 
   // Removes self from the tree, or adds a TODO suggesting that it should
   // probably be removed.
@@ -75,6 +79,12 @@ class TreeNode {
   const std::vector<ParseNode*>& stack() const { return stack_; }
 
   TreeNode Descend(ParseNode* child) const;
+
+  // Calculates all =, +=, and -= assignments of the given attributes under this
+  // node.
+  std::vector<TreeNode> assignments(
+      std::initializer_list<std::string_view> attrs) const;
+  std::vector<TreeNode> assignments(std::string_view attr) const;
 
  private:
   std::vector<ParseNode*> stack_;
@@ -124,6 +134,12 @@ std::vector<T> FindStatement(
   return results;
 }
 
+// Returns the string literal value if the node is a string literal.
+std::optional<std::string> AsStringLiteral(const ParseNode* node);
+
+// Finds all list elements directly in an assignment expression.
+std::vector<TreeNode> FindAllListElements(const TreeNode& assignment);
+
 // Finds an element in an assignment expression ("=" or "+=") whose right-hand
 // side likely evaluates to a list.
 std::vector<TreeNode> FindListElementInAssignment(const EditTarget& target,
@@ -167,7 +183,9 @@ class LabelMatcher {
 
 // Represents a build target to be edited.
 struct EditTarget {
-  // Calculates all =, +=, and -= of a given attribute.
+  // Calculates all =, +=, and -= of the given attributes.
+  std::vector<TreeNode> assignments(
+      std::initializer_list<std::string_view> attrs) const;
   std::vector<TreeNode> assignments(std::string_view attr) const;
 
   // Emits a warning to the user.

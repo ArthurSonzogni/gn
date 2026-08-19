@@ -786,6 +786,20 @@
         gn edit "set testonly true" //src/tools:*
         gn edit "set srcs:list foo.cc" //:foo
         gn edit "set deps :bar :baz" //:foo
+
+  shard [sharded_target_type] [group_type]
+      Splits the target's sources into fine-grained shard targets,
+      inheriting compilation flags, and updates the parent
+      target to depend on the newly created shards.
+      Note: Sharding strips existing deps and clones conditional blocks
+      into each shard. For conditional sources (e.g. `if (is_win)`),
+      manual cleanup is often needed, such as:
+        * Moving the condition to wrap the shard instead of the sources
+        * Stripping empty conditions
+
+      Examples:
+        gn edit "shard" //:large_target
+        gn edit "shard source_set static_library" //:large_target
 ```
 ### <a name="cmd_format"></a>**gn format [\--dump-tree] [\--format-width=WIDTH] (\--stdin | &lt;list of build_files...&gt;)**&nbsp;[Back to Top](#gn-reference)
 

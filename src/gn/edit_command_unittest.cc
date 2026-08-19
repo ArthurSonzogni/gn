@@ -43,6 +43,10 @@ std::string Pretty(const Edited& edited) {
   if (!edited.edit_state_.warnings.empty()) {
     res += "\nWarnings: " + testing::Pretty(edited.edit_state_.warnings);
   }
+  if (!edited.edit_state_.needs_fix_deps.empty()) {
+    res += "\nNeeds check --fix: " +
+           testing::Pretty(edited.edit_state_.needs_fix_deps);
+  }
   return res;
 }
 
@@ -243,16 +247,16 @@ if (is_win) {
 )"),
                  Edited(R"(
 if (is_win) {
-  # TODO(gn edit: delete):
-  # This would normally be deleted but is conditional.
-  # Manual intervention is required to decide whether it should actually be deleted.
+  # TODO(gn edit: delete): This would normally be deleted but is conditional.
+  # Manual intervention is required to decide whether it should actually be
+  # deleted.
   executable("bar") {
     sources = [ "bar.cc" ]
   }
 } else {
-  # TODO(gn edit: delete):
-  # This would normally be deleted but is conditional.
-  # Manual intervention is required to decide whether it should actually be deleted.
+  # TODO(gn edit: delete): This would normally be deleted but is conditional.
+  # Manual intervention is required to decide whether it should actually be
+  # deleted.
   executable("bar") {
     sources = [ "bar.cc" ]
   }
@@ -580,9 +584,9 @@ executable("foo") {
   ]
 
   if (is_linux) {
-    # TODO(gn edit: set deps //foo //bar):
-    # This would normally be deleted but is conditional.
-    # Manual intervention is required to decide whether it should actually be deleted.
+    # TODO(gn edit: set deps //foo //bar): This would normally be deleted but is
+    # conditional. Manual intervention is required to decide whether it should
+    # actually be deleted.
     deps += [ "//linux" ]
   }
 }
@@ -603,9 +607,9 @@ executable("foo") {
                      R"(
 executable("foo") {
   if (is_linux) {
-    # TODO(gn edit: set deps:list //foo):
-    # This would normally be deleted but is conditional.
-    # Manual intervention is required to decide whether it should actually be deleted.
+    # TODO(gn edit: set deps:list //foo): This would normally be deleted but is
+    # conditional. Manual intervention is required to decide whether it should
+    # actually be deleted.
     deps = [ "//linux" ]
     public_deps = [ "//linux" ]
   }
@@ -613,6 +617,152 @@ executable("foo") {
 }
 )",
                      EditState({Label(SourceDir("//"), "foo")})));
+}
+
+TEST_F(EditCommandTest, ShardSubcommand) {
+  // Shards target across sources and subdirectory files, preserving
+  // conditionals, attributes, and visibility.
+  EXPECT_SUCCESS(DoEdit("shard", {"//:foo"},
+                        R"(
+static_library("foo") {
+  sources = [
+    "a.cc",
+    "a.h",
+    "foo.h",
+    "util/foo-bar.cc",
+    "util/foo-bar.h",
+  ]
+  if (is_win) {
+    sources += [ "c_win.cc" ]
+  }
+  defines = [ "ENABLE_FEATURE" ]
+  deps = [ "//base" ]
+  testonly = true
+  visibility = [ "//..." ]
+}
+)"),
+                 Edited(R"(
+group("foo") {
+  public_deps = [
+    ":a",
+    ":c_win",
+    ":foo_foo",
+    ":util_foo_bar",
+  ]
+
+  testonly = true
+  visibility = [ "//..." ]
+}
+static_library("a") {
+  sources = [
+    "a.cc",
+    "a.h",
+  ]
+  if (is_win) {
+    sources += []
+  }
+  defines = [ "ENABLE_FEATURE" ]
+
+  testonly = true
+  visibility = [ "//..." ]
+}
+static_library("c_win") {
+  sources = []
+  if (is_win) {
+    sources += [ "c_win.cc" ]
+  }
+  defines = [ "ENABLE_FEATURE" ]
+
+  testonly = true
+  visibility = [ "//..." ]
+}
+static_library("foo_foo") {
+  sources = [ "foo.h" ]
+  if (is_win) {
+    sources += []
+  }
+  defines = [ "ENABLE_FEATURE" ]
+
+  testonly = true
+  visibility = [ "//..." ]
+}
+static_library("util_foo_bar") {
+  sources = [
+    "util/foo-bar.cc",
+    "util/foo-bar.h",
+  ]
+  if (is_win) {
+    sources += []
+  }
+  defines = [ "ENABLE_FEATURE" ]
+
+  testonly = true
+  visibility = [ "//..." ]
+}
+)",
+                        EditState({}, {},
+                                  {Label(SourceDir("//"), "a"),
+                                   Label(SourceDir("//"), "c_win"),
+                                   Label(SourceDir("//"), "foo_foo"),
+                                   Label(SourceDir("//"), "util_foo_bar")})));
+
+  // Sharding with explicit shard target type and custom group type.
+  EXPECT_SUCCESS(DoEdit("shard source_set static_library", {"//:foo"},
+                        R"(
+static_library("foo") {
+  sources = [
+    "a.cc",
+    "b.cc",
+  ]
+}
+)"),
+                 Edited(R"(
+static_library("foo") {
+  public_deps = [
+    ":a",
+    ":b",
+  ]
+}
+source_set("a") {
+  sources = [ "a.cc" ]
+}
+source_set("b") {
+  sources = [ "b.cc" ]
+}
+)",
+                        EditState({}, {},
+                                  {Label(SourceDir("//"), "a"),
+                                   Label(SourceDir("//"), "b")})));
+
+  // Single source target emits a warning and is not sharded.
+  EXPECT_SUCCESS(
+      DoEdit("shard", {"//:foo"},
+             R"(
+static_library("foo") {
+  sources = [ "foo.cc" ]
+  deps = [ "//base" ]
+}
+)"),
+      Edited(R"(
+static_library("foo") {
+  sources = [ "foo.cc" ]
+  deps = [ "//base" ]
+}
+)",
+             EditState(
+                 {}, {Err(Location(),
+                          "Target \"//:foo\" does not need to be sharded.")})));
+
+  // Absolute source paths produce an error.
+  EXPECT_FAILURE(DoEdit("shard", {"//:foo"},
+                        R"(
+static_library("foo") {
+  sources = [
+    "//base/a.cc",
+    "b.cc",
+  ]
+}
+)"));
 }
 
 }  // namespace commands

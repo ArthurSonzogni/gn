@@ -19,8 +19,12 @@ struct EditState {
   explicit EditState(std::string context) : context(std::move(context)) {}
 
   EditState() = default;
-  EditState(std::set<Label> review, std::vector<Err> warn = {})
-      : needs_manual_review(std::move(review)), warnings(std::move(warn)) {}
+  EditState(std::set<Label> review,
+            std::vector<Err> warn = {},
+            std::set<Label> needs_fix_deps = {})
+      : needs_manual_review(std::move(review)),
+        warnings(std::move(warn)),
+        needs_fix_deps(std::move(needs_fix_deps)) {}
 
   // When something needs manual review, gn will output
   // "# TODO(gn edit: <context>)"
@@ -34,6 +38,9 @@ struct EditState {
   // runs: `gn edit "remove deps //bar" //foo`, but //bar was not a dependency
   // of //foo.
   std::vector<Err> warnings;
+  // Targets that have had dependencies stripped and need dependency resolution
+  // via `gn check <out_dir> --fix`.
+  std::set<Label> needs_fix_deps;
 };
 
 // EditCommand is a function that modifies a build file.
