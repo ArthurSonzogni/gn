@@ -751,6 +751,14 @@
       Example:
         gn edit "move deps public_deps //base" //src/tools:*
 
+  new <rule_kind> [(before|after) <relative_rule_name>]
+      Adds a new rule at the end of the BUILD file (or before/after
+      <relative_rule_name>). The rule name is determined by the target label.
+
+      Examples:
+        gn edit "new source_set" //src/tools:my_target
+        gn edit "new static_library before old_target" //src/tools:helper
+
   remove <attribute>
       Removes <attribute> entirely.
 

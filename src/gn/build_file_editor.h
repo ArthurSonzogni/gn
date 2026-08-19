@@ -56,6 +56,17 @@ class TreeNode {
   // probably be removed.
   void RemoveSelf(EditState& state, const EditTarget& target) const;
 
+  using NodeList = std::vector<std::unique_ptr<ParseNode>>;
+  using NodeListIterator = NodeList::iterator;
+  using NodeLocation = std::pair<NodeList&, NodeListIterator>;
+
+  // Returns the parent node's container (statements for BlockNode, contents for
+  // ListNode).
+  NodeList& container() const;
+
+  // Returns the parent node's container and an iterator pointing to this node.
+  NodeLocation node_location() const;
+
   // Removes self from the tree unconditionally without adding TODO comments.
   void RemoveSelfUnconditionally() const;
 
@@ -140,6 +151,9 @@ class LabelMatcher {
   // Checks whether a label was a match for a given pattern.
   MatchType matches(const std::string& name);
 
+  // Returns all explicitly named targets for this build file.
+  Result<std::vector<std::string>> explicit_target_names();
+
   // Call this when done editing a build file.
   // Any explicitly requested targets that were unused will trigger an error.
   Err done() const;
@@ -147,6 +161,7 @@ class LabelMatcher {
  private:
   SourceDir source_dir_;
   bool globbed_ = false;
+  std::vector<std::string> explicit_names_;
   std::unordered_map<std::string, bool> used_;
 };
 
@@ -185,8 +200,13 @@ class BuildFile {
   // This is relevant because generated nodes won't have location information.
   Location location() const;
 
-  // Returns all targets matching the patterns.
-  std::vector<EditTarget> targets();
+  // Returns all targets matching the patterns, or matching the given filter.
+  std::vector<EditTarget> targets(
+      std::function<bool(EditTarget&)> filter = nullptr);
+
+  // Finds a target by name in the build file.
+  // Returns std::nullopt if not found.
+  std::optional<EditTarget> find_target(std::string_view target_name);
 
   // Creates a node to insert into the graph.
   std::unique_ptr<ParseNode> to_node(const Value& value);
@@ -197,6 +217,16 @@ class BuildFile {
   std::unique_ptr<BinaryOpNode> create_assignment(
       std::string_view name,
       std::unique_ptr<ParseNode> value);
+
+  // Creates a BlockNode `{ ... }` with the given statements.
+  std::unique_ptr<BlockNode> create_block(
+      std::vector<std::unique_ptr<ParseNode>> statements = {});
+
+  // Synthesizes a new target: `<type>("<name>") { ... }`
+  std::unique_ptr<FunctionCallNode> create_target(
+      std::string_view type,
+      std::string_view name,
+      std::unique_ptr<BlockNode> block);
 
   // Serializes the AST to the build file if it has changed.
   // Returns Ok(true) if the file was written, Ok(false) if it was unchanged.

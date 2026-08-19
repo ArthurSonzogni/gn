@@ -264,28 +264,28 @@ void TreeNode::RemoveSelf(EditState& state, const EditTarget& target) const {
   }
 }
 
-void TreeNode::RemoveSelfUnconditionally() const {
+TreeNode::NodeList& TreeNode::container() const {
   DCHECK(parent());
   if (auto* block = parent()->AsBlockMut()) {
-    auto& stmts = block->statements();
-    for (auto it = stmts.begin(); it != stmts.end(); ++it) {
-      if (it->get() == node()) {
-        stmts.erase(it);
-        return;
-      }
-    }
+    return block->statements();
   } else if (auto* list = parent()->AsListMut()) {
-    auto& items = list->contents();
-    for (auto it = items.begin(); it != items.end(); ++it) {
-      if (it->get() == node()) {
-        items.erase(it);
-        return;
-      }
-    }
+    return list->contents();
   } else {
-    CHECK(false) << "Unsupported type to remove from";
+    NOTREACHED() << "Unsupported parent type in container";
   }
-  CHECK(false) << "child node not found in parent's children";
+}
+
+TreeNode::NodeLocation TreeNode::node_location() const {
+  auto& c = container();
+  auto it = std::find_if(c.begin(), c.end(),
+                         [this](const auto& p) { return p.get() == node(); });
+  CHECK(it != c.end()) << "child node not found in parent container";
+  return {c, it};
+}
+
+void TreeNode::RemoveSelfUnconditionally() const {
+  auto [container, it] = node_location();
+  container.erase(it);
 }
 
 LabelMatcher::LabelMatcher(SourceDir source_dir,
@@ -300,7 +300,10 @@ LabelMatcher::LabelMatcher(SourceDir source_dir,
       globbed_ = true;
     } else if (pattern.type() == LabelPattern::MATCH &&
                pattern.dir() == source_dir_) {
-      used_[pattern.name()] = false;
+      if (!used_.contains(pattern.name())) {
+        explicit_names_.push_back(pattern.name());
+        used_[pattern.name()] = false;
+      }
     }
   }
 }
@@ -311,6 +314,18 @@ LabelMatcher::MatchType LabelMatcher::matches(const std::string& name) {
     return EXACT;
   }
   return globbed_ ? GLOB : NONE;
+}
+
+Result<std::vector<std::string>> LabelMatcher::explicit_target_names() {
+  if (globbed_) {
+    return Err(Location(),
+               "Explicit target label required (wildcard patterns are not "
+               "supported for this command).");
+  }
+  for (const auto& name : explicit_names_) {
+    used_[name] = true;
+  }
+  return explicit_names_;
 }
 
 Err LabelMatcher::done() const {
@@ -382,29 +397,54 @@ Location BuildFile::location() const {
   return Location(input_file_.get(), 1, 1);
 }
 
-std::vector<EditTarget> BuildFile::targets() {
+std::vector<EditTarget> BuildFile::targets(
+    std::function<bool(EditTarget&)> filter) {
+  if (!filter) {
+    filter = [this](EditTarget& t) {
+      switch (label_matcher_.matches(t.label.name())) {
+        case LabelMatcher::NONE:
+          return false;
+        case LabelMatcher::EXACT:
+          return true;
+        case LabelMatcher::GLOB:
+          t.is_explicit = false;
+          return true;
+      }
+      NOTREACHED();
+    };
+  }
   return FindStatement<EditTarget>(
       tree_root_.get(),
-      [this](TreeNode& node_ref) -> std::optional<EditTarget> {
+      [this, &filter](TreeNode& node_ref) -> std::optional<EditTarget> {
         if (auto* func = node_ref->AsFunctionCallMut()) {
           if (func->block() && func->args() &&
               func->args()->contents().size() == 1) {
             if (auto name =
                     AsStringLiteral(func->args()->contents()[0].get())) {
-              auto match_type = label_matcher_.matches(*name);
-              if (match_type != LabelMatcher::NONE) {
-                return EditTarget{
-                    .is_explicit = match_type == LabelMatcher::EXACT,
-                    .label = Label(source_file_.GetDir(), *name),
-                    .node = node_ref,
-                    .block = func->block(),
-                };
+              EditTarget target{
+                  .is_explicit = true,
+                  .label = Label(source_file_.GetDir(), *name),
+                  .node = node_ref,
+                  .block = func->block(),
+              };
+              if (filter(target)) {
+                return target;
               }
             }
           }
         }
         return std::nullopt;
       });
+}
+
+std::optional<EditTarget> BuildFile::find_target(std::string_view target_name) {
+  auto found = targets([target_name](const EditTarget& t) {
+    return t.label.name() == target_name;
+  });
+  if (!found.empty()) {
+    return std::move(found.front());
+  }
+  return std::nullopt;
 }
 
 std::unique_ptr<ParseNode> BuildFile::to_node(const Value& value) {
@@ -441,6 +481,35 @@ std::unique_ptr<BinaryOpNode> BuildFile::create_assignment(
   assign->set_right(std::move(value));
 
   return assign;
+}
+
+std::unique_ptr<BlockNode> BuildFile::create_block(
+    std::vector<std::unique_ptr<ParseNode>> statements) {
+  auto block = std::make_unique<BlockNode>(BlockNode::DISCARDS_RESULT);
+  block->set_begin_token(Token(location(), Token::LEFT_BRACE, "{"));
+  block->set_end(
+      std::make_unique<EndNode>(Token(location(), Token::RIGHT_BRACE, "}")));
+  block->statements() = std::move(statements);
+  return block;
+}
+
+std::unique_ptr<FunctionCallNode> BuildFile::create_target(
+    std::string_view type,
+    std::string_view name,
+    std::unique_ptr<BlockNode> block) {
+  auto func = std::make_unique<FunctionCallNode>();
+  func->set_function(
+      Token(location(), Token::IDENTIFIER, StringAtom(type).str()));
+
+  auto args = std::make_unique<ListNode>();
+  args->set_begin_token(Token(location(), Token::LEFT_PAREN, "("));
+  args->set_end(
+      std::make_unique<EndNode>(Token(location(), Token::RIGHT_PAREN, ")")));
+  args->append_item(to_node(Value(nullptr, std::string(name))));
+  func->set_args(std::move(args));
+
+  func->set_block(std::move(block));
+  return func;
 }
 
 Result<bool> BuildFile::Write() {

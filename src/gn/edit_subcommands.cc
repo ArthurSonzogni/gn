@@ -205,6 +205,41 @@ EditCommand MoveCommand(std::string from_attribute,
   });
 }
 
+using LocationProvider =
+    std::function<Result<TreeNode::NodeLocation>(BuildFile&)>;
+
+EditCommand NewCommand(std::string rule_kind,
+                       LocationProvider location_provider) {
+  return [rule_kind = std::move(rule_kind),
+          location_provider = std::move(location_provider)](
+             BuildFile& build_file, EditState& state) -> Err {
+    ASSIGN_OR_RETURN(auto rule_names,
+                     build_file.label_matcher().explicit_target_names());
+    DCHECK(!rule_names.empty());
+
+    ASSIGN_OR_RETURN(auto loc, location_provider(build_file));
+    auto& [container, it] = loc;
+
+    for (const auto& rule_name : rule_names) {
+      if (auto target = build_file.find_target(rule_name);
+          target && !target->node.is_conditional()) {
+        return Err(Location(), "Target \"" + rule_name +
+                                   "\" already exists in " +
+                                   build_file.source_file().value() + ".");
+      }
+
+      // Reassign and advance the iterator returned by insert() to ensure valid
+      // iterators across vector reallocations and preserve insertion order
+      // when adding multiple targets.
+      it = container.insert(
+          it, build_file.create_target(rule_kind, rule_name,
+                                       build_file.create_block()));
+      ++it;
+    }
+    return Ok();
+  };
+}
+
 EditCommand RemoveAttributeCommand(std::string attribute) {
   return EditTargetCommand([attribute = std::move(attribute)](
                                BuildFile& build_file, const EditTarget& target,
@@ -304,6 +339,36 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
     ASSIGN_OR_RETURN(std::vector<Value> values,
                      ParseValues(base::make_span(args).subspan(3)));
     return MoveCommand(args[1], args[2], std::move(values));
+  } else if (args[0] == "new") {
+    if (args.size() == 2) {
+      return NewCommand(
+          args[1], [](BuildFile& build_file) -> Result<TreeNode::NodeLocation> {
+            auto* root = build_file.root()->AsBlockMut();
+            return std::make_pair(std::ref(root->statements()),
+                                  root->statements().end());
+          });
+    } else if (args.size() == 4 &&
+               (args[2] == "before" || args[2] == "after")) {
+      return NewCommand(
+          args[1],
+          [rel = args[3], after = args[2] == "after"](
+              BuildFile& build_file) -> Result<TreeNode::NodeLocation> {
+            auto target = build_file.find_target(rel);
+            if (!target) {
+              return Err(Location(), "Target \"" + rel + "\" not found in " +
+                                         build_file.source_file().value() +
+                                         ".");
+            }
+            auto [container, it] = target->node.node_location();
+            if (after)
+              it++;
+            return std::make_pair(std::ref(container), it);
+          });
+    } else {
+      return Err(Location(), "Invalid new command.",
+                 "Usage: new <rule_kind> [(before|after) "
+                 "<relative_rule_name>]");
+    }
   } else if (args[0] == "remove") {
     if (args.size() < 2) {
       return Err(Location(), "Invalid remove command.",

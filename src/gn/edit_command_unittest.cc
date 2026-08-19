@@ -290,6 +290,110 @@ executable("foo") {
                             "\"//nonexistent\" in attribute \"deps\".")}}));
 }
 
+TEST_F(EditCommandTest, NewSubcommand) {
+  // Append new target to the end of the file.
+  EXPECT_SUCCESS(DoEdit("new source_set", {"//:bar"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+source_set("bar") {
+}
+)"));
+
+  // Insert before a relative target.
+  EXPECT_SUCCESS(DoEdit("new source_set before foo", {"//:bar"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"),
+                 Edited(R"(
+source_set("bar") {
+}
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"));
+
+  // Insert after a relative target.
+  EXPECT_SUCCESS(DoEdit("new source_set after foo", {"//:bar"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+
+executable("baz") {
+  sources = [ "baz.cc" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+source_set("bar") {
+}
+
+executable("baz") {
+  sources = [ "baz.cc" ]
+}
+)"));
+
+  // Insert multiple new targets after a relative target.
+  EXPECT_SUCCESS(DoEdit("new source_set after foo", {"//:bar", "//:qux"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+
+executable("baz") {
+  sources = [ "baz.cc" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+source_set("bar") {
+}
+source_set("qux") {
+}
+
+executable("baz") {
+  sources = [ "baz.cc" ]
+}
+)"));
+
+  // Error when target already exists.
+  EXPECT_FAILURE(DoEdit("new source_set", {"//:foo"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"));
+
+  // Error when relative target not found.
+  EXPECT_FAILURE(DoEdit("new source_set before nonexistent", {"//:bar"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"));
+
+  // Error when no explicit target name specified (e.g. glob pattern).
+  EXPECT_FAILURE(DoEdit("new source_set", {"//*"},
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+}
+)"));
+}
+
 TEST_F(EditCommandTest, RemoveAttributeSubcommand) {
   EXPECT_SUCCESS(DoEdit("remove testonly",
                         R"(
