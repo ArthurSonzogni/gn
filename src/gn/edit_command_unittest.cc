@@ -114,6 +114,7 @@ executable("bar") {
 executable("foo") {
   testonly = true
 }
+
 executable("bar") {
   testonly = false
 }
@@ -306,6 +307,7 @@ executable("foo") {
 executable("foo") {
   sources = [ "foo.cc" ]
 }
+
 source_set("bar") {
 }
 )"));
@@ -320,6 +322,7 @@ executable("foo") {
                  Edited(R"(
 source_set("bar") {
 }
+
 executable("foo") {
   sources = [ "foo.cc" ]
 }
@@ -340,6 +343,7 @@ executable("baz") {
 executable("foo") {
   sources = [ "foo.cc" ]
 }
+
 source_set("bar") {
 }
 
@@ -363,8 +367,10 @@ executable("baz") {
 executable("foo") {
   sources = [ "foo.cc" ]
 }
+
 source_set("bar") {
 }
+
 source_set("qux") {
 }
 
