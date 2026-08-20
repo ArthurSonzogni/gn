@@ -21,7 +21,6 @@ def escape_path_command(path):
   return f'"{path}"'
 
 
-
 @dataclasses.dataclass
 class Action:
   rule: 'DummyRule'
@@ -91,13 +90,6 @@ class NinjaFile:
     self.actions = []
 
     self._gn_exe = pathlib.Path('gn' + self.platform.exe_suffix)
-    build_prefix = '' if self.platform.is_windows() else './'
-
-    def python(path, args):
-      return (
-          f'{escape_path_command(sys.executable)}'
-          f' {escape_path_command(self.source_file(path))} {args}'
-      )
 
     # Define standard/dummy rules (no rule block generated in build.ninja)
     self.Phony = DummyRule('phony', self)
@@ -108,7 +100,8 @@ class NinjaFile:
         name='run_binary',
         ninja_file=self,
         command=self.chain(
-            f'$env {build_prefix}$in $args', python('tools/touch.py', '$out')
+            f'$env {self.build_prefix}$in $args',
+            self.python('tools/touch.py', '$out'),
         ),
         description='RUN BINARY $in',
     )
@@ -120,10 +113,10 @@ class NinjaFile:
         command=self.chain(
             # For golden tests it's very important that if a ninja file is no
             # longer generated, it is actually deleted.
-            python('tools/clean.py', '$path/out'),
-            f'{build_prefix}{self._gn_exe} gen $path/out --quiet'
+            self.python('tools/clean.py', '$path/out'),
+            f'{self.build_prefix}{self._gn_exe} gen $path/out --quiet'
             ' --root=$path',
-            python('tools/touch.py', '$out'),
+            self.python('tools/touch.py', '$out'),
         ),
         description='RUN GN $out',
         inputs=[self._gn_exe],
@@ -134,8 +127,8 @@ class NinjaFile:
         name='compare_goldens',
         ninja_file=self,
         command=self.chain(
-            python('tools/compare_goldens.py', '$path $goldens'),
-            python('tools/touch.py', '$out'),
+            self.python('tools/compare_goldens.py', '$path $goldens'),
+            self.python('tools/touch.py', '$out'),
         ),
         description='COMPARE $out',
         inputs=[compare_script],
@@ -146,11 +139,12 @@ class NinjaFile:
     self.Cargo = Rule(
         name='cargo',
         ninja_file=self,
-        command=python(
+        command=self.python(
             run_cargo_rel_path,
             '$target_type $out $cargo_out_dir $cxx "$cxxflags"'
             ' cargo build --color=always'
-            ' --manifest-path=$manifest_path $cargo_target_dir $cargo_flags' + ('' if self.debug else ' --release'),
+            ' --manifest-path=$manifest_path $cargo_target_dir $cargo_flags'
+            + ('' if self.debug else ' --release'),
         ),
         description='CARGO build $out',
         inputs=[run_cargo_script],
@@ -173,7 +167,9 @@ class NinjaFile:
   def rust_profile(self):
     return 'debug' if self.debug else 'release'
 
-  def CargoLibTarget(self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs):
+  def CargoLibTarget(
+      self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs
+  ):
     return self.Cargo(
         name,
         inputs=self.directory(crate_dir, ['target', 'testdata']),
@@ -186,7 +182,9 @@ class NinjaFile:
         **kwargs,
     )
 
-  def CargoTestTarget(self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs):
+  def CargoTestTarget(
+      self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs
+  ):
     return self.Cargo(
         name,
         inputs=self.directory(crate_dir, ['target']),
@@ -228,6 +226,53 @@ class NinjaFile:
         path=path / 'out',
         goldens=golden_path,
     )
+
+  @property
+  def build_prefix(self):
+    return '' if self.platform.is_windows() else './'
+
+  def python(self, path, args):
+    return (
+        f'{escape_path_command(sys.executable)}'
+        f' {escape_path_command(self.source_file(path))} {args}'
+    )
+
+  def AddExternalGenTarget(
+      self, name: str, src_dir: pathlib.Path, out_dir: pathlib.Path
+  ):
+    build = (
+        f'{self.build_prefix}{self._gn_exe} gen'
+        f' --root={escape_path_command(src_dir)}'
+        f' {escape_path_command(src_dir / out_dir)}'
+    )
+    run_gn_external = Rule(
+        name='run_gn_external',
+        ninja_file=self,
+        command=self.chain(
+            build,
+            self.python('tools/touch.py', '$out'),
+        ),
+        description=f'GEN {src_dir} -> {out_dir}',
+        inputs=[self._gn_exe],
+    )
+    gen_action = run_gn_external(name)
+
+    run_hyperfine = Rule(
+        name='hyperfine',
+        ninja_file=self,
+        command=self.chain(
+            (
+                f"hyperfine $${{HYPERFINE_OPTS:-}} '{build}"
+                f" --tracelog=${{out}}_$${{HYPERFINE_ITERATION}}.trace'"
+            ),
+            self.python('tools/touch.py', '$out'),
+        ),
+        description=f'BENCH {src_dir} -> {out_dir}',
+        inputs=[self._gn_exe],
+        # Allow hyperfine's spinning progress bars.
+        pool='console',
+    )
+    hyperfine_action = run_hyperfine(f'{name}_bench')
 
   def write_ninja(self):
     out = []

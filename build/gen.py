@@ -7,6 +7,7 @@
 
 import argparse
 import os
+import pathlib
 import platform
 import re
 import shlex
@@ -216,6 +217,12 @@ def main(argv):
                           '`ninja -t compdb`.'))
   args_list.add('--starlark', action='store_true', default=False,
                     help='Enable (experimental) starlark integration')
+  args_list.add('--gen', default=None,
+                    metavar='SRC_DIR=OUT_DIR', dest='gen_target',
+                    help=('Generate ninja targets that invoke `gn gen` on an ' +
+                          'external repository.\n' +
+                          'Format: <src_dir>=<out_dir> ' +
+                          '(e.g. ~/chromium/src=out/Default)'))
 
   args_list.add_to_parser(parser)
   options = parser.parse_args(argv)
@@ -458,6 +465,16 @@ def WriteGenericNinja(path, static_libraries, executables,
           ),
       ],
   )
+
+  if options.gen_target:
+    if '=' not in options.gen_target:
+      raise ValueError(f'Invalid --gen format: {repr(options.gen_target)}. Expected <src_dir>=<out_dir>')
+    gen_src_dir, gen_out_dir = options.gen_target.split('=', 1)
+    ninja.AddExternalGenTarget(
+      'gen',
+      pathlib.Path(os.path.expanduser(gen_src_dir)).resolve(),
+      pathlib.Path(gen_out_dir)
+    )
 
   with open(path, 'w') as f:
     f.write('\n'.join(ninja_header_lines))
