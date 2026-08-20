@@ -14,29 +14,6 @@
 #include "util/build_config.h"
 #include "util/test/test.h"
 
-TEST(NinjaActionTargetWriter, WriteOutputFilesForBuildLine) {
-  Err err;
-  TestWithScope setup;
-
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION_FOREACH);
-  target.action_values().outputs() =
-      SubstitutionList::MakeForTest("//out/Debug/gen/a b{{source_name_part}}.h",
-                                    "//out/Debug/gen/{{source_name_part}}.cc");
-
-  target.SetToolchain(setup.toolchain());
-  ASSERT_TRUE(target.OnResolved(&err));
-
-  std::ostringstream out;
-  NinjaActionTargetWriter writer(&target, out);
-
-  SourceFile source("//foo/bar.in");
-  std::vector<OutputFile> output_files;
-  writer.WriteOutputFilesForBuildLine(source, &output_files);
-
-  EXPECT_EQ(" gen/a$ bbar.h gen/bar.cc", out.str());
-}
-
 // Tests an action with no sources.
 TEST(NinjaActionTargetWriter, ActionNoSources) {
   Err err;
@@ -65,6 +42,7 @@ TEST(NinjaActionTargetWriter, ActionNoSources) {
   command = /usr/bin/python ../../foo++/script.py
   description = ACTION //foo++:bar()
   restat = 1
+
 
 build foo.out: __foo___bar___rule | ../../foo++/script.py ../../foo++/included.txt
 
@@ -110,6 +88,7 @@ TEST(NinjaActionTargetWriter, ActionNoSourcesConsole) {
   description = ACTION //foo:bar()
   restat = 1
 
+
 build foo.out: __foo_bar___rule | ../../foo/script.py ../../foo/included.txt
   pool = console
 
@@ -150,6 +129,7 @@ TEST(NinjaActionTargetWriter, ActionWithSources) {
       "  command = /usr/bin/python ../../foo/script.py\n"
       "  description = ACTION //foo:bar()\n"
       "  restat = 1\n"
+      "\n"
       "\n"
       "build foo.out: __foo_bar___rule | ../../foo/script.py "
       "../../foo/included.txt ../../foo/source.txt\n"
@@ -207,6 +187,7 @@ TEST(NinjaActionTargetWriter, ActionWithOrderOnlyDeps) {
       "  command = /usr/bin/python ../../foo/script.py\n"
       "  description = ACTION //foo:bar()\n"
       "  restat = 1\n"
+      "\n"
       "\n"
       "build foo.out: __foo_bar___rule | ../../foo/script.py "
       "../../foo/included.txt ../../foo/source.txt phony/foo/dep || "
@@ -284,6 +265,8 @@ TEST(NinjaActionTargetWriter, ForEach) {
 #endif
       "  description = ACTION //foo:bar()\n"
       "  restat = 1\n"
+      "\n"
+      "\n"
       "build phony/foo/bar.inputdeps: phony ../../foo/script.py "
       "../../foo/included.txt phony/foo/dep\n"
       "\n"
@@ -291,6 +274,7 @@ TEST(NinjaActionTargetWriter, ForEach) {
       "phony/foo/bar.inputdeps || phony/foo/bundle_data_dep "
       "phony/foo/datadep\n"
       "  source_name_part = input1\n"
+      "\n"
       "build input2.out: __foo_bar___rule ../../foo/input2.txt | "
       "phony/foo/bar.inputdeps || phony/foo/bundle_data_dep "
       "phony/foo/datadep\n"
@@ -351,6 +335,8 @@ TEST(NinjaActionTargetWriter, ForEachWithDepfile) {
 #endif
       "  description = ACTION //foo:bar()\n"
       "  restat = 1\n"
+      "\n"
+      "\n"
       "build phony/foo/bar.inputdeps: phony ../../foo/script.py "
       "../../foo/included.txt\n"
       "\n"
@@ -359,6 +345,7 @@ TEST(NinjaActionTargetWriter, ForEachWithDepfile) {
       "  source_name_part = input1\n"
       "  depfile = gen/input1.d\n"
       "  deps = gcc\n"
+      "\n"
       "build input2.out: __foo_bar___rule ../../foo/input2.txt"
       " | phony/foo/bar.inputdeps\n"
       "  source_name_part = input2\n"
@@ -409,6 +396,7 @@ TEST(NinjaActionTargetWriter, ForEachWithResponseFile) {
       "${source_file_part} ${rspfile}\n"
       "  description = ACTION //foo:bar()\n"
       "  restat = 1\n"
+      "\n"
       "\n"
       "build input1.out: __foo_bar___rule ../../foo/input1.txt"
       " | ../../foo/script.py\n"
@@ -464,6 +452,7 @@ TEST(NinjaActionTargetWriter, ForEachWithPool) {
       "  description = ACTION //foo:bar()\n"
       "  restat = 1\n"
       "\n"
+      "\n"
       "build input1.out: __foo_bar___rule ../../foo/input1.txt"
       " | ../../foo/script.py\n"
       // Substitution for the args.
@@ -510,6 +499,7 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
         "  description = ACTION //foo:foo()\n"
         "  restat = 1\n"
         "\n"
+        "\n"
         "build foo.out: __foo_foo___rule | ../../foo/script.py"
         " ../../foo/input1.txt phony/foo/dep\n"
         "\n"
@@ -538,6 +528,7 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
         "  command = /usr/bin/python ../../bar/script.py\n"
         "  description = ACTION //bar:bar()\n"
         "  restat = 1\n"
+        "\n"
         "\n"
         // Do not have obj/foo/dep.stamp as dependency.
         "build bar.out: __bar_bar___rule | ../../bar/script.py"
@@ -595,6 +586,7 @@ TEST(NinjaActionTargetWriter, SeesConfig) {
         "  description = ACTION //foo:foo()\n"
         "  restat = 1\n"
         "\n"
+        "\n"
         "build foo.out: __foo_foo___rule | ../../foo/script.py"
         " ../../foo/input1.txt\n"
         "  rustenv = my_rustenv\n"
@@ -647,6 +639,7 @@ TEST(NinjaActionTargetWriter, ActionWithSpaces) {
       R"(  description = ACTION //foo:bar()
   restat = 1
 
+
 build foo.out: __foo_bar___rule | ../../foo/my$ script.py ../../foo/input$ file.txt
 
 build phony/foo/bar: phony foo.out
@@ -690,6 +683,7 @@ TEST(NinjaActionTargetWriter, ActionWithValidations) {
       "  command = /usr/bin/python ../../foo/script.py\n"
       "  description = ACTION //foo:bar()\n"
       "  restat = 1\n"
+      "\n"
       "\n"
       "build foo.out: __foo_bar___rule | ../../foo/script.py |@ phony/foo/val\n"
       "\n"

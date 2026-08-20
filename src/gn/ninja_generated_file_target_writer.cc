@@ -20,7 +20,7 @@ NinjaGeneratedFileTargetWriter::NinjaGeneratedFileTargetWriter(
 
 NinjaGeneratedFileTargetWriter::~NinjaGeneratedFileTargetWriter() = default;
 
-void NinjaGeneratedFileTargetWriter::Run() {
+void NinjaGeneratedFileTargetWriter::GenerateRules() {
   // Write the file.
   GenerateFile();
 

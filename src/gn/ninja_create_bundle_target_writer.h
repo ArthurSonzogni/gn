@@ -15,7 +15,7 @@ class NinjaCreateBundleTargetWriter : public NinjaTargetWriter {
   NinjaCreateBundleTargetWriter(const Target* target, std::ostream& out);
   ~NinjaCreateBundleTargetWriter() override;
 
-  void Run() override;
+  void GenerateRules() override;
 
  private:
   // Writes the Ninja rule for invoking the post-processing script.

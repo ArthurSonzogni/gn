@@ -13,7 +13,7 @@ class NinjaBundleDataTargetWriter : public NinjaTargetWriter {
   NinjaBundleDataTargetWriter(const Target* target, std::ostream& out);
   ~NinjaBundleDataTargetWriter() override;
 
-  void Run() override;
+  void GenerateRules() override;
 
  private:
   NinjaBundleDataTargetWriter(const NinjaBundleDataTargetWriter&) = delete;

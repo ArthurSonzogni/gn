@@ -42,15 +42,18 @@ TEST_F(NinjaBinaryTargetWriterTest, CSources) {
       "target_out_dir = obj/foo\n"
       "target_output_name = bar\n"
       "\n"
+      "\n"
       "build obj/foo/bar.input1.o: cxx ../../foo/input1.cc\n"
       "  source_file_part = input1.cc\n"
       "  source_name_part = input1\n"
+      "\n"
       "build obj/foo/bar.input2.o: cxx ../../foo/input2.cc\n"
       "  source_file_part = input2.cc\n"
       "  source_name_part = input2\n"
       "\n"
       "build phony/foo/bar.linkdeps: phony obj/foo/bar.input1.o "
       "obj/foo/bar.input2.o ../../foo/input3.o ../../foo/input4.obj\n"
+      "\n"
       "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -143,12 +146,14 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
         "target_out_dir = obj/foo\n"
         "target_output_name = bar\n"
         "\n"
+        "\n"
         "build obj/foo/bar.source1.o: cxx ../../foo/source1.cc | "
         "../../foo/input1 ../../foo/input2\n"
         "  source_file_part = source1.cc\n"
         "  source_name_part = source1\n"
         "\n"
         "build phony/foo/bar.linkdeps: phony obj/foo/bar.source1.o\n"
+        "\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
     std::string out_str = out.str();
     EXPECT_EQ(expected, out_str);
@@ -180,12 +185,15 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
         "target_out_dir = obj/foo\n"
         "target_output_name = bar\n"
         "\n"
+        "\n"
         "build phony/foo/bar.inputs: phony "
         "../../foo/input1 ../../foo/input2\n"
+        "\n"
         "build obj/foo/bar.source1.o: cxx ../../foo/source1.cc | "
         "phony/foo/bar.inputs\n"
         "  source_file_part = source1.cc\n"
         "  source_name_part = source1\n"
+        "\n"
         "build obj/foo/bar.source2.o: cxx ../../foo/source2.cc | "
         "phony/foo/bar.inputs\n"
         "  source_file_part = source2.cc\n"
@@ -193,6 +201,7 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
         "\n"
         "build phony/foo/bar.linkdeps: phony obj/foo/bar.source1.o "
         "obj/foo/bar.source2.o\n"
+        "\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
     std::string out_str = out.str();
     EXPECT_EQ(expected, out_str);
@@ -240,12 +249,14 @@ TEST_F(NinjaBinaryTargetWriterTest, PublicInputs) {
       "target_out_dir = obj/foo\n"
       "target_output_name = b\n"
       "\n"
+      "\n"
       "build obj/foo/b.source1.o: cxx ../../foo/source1.cc | "
       "phony/foo/a.public_inputs || phony/foo/a\n"
       "  source_file_part = source1.cc\n"
       "  source_name_part = source1\n"
       "\n"
       "build phony/foo/b.linkdeps: phony obj/foo/b.source1.o || phony/foo/a\n"
+      "\n"
       "build phony/foo/b: phony phony/foo/b.linkdeps\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);

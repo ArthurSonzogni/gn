@@ -27,21 +27,21 @@ EscapeOptions GetFlagOptions() {
   return opts;
 }
 
-void WriteVar(const char* name,
+void WriteVar(std::string_view name,
               const std::string& value,
               EscapeOptions opts,
-              std::ostream& out) {
-  out << name << " = ";
-  EscapeStringToStream(out, value, opts);
-  out << std::endl;
+              std::vector<NinjaVariable>& target_vars) {
+  std::ostringstream ss;
+  EscapeStringToStream(ss, value, opts);
+  target_vars.emplace_back(name, ss.str());
 }
 
 void WriteCrateVars(const Target* target,
                     const Tool* tool,
                     EscapeOptions opts,
-                    std::ostream& out) {
+                    std::vector<NinjaVariable>& target_vars) {
   WriteVar(kRustSubstitutionCrateName.ninja_name,
-           target->rust_values().crate_name(), opts, out);
+           target->rust_values().crate_name(), opts, target_vars);
 
   std::string crate_type;
   switch (target->rust_values().crate_type()) {
@@ -86,16 +86,17 @@ void WriteCrateVars(const Target* target,
     default:
       NOTREACHED();
   }
-  WriteVar(kRustSubstitutionCrateType.ninja_name, crate_type, opts, out);
+  WriteVar(kRustSubstitutionCrateType.ninja_name, crate_type, opts,
+           target_vars);
 
   WriteVar(SubstitutionOutputExtension.ninja_name,
            SubstitutionWriter::GetLinkerSubstitution(
                target, tool, &SubstitutionOutputExtension),
-           opts, out);
+           opts, target_vars);
   WriteVar(SubstitutionOutputDir.ninja_name,
            SubstitutionWriter::GetLinkerSubstitution(target, tool,
                                                      &SubstitutionOutputDir),
-           opts, out);
+           opts, target_vars);
 }
 
 }  // namespace
@@ -109,7 +110,7 @@ NinjaRustBinaryTargetWriter::~NinjaRustBinaryTargetWriter() = default;
 
 // TODO(juliehockett): add inherited library support? and IsLinkable support?
 // for c-cross-compat
-void NinjaRustBinaryTargetWriter::Run() {
+void NinjaRustBinaryTargetWriter::GenerateRules() {
   DCHECK(target_->output_type() != Target::SOURCE_SET);
 
   size_t num_output_uses = target_->sources().size();
@@ -290,16 +291,15 @@ void NinjaRustBinaryTargetWriter::Run() {
   WriteExternsAndDeps(extern_deps, transitive_crates, rustdeps, nonrustdeps,
                       swiftmodules);
   WriteSourcesAndInputs();
-  WritePool(out_);
 }
 
 void NinjaRustBinaryTargetWriter::WriteCompilerVars() {
   const SubstitutionBits& subst = target_->toolchain()->substitution_bits();
 
   EscapeOptions opts = GetFlagOptions();
-  WriteCrateVars(target_, tool_, opts, out_);
+  WriteCrateVars(target_, tool_, opts, target_group_.target_vars);
 
-  WriteRustCompilerVars(subst, /*indent=*/false, /*always_write=*/true);
+  WriteRustCompilerVars(subst, /*always_write=*/true);
 
   WriteSharedVars(subst);
 }
@@ -312,25 +312,25 @@ void NinjaRustBinaryTargetWriter::AppendSourcesAndInputsToImplicitDeps(
   // because it is handled sufficiently by crate_root and the generation
   // of depfiles by rustc. But for those which do...
   for (const auto& source : target_->sources()) {
-    deps->push_back(OutputFile(settings_->build_settings(), source));
+    deps->emplace_back(settings_->build_settings(), source);
   }
   for (const auto& data : target_->config_values().inputs()) {
-    deps->push_back(OutputFile(settings_->build_settings(), data));
+    deps->emplace_back(settings_->build_settings(), data);
   }
 }
 
 void NinjaRustBinaryTargetWriter::WriteSourcesAndInputs() {
-  out_ << "  sources =";
+  std::ostringstream val;
   for (const auto& source : target_->sources()) {
-    out_ << " ";
-    path_output_.WriteFile(out_,
+    val << " ";
+    path_output_.WriteFile(val,
                            OutputFile(settings_->build_settings(), source));
   }
   for (const auto& data : target_->config_values().inputs()) {
-    out_ << " ";
-    path_output_.WriteFile(out_, OutputFile(settings_->build_settings(), data));
+    val << " ";
+    path_output_.WriteFile(val, OutputFile(settings_->build_settings(), data));
   }
-  out_ << std::endl;
+  target_group_.edges.back().edge_vars.emplace_back("sources", val.str());
 }
 
 void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
@@ -339,24 +339,25 @@ void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
     const std::vector<OutputFile>& rustdeps,
     const std::vector<OutputFile>& nonrustdeps,
     const std::vector<OutputFile>& swiftmodules) {
+  std::ostringstream externs_val;
   // Writes a external LibFile which comes from user-specified externs, and may
   // be either a string or a SourceFile.
-  auto write_extern_lib_file = [this](std::string_view crate_name,
-                                      LibFile lib_file) {
-    out_ << " --extern ";
-    out_ << crate_name;
-    out_ << "=";
+  auto write_extern_lib_file = [this, &externs_val](std::string_view crate_name,
+                                                    LibFile lib_file) {
+    externs_val << " --extern ";
+    externs_val << crate_name;
+    externs_val << "=";
     if (lib_file.is_source_file()) {
-      path_output_.WriteFile(out_, lib_file.source_file());
+      path_output_.WriteFile(externs_val, lib_file.source_file());
     } else {
       EscapeOptions escape_opts_command;
       escape_opts_command.mode = ESCAPE_NINJA_COMMAND;
-      EscapeStringToStream(out_, lib_file.value(), escape_opts_command);
+      EscapeStringToStream(externs_val, lib_file.value(), escape_opts_command);
     }
   };
   // Writes an external OutputFile which comes from a dependency of the current
   // target.
-  auto write_extern_target = [this](const Target& dep) {
+  auto write_extern_target = [this, &externs_val](const Target& dep) {
     std::string_view crate_name;
     const auto& aliased_deps = target_->rust_values().aliased_deps();
     if (auto it = aliased_deps.find(dep.label()); it != aliased_deps.end()) {
@@ -365,14 +366,11 @@ void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
       crate_name = dep.rust_values().crate_name();
     }
 
-    out_ << " --extern ";
-    out_ << crate_name;
-    out_ << "=";
-    path_output_.WriteFile(out_, dep.dependency_output_file());
+    externs_val << " --extern ";
+    externs_val << crate_name;
+    externs_val << "=";
+    path_output_.WriteFile(externs_val, dep.dependency_output_file());
   };
-
-  // Write accessible crates with `--extern` to add them to the extern prelude.
-  out_ << "  externs =";
 
   // Tracking to avoid emitted the same lib twice. We track it instead of
   // pre-emptively constructing a UniqueVector since we would have to also store
@@ -418,13 +416,14 @@ void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
     }
   }
 
-  out_ << std::endl;
-  out_ << "  rustdeps =";
+  target_group_.edges.back().edge_vars.emplace_back("externs",
+                                                    externs_val.str());
 
+  std::ostringstream rustdeps_val;
   for (const SourceDir& dir : private_extern_dirs) {
     // TODO: switch to using `--extern priv:name` after stabilization.
-    out_ << " -Ldependency=";
-    path_output_.WriteDir(out_, dir, PathOutput::DIR_NO_LAST_SLASH);
+    rustdeps_val << " -Ldependency=";
+    path_output_.WriteDir(rustdeps_val, dir, PathOutput::DIR_NO_LAST_SLASH);
   }
 
   // If rustc will invoke a linker, then pass linker arguments to include those
@@ -434,27 +433,30 @@ void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
   // that allows dynamic linking, as rustc may have previously put it into
   // static-only mode.
   if (nonrustdeps.size() > 0) {
-    out_ << " " << tool_->dynamic_link_switch();
+    rustdeps_val << " " << tool_->dynamic_link_switch();
   }
   for (const auto& nonrustdep : nonrustdeps) {
-    out_ << " -Clink-arg=";
-    path_output_.WriteFile(out_, nonrustdep);
+    rustdeps_val << " -Clink-arg=";
+    path_output_.WriteFile(rustdeps_val, nonrustdep);
   }
 
   // Library search paths are required to find system libraries named in #[link]
   // directives, which will not be specified in non-Rust native dependencies.
-  WriteLibrarySearchPath(out_, tool_);
+  WriteLibrarySearchPath(rustdeps_val, tool_);
   // If rustc will invoke a linker, all libraries need the passed through to the
   // linker.
-  WriteLibs(out_, tool_);
-  WriteFrameworks(out_, tool_);
-  WriteSwiftModules(out_, tool_, swiftmodules);
+  WriteLibs(rustdeps_val, tool_);
+  WriteFrameworks(rustdeps_val, tool_);
+  WriteSwiftModules(rustdeps_val, tool_, swiftmodules);
 
-  out_ << std::endl;
-  out_ << "  ldflags =";
+  target_group_.edges.back().edge_vars.emplace_back("rustdeps",
+                                                    rustdeps_val.str());
+
+  std::ostringstream ldflags_val;
   // If rustc will invoke a linker, linker flags need to be forwarded through to
   // the linker.
-  WriteCustomLinkerFlags(out_, tool_);
+  WriteCustomLinkerFlags(ldflags_val, tool_);
 
-  out_ << std::endl;
+  target_group_.edges.back().edge_vars.emplace_back("ldflags",
+                                                    ldflags_val.str());
 }

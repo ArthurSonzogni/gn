@@ -13,7 +13,7 @@ class NinjaGroupTargetWriter : public NinjaTargetWriter {
   NinjaGroupTargetWriter(const Target* target, std::ostream& out);
   ~NinjaGroupTargetWriter() override;
 
-  void Run() override;
+  void GenerateRules() override;
 
  private:
   NinjaGroupTargetWriter(const NinjaGroupTargetWriter&) = delete;

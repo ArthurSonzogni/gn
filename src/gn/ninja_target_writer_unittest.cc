@@ -20,20 +20,27 @@ class TestingNinjaTargetWriter : public NinjaTargetWriter {
                            std::ostream& out)
       : NinjaTargetWriter(target, out) {}
 
-  void Run() override {}
+  void GenerateRules() override {}
 
   // Make this public so the test can call it.
   NinjaTargetWriter::InputDeps WriteInputDepsStampOrPhonyAndGetDep(
       const std::vector<const Target*>& additional_hard_deps,
       size_t num_stamp_uses) {
-    return NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
+    auto deps = NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
         additional_hard_deps, num_stamp_uses);
+    NinjaFile file;
+    file.AddTargetGroup(std::move(target_group_));
+    file.Serialize(out_);
+    return deps;
   }
 
   void WriteStampOrPhonyForTarget(
       const std::vector<OutputFile>& deps,
       const std::vector<OutputFile>& order_only_deps) {
     NinjaTargetWriter::WriteStampOrPhonyForTarget(deps, order_only_deps);
+    NinjaFile file;
+    file.AddTargetGroup(std::move(target_group_));
+    file.Serialize(out_);
   }
 };
 
@@ -155,6 +162,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
         "  description = ACTION //foo:action()\n"
         "  restat = 1\n"
         "\n"
+        "\n"
         "build: __foo_action___rule | ../../foo/script.py"
         " ../../foo/action_source.txt ./target\n"
         "\n"
@@ -254,6 +262,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
         "  command =  ../../foo/script.py\n"
         "  description = ACTION //foo:action()\n"
         "  restat = 1\n"
+        "\n"
         "\n"
         "build: __foo_action___rule | ../../foo/script.py"
         " ../../foo/action_source.txt ./target\n"
@@ -540,6 +549,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
         "  description = ACTION //foo:b_pub()\n"
         "  restat = 1\n"
         "\n"
+        "\n"
         "build b_pub.out: __foo_b_pub___rule | ../../foo/script.py "
         "phony/foo/a\n"
         "\n"
@@ -557,6 +567,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
         "  command =  ../../foo/script.py\n"
         "  description = ACTION //foo:b_priv()\n"
         "  restat = 1\n"
+        "\n"
         "\n"
         "build b_priv.out: __foo_b_priv___rule | ../../foo/script.py "
         "phony/foo/a\n"
@@ -607,6 +618,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
         "  description = ACTION //foo:b_data()\n"
         "  restat = 1\n"
         "\n"
+        "\n"
         "build b_data.out: __foo_b_data___rule | ../../foo/script.py || "
         "phony/foo/a\n"
         "\n"
@@ -624,6 +636,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
         "  command =  ../../foo/script.py\n"
         "  description = ACTION //foo:c_data()\n"
         "  restat = 1\n"
+        "\n"
         "\n"
         "build c_data.out: __foo_c_data___rule | ../../foo/script.py "
         "phony/foo/b_data\n"
@@ -675,9 +688,13 @@ TEST(NinjaTargetWriter, PublicInputs) {
   {
     std::ostringstream stream;
     ResolvedTargetData resolved;
+    NinjaTargetGroup group;
     TestingNinjaTargetWriter::WritePublicInputsStampOrPhony(&a, &resolved,
-                                                            stream);
-    EXPECT_EQ("build phony/foo/a.public_inputs: phony ../../foo/a.in\n\n",
+                                                            group);
+    NinjaFile file;
+    file.AddTargetGroup(std::move(group));
+    file.Serialize(stream);
+    EXPECT_EQ("build phony/foo/a.public_inputs: phony ../../foo/a.in\n",
               stream.str());
   }
 
@@ -739,9 +756,13 @@ TEST(NinjaTargetWriter, GroupPublicInputs) {
   {
     std::ostringstream stream;
     ResolvedTargetData resolved;
+    NinjaTargetGroup group;
     TestingNinjaTargetWriter::WritePublicInputsStampOrPhony(&g, &resolved,
-                                                            stream);
-    EXPECT_EQ("build phony/foo/g.public_inputs: phony ../../foo/g.in\n\n",
+                                                            group);
+    NinjaFile file;
+    file.AddTargetGroup(std::move(group));
+    file.Serialize(stream);
+    EXPECT_EQ("build phony/foo/g.public_inputs: phony ../../foo/g.in\n",
               stream.str());
   }
 

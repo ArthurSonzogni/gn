@@ -16,7 +16,7 @@ NinjaGroupTargetWriter::NinjaGroupTargetWriter(const Target* target,
 
 NinjaGroupTargetWriter::~NinjaGroupTargetWriter() = default;
 
-void NinjaGroupTargetWriter::Run() {
+void NinjaGroupTargetWriter::GenerateRules() {
   // A group rule just generates a phony target with dependencies on each of
   // the deps and data_deps in the group.
   std::vector<OutputFile> output_files;

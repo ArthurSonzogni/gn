@@ -8,6 +8,7 @@
 #include "gn/c_substitution_type.h"
 #include "gn/escape.h"
 #include "gn/filesystem_utils.h"
+#include "gn/ninja_file.h"
 #include "gn/output_file.h"
 #include "gn/rust_substitution_type.h"
 #include "gn/rust_tool.h"
@@ -313,6 +314,31 @@ void SubstitutionWriter::ApplyListToSourcesAsOutputFile(
   output->clear();
   for (const auto& source : sources)
     ApplyListToSourceAsOutputFile(target, settings, list, source, output);
+}
+
+// static
+void SubstitutionWriter::WriteNinjaVariablesForSource(
+    const Target* target,
+    const Settings* settings,
+    const SourceFile& source,
+    const std::vector<const Substitution*>& types,
+    const EscapeOptions& escape_options,
+    std::vector<NinjaVariable>& edge_vars) {
+  for (const auto& type : types) {
+    // Don't write SOURCE since that just maps to Ninja's $in variable, which
+    // is implicit in the rule. RESPONSE_FILE_NAME is written separately
+    // only when writing target rules since it can never be used in any
+    // other context (like process_file_template).
+    if (type != &SubstitutionSource && type != &SubstitutionRspFileName) {
+      std::ostringstream val;
+      EscapeStringToStream(
+          val,
+          GetSourceSubstitution(target, settings, source, type, OUTPUT_RELATIVE,
+                                settings->build_settings()->build_dir()),
+          escape_options);
+      edge_vars.emplace_back(type->ninja_name, val.str());
+    }
+  }
 }
 
 // static

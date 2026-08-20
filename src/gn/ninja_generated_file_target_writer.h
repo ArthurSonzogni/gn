@@ -13,7 +13,7 @@ class NinjaGeneratedFileTargetWriter : public NinjaTargetWriter {
   NinjaGeneratedFileTargetWriter(const Target* target, std::ostream& out);
   ~NinjaGeneratedFileTargetWriter() override;
 
-  void Run() override;
+  void GenerateRules() override;
 
  private:
   void GenerateFile();

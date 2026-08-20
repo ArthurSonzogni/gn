@@ -20,7 +20,7 @@ class NinjaCBinaryTargetWriter : public NinjaBinaryTargetWriter {
   NinjaCBinaryTargetWriter(const Target* target, std::ostream& out);
   ~NinjaCBinaryTargetWriter() override;
 
-  void Run() override;
+  void GenerateRules() override;
 
  private:
   using OutputFileSet = std::set<OutputFile>;
@@ -92,20 +92,9 @@ class NinjaCBinaryTargetWriter : public NinjaBinaryTargetWriter {
   // Writes the stamp line for a source set. These are not linked.
   void WriteSourceSetStamp(const std::vector<OutputFile>& object_files);
 
-  void WriteLinkerStuff(const std::vector<OutputFile>& object_files,
+  void WriteLinkerStuff(std::vector<OutputFile> object_files,
                         const std::vector<SourceFile>& other_files,
                         const std::vector<OutputFile>& input_deps);
-  void WriteOutputSubstitutions();
-  void WriteLibsList(const std::string& label,
-                     const std::vector<OutputFile>& libs);
-
-  // Writes the implicit dependencies for the link or stamp line. This is
-  // the "||" and everything following it on the ninja line.
-  //
-  // The order-only dependencies are the non-linkable deps passed in as an
-  // argument, plus the data file dependencies in the target.
-  void WriteOrderOnlyDependencies(
-      const UniqueVector<const Target*>& non_linkable_deps);
 
   // Checks for duplicates in the given list of output files. If any duplicates
   // are found, throws an error and return false.

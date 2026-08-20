@@ -20,7 +20,7 @@ class NinjaBinaryTargetWriter : public NinjaTargetWriter {
   NinjaBinaryTargetWriter(const Target* target, std::ostream& out);
   ~NinjaBinaryTargetWriter() override;
 
-  void Run() override;
+  void GenerateRules() override;
   void WritePublicModuleMap(std::ostream& out, const SourceDir& out_dir);
   void WritePrivateModuleMap(std::ostream& out, const SourceDir& out_dir);
 
@@ -42,7 +42,7 @@ class NinjaBinaryTargetWriter : public NinjaTargetWriter {
   // If there are no implicit dependencies and no extra target dependencies
   // are passed in, this returns an empty vector.
   std::vector<OutputFile> WriteInputsStampOrPhonyAndGetDep(
-      size_t num_phony_uses) const;
+      size_t num_phony_uses);
 
   // Gets all target dependencies and classifies them, as well as accumulates
   // object files from source sets we need to link.
@@ -60,10 +60,10 @@ class NinjaBinaryTargetWriter : public NinjaTargetWriter {
                           ClassifiedDeps* classified_deps) const;
 
   void WriteCompilerBuildLine(const std::vector<SourceFile>& sources,
-                              const std::vector<OutputFile>& extra_deps,
-                              const std::vector<OutputFile>& order_only_deps,
+                              std::vector<OutputFile> extra_deps,
+                              std::vector<OutputFile> order_only_deps,
                               const Tool* tool,
-                              const std::vector<OutputFile>& outputs,
+                              std::vector<OutputFile> outputs,
                               bool can_write_source_info = true,
                               bool restat_output_allowed = false);
 

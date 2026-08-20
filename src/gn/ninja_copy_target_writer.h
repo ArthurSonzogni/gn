@@ -13,7 +13,7 @@ class NinjaCopyTargetWriter : public NinjaTargetWriter {
   NinjaCopyTargetWriter(const Target* target, std::ostream& out);
   ~NinjaCopyTargetWriter() override;
 
-  void Run() override;
+  void GenerateRules() override;
 
  private:
   // Writes the rules top copy the file(s), putting the computed output file
