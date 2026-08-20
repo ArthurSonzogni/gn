@@ -9,6 +9,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -729,8 +730,6 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 #define DCHECK_GE(val1, val2) DCHECK_OP(GE, >=, val1, val2)
 #define DCHECK_GT(val1, val2) DCHECK_OP(GT, >, val1, val2)
 
-#define NOTREACHED() DCHECK(false)
-
 // Redefine the standard assert to use our nice log files
 #undef assert
 #define assert(x) DLOG_ASSERT(x)
@@ -800,6 +799,20 @@ class LogMessage {
   LogMessage& operator=(const LogMessage&) = delete;
 };
 
+class NotReachedLogMessage {
+ public:
+  NotReachedLogMessage(const char* file, int line);
+  [[noreturn]] ~NotReachedLogMessage();
+
+  std::ostream& stream();
+
+ private:
+  std::optional<LogMessage> log_message_;
+
+  NotReachedLogMessage(const NotReachedLogMessage&) = delete;
+  NotReachedLogMessage& operator=(const NotReachedLogMessage&) = delete;
+};
+
 // This class is used to explicitly ignore values in the conditional
 // logging macros.  This avoids compiler warnings like "value computed
 // is not used" and "statement has no effect".
@@ -810,6 +823,10 @@ class LogMessageVoidify {
   // higher than ?:
   void operator&(std::ostream&) {}
 };
+
+#define NOTREACHED()               \
+  ::logging::LogMessageVoidify() & \
+      ::logging::NotReachedLogMessage(__FILE__, __LINE__).stream()
 
 #if defined(OS_WIN)
 typedef unsigned long SystemErrorCode;
