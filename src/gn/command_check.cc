@@ -299,6 +299,7 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
 
   bool remaining_violations = false;
   bool needs_separator = false;
+  bool has_suggestions = false;
   for (auto& violation : violations) {
     if (needs_separator) {
       OutputString("___________________\n", DECORATION_YELLOW);
@@ -316,6 +317,9 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
           },
           apply, setup);
       fixed = apply && (exit_code == SuggestResult::kSuccess);
+      if (!buf.empty()) {
+        has_suggestions = true;
+      }
     }
 
     auto& err = violation.error;
@@ -346,6 +350,11 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
     } else {
       break;
     }
+  }
+
+  if (!apply && has_suggestions) {
+    OutputString("\nTo automatically apply suggestions, add --fix.\n",
+                 DECORATION_DIM);
   }
 
   return !remaining_violations;

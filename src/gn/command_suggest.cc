@@ -920,6 +920,7 @@ int RunSuggest(const std::vector<std::string>& args) {
       setup->builder().GetAllResolvedTargets();
 
   SuggestResult exit_status = SuggestResult::kSuccess;
+  bool has_suggestions = false;
   for (size_t i = 1; i < args.size(); i++) {
     if (i != 1) {
       OutputString("\n");
@@ -947,7 +948,8 @@ int RunSuggest(const std::vector<std::string>& args) {
     SuggestResult res = OutputSuggestions(
         all_targets, &setup->build_settings(),
         setup->loader()->default_toolchain_label(), includer, included,
-        [](std::string_view str, TextDecoration dec, HtmlEscaping esc) {
+        [&](std::string_view str, TextDecoration dec, HtmlEscaping esc) {
+          has_suggestions = true;
           ::OutputString(str, dec, esc);
         },
         apply, setup);
@@ -957,6 +959,11 @@ int RunSuggest(const std::vector<std::string>& args) {
                exit_status == SuggestResult::kSuccess) {
       exit_status = SuggestResult::kUnapplied;
     }
+  }
+
+  if (!apply && has_suggestions && exit_status != SuggestResult::kFailure) {
+    OutputString("\nTo automatically apply suggestions, add --apply.\n",
+                 DECORATION_DIM);
   }
 
   return static_cast<int>(exit_status);

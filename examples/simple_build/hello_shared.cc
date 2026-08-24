@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "hello_shared.h"
+#include "hello_static.h"
 
 const char* GetSharedText() {
   return "world";
