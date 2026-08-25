@@ -18,7 +18,7 @@ class ScopePerFileProvider : public Scope::ProgrammaticProvider {
   // When allow_target_vars is unset, the target-related values will be
   // undefined to GN script. When dotfile_scope is set, only the values
   // safe to reference in a dotfile will be resolved. At the moment that
-  // is just gn_version.
+  // is gn_version, host_cpu, and host_os.
   ScopePerFileProvider(Scope* scope,
                        bool allow_target_vars,
                        bool dotfile_scope = false);
@@ -31,6 +31,8 @@ class ScopePerFileProvider : public Scope::ProgrammaticProvider {
   const Value* GetCurrentToolchain();
   const Value* GetDefaultToolchain();
   const Value* GetGnVersion();
+  const Value* GetHostCpu();
+  const Value* GetHostOs();
   const Value* GetPythonPath();
   const Value* GetRootBuildDir();
   const Value* GetRootGenDir();
@@ -45,6 +47,8 @@ class ScopePerFileProvider : public Scope::ProgrammaticProvider {
   std::unique_ptr<Value> current_toolchain_;
   std::unique_ptr<Value> default_toolchain_;
   std::unique_ptr<Value> gn_version_;
+  std::unique_ptr<Value> host_cpu_;
+  std::unique_ptr<Value> host_os_;
   std::unique_ptr<Value> python_path_;
   std::unique_ptr<Value> root_build_dir_;
   std::unique_ptr<Value> root_gen_dir_;

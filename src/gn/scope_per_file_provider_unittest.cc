@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/scope_per_file_provider.h"
+#include "gn/args.h"
 #include "gn/build_settings.h"
 #include "gn/settings.h"
 #include "gn/test_with_scope.h"
@@ -62,6 +63,14 @@ TEST(ScopePerFileProvider, Expected) {
     ScopePerFileProvider provider(&scope, false, true);
     EXPECT_GE(provider.GetProgrammaticValue(variables::kGnVersion)->int_value(),
               0);
+    EXPECT_NE(nullptr, provider.GetProgrammaticValue(variables::kHostCpu));
+    EXPECT_NE(nullptr, provider.GetProgrammaticValue(variables::kHostOs));
+    EXPECT_EQ(
+        Args::GetHostCpu(),
+        provider.GetProgrammaticValue(variables::kHostCpu)->string_value());
+    EXPECT_EQ(
+        Args::GetHostOs(),
+        provider.GetProgrammaticValue(variables::kHostOs)->string_value());
     EXPECT_EQ(nullptr, provider.GetProgrammaticValue(variables::kRootBuildDir));
   }
 }

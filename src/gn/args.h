@@ -61,6 +61,12 @@ class Args {
   // has an override, it returns `override_value`.
   std::optional<Value> GetArgFromAllArguments(const char* name) const;
 
+  // Returns the default host_os string based on the current platform.
+  static const char* GetHostOs();
+
+  // Returns the default host_cpu string based on the current platform.
+  static const char* GetHostCpu();
+
   // Sets up the root scope for a toolchain. This applies the default system
   // flags and saves the toolchain overrides so they can be applied to
   // declare_args blocks that appear when loading files in that toolchain.

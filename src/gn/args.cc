@@ -31,7 +31,8 @@ How build arguments are set
 
   Next, project-specific overrides are applied. These are specified inside
   the default_args variable of //.gn. See "gn help dotfile" for more. Note
-  that during processing of the dotfile itself, only `gn_version` is defined.
+  that during processing of the dotfile itself, only `gn_version`, `host_cpu`,
+  and `host_os` are defined.
 
   If specified, arguments from the --args command line flag are used. If that
   flag is not specified, args from previous builds in the build directory will
@@ -335,35 +336,37 @@ Args::ValueWithOverrideMap Args::GetAllArguments() const {
   return result;
 }
 
-void Args::SetSystemVarsLocked(Scope* dest) const {
-  // Host OS.
-  const char* os = nullptr;
+// static
+const char* Args::GetHostOs() {
 #if defined(OS_WIN) || defined(OS_MSYS)
-  os = "win";
+  return "win";
 #elif defined(OS_MACOSX)
-  os = "mac";
+  return "mac";
 #elif defined(OS_LINUX)
-  os = "linux";
+  return "linux";
 #elif defined(OS_FREEBSD)
-  os = "freebsd";
+  return "freebsd";
 #elif defined(OS_AIX)
-  os = "aix";
+  return "aix";
 #elif defined(OS_OPENBSD)
-  os = "openbsd";
+  return "openbsd";
 #elif defined(OS_HAIKU)
-  os = "haiku";
+  return "haiku";
 #elif defined(OS_SOLARIS)
-  os = "solaris";
+  return "solaris";
 #elif defined(OS_NETBSD)
-  os = "netbsd";
+  return "netbsd";
 #elif defined(OS_ZOS)
-  os = "zos";
+  return "zos";
 #elif defined(OS_SERENITY)
-  os = "serenity";
+  return "serenity";
 #else
 #error Unknown OS type.
 #endif
+}
 
+// static
+const char* Args::GetHostCpu() {
   // Host architecture.
   static const char kX86[] = "x86";
   static const char kX64[] = "x64";
@@ -378,42 +381,47 @@ void Args::SetSystemVarsLocked(Scope* dest) const {
   static const char kRISCV64[] = "riscv64";
   static const char kE2K[] = "e2k";
   static const char kLOONG64[] = "loong64";
-  const char* arch = nullptr;
 
   // Set the host CPU architecture based on the underlying OS, not
   // whatever the current bit-tedness of the GN binary is.
   std::string os_arch = OperatingSystemArchitecture();
   if (os_arch == "x86" || os_arch == "BePC")
-    arch = kX86;
-  else if (os_arch == "x86_64")
-    arch = kX64;
-  else if (os_arch == "aarch64" || os_arch == "arm64")
-    arch = kArm64;
-  else if (os_arch.substr(0, 3) == "arm")
-    arch = kArm;
-  else if (os_arch == "mips")
-    arch = kMips;
-  else if (os_arch == "mips64")
-    arch = kMips64;
-  else if (os_arch == "s390x")
-    arch = kS390X;
-  else if (os_arch == "ppc64" || os_arch == "ppc64le")
+    return kX86;
+  if (os_arch == "x86_64")
+    return kX64;
+  if (os_arch == "aarch64" || os_arch == "arm64")
+    return kArm64;
+  if (os_arch.substr(0, 3) == "arm")
+    return kArm;
+  if (os_arch == "mips")
+    return kMips;
+  if (os_arch == "mips64")
+    return kMips64;
+  if (os_arch == "s390x")
+    return kS390X;
+  if (os_arch == "ppc64" || os_arch == "ppc64le")
     // We handle the endianness inside //build/config/host_byteorder.gni.
     // This allows us to use the same toolchain as ppc64 BE
     // and specific flags are included using the host_byteorder logic.
-    arch = kPPC64;
-  else if (os_arch == "sparc64")
-    arch = kSPARC64;
-  else if (os_arch == "riscv32")
-    arch = kRISCV32;
-  else if (os_arch == "riscv64")
-    arch = kRISCV64;
-  else if (os_arch == "e2k")
-    arch = kE2K;
-  else if (os_arch == "loongarch64")
-    arch = kLOONG64;
-  else
-    CHECK(false) << "OS architecture not handled. (" << os_arch << ")";
+    return kPPC64;
+  if (os_arch == "sparc64")
+    return kSPARC64;
+  if (os_arch == "riscv32")
+    return kRISCV32;
+  if (os_arch == "riscv64")
+    return kRISCV64;
+  if (os_arch == "e2k")
+    return kE2K;
+  if (os_arch == "loongarch64")
+    return kLOONG64;
+
+  CHECK(false) << "OS architecture not handled. (" << os_arch << ")";
+  return nullptr;
+}
+
+void Args::SetSystemVarsLocked(Scope* dest) const {
+  const char* os = GetHostOs();
+  const char* arch = GetHostCpu();
 
   // Save the OS and architecture as build arguments that are implicitly
   // declared. This is so they can be overridden in a toolchain build args

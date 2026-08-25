@@ -60,9 +60,9 @@ const char kDotfile_Help[] =
 
     gn gen out/Debug --root=/home/build --dotfile=/home/my_gn_file.gn
 
-  The system variable `gn_version` is available in the dotfile, but none of
-  the other variables are, because the dotfile is processed before args.gn
-  or anything else is processed.
+  The system variables `gn_version`, `host_cpu`, and `host_os` are available
+  in the dotfile, but none of the other variables are, because the dotfile is
+  processed before args.gn or anything else is processed.
 
 Variables
 

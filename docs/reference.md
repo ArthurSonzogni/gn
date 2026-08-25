@@ -4821,9 +4821,9 @@
 
 ```
   Corresponds to the number printed by `gn --version`. This variable is
-  only variable available in the dotfile (all the rest are missing
-  because the dotfile has to be parsed before args.gn or anything else
-  is processed).
+  one of the few variables available in the dotfile (along with `host_cpu`
+  and `host_os`, all the rest are missing because the dotfile has to be
+  parsed before args.gn or anything else is processed).
 ```
 
 #### **Example**
@@ -4835,7 +4835,7 @@
 
 ```
   This is value is exposed so that cross-compile toolchains can access the host
-  architecture when needed.
+  architecture when needed. It is also available in the dotfile.
 
   The value should generally be considered read-only, but it can be overridden
   in order to handle unusual cases where there might be multiple plausible
@@ -4853,7 +4853,7 @@
 
 ```
   This value is exposed so that cross-compiles can access the host build
-  system's settings.
+  system's settings. It is also available in the dotfile.
 
   This value should generally be treated as read-only. It, however, is not used
   internally by GN for any purpose.
@@ -7517,7 +7517,8 @@
 
   Next, project-specific overrides are applied. These are specified inside
   the default_args variable of //.gn. See "gn help dotfile" for more. Note
-  that during processing of the dotfile itself, only `gn_version` is defined.
+  that during processing of the dotfile itself, only `gn_version`, `host_cpu`,
+  and `host_os` are defined.
 
   If specified, arguments from the --args command line flag are used. If that
   flag is not specified, args from previous builds in the build directory will
@@ -7577,9 +7578,9 @@
 
     gn gen out/Debug --root=/home/build --dotfile=/home/my_gn_file.gn
 
-  The system variable `gn_version` is available in the dotfile, but none of
-  the other variables are, because the dotfile is processed before args.gn
-  or anything else is processed.
+  The system variables `gn_version`, `host_cpu`, and `host_os` are available
+  in the dotfile, but none of the other variables are, because the dotfile is
+  processed before args.gn or anything else is processed.
 ```
 
 #### **Variables**

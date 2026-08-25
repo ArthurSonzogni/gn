@@ -17,9 +17,9 @@ const char kGnVersion_Help[] =
     R"(gn_version: [number] The version of gn.
 
   Corresponds to the number printed by `gn --version`. This variable is
-  only variable available in the dotfile (all the rest are missing
-  because the dotfile has to be parsed before args.gn or anything else
-  is processed).
+  one of the few variables available in the dotfile (along with `host_cpu`
+  and `host_os`, all the rest are missing because the dotfile has to be
+  parsed before args.gn or anything else is processed).
 
 Example
 
@@ -33,7 +33,7 @@ const char kHostCpu_Help[] =
     R"(host_cpu: The processor architecture that GN is running on.
 
   This is value is exposed so that cross-compile toolchains can access the host
-  architecture when needed.
+  architecture when needed. It is also available in the dotfile.
 
   The value should generally be considered read-only, but it can be overridden
   in order to handle unusual cases where there might be multiple plausible
@@ -53,7 +53,7 @@ const char kHostOs_Help[] =
     R"(host_os: [string] The operating system that GN is running on.
 
   This value is exposed so that cross-compiles can access the host build
-  system's settings.
+  system's settings. It is also available in the dotfile.
 
   This value should generally be treated as read-only. It, however, is not used
   internally by GN for any purpose.

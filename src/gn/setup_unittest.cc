@@ -583,3 +583,36 @@ script_executable = "//third_party/python/bin/python3"
       base::FilePath(FILE_PATH_LITERAL("../../third_party/python/bin/python3"))
           .NormalizePathSeparatorsTo('/'));
 }
+
+TEST_F(SetupTest, HostOsAndHostCpuInDotFile) {
+  base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+
+  const char kDotfileContents[] = R"(
+buildconfig = "//BUILDCONFIG.gn"
+assert(host_os != "")
+assert(host_cpu != "")
+if (host_os != "nonexistent_os") {
+  default_args = {
+    test_arg = host_os
+  }
+}
+)";
+
+  base::ScopedTempDir in_temp_dir;
+  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
+  WriteFile(dot_gn_name, kDotfileContents);
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  cmdline.AppendSwitchPath(switches::kRoot, in_path);
+
+  base::FilePath build_dir = in_path.Append(FILE_PATH_LITERAL("out"))
+                                 .Append(FILE_PATH_LITERAL("default"));
+
+  Setup setup;
+  Err err;
+  EXPECT_TRUE(
+      setup.DoSetupWithErr(FilePathToUTF8(build_dir), true, cmdline, &err));
+  EXPECT_FALSE(err.has_error());
+}
