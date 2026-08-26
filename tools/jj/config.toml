@@ -18,13 +18,26 @@ command = ["/dev/null"]
 patterns = ["null"]
 
 [aliases]
-compare = [
+compare-internal = [
   "run",
-  "-j2",
   "--revision=before=before",
   "--revision=after=@",
   # Allow running on immutable commits
   "--ignore-changes",
+]
+
+compare = [
+  "compare-internal",
+  "-j2",
+  "--",
+  "bash",
+  "-c",
+]
+
+compare-serial = [
+  "compare-internal",
+  "-j1",
+  "--passthrough",
   "--",
   "bash",
   "-c",
@@ -36,6 +49,11 @@ before-after = [
   "python3 build/gen.py --out-path=/tmp/$JJ_LABEL ${GN_OPTS:-} && ninja -C /tmp/$JJ_LABEL ${NINJA_TARGETS:-gn}",
 ]
 
+before-after-serial = [
+  "compare-serial",
+  "python3 build/gen.py --out-path=/tmp/$JJ_LABEL ${GN_OPTS:-} && ninja -C /tmp/$JJ_LABEL ${NINJA_TARGETS:-gn}",
+]
+
 compare-perf = [
   "util",
   "exec",
@@ -43,9 +61,10 @@ compare-perf = [
   "bash",
   "-c",
   """
+  # We need to use serial because we can't run two performance benchmarks at the same time.
   GN_OPTS="--gen=${SRC:-$HOME/chromium/src}=${OUT_DIR:-out/\\$JJ_LABEL}" \
   NINJA_TARGETS=gen_bench \
-  jj --config "revset-aliases.before=\\"${BEFORE:-trunk()}\\"" before-after && \
+  jj --config "revset-aliases.before=\\"${BEFORE:-trunk()}\\"" before-after-serial && \
   python3 "$JJ_WORKSPACE_ROOT/tools/compare_traces.py" \
     --before /tmp/before/gen_bench_[0-9]*.trace \
     --after  /tmp/after/gen_bench_[0-9]*.trace
