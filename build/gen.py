@@ -472,8 +472,8 @@ def WriteGenericNinja(path, static_libraries, executables,
     gen_src_dir, gen_out_dir = options.gen_target.split('=', 1)
     ninja.AddExternalGenTarget(
       'gen',
-      pathlib.Path(os.path.expanduser(gen_src_dir)).resolve(),
-      pathlib.Path(gen_out_dir)
+      pathlib.Path(os.path.expandvars(os.path.expanduser(gen_src_dir))).resolve(),
+      pathlib.Path(os.path.expandvars(gen_out_dir))
     )
 
   with open(path, 'w') as f:
