@@ -263,17 +263,3 @@ bool ActionTargetGenerator::FillInputs() {
   target_->config_values().inputs().swap(dest_inputs);
   return true;
 }
-
-bool ActionTargetGenerator::FillPublicInputs() {
-  const Value* value = scope_->GetValue(variables::kPublicInputs, true);
-  if (!value)
-    return true;
-
-  Target::FileList dest_public_inputs;
-  if (!ExtractListOfRelativeFiles(scope_->settings()->build_settings(), *value,
-                                  scope_->GetSourceDir(), &dest_public_inputs,
-                                  err_))
-    return false;
-  target_->public_inputs().swap(dest_public_inputs);
-  return true;
-}

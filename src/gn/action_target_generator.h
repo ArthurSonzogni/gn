@@ -29,7 +29,6 @@ class ActionTargetGenerator : public TargetGenerator {
   bool FillMnemonic();
   bool FillPool();
   bool FillInputs();
-  bool FillPublicInputs();
 
   // Checks for errors in the outputs variable.
   bool CheckOutputs();

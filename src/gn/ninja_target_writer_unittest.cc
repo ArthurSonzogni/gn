@@ -712,3 +712,51 @@ TEST(NinjaTargetWriter, PublicInputs) {
     EXPECT_FALSE(out.contains("../../foo/a.in")) << out;
   }
 }
+
+TEST(NinjaTargetWriter, GroupPublicInputs) {
+  TestWithScope setup;
+  Err err;
+
+  // Group G has public_inputs.
+  Target g(setup.settings(), Label(SourceDir("//foo/"), "g"));
+  g.set_output_type(Target::GROUP);
+  g.visibility().SetPublic();
+  g.SetToolchain(setup.toolchain());
+  g.public_inputs().push_back(SourceFile("//foo/g.in"));
+
+  // Action B depends on G.
+  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"));
+  b.set_output_type(Target::ACTION);
+  b.visibility().SetPublic();
+  b.SetToolchain(setup.toolchain());
+  b.action_values().set_script(SourceFile("//foo/script.py"));
+  b.private_deps().push_back(LabelTargetPair(&g));
+
+  ASSERT_TRUE(g.OnResolved(&err));
+  ASSERT_TRUE(b.OnResolved(&err));
+
+  // 1. Verify G's public_inputs phony/stamp target is written.
+  {
+    std::ostringstream stream;
+    ResolvedTargetData resolved;
+    TestingNinjaTargetWriter::WritePublicInputsStampOrPhony(&g, &resolved,
+                                                            stream);
+    EXPECT_EQ("build phony/foo/g.public_inputs: phony ../../foo/g.in\n\n",
+              stream.str());
+  }
+
+  // 2. Verify B's input deps. It should depend on G's public_inputs.
+  {
+    std::ostringstream stream;
+    TestingNinjaTargetWriter writer(&b, setup.toolchain(), stream);
+    auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
+        std::vector<const Target*>(), 10u);
+
+    ASSERT_EQ(1u, dep.implicit.size());
+    EXPECT_EQ("phony/foo/b.inputdeps", dep.implicit[0].value());
+
+    std::string out = stream.str();
+    EXPECT_TRUE(out.contains("phony/foo/g.public_inputs")) << out;
+    EXPECT_FALSE(out.contains("../../foo/g.in")) << out;
+  }
+}

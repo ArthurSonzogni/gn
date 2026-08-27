@@ -1446,7 +1446,9 @@ const char kPublicInputs_Help[] =
   propagate to any targets depending on B.
 
   This is particularly useful for actions that generate source code which
-  contain implicit imports/includes of the files declared in public_inputs.
+  contain implicit imports/includes of the files declared in public_inputs,
+  or for groups that aggregate and export generated files as public inputs
+  to downstream consumers.
   Dependent targets will automatically inherit these dependencies and trigger
   rebuilds when the public inputs change.
 
@@ -1468,6 +1470,11 @@ const char kPublicInputs_Help[] =
       ...
       public_deps = [ ":A" ]  # C inherits "a.in", and propagates it to
                               # C's dependents.
+    }
+
+    group("my_module") {
+      public_deps = [ ":generate_dts" ]
+      public_inputs = [ "$target_gen_dir/foo.d.ts" ]
     }
 )";
 

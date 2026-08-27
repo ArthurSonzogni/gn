@@ -25,11 +25,11 @@
 #define RUST_VARS "  Rust variables: aliased_deps, crate_root, crate_name\n"
 #define RUST_SHARED_VARS \
   "  Rust variables: aliased_deps, crate_root, crate_name, crate_type\n"
-#define ACTION_VARS                                                            \
-  "  Action variables: args, bridge_header, configs, data, depfile,\n"         \
-  "                    framework_dirs, inputs, mnemonic, module_deps,\n"       \
-  "                    module_name, outputs*, pool, response_file_contents,\n" \
-  "                    script*, sources\n"
+#define ACTION_VARS                                                      \
+  "  Action variables: args, bridge_header, configs, data, depfile,\n"   \
+  "                    framework_dirs, inputs, mnemonic, module_deps,\n" \
+  "                    module_name, outputs*, pool, public_inputs,\n"    \
+  "                    response_file_contents, script*, sources\n"
 
 namespace functions {
 
@@ -648,6 +648,7 @@ const char kGroup_Help[] =
 
 Variables
 
+  Group variables: public_inputs
 )" DEPS_VARS DEPENDENT_CONFIG_VARS GENERAL_TARGET_VARS
 
     R"(

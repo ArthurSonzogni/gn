@@ -1644,8 +1644,8 @@
            visibility
   Action variables: args, bridge_header, configs, data, depfile,
                     framework_dirs, inputs, mnemonic, module_deps,
-                    module_name, outputs*, pool, response_file_contents,
-                    script*, sources
+                    module_name, outputs*, pool, public_inputs,
+                    response_file_contents, script*, sources
   * = required
 ```
 
@@ -1745,8 +1745,8 @@
            visibility
   Action variables: args, bridge_header, configs, data, depfile,
                     framework_dirs, inputs, mnemonic, module_deps,
-                    module_name, outputs*, pool, response_file_contents,
-                    script*, sources
+                    module_name, outputs*, pool, public_inputs,
+                    response_file_contents, script*, sources
   * = required
 ```
 
@@ -2254,6 +2254,7 @@
 #### **Variables**
 
 ```
+  Group variables: public_inputs
   Deps: assert_no_deps, data_deps, deps, public_deps, runtime_deps,
         write_runtime_deps
   Dependent configs: all_dependent_configs, public_configs
@@ -7058,7 +7059,9 @@
   propagate to any targets depending on B.
 
   This is particularly useful for actions that generate source code which
-  contain implicit imports/includes of the files declared in public_inputs.
+  contain implicit imports/includes of the files declared in public_inputs,
+  or for groups that aggregate and export generated files as public inputs
+  to downstream consumers.
   Dependent targets will automatically inherit these dependencies and trigger
   rebuilds when the public inputs change.
 
@@ -7080,6 +7083,11 @@
       ...
       public_deps = [ ":A" ]  # C inherits "a.in", and propagates it to
                               # C's dependents.
+    }
+
+    group("my_module") {
+      public_deps = [ ":generate_dts" ]
+      public_inputs = [ "$target_gen_dir/foo.d.ts" ]
     }
 ```
 ### <a name="var_rebase"></a>**rebase**: Rebase collected metadata as files.&nbsp;[Back to Top](#gn-reference)
