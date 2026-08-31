@@ -28,6 +28,31 @@ pub enum OutputType {
     // NOOP = 15,
 }
 
+/// Compile-time string equality test
+const fn str_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < a.len() && a[i] == b[i] {
+        i += 1;
+    }
+    i == a.len()
+}
+
+/// Compile-time check if slice contains a string.
+const fn contains(slice: &[&'static str], needle: &'static str) -> bool {
+    let mut i = 0;
+    while i < slice.len() {
+        if str_eq(slice[i], needle) {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
 impl OutputType {
     const MAX: u8 = Self::RustProcMacro as u8;
     const NOOP: u8 = 15;
@@ -47,7 +72,7 @@ impl OutputType {
     ///
     /// Any attributes that should fill ctx.files.* should go in the former.
     /// Other attributes should go in the latter.
-    pub fn attrs(&self) -> (&'static [&'static str], &'static [&'static str]) {
+    pub const fn attrs(self) -> (&'static [&'static str], &'static [&'static str]) {
         match self {
             Self::Executable
             | Self::SharedLibrary
@@ -56,5 +81,32 @@ impl OutputType {
             | Self::SourceSet => (&["sources", "public"], &["deps", "public_deps"]),
             _ => (&[], &[]),
         }
+    }
+
+    pub const fn has_sources(self) -> bool {
+        contains(self.attrs().0, "sources")
+    }
+
+    pub const fn has_public(self) -> bool {
+        contains(self.attrs().0, "public")
+    }
+
+    pub const fn has_deps(self) -> bool {
+        contains(self.attrs().1, "deps")
+    }
+
+    pub const fn has_public_deps(self) -> bool {
+        contains(self.attrs().1, "public_deps")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_has_capabilities() {
+        assert!(OutputType::Executable.has_deps());
+        assert!(!OutputType::Copy.has_deps());
     }
 }
