@@ -144,16 +144,14 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
 
     fn register_target(
         &self,
-        cxx_target: std::pin::Pin<
-            &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
-        >,
+        cxx: &'static <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
         rule: starlark::values::FrozenValue,
         attrs: Vec<attr::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef> {
         let typed_rule =
             starlark::values::FrozenValueTyped::<rule::FrozenRule<Self>>::new_err(rule)?;
         Ok(self.session.register_target(crate::target::Target {
-            cxx: cxx_target.into_ref().get_ref(),
+            cxx,
             starlark: typed_rule
                 .has_implementation()
                 .then(|| crate::target::StarlarkTarget {

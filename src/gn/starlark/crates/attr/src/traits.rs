@@ -30,9 +30,7 @@ pub trait EvalContextAttrExt: types::EvalContext {
     /// immutable TargetRef.
     fn register_target(
         &self,
-        cxx_target: std::pin::Pin<
-            &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
-        >,
+        cxx_target: &'static <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
         rule: starlark::values::FrozenValue,
         attrs: Vec<crate::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef>;

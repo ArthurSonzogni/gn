@@ -140,7 +140,7 @@ where
             for (label, toolchain) in deps {
                 types::TargetMut::register_dependency(cxx_target.as_mut(), label, toolchain);
             }
-            context.register_target(cxx_target, me, attrs)?;
+            context.register_target(cxx_target.into_ref().get_ref(), me, attrs)?;
 
             Ok(Value::new_none())
         })

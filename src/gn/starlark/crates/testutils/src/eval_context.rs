@@ -164,11 +164,11 @@ impl EvalContextAttrExt for FakeEvalContext {
 
     fn register_target(
         &self,
-        cxx_target: std::pin::Pin<&'static mut FakeTarget>,
+        cxx_target: &'static FakeTarget,
         rule: FrozenValue,
         attrs: Vec<Attr>,
     ) -> Result<FakeTargetRef> {
-        let target_ptr = &*cxx_target as *const FakeTarget;
+        let target_ptr = cxx_target as *const FakeTarget;
         let mut targets = self.session.targets_under_construction.borrow_mut();
         let idx = targets
             .iter()

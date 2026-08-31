@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "gn/ffi/bridge.h"
 #include "gn/label.h"
 #include "gn/label_ptr.h"
 #include "gn/source_dir.h"
@@ -34,4 +35,14 @@ void register_dependency(Target& target,
       Label(SourceDir(std::string_view(package)), std::string_view(name),
             SourceDir(std::string_view(toolchain_package)),
             std::string_view(toolchain_name))));
+}
+
+const RustTarget& Target::rust_target(const Session& session) const {
+  const RustTarget* target = rust_target_.load(std::memory_order_acquire);
+  if (target) {
+    return *target;
+  }
+  // register_cxx_target calls set_rust_target, so we don't need to bother
+  // caching it ourselves.
+  return session.register_cxx_target(*this);
 }

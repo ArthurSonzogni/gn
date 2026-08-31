@@ -757,6 +757,7 @@ using Scope = ::Scope;
 using TestWithScope = ::TestWithScope;
 using Value = ::Value;
 using ParseNode = ::ParseNode;
+struct RustTarget;
 struct Session;
 struct OwnedFrozenValue;
 
@@ -811,11 +812,26 @@ enum class ValueType : ::std::uint8_t {
 };
 #endif // CXXBRIDGE1_ENUM_ValueType
 
+#ifndef CXXBRIDGE1_STRUCT_RustTarget
+#define CXXBRIDGE1_STRUCT_RustTarget
+struct RustTarget final : public ::rust::Opaque {
+  ~RustTarget() = delete;
+
+private:
+  friend ::rust::layout;
+  struct layout {
+    static ::std::size_t size() noexcept;
+    static ::std::size_t align() noexcept;
+  };
+};
+#endif // CXXBRIDGE1_STRUCT_RustTarget
+
 #ifndef CXXBRIDGE1_STRUCT_Session
 #define CXXBRIDGE1_STRUCT_Session
 struct Session final : public ::rust::Opaque {
   static ::rust::Box<::Session> new_cxx(::rust::Str source_root, ::rust::Str source_root_rel) noexcept;
   static ::rust::Box<::Session> new_for_testing() noexcept;
+  ::RustTarget const &register_cxx_target(::Target const &target) const noexcept;
   void load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept;
   ~Session() = delete;
 
