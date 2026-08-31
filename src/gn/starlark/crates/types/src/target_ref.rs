@@ -4,7 +4,7 @@
 
 use starlark::values::{AllocValue, Heap, StarlarkValue, Value};
 
-use crate::{File, LabelRef, OutputType};
+use crate::{File, LabelRef, OutputType, Session};
 
 /// Unfortunately while we could specify that Eq and Hash are implemented, there
 /// is no way to delegate starlark's equality and hash function to it
@@ -25,6 +25,7 @@ pub trait TargetRef:
 
     type Cxx: TargetMut;
     type Rule: for<'v> StarlarkValue<'v>;
+    type Session: Session<TargetRef = Self>;
 
     /// Returns the rule that this target was built from.
     /// May return None if the target is a pure GN target.
@@ -47,7 +48,7 @@ pub trait TargetRef:
     fn output_type(&self) -> Option<OutputType>;
 
     /// Returns the resolved built-in attributes as Starlark values.
-    fn builtin_attrs<'v>(&self, heap: &Heap<'v>) -> Vec<Value<'v>>;
+    fn builtin_attrs<'v>(&self, session: &Self::Session, heap: &Heap<'v>) -> Vec<Value<'v>>;
 }
 
 /// A trait for mutating a target before it is registered in the session.

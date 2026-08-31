@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "cxx.h"
+#include "gn/label_ptr.h"
 
 class Err;
 class Scope;
@@ -29,5 +30,9 @@ void register_dependency(Target& target,
                          rust::Str name,
                          rust::Str toolchain_package,
                          rust::Str toolchain_name);
+
+// Returns the resolved target from a LabelTargetPair.
+// Must only be called if the target is already resolved.
+const Target& label_target_pair_target(const LabelTargetPair& pair);
 
 #endif  // TOOLS_GN_FFI_TARGET_H_

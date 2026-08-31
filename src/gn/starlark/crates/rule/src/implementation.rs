@@ -16,7 +16,7 @@ pub fn run<C: EvalContextAttrExt + crate::CtxMethods>(
     create_context: impl FnOnce(&<C::Session as Session>::TargetRef) -> C,
 ) -> starlark::Result<OwnedFrozenValue>
 where
-    <C::Session as Session>::TargetRef: TargetAttrExt<Rule = FrozenRule<C>>,
+    <C::Session as Session>::TargetRef: TargetAttrExt<Rule = FrozenRule<C>, Session = C::Session>,
 {
     // Safety: rule is always a rule for custom rule-built targets.
     let rule = target.rule().unwrap();
@@ -34,7 +34,7 @@ where
                     rule_context.session(),
                     &rule_context.current_toolchain(),
                     rule.builtin,
-                    target.builtin_attrs(&eval.heap()),
+                    target.builtin_attrs(rule_context.session(), &eval.heap()),
                     &eval.heap(),
                 )?,
                 rule,

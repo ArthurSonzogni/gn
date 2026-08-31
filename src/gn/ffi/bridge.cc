@@ -8,6 +8,7 @@
 #include "gn/ffi/test_with_scope.h"
 #include "gn/ffi/value.h"
 #include "gn/label.h"
+#include "gn/label_ptr.h"
 #include "gn/output_file.h"
 #include "gn/scope.h"
 #include "gn/settings.h"
@@ -828,6 +829,7 @@ using OutputFile = ::OutputFile;
 using SourceDir = ::SourceDir;
 using Label = ::Label;
 using SourceFile = ::SourceFile;
+using LabelTargetPair = ::LabelTargetPair;
 using Target = ::Target;
 using Settings = ::Settings;
 using Scope = ::Scope;
@@ -1010,6 +1012,11 @@ bool cxxbridge1$196$SourceFile$is_header(::SourceFile const &self) noexcept {
   return ::rust::impl<::rust::Str>::repr(source_file_to_output_path$(settings, file));
 }
 
+void cxxbridge1$196$label_target_pair_target(::LabelTargetPair const &pair, ::Target const **return$) noexcept {
+  ::Target const &(*label_target_pair_target$)(::LabelTargetPair const &) = ::label_target_pair_target;
+  new (return$) ::Target const *(&label_target_pair_target$(pair));
+}
+
 void cxxbridge1$196$Target$label(::Target const &self, ::Label const **return$) noexcept {
   ::Label const &(::Target::*label$)() const = &::Target::label;
   new (return$) ::Label const *(&(self.*label$)());
@@ -1018,6 +1025,31 @@ void cxxbridge1$196$Target$label(::Target const &self, ::Label const **return$) 
 ::std::uint8_t cxxbridge1$196$output_type_u8(::Target const &target) noexcept {
   ::std::uint8_t (*output_type_u8$)(::Target const &) = ::output_type_u8;
   return output_type_u8$(target);
+}
+
+void cxxbridge1$196$Target$private_deps(::Target const &self, ::std::vector<::LabelTargetPair> const **return$) noexcept {
+  ::std::vector<::LabelTargetPair> const &(::Target::*private_deps$)() const = &::Target::private_deps;
+  new (return$) ::std::vector<::LabelTargetPair> const *(&(self.*private_deps$)());
+}
+
+void cxxbridge1$196$Target$public_deps(::Target const &self, ::std::vector<::LabelTargetPair> const **return$) noexcept {
+  ::std::vector<::LabelTargetPair> const &(::Target::*public_deps$)() const = &::Target::public_deps;
+  new (return$) ::std::vector<::LabelTargetPair> const *(&(self.*public_deps$)());
+}
+
+bool cxxbridge1$196$Target$all_headers_public(::Target const &self) noexcept {
+  bool (::Target::*all_headers_public$)() const = &::Target::all_headers_public;
+  return (self.*all_headers_public$)();
+}
+
+void cxxbridge1$196$Target$sources(::Target const &self, ::std::vector<::SourceFile> const **return$) noexcept {
+  ::std::vector<::SourceFile> const &(::Target::*sources$)() const = &::Target::sources;
+  new (return$) ::std::vector<::SourceFile> const *(&(self.*sources$)());
+}
+
+void cxxbridge1$196$Target$public_headers(::Target const &self, ::std::vector<::SourceFile> const **return$) noexcept {
+  ::std::vector<::SourceFile> const &(::Target::*public_headers$)() const = &::Target::public_headers;
+  new (return$) ::std::vector<::SourceFile> const *(&(self.*public_headers$)());
 }
 
 ::RustTarget const *cxxbridge1$196$Target$rust_target(::Target const &self, ::Session const &session) noexcept {
@@ -1281,6 +1313,74 @@ void cxxbridge1$unique_ptr$Err$raw(::std::unique_ptr<::Err> *ptr, ::std::unique_
 }
 void cxxbridge1$unique_ptr$Err$drop(::std::unique_ptr<::Err> *ptr) noexcept {
   ::rust::deleter_if<::rust::detail::is_complete<::Err>::value>{}(ptr);
+}
+
+::std::vector<::LabelTargetPair> *cxxbridge1$std$vector$LabelTargetPair$new() noexcept {
+  return new ::std::vector<::LabelTargetPair>();
+}
+::std::size_t cxxbridge1$std$vector$LabelTargetPair$size(::std::vector<::LabelTargetPair> const &s) noexcept {
+  return s.size();
+}
+::std::size_t cxxbridge1$std$vector$LabelTargetPair$capacity(::std::vector<::LabelTargetPair> const &s) noexcept {
+  return s.capacity();
+}
+::LabelTargetPair *cxxbridge1$std$vector$LabelTargetPair$get_unchecked(::std::vector<::LabelTargetPair> *s, ::std::size_t pos) noexcept {
+  return &(*s)[pos];
+}
+bool cxxbridge1$std$vector$LabelTargetPair$reserve(::std::vector<::LabelTargetPair> *s, ::std::size_t new_cap) noexcept {
+  return ::rust::if_move_constructible<::LabelTargetPair>::reserve(*s, new_cap);
+}
+static_assert(::rust::detail::is_complete<::std::remove_extent<::std::vector<::LabelTargetPair>>::type>::value, "definition of `::std::vector<::LabelTargetPair>` is required");
+static_assert(sizeof(::std::unique_ptr<::std::vector<::LabelTargetPair>>) == sizeof(void *), "");
+static_assert(alignof(::std::unique_ptr<::std::vector<::LabelTargetPair>>) == alignof(void *), "");
+void cxxbridge1$unique_ptr$std$vector$LabelTargetPair$null(::std::unique_ptr<::std::vector<::LabelTargetPair>> *ptr) noexcept {
+  ::new (ptr) ::std::unique_ptr<::std::vector<::LabelTargetPair>>();
+}
+void cxxbridge1$unique_ptr$std$vector$LabelTargetPair$raw(::std::unique_ptr<::std::vector<::LabelTargetPair>> *ptr, ::std::unique_ptr<::std::vector<::LabelTargetPair>>::pointer raw) noexcept {
+  ::new (ptr) ::std::unique_ptr<::std::vector<::LabelTargetPair>>(raw);
+}
+::std::unique_ptr<::std::vector<::LabelTargetPair>>::element_type const *cxxbridge1$unique_ptr$std$vector$LabelTargetPair$get(::std::unique_ptr<::std::vector<::LabelTargetPair>> const &ptr) noexcept {
+  return ptr.get();
+}
+::std::unique_ptr<::std::vector<::LabelTargetPair>>::pointer cxxbridge1$unique_ptr$std$vector$LabelTargetPair$release(::std::unique_ptr<::std::vector<::LabelTargetPair>> &ptr) noexcept {
+  return ptr.release();
+}
+void cxxbridge1$unique_ptr$std$vector$LabelTargetPair$drop(::std::unique_ptr<::std::vector<::LabelTargetPair>> *ptr) noexcept {
+  ::rust::deleter_if<::rust::detail::is_complete<::std::vector<::LabelTargetPair>>::value>{}(ptr);
+}
+
+::std::vector<::SourceFile> *cxxbridge1$std$vector$SourceFile$new() noexcept {
+  return new ::std::vector<::SourceFile>();
+}
+::std::size_t cxxbridge1$std$vector$SourceFile$size(::std::vector<::SourceFile> const &s) noexcept {
+  return s.size();
+}
+::std::size_t cxxbridge1$std$vector$SourceFile$capacity(::std::vector<::SourceFile> const &s) noexcept {
+  return s.capacity();
+}
+::SourceFile *cxxbridge1$std$vector$SourceFile$get_unchecked(::std::vector<::SourceFile> *s, ::std::size_t pos) noexcept {
+  return &(*s)[pos];
+}
+bool cxxbridge1$std$vector$SourceFile$reserve(::std::vector<::SourceFile> *s, ::std::size_t new_cap) noexcept {
+  return ::rust::if_move_constructible<::SourceFile>::reserve(*s, new_cap);
+}
+static_assert(::rust::detail::is_complete<::std::remove_extent<::std::vector<::SourceFile>>::type>::value, "definition of `::std::vector<::SourceFile>` is required");
+static_assert(sizeof(::std::unique_ptr<::std::vector<::SourceFile>>) == sizeof(void *), "");
+static_assert(alignof(::std::unique_ptr<::std::vector<::SourceFile>>) == alignof(void *), "");
+void cxxbridge1$unique_ptr$std$vector$SourceFile$null(::std::unique_ptr<::std::vector<::SourceFile>> *ptr) noexcept {
+  ::new (ptr) ::std::unique_ptr<::std::vector<::SourceFile>>();
+}
+void cxxbridge1$unique_ptr$std$vector$SourceFile$raw(::std::unique_ptr<::std::vector<::SourceFile>> *ptr, ::std::unique_ptr<::std::vector<::SourceFile>>::pointer raw) noexcept {
+  ::new (ptr) ::std::unique_ptr<::std::vector<::SourceFile>>(raw);
+}
+::std::unique_ptr<::std::vector<::SourceFile>>::element_type const *cxxbridge1$unique_ptr$std$vector$SourceFile$get(::std::unique_ptr<::std::vector<::SourceFile>> const &ptr) noexcept {
+  return ptr.get();
+}
+::std::unique_ptr<::std::vector<::SourceFile>>::pointer cxxbridge1$unique_ptr$std$vector$SourceFile$release(::std::unique_ptr<::std::vector<::SourceFile>> &ptr) noexcept {
+  return ptr.release();
+}
+void cxxbridge1$unique_ptr$std$vector$SourceFile$drop(::std::unique_ptr<::std::vector<::SourceFile>> *ptr) noexcept {
+  ::rust::deleter_if<::rust::detail::is_complete<::std::vector<::SourceFile>>::value>{}(ptr);
 }
 
 static_assert(::rust::detail::is_complete<::std::remove_extent<::Scope>::type>::value, "definition of `::Scope` is required");

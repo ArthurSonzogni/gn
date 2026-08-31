@@ -134,6 +134,7 @@ impl Deref for FakeTargetRef {
 impl TargetRef for FakeTargetRef {
     type Cxx = FakeTarget;
     type Rule = rule::FrozenRule<FakeEvalContext>;
+    type Session = crate::FakeSession;
 
     fn label(&self) -> LabelRef<'_> {
         self.get().label.as_ref()
@@ -159,7 +160,7 @@ impl TargetRef for FakeTargetRef {
         format!("{prefix}$TOOLCHAIN/{suffix}$LABEL")
     }
 
-    fn builtin_attrs<'v>(&self, _heap: &Heap<'v>) -> Vec<Value<'v>> {
+    fn builtin_attrs<'v>(&self, _session: &Self::Session, _heap: &Heap<'v>) -> Vec<Value<'v>> {
         self.get()
             .output_type
             .map(|ot| {

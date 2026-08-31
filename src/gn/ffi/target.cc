@@ -46,3 +46,7 @@ const RustTarget& Target::rust_target(const Session& session) const {
   // caching it ourselves.
   return session.register_cxx_target(*this);
 }
+const Target& label_target_pair_target(const LabelTargetPair& pair) {
+  DCHECK(pair.ptr);
+  return *pair.ptr;
+}

@@ -152,6 +152,7 @@ mod dummy {
         include!("gn/ffi/test_with_scope.h");
         include!("gn/ffi/value.h");
         include!("gn/label.h");
+        include!("gn/label_ptr.h");
         include!("gn/output_file.h");
         include!("gn/scope.h");
         include!("gn/settings.h");
@@ -212,10 +213,18 @@ mod dummy {
         fn is_header(self: &SourceFile) -> bool;
         fn source_file_to_output_path<'a>(settings: &'a Settings, file: &'a SourceFile) -> &'a str;
 
+        type LabelTargetPair;
+        fn label_target_pair_target(pair: &LabelTargetPair) -> &CxxTarget;
+
         #[rust_name = "CxxTarget"]
         type Target;
         fn label(self: &CxxTarget) -> &Label;
         fn output_type_u8(target: &CxxTarget) -> u8;
+        fn private_deps(self: &CxxTarget) -> &CxxVector<LabelTargetPair>;
+        fn public_deps(self: &CxxTarget) -> &CxxVector<LabelTargetPair>;
+        fn all_headers_public(self: &CxxTarget) -> bool;
+        fn sources(self: &CxxTarget) -> &CxxVector<SourceFile>;
+        fn public_headers(self: &CxxTarget) -> &CxxVector<SourceFile>;
         fn rust_target<'a>(self: &'a CxxTarget, session: &'a Session) -> &'static Target;
         fn set_rust_target(self: &CxxTarget, rust_target: &Target);
         #[rust_name = "settings_cxx"]
