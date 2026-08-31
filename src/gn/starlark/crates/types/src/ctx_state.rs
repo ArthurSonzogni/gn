@@ -32,7 +32,7 @@ impl<T: TargetRef> CtxState<T> {
     /// Declares a new phony build step in the target's build state.
     pub fn new_phony(&mut self, deps: Vec<File>) -> File {
         let count = self.phonies.len();
-        let mut path = self.target.target_out_dir("phony/", "", "/:");
+        let mut path = self.target.target_out_dir("phony/", "", ":");
         path.push('_');
         path.push_str(&count.to_string());
         let phony = File::intern(&path);

@@ -86,8 +86,23 @@ impl types::TargetRef for TargetRef {
         todo!()
     }
 
-    fn target_out_dir(&self, _prefix: &str, _suffix: &str, _separator: &str) -> String {
-        todo!()
+    fn target_out_dir(
+        &self,
+        toolchain_prefix: &str,
+        label_prefix: &str,
+        package_name_separator: &str,
+    ) -> String {
+        let mut out = String::new();
+        out.push_str(toolchain_prefix);
+        if !self.0.settings().is_default() {
+            out.push_str(self.toolchain().name());
+            out.push('/');
+        }
+        out.push_str(label_prefix);
+        out.push_str(self.label().package().as_source_relative());
+        out.push_str(package_name_separator);
+        out.push_str(self.label().name());
+        out
     }
 
     fn output_type(&self) -> Option<types::OutputType> {

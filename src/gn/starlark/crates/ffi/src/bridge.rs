@@ -227,6 +227,7 @@ mod dummy {
 
         type Settings;
         pub(in crate::settings) fn toolchain_label(self: &Settings) -> &Label;
+        pub fn is_default(self: &Settings) -> bool;
 
         type Scope;
         // Constructs a new child Scope, populates placeholder Values for the given

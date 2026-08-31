@@ -999,6 +999,11 @@ void cxxbridge1$196$Settings$toolchain_label(::Settings const &self, ::Label con
   new (return$) ::Label const *(&(self.*toolchain_label$)());
 }
 
+bool cxxbridge1$196$Settings$is_default(::Settings const &self) noexcept {
+  bool (::Settings::*is_default$)() const = &::Settings::is_default;
+  return (self.*is_default$)();
+}
+
 void cxxbridge1$196$NewScope(::Scope &parent_scope, ::rust::Slice<::rust::Str const> keys, ::std::unique_ptr<::Scope> &out_scope, ::SliceAny *return$) noexcept {
   ::SliceAny (*NewScope$)(::Scope &, ::rust::Slice<::rust::Str const>, ::std::unique_ptr<::Scope> &) = ::NewScope;
   new (return$) ::SliceAny(NewScope$(parent_scope, keys, out_scope));
