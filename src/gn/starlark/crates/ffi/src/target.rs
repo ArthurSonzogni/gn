@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::ptr::NonNull;
-
 use starlark::values::FrozenValueTyped;
 
 use crate::eval_context::EvalContext;
@@ -17,7 +15,7 @@ pub struct Target {
     // We maintain a 0-1 relationship between starlark Targets and rust targets.
     // starlark targets store a reference to C++ targets, and C++ targets store an optional
     // reference to starlark targets.
-    pub(crate) cxx: NonNull<crate::bridge::CxxTarget>,
+    pub(crate) cxx: &'static crate::bridge::CxxTarget,
     pub(crate) starlark: Option<StarlarkTarget>,
 }
 
@@ -25,9 +23,7 @@ impl std::ops::Deref for Target {
     type Target = crate::bridge::CxxTarget;
 
     fn deref(&self) -> &Self::Target {
-        // Safety: The C++ Target pointer is guaranteed to be valid and live for the
-        // duration of the build evaluation.
-        unsafe { self.cxx.as_ref() }
+        self.cxx
     }
 }
 
