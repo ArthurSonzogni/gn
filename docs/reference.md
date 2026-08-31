@@ -574,6 +574,7 @@
   output_conversion
   outputs
   public_configs
+  public_inputs
   public
   rebase
   script

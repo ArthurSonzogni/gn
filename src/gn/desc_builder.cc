@@ -37,6 +37,7 @@
 //   "sources" : [ list of source files ],
 //   "public" : either "*" or [ list of public headers],
 //   "inputs" : [ list of inputs for target ],
+//   "public_inputs" : [ list of public inputs for target ],
 //   "configs" : [ list of configs for this target ],
 //   "public_configs" : [ list of public configs for this target],
 //   "all_dependent_configs", [ list of all dependent configs for this target],
@@ -433,6 +434,11 @@ class TargetDescBuilder : public BaseDescBuilder {
       }
       if (!inputs.empty())
         res->SetWithoutPathExpansion(variables::kInputs, RenderValue(inputs));
+    }
+
+    if (what(variables::kPublicInputs) && !target_->public_inputs().empty()) {
+      res->SetWithoutPathExpansion(variables::kPublicInputs,
+                                   RenderValue(target_->public_inputs()));
     }
 
     if (is_binary_output && what(variables::kConfigs) &&

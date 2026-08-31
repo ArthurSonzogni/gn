@@ -276,6 +276,7 @@ std::map<std::string, DescHandlerFunc> GetHandlers() {
           {variables::kSources, DefaultHandler},
           {variables::kPublic, PublicHandler},
           {variables::kInputs, DefaultHandler},
+          {variables::kPublicInputs, DefaultHandler},
           {variables::kConfigs, ConfigsHandler},
           {variables::kPublicConfigs, ConfigsHandler},
           {variables::kAllDependentConfigs, ConfigsHandler},
@@ -376,6 +377,7 @@ bool PrintTarget(const Target* target,
   HandleProperty(variables::kSwiftBridgeHeader, handler_map, v, dict);
   HandleProperty(variables::kPublic, handler_map, v, dict);
   HandleProperty(variables::kInputs, handler_map, v, dict);
+  HandleProperty(variables::kPublicInputs, handler_map, v, dict);
   HandleProperty(variables::kConfigs, handler_map, v, dict);
   HandleProperty(variables::kPublicConfigs, handler_map, v, dict);
   HandleProperty(variables::kAllDependentConfigs, handler_map, v, dict);
@@ -528,6 +530,7 @@ Possibilities for <what to show>
   output_conversion
   outputs
   public_configs
+  public_inputs
   public
   rebase
   script
