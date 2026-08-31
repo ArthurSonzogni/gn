@@ -147,6 +147,7 @@ mod dummy {
         include!("gn/err.h");
         include!("gn/ffi/err.h");
         include!("gn/ffi/scope.h");
+        include!("gn/ffi/source_file.h");
         include!("gn/ffi/target.h");
         include!("gn/ffi/test_with_scope.h");
         include!("gn/ffi/value.h");
@@ -155,6 +156,7 @@ mod dummy {
         include!("gn/scope.h");
         include!("gn/settings.h");
         include!("gn/source_dir.h");
+        include!("gn/source_file.h");
         include!("gn/target.h");
         include!("gn/test_with_scope.h");
         include!("gn/value.h");
@@ -204,6 +206,11 @@ mod dummy {
         fn dir(self: &Label) -> &SourceDir;
         #[cxx_return_type = "const std::string&"]
         fn name(self: &Label) -> &str;
+
+        type SourceFile;
+        #[cxx_name = "IsHeaderType"]
+        fn is_header(self: &SourceFile) -> bool;
+        fn source_file_to_output_path<'a>(settings: &'a Settings, file: &'a SourceFile) -> &'a str;
 
         #[rust_name = "CxxTarget"]
         type Target;

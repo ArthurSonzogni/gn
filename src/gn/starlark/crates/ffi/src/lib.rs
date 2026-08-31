@@ -28,6 +28,7 @@ mod scope;
 mod session;
 mod settings;
 mod slice;
+mod source_file;
 mod target;
 mod target_ref;
 mod test_with_scope;
@@ -35,7 +36,7 @@ mod value;
 
 pub use bridge::{
     CxxTarget, Err, KeyValue, Label, OutputFile, OwnedFrozenValue, Scope, Settings, SourceDir,
-    Value, ValueType,
+    SourceFile, Value, ValueType,
 };
 pub use mutability::Immutable;
 pub use opaque::{NonOpaque, OpaqueSized};

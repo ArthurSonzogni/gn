@@ -164,6 +164,10 @@ bool SourceFile::IsSwiftModuleType() const {
   return EndsWithExtension(v, "swiftmodule");
 }
 
+bool SourceFile::IsHeaderType() const {
+  return GetType() == SOURCE_H;
+}
+
 std::string SourceFile::GetName() const {
   if (is_null())
     return std::string();

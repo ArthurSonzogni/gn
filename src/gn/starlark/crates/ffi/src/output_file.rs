@@ -7,6 +7,7 @@ use crate::OutputFile;
 impl OutputFile {
     /// Converts a GN OutputFile to a starlark File.
     pub fn to_rust(&self) -> types::File {
-        types::File::intern(self.value())
+        // Safety: OutputFile's value is backed by an interned StringAtom and is static.
+        types::File::new(unsafe { types::util::extend_lifetime(self.value()) })
     }
 }

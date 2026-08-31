@@ -849,6 +849,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
               'src/gn/exec_process.cc',
               'src/gn/ffi/bridge.cc',
               'src/gn/ffi/scope.cc',
+              'src/gn/ffi/source_file.cc',
               'src/gn/ffi/target.cc',
               'src/gn/ffi/value.cc',
               'src/gn/ffi/session.cc',

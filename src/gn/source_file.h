@@ -67,6 +67,7 @@ class SourceFile {
   bool IsObjectType() const;       // SOURCE_O
   bool IsSwiftType() const;        // SOURCE_SWIFT
   bool IsSwiftModuleType() const;  // SOURCE_SWIFTMODULE
+  bool IsHeaderType() const;       // SOURCE_H
 
   // Returns everything after the last slash.
   std::string GetName() const;
