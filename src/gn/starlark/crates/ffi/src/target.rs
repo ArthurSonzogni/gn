@@ -39,6 +39,11 @@ unsafe impl Send for Target {}
 unsafe impl Sync for Target {}
 
 impl crate::bridge::CxxTarget {
+    /// Returns the output type of the target as a u8 discriminant.
+    pub fn output_type(&self) -> u8 {
+        crate::bridge::output_type_u8(self)
+    }
+
     /// Returns the settings for the target.
     pub fn settings(&self) -> &crate::Settings {
         // Safety: Settings pointer is always valid and non-null on constructed Targets.

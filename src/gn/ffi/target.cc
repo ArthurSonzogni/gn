@@ -12,6 +12,10 @@
 #include "gn/target.h"
 #include "gn/target_generator.h"
 
+uint8_t output_type_u8(const Target& target) {
+  return static_cast<uint8_t>(target.output_type());
+}
+
 Target* create_target(Scope& scope,
                       rust::Str name,
                       rust::Str output_type,

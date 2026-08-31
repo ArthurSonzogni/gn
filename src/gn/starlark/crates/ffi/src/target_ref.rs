@@ -91,7 +91,7 @@ impl types::TargetRef for TargetRef {
     }
 
     fn output_type(&self) -> Option<types::OutputType> {
-        todo!()
+        types::OutputType::from_u8(self.0.output_type())
     }
 
     fn builtin_attrs<'v>(&self, _heap: &Heap<'v>) -> Vec<Value<'v>> {

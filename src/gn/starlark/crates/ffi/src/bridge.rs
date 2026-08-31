@@ -208,6 +208,7 @@ mod dummy {
         #[rust_name = "CxxTarget"]
         type Target;
         pub(in crate::target) fn label(self: &CxxTarget) -> &Label;
+        pub(in crate::target) fn output_type_u8(target: &CxxTarget) -> u8;
         #[rust_name = "settings_cxx"]
         pub(in crate::target) fn settings(self: &CxxTarget) -> *const Settings;
         pub(in crate::eval_context) fn create_target(

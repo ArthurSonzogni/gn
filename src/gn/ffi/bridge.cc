@@ -974,6 +974,11 @@ void cxxbridge1$196$Target$label(::Target const &self, ::Label const **return$) 
   new (return$) ::Label const *(&(self.*label$)());
 }
 
+::std::uint8_t cxxbridge1$196$output_type_u8(::Target const &target) noexcept {
+  ::std::uint8_t (*output_type_u8$)(::Target const &) = ::output_type_u8;
+  return output_type_u8$(target);
+}
+
 ::Settings const *cxxbridge1$196$Target$settings_cxx(::Target const &self) noexcept {
   ::Settings const *(::Target::*settings_cxx$)() const = &::Target::settings;
   return (self.*settings_cxx$)();
