@@ -4,14 +4,21 @@
 
 use std::ptr::NonNull;
 
-#[derive(Copy, Clone)]
+use starlark::values::FrozenValueTyped;
+
+use crate::eval_context::EvalContext;
+
+pub(crate) struct StarlarkTarget {
+    pub(crate) rule: FrozenValueTyped<'static, rule::FrozenRule<EvalContext>>,
+    pub(crate) attrs: Vec<attr::Attr>,
+}
+
 pub struct Target {
     // We maintain a 0-1 relationship between starlark Targets and rust targets.
     // starlark targets store a reference to C++ targets, and C++ targets store an optional
     // reference to starlark targets.
     pub(crate) cxx: NonNull<crate::bridge::CxxTarget>,
-    // Note: This is not a lightweight reference type.
-    // Fields such as rules, attr, and providers will be added in the future.
+    pub(crate) starlark: Option<StarlarkTarget>,
 }
 
 impl std::ops::Deref for Target {

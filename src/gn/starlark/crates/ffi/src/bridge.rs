@@ -211,7 +211,7 @@ mod dummy {
         pub(in crate::target) fn output_type_u8(target: &CxxTarget) -> u8;
         #[rust_name = "settings_cxx"]
         pub(in crate::target) fn settings(self: &CxxTarget) -> *const Settings;
-        pub(in crate::eval_context) fn create_target(
+        pub(crate) fn create_target(
             scope: Pin<&mut Scope>,
             name: &str,
             output_type: &str,

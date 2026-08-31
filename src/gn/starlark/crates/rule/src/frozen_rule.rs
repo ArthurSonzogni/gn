@@ -73,6 +73,10 @@ impl<C: EvalContextAttrExt> FrozenRule<C> {
             _phantom: PhantomData,
         }
     }
+
+    pub fn has_implementation(&self) -> bool {
+        !self.implementation.is_none()
+    }
 }
 
 #[starlark_value(type = "rule")]

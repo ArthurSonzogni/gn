@@ -175,12 +175,8 @@ impl EvalContextAttrExt for FakeEvalContext {
             .position(|t| std::ptr::eq(&**t, target_ptr))
             .expect("Registering target that was not created in this context");
         let mut target = targets.remove(idx);
-        target.rule = if rule.is_none() {
-            None
-        } else {
-            let typed = FrozenValueTyped::<rule::FrozenRule<FakeEvalContext>>::new(rule).unwrap();
-            Some(typed.as_ref())
-        };
+        let typed = FrozenValueTyped::<rule::FrozenRule<FakeEvalContext>>::new_err(rule)?;
+        target.rule = typed.has_implementation().then(|| typed.as_ref());
         target.attrs = attrs;
         Ok(self.session.insert_target(*target))
     }

@@ -79,7 +79,7 @@ impl types::TargetRef for TargetRef {
     }
 
     fn rule(&self) -> Option<&'static Self::Rule> {
-        todo!()
+        self.0.starlark.as_ref().map(|s| s.rule.as_ref())
     }
 
     fn outputs(&self) -> Vec<types::File> {
@@ -116,7 +116,7 @@ impl types::TargetRef for TargetRef {
 
 impl attr::TargetAttrExt for TargetRef {
     fn attrs(&self) -> &[attr::Attr] {
-        &[]
+        self.0.starlark.as_ref().map_or(&[], |s| s.attrs.as_slice())
     }
 }
 

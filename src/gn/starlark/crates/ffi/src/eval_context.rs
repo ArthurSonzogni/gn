@@ -147,12 +147,20 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
         cxx_target: std::pin::Pin<
             &'static mut <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
         >,
-        _rule: starlark::values::FrozenValue,
-        _attrs: Vec<attr::Attr>,
+        rule: starlark::values::FrozenValue,
+        attrs: Vec<attr::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef> {
         let ffi_target = std::ptr::NonNull::from(&*cxx_target);
-        Ok(self
-            .session
-            .register_target(crate::target::Target { cxx: ffi_target }))
+        let typed_rule =
+            starlark::values::FrozenValueTyped::<rule::FrozenRule<Self>>::new_err(rule)?;
+        Ok(self.session.register_target(crate::target::Target {
+            cxx: ffi_target,
+            starlark: typed_rule
+                .has_implementation()
+                .then(|| crate::target::StarlarkTarget {
+                    rule: typed_rule,
+                    attrs,
+                }),
+        }))
     }
 }
