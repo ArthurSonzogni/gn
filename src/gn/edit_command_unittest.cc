@@ -659,6 +659,7 @@ group("foo") {
   testonly = true
   visibility = [ "//..." ]
 }
+
 static_library("a") {
   sources = [
     "a.cc",
@@ -672,6 +673,7 @@ static_library("a") {
   testonly = true
   visibility = [ "//..." ]
 }
+
 static_library("c_win") {
   sources = []
   if (is_win) {
@@ -682,6 +684,7 @@ static_library("c_win") {
   testonly = true
   visibility = [ "//..." ]
 }
+
 static_library("foo_foo") {
   sources = [ "foo.h" ]
   if (is_win) {
@@ -692,6 +695,7 @@ static_library("foo_foo") {
   testonly = true
   visibility = [ "//..." ]
 }
+
 static_library("util_foo_bar") {
   sources = [
     "util/foo-bar.cc",
@@ -729,9 +733,11 @@ static_library("foo") {
     ":b",
   ]
 }
+
 source_set("a") {
   sources = [ "a.cc" ]
 }
+
 source_set("b") {
   sources = [ "b.cc" ]
 }
