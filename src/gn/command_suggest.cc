@@ -569,7 +569,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
   const auto& [includer, dep_kind] = includer_targets.front();
   current_toolchain = includer->label().GetToolchainLabel();
 
-  const char* dep_field =
+  std::string_view dep_field =
       (dep_kind == commands::ApiScope::kPrivate) ? "deps" : "public_deps";
 
   const auto& [targets, ok] = ResolveSuggestion(included_name, includer);
@@ -638,7 +638,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
         "Create a source_set target for the common headers and sources and "
         "have all of the above targets depend on that.\n");
     EditCommand edit{
-        .command = {"add", dep_field, "$NEW_SOURCE_SET"},
+        .command = {"add", std::string(dep_field), "$NEW_SOURCE_SET"},
         .target = includer->label().GetUserVisibleName(current_toolchain),
     };
     OutputEditCommand(edit, includer);
@@ -692,7 +692,12 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
   // the loop.
 
   auto OutputDepSuggestion = [&](const std::vector<const Target*>& candidates) {
-    std::vector<std::string> labels;
+    struct CandidateDep {
+      const Target* target;
+      std::string label;
+      EditCommand edit;
+    };
+    std::vector<CandidateDep> candidate_deps;
     for (const auto& target : candidates) {
       Label label = target->label();
       std::vector<const Target*> cycle = FindDependencyPath(target, includer);
@@ -772,41 +777,57 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
               "and remove that dependency.\n");
         }
       }
-      labels.push_back(label.dir() == includer->label().dir()
-                           ? ":" + label.name()
-                           : label.GetUserVisibleName(current_toolchain));
+      std::string label_str = label.dir() == includer->label().dir()
+                                  ? ":" + label.name()
+                                  : label.GetUserVisibleName(current_toolchain);
+      bool is_move =
+          dep_field == "public_deps" &&
+          std::ranges::any_of(includer->private_deps(), [&](const auto& dep) {
+            return dep.ptr == target || dep.label == target->label();
+          });
+      EditCommand edit{
+          .command =
+              is_move ? std::vector<std::string>{"move", "deps", "public_deps",
+                                                 label_str}
+                      : std::vector<std::string>{"add", std::string(dep_field),
+                                                 label_str},
+          .target = includer->label().GetUserVisibleName(current_toolchain),
+      };
+      candidate_deps.push_back({target, std::move(label_str), std::move(edit)});
     }
 
-    std::sort(labels.begin(), labels.end(),
-              [](std::string_view lhs, std::string_view rhs) {
+    std::sort(candidate_deps.begin(), candidate_deps.end(),
+              [](const CandidateDep& lhs, const CandidateDep& rhs) {
                 // Ensure relative labels come before absolute labels.
-                bool lhs_abs = !lhs.starts_with(':');
-                bool rhs_abs = !rhs.starts_with(':');
-                return std::tie(lhs_abs, lhs) < std::tie(rhs_abs, rhs);
+                bool lhs_abs = !lhs.label.starts_with(':');
+                bool rhs_abs = !rhs.label.starts_with(':');
+                return std::tie(lhs_abs, lhs.label) <
+                       std::tie(rhs_abs, rhs.label);
               });
-    if (labels.size() == 1) {
-      OutputEditCommand(
-          EditCommand{
-              .command = {"add", dep_field, labels.front()},
-              .target = includer->label().GetUserVisibleName(current_toolchain),
-          },
-          includer);
+    if (candidate_deps.size() == 1) {
+      OutputEditCommand(candidate_deps.front().edit, includer);
       return;
     }
 
     SetAmbiguous();
     StartSuggestion();
-    OutputString("Add one of the following to ");
-    OutputString(dep_field);
-    OutputString(" in ");
+    auto is_move = [](const auto& c) { return c.edit.command[0] == "move"; };
+    if (std::ranges::all_of(candidate_deps, is_move)) {
+      OutputString(
+          "Move one of the following from `deps` to `public_deps` in ");
+    } else if (std::ranges::any_of(candidate_deps, is_move)) {
+      OutputString("Add or move one of the following to ");
+      OutputString(dep_field);
+      OutputString(" in ");
+    } else {
+      OutputString("Add one of the following to ");
+      OutputString(dep_field);
+      OutputString(" in ");
+    }
     OutputDefinition(includer);
     OutputString(":\n");
-    for (const auto& l : labels) {
-      EditCommand edit{
-          .command = {"add", dep_field, l},
-          .target = includer->label().GetUserVisibleName(current_toolchain),
-      };
-      OutputString("* " + l + " (`" + edit.ToString() + "`)\n");
+    for (const auto& c : candidate_deps) {
+      OutputString("* " + c.label + " (`" + c.edit.ToString() + "`)\n");
     }
   };
 
