@@ -229,6 +229,10 @@ class BuildFile {
   // Creates a node to insert into the graph.
   std::unique_ptr<ParseNode> to_node(const Value& value);
 
+  // Parses a raw GN expression string into a ParseNode.
+  Result<std::unique_ptr<ParseNode>> parse_expression(
+      std::string_view expr_string);
+
   // Creates a node for an identifier.
   std::unique_ptr<IdentifierNode> create_identifier(std::string_view value);
   // Creates a node for `a = b`

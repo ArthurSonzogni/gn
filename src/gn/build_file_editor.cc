@@ -476,20 +476,28 @@ std::optional<EditTarget> BuildFile::find_target(std::string_view target_name) {
   return std::nullopt;
 }
 
-std::unique_ptr<ParseNode> BuildFile::to_node(const Value& value) {
+Result<std::unique_ptr<ParseNode>> BuildFile::parse_expression(
+    std::string_view expr_string) {
   auto file = std::make_unique<InputFile>(SourceFile("//dummy"));
-  file->SetContents(value.ToString(true));
+  file->SetContents(std::string(expr_string));
 
   Err err;
   std::vector<Token> tokens = Tokenizer::Tokenize(file.get(), &err);
+  RETURN_IF_ERROR(err);
   for (auto& token : tokens) {
     token.set_location(this->location());
   }
   auto parsed = Parser::ParseExpression(tokens, &err);
+  RETURN_IF_ERROR(err);
   extra_files_.push_back(std::move(file));
+  return std::move(parsed);
+}
+
+std::unique_ptr<ParseNode> BuildFile::to_node(const Value& value) {
+  auto parsed = parse_expression(value.ToString(true));
   // value.ToString() must return something parsable as input to GN.
-  DCHECK(!err.has_error());
-  return parsed;
+  DCHECK(!parsed.has_error());
+  return std::move(*parsed);
 }
 
 std::unique_ptr<IdentifierNode> BuildFile::create_identifier(

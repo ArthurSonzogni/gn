@@ -623,6 +623,25 @@ executable("foo") {
 }
 )",
                      EditState({Label(SourceDir("//"), "foo")})));
+
+  // Custom Expressions
+  EXPECT_SUCCESS(DoEdit("set str:expr default + \"a b\"",
+                        R"(
+executable("foo") {
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  str = default + "a b"
+}
+)"));
+
+  EXPECT_FAILURE(DoEdit("set deps:unknown a b",
+                        R"(
+executable("foo") {
+}
+)"),
+                 "Unknown type: :unknown");
 }
 
 TEST_F(EditCommandTest, ShardSubcommand) {

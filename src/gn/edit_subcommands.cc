@@ -12,6 +12,7 @@
 
 #include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "gn/build_file_editor.h"
 #include "gn/err.h"
 #include "gn/location.h"
@@ -47,6 +48,47 @@ Result<std::vector<Value>> ParseValues(base::span<const std::string> values) {
     list_elements.push_back(std::move(val));
   }
   return list_elements;
+}
+
+std::pair<std::string_view, std::optional<std::string_view>> SplitAttrType(
+    std::string_view arg) {
+  size_t colon_pos = arg.find(':');
+  if (colon_pos == std::string_view::npos) {
+    return {arg, std::nullopt};
+  }
+  return {arg.substr(0, colon_pos), arg.substr(colon_pos + 1)};
+}
+
+using ParseNodeGenerator =
+    std::function<Result<std::unique_ptr<ParseNode>>(BuildFile& build_file)>;
+
+Result<ParseNodeGenerator> CreateParseNodeGenerator(
+    std::optional<std::string_view> kind,
+    base::span<const std::string> values) {
+  CHECK(!values.empty());
+
+  if (kind == "expr") {
+    std::string expr_string = base::JoinString(
+        std::vector<std::string_view>(values.begin(), values.end()), " ");
+    return [expr_string = std::move(expr_string)](BuildFile& build_file) {
+      return build_file.parse_expression(expr_string);
+    };
+  } else if (kind == "list" || (!kind && values.size() > 1)) {
+    ASSIGN_OR_RETURN(std::vector<Value> out, ParseValues(values));
+    return [out = std::move(out)](
+               BuildFile& build_file) -> Result<std::unique_ptr<ParseNode>> {
+      return build_file.to_node(Value(nullptr, std::vector<Value>(out)));
+    };
+  } else if (!kind.has_value()) {
+    ASSIGN_OR_RETURN(Value val, ParseValue(values[0]));
+    return [val = std::move(val)](
+               BuildFile& build_file) -> Result<std::unique_ptr<ParseNode>> {
+      return build_file.to_node(val);
+    };
+  }
+
+  return Err(Location(), "Unknown type: :" + std::string(*kind),
+             "Supported types are :list and :expr.");
 }
 
 const TreeNode* FirstUnconditionalAssignment(
@@ -182,6 +224,7 @@ EditCommand AddToAttributeCommand(std::string attribute,
         return Ok();
       });
 }
+
 EditCommand DeleteCommand() {
   return EditTargetCommand([](BuildFile& build_file, const EditTarget& target,
                               EditState& state) -> Err {
@@ -294,27 +337,30 @@ EditCommand RenameAttributeCommand(std::string_view from_attribute,
   });
 }
 
-// Sets an attribute to a value.
-EditCommand SetCommand(std::string attribute, Value value) {
-  return EditTargetCommand([=](BuildFile& build_file, const EditTarget& target,
-                               EditState& state) -> Err {
-    auto assignments = target.assignments(attribute);
-    const auto* first = FirstUnconditionalAssignment(assignments);
-    for (const auto& assignment : assignments) {
-      if (&assignment != first) {
-        assignment.RemoveSelf(state, target);
-      }
-    }
+// Sets an attribute to an expression
+EditCommand SetCommand(std::string attribute, ParseNodeGenerator generator) {
+  return EditTargetCommand(
+      [attribute = std::move(attribute), generator = std::move(generator)](
+          BuildFile& build_file, const EditTarget& target,
+          EditState& state) -> Err {
+        ASSIGN_OR_RETURN(auto node, generator(build_file));
+        auto assignments = target.assignments(attribute);
+        const auto* first = FirstUnconditionalAssignment(assignments);
+        for (const auto& assignment : assignments) {
+          if (&assignment != first) {
+            assignment.RemoveSelf(state, target);
+          }
+        }
 
-    if (first) {
-      (*first)->AsBinaryOpMut()->set_right(build_file.to_node(value));
-    } else {
-      target.block->append_statement(
-          build_file.create_assignment(attribute, build_file.to_node(value)));
-    }
+        if (first) {
+          (*first)->AsBinaryOpMut()->set_right(std::move(node));
+        } else {
+          target.block->append_statement(
+              build_file.create_assignment(attribute, std::move(node)));
+        }
 
-    return Ok();
-  });
+        return Ok();
+      });
 }
 
 Result<std::string> GetShardName(const LocationRange& location,
@@ -519,28 +565,14 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
     if (args.size() < 3) {
       return Err(Location(),
                  "Invalid set command: missing attribute or value.\n"
-                 "Usage: set <attribute> <value...>");
+                 "Usage: set <attribute>[:type] <value...>");
     }
 
-    std::string_view attribute = args[1];
-    bool force_list = false;
-    constexpr std::string_view kListSuffix = ":list";
-    if (attribute.ends_with(kListSuffix)) {
-      attribute.remove_suffix(kListSuffix.size());
-      force_list = true;
-    }
-
-    auto value_args = base::make_span(args).subspan(2);
-    Value val;
-    if (value_args.size() > 1 || force_list) {
-      ASSIGN_OR_RETURN(std::vector<Value> list_elements,
-                       ParseValues(value_args));
-      val = Value(nullptr, std::move(list_elements));
-    } else {
-      ASSIGN_OR_RETURN(val, ParseValue(value_args[0]));
-    }
-
-    return SetCommand(std::string(attribute), std::move(val));
+    auto [attr, kind] = SplitAttrType(args[1]);
+    ASSIGN_OR_RETURN(
+        auto generator,
+        CreateParseNodeGenerator(kind, base::make_span(args).subspan(2)));
+    return SetCommand(std::string(attr), std::move(generator));
   } else if (args[0] == "shard") {
     if (args.size() == 1) {
       return ShardCommand();
