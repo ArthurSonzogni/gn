@@ -162,13 +162,13 @@ mod dummy {
         pub unsafe fn free_vector_buffer(ptr: *mut Any);
 
         type Err;
-        pub fn has_error(self: &Err) -> bool;
+        fn has_error(self: &Err) -> bool;
         // Dead code for production, used in tests only
         #[allow(dead_code)]
-        pub fn NewErr() -> UniquePtr<Err>;
-        pub(crate) fn ErrToString(err: &Err) -> String;
+        fn NewErr() -> UniquePtr<Err>;
+        fn ErrToString(err: &Err) -> String;
 
-        pub(in crate::err) fn PopulateErrWithLocation(
+        fn PopulateErrWithLocation(
             err: Pin<&mut Err>,
             message: &str,
             help: &str,
@@ -178,8 +178,8 @@ mod dummy {
             end_line: i32,
             end_column: i32,
         );
-        pub(in crate::err) fn PopulateErrWithMessage(err: Pin<&mut Err>, message: &str, help: &str);
-        pub(in crate::err) fn AppendSubErr(
+        fn PopulateErrWithMessage(err: Pin<&mut Err>, message: &str, help: &str);
+        fn AppendSubErr(
             err: Pin<&mut Err>,
             message: &str,
             file: &InputFile,
@@ -190,34 +190,34 @@ mod dummy {
         );
 
         type InputFile;
-        pub(in crate::err) fn NewInputFile<'a, 'b>(name: &'a str, code: &'a str) -> &'b InputFile;
+        fn NewInputFile<'a, 'b>(name: &'a str, code: &'a str) -> &'b InputFile;
 
         type OutputFile;
         #[cxx_return_type = "std::string_view"]
-        pub(in crate::output_file) fn value(self: &OutputFile) -> &str;
+        fn value(self: &OutputFile) -> &str;
 
         type SourceDir;
         #[cxx_return_type = "std::string_view"]
-        pub(in crate::label) fn SourceWithNoTrailingSlash(self: &SourceDir) -> &str;
+        fn SourceWithNoTrailingSlash(self: &SourceDir) -> &str;
 
         type Label;
-        pub(in crate::label) fn dir(self: &Label) -> &SourceDir;
+        fn dir(self: &Label) -> &SourceDir;
         #[cxx_return_type = "const std::string&"]
-        pub fn name(self: &Label) -> &str;
+        fn name(self: &Label) -> &str;
 
         #[rust_name = "CxxTarget"]
         type Target;
-        pub(in crate::target) fn label(self: &CxxTarget) -> &Label;
-        pub(in crate::target) fn output_type_u8(target: &CxxTarget) -> u8;
+        fn label(self: &CxxTarget) -> &Label;
+        fn output_type_u8(target: &CxxTarget) -> u8;
         #[rust_name = "settings_cxx"]
-        pub(in crate::target) fn settings(self: &CxxTarget) -> *const Settings;
-        pub(crate) fn create_target(
+        fn settings(self: &CxxTarget) -> *const Settings;
+        fn create_target(
             scope: Pin<&mut Scope>,
             name: &str,
             output_type: &str,
             err: Pin<&mut Err>,
         ) -> *mut CxxTarget;
-        pub(in crate::target_ref) fn register_dependency(
+        fn register_dependency(
             target: Pin<&mut CxxTarget>,
             package: &str,
             name: &str,
@@ -226,8 +226,8 @@ mod dummy {
         );
 
         type Settings;
-        pub(in crate::settings) fn toolchain_label(self: &Settings) -> &Label;
-        pub fn is_default(self: &Settings) -> bool;
+        fn toolchain_label(self: &Settings) -> &Label;
+        fn is_default(self: &Settings) -> bool;
 
         type Scope;
         // Constructs a new child Scope, populates placeholder Values for the given
@@ -235,74 +235,66 @@ mod dummy {
         // For example, NewScope(&scope, ["foo", "bar"]) would return
         // [scope["foo"], scope["bar"]].
         // The caller is then responsible for filling in the values as needed.
-        pub(in crate::scope) fn NewScope(
+        fn NewScope(
             parent_scope: Pin<&mut Scope>,
             keys: &[&str],
             out_scope: &mut UniquePtr<Scope>,
         ) -> SliceAny;
-        pub(in crate::scope) fn NewStruct(
+        fn NewStruct(
             settings: &Settings,
             keys: &[&str],
             out_scope: &mut UniquePtr<Scope>,
         ) -> SliceAny;
         // Returns an OwnedSlice<KeyValue> corresponding to references to each element.
-        pub(in crate::scope) fn GetScopeItems(scope: &Scope) -> SliceAny;
-        pub(in crate::scope) fn GetValue(scope: &Scope, ident: &str) -> *const Value;
-        pub(in crate::scope) fn SetValue<'a>(
+        fn GetScopeItems(scope: &Scope) -> SliceAny;
+        fn GetValue(scope: &Scope, ident: &str) -> *const Value;
+        fn SetValue<'a>(
             scope: Pin<&'a mut Scope>,
             ident: &str,
             origin: ParseNodePtr,
         ) -> Pin<&'a mut Value>;
         #[rust_name = "settings_cxx"]
-        pub(in crate::scope) fn settings(self: &Scope) -> *const Settings;
+        fn settings(self: &Scope) -> *const Settings;
         #[cxx_name = "GetSourceDir"]
-        pub(in crate::scope) fn package_cxx(self: &Scope) -> &SourceDir;
+        fn package_cxx(self: &Scope) -> &SourceDir;
 
         type TestWithScope;
-        pub(in crate::test_with_scope) fn NewTestWithScope() -> UniquePtr<TestWithScope>;
+        fn NewTestWithScope() -> UniquePtr<TestWithScope>;
         #[rust_name = "scope_cxx"]
-        pub(in crate::test_with_scope) fn scope(self: Pin<&mut TestWithScope>) -> *mut Scope;
+        fn scope(self: Pin<&mut TestWithScope>) -> *mut Scope;
 
         type Value;
         type ParseNode;
         // We allow dead code because this isn't used in production and we
         // can't tag things in the bridge with cfg(test).
         #[allow(dead_code)]
-        pub(in crate::value) fn NewValueForTesting() -> UniquePtr<Value>;
-        pub(in crate::value) fn ValueSize() -> usize;
+        fn NewValueForTesting() -> UniquePtr<Value>;
+        fn ValueSize() -> usize;
         #[cxx_return_type = "Value::Type"]
         #[cxx_name = "type"]
         // We can't call this "type" in rust since it's a keyword.
-        pub(in crate::value) fn kind(self: &Value) -> ValueType;
-        pub(in crate::value) fn boolean_value(self: &Value) -> &bool;
-        pub(in crate::value) fn int_value(self: &Value) -> &i64;
+        fn kind(self: &Value) -> ValueType;
+        fn boolean_value(self: &Value) -> &bool;
+        fn int_value(self: &Value) -> &i64;
         #[cxx_return_type = "const std::string&"]
-        pub(in crate::value) fn string_value(self: &Value) -> &str;
+        fn string_value(self: &Value) -> &str;
         #[cxx_name = "GetValueList"]
-        pub(in crate::value) fn list_value_cxx(val: &Value) -> SliceAny;
-        pub(in crate::value) fn scope_value(self: &Value) -> *const Scope;
-        pub(in crate::value) fn SetValueNone(val: Pin<&mut Value>, origin: ParseNodePtr);
-        pub(in crate::value) fn SetValueBool(val: Pin<&mut Value>, origin: ParseNodePtr, b: bool);
-        pub(in crate::value) fn SetValueInt(val: Pin<&mut Value>, origin: ParseNodePtr, i: i64);
-        pub(in crate::value) fn SetValueString(val: Pin<&mut Value>, origin: ParseNodePtr, s: &str);
+        fn list_value_cxx(val: &Value) -> SliceAny;
+        fn scope_value(self: &Value) -> *const Scope;
+        fn SetValueNone(val: Pin<&mut Value>, origin: ParseNodePtr);
+        fn SetValueBool(val: Pin<&mut Value>, origin: ParseNodePtr, b: bool);
+        fn SetValueInt(val: Pin<&mut Value>, origin: ParseNodePtr, i: i64);
+        fn SetValueString(val: Pin<&mut Value>, origin: ParseNodePtr, s: &str);
         // Initialises self as a list of `size` elements and returns a pointer to the
         // start.
-        pub(in crate::value) fn SetValueList(
-            val: Pin<&mut Value>,
-            origin: ParseNodePtr,
-            size: usize,
-        ) -> *mut Any;
-        pub(in crate::value) fn SetValueScope(
-            val: Pin<&mut Value>,
-            origin: ParseNodePtr,
-            scope: UniquePtr<Scope>,
-        );
-        pub(in crate::value) fn SetValueStarlark(
+        fn SetValueList(val: Pin<&mut Value>, origin: ParseNodePtr, size: usize) -> *mut Any;
+        fn SetValueScope(val: Pin<&mut Value>, origin: ParseNodePtr, scope: UniquePtr<Scope>);
+        fn SetValueStarlark(
             val: Pin<&mut Value>,
             origin: ParseNodePtr,
             starlark_val: Box<OwnedFrozenValue>,
         );
-        pub(in crate::value) fn starlark_value(self: &Value) -> &OwnedFrozenValue;
+        fn starlark_value(self: &Value) -> &OwnedFrozenValue;
     }
 
     extern "Rust" {
