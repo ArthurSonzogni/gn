@@ -245,6 +245,21 @@ class BuildFile {
   // Creates a node for `a = b`
   std::unique_ptr<BinaryOpNode> create_assignment(
       std::string_view name,
+      std::unique_ptr<ParseNode> value,
+      Location loc = Location());
+
+  // Inserts an assignment `name = value` into `block` at the canonically sorted
+  // location according to the style guide.
+  void assign_in_block(BlockNode* block,
+                       std::string_view name,
+                       std::unique_ptr<ParseNode> value);
+
+  // Inserts an assignment `name = value` into `block` at the specified
+  // iterator.
+  void assign_in_block(
+      BlockNode* block,
+      std::vector<std::unique_ptr<ParseNode>>::const_iterator it,
+      std::string_view name,
       std::unique_ptr<ParseNode> value);
 
   // Creates a BlockNode `{ ... }` with the given statements.

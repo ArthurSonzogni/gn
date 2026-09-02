@@ -183,7 +183,6 @@ executable("foo") {
                  Edited(R"(
 executable("foo") {
   deps = [ "//base" ]
-
   if (is_linux) {
     deps += [ "//dep" ]
   }
@@ -214,6 +213,40 @@ executable("foo") {
                  Edited(R"(
 executable("foo") {
   deps = [ "//base" ] + other_deps
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("add public_deps //base",
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+  deps = [ "//dep" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+  public_deps = [ "//base" ]
+  deps = [ "//dep" ]
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("add deps //base",
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+  if (is_linux) {
+    deps = [ "//dep" ]
+  }
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+  deps = [ "//base" ]
+  if (is_linux) {
+    deps += [ "//dep" ]
+  }
 }
 )"));
 }
@@ -631,6 +664,21 @@ executable("foo") {
 }
 )"));
 
+  EXPECT_SUCCESS(DoEdit("set testonly true",
+                        R"(
+executable("foo") {
+  sources = [ "foo.cc" ]
+  deps = [ "//dep" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  testonly = true
+  sources = [ "foo.cc" ]
+  deps = [ "//dep" ]
+}
+)"));
+
   // Replacing existing attribute
   EXPECT_SUCCESS(DoEdit("set testonly false",
                         R"(
@@ -704,21 +752,19 @@ executable("foo") {
 executable("foo") {
   if (is_linux) {
     deps = [ "//linux" ]
-    public_deps = [ "//linux" ]
   }
 }
 )"),
                  Edited(
                      R"(
 executable("foo") {
+  deps = [ "//foo" ]
   if (is_linux) {
     # TODO(gn edit: set deps:list //foo): This would normally be deleted but is
     # conditional. Manual intervention is required to decide whether it should
     # actually be deleted.
     deps = [ "//linux" ]
-    public_deps = [ "//linux" ]
   }
-  deps = [ "//foo" ]
 }
 )",
                      EditState({Label(SourceDir("//"), "foo")})));

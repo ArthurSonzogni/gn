@@ -158,6 +158,112 @@ Result<std::vector<SourceFile>> ResolvePatternToFiles(
   return matched_files;
 }
 
+// See style_guide.md, "Ordering within a target"
+std::optional<int> GetAttributeOrder(std::string_view attribute) {
+  // 100 => Target metadata
+  if (attribute == "output_name" || attribute == "output_prefix_override" ||
+      attribute == "output_dir" || attribute == "output_extension") {
+    return 100;
+  } else if (attribute == "visibility") {
+    return 110;
+  } else if (attribute == "testonly") {
+    return 120;
+  } else if (attribute == "friend") {
+    return 130;
+    // 200 => inputs / outputs
+  } else if (attribute == "script") {
+    return 200;
+  } else if (attribute == "args") {
+    return 210;
+  } else if (attribute == "sources") {
+    return 220;
+  } else if (attribute == "public") {
+    return 230;
+  } else if (attribute == "inputs") {
+    return 240;
+  } else if (attribute == "outputs") {
+    return 250;
+  } else if (attribute == "depfile" || attribute == "response_file_contents") {
+    return 260;
+    // 300 => config
+  } else if (attribute == "defines" || attribute == "include_dirs" ||
+             attribute.starts_with("cflags") || attribute == "asmflags" ||
+             attribute == "ldflags" || attribute == "arflags" ||
+             attribute == "data" || attribute == "rustflags" ||
+             attribute.ends_with("configs")) {
+    return 300;
+    // 400 => deps
+  } else if (attribute == "public_deps") {
+    return 400;
+  } else if (attribute == "deps") {
+    return 410;
+  } else if (attribute == "data_deps") {
+    return 420;
+  } else {
+    return std::nullopt;
+  }
+}
+
+std::optional<int> GetOrder(const ParseNode* node);
+
+std::vector<std::optional<int>> GetOrders(
+    const std::vector<std::unique_ptr<ParseNode>>& nodes) {
+  std::vector<std::optional<int>> orders;
+  orders.reserve(nodes.size());
+  for (const auto& node : nodes) {
+    orders.push_back(GetOrder(node.get()));
+  }
+  return orders;
+}
+
+std::optional<int> GetOrder(const ParseNode* node) {
+  if (!node)
+    return std::nullopt;
+
+  if (const auto* op = node->AsBinaryOp()) {
+    if (op->op().type() == Token::EQUAL ||
+        op->op().type() == Token::PLUS_EQUALS ||
+        op->op().type() == Token::MINUS_EQUALS) {
+      if (const auto* id = op->left()->AsIdentifier()) {
+        return GetAttributeOrder(id->value().value());
+      }
+    }
+  } else if (const auto* condition = node->AsCondition()) {
+    std::vector<std::optional<int>> orders;
+    if (condition->if_true()) {
+      auto true_orders = GetOrders(condition->if_true()->statements());
+      orders.insert(orders.end(), true_orders.begin(), true_orders.end());
+    }
+    if (const auto* if_false = condition->if_false()) {
+      if (const auto* block = if_false->AsBlock()) {
+        auto false_orders = GetOrders(block->statements());
+        orders.insert(orders.end(), false_orders.begin(), false_orders.end());
+      } else if (auto false_order = GetOrder(if_false)) {
+        orders.push_back(false_order);
+      }
+    }
+    // The style guide says:
+    // Simple conditions affecting just one variable (e.g. adding a single
+    // source or adding a flag for one particular OS) can go beneath the
+    // variable they affect. More complicated conditions affecting more than
+    // one thing should go at the bottom.
+    std::optional<int> result = std::nullopt;
+    for (const auto& order : orders) {
+      if (order && result && order != result) {
+        // Affects more than one thing, goes to the bottom
+        return std::numeric_limits<int>::max();
+      } else if (!result) {
+        result = order;
+      }
+    }
+    if (result) {
+      // Affects a single variable.
+      return *result;
+    }
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 std::optional<std::string> AsStringLiteral(const ParseNode* node) {
@@ -529,8 +635,11 @@ std::unique_ptr<IdentifierNode> BuildFile::create_identifier(
 
 std::unique_ptr<BinaryOpNode> BuildFile::create_assignment(
     std::string_view name,
-    std::unique_ptr<ParseNode> value) {
-  auto left = create_identifier(name);
+    std::unique_ptr<ParseNode> value,
+    Location loc) {
+  StringAtom atom(name);
+  auto left = std::make_unique<IdentifierNode>(
+      Token(loc.is_null() ? location() : loc, Token::IDENTIFIER, atom.str()));
 
   auto assign = std::make_unique<BinaryOpNode>();
   assign->set_op(Token(location(), Token::EQUAL, "="));
@@ -538,6 +647,49 @@ std::unique_ptr<BinaryOpNode> BuildFile::create_assignment(
   assign->set_right(std::move(value));
 
   return assign;
+}
+
+void BuildFile::assign_in_block(
+    BlockNode* block,
+    std::vector<std::unique_ptr<ParseNode>>::const_iterator it,
+    std::string_view name,
+    std::unique_ptr<ParseNode> value) {
+  CHECK(block);
+  Location loc;
+  // If GN sees:
+  // a = 1 (line 10)
+  // b = 2 (line 1 - defaulted)
+  // c = 3 (line 11)
+  // The formatter will decide to insert a blank line between b and c because
+  // there's a gap of more than one line. Thus, we attach it up to an adjacent
+  // element to prevent blank lines being inserted.
+  if (block->statements().empty()) {
+    loc = block->GetRange().begin();
+  } else if (it == block->statements().end()) {
+    loc = block->statements().back()->GetRange().end();
+  } else {
+    loc = (*it)->GetRange().begin();
+  }
+  block->statements().insert(it,
+                             create_assignment(name, std::move(value), loc));
+}
+
+void BuildFile::assign_in_block(BlockNode* block,
+                                std::string_view name,
+                                std::unique_ptr<ParseNode> value) {
+  CHECK(block);
+  auto target_order = GetAttributeOrder(name);
+  auto it = block->statements().end();
+  if (target_order) {
+    auto orders = GetOrders(block->statements());
+    for (size_t i = 0; i < orders.size(); ++i) {
+      if (orders[i] && *orders[i] >= *target_order) {
+        it = block->statements().begin() + i;
+        break;
+      }
+    }
+  }
+  assign_in_block(block, it, name, std::move(value));
 }
 
 std::unique_ptr<BlockNode> BuildFile::create_block(
