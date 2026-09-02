@@ -34,7 +34,6 @@ TEST(NinjaCopyTargetWriter, Run) {
 
   const char expected_linux[] =
       "build input1.out: copy ../../foo/input1.txt\n"
-      "\n"
       "build input2.out: copy ../../foo/input2.txt\n"
       "\n"
       "build phony/foo/bar: phony input1.out input2.out\n";
@@ -211,9 +210,7 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
     const char expected_linux[] =
         "build phony/foo/bar.inputdeps: phony || phony/foo/action1 "
         "phony/foo/action2\n"
-        "\n"
         "build action1.copy: copy action1.out | phony/foo/bar.inputdeps\n"
-        "\n"
         "build action2.copy: copy action2.out | phony/foo/bar.inputdeps\n"
         "\n"
         "build phony/foo/bar: phony action1.copy action2.copy\n";

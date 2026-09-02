@@ -77,17 +77,13 @@ TEST(NinjaCreateBundleTargetWriter, Run) {
   const char expected[] =
       "build phony/baz/bar.inputdeps: phony || phony/foo/bar "
       "phony/foo/data\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input1.txt: copy_bundle_data "
       "../../foo/input1.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input2.txt: copy_bundle_data "
       "../../foo/input2.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build phony/baz/bar: phony "
       "bar.bundle/Contents/Resources/input1.txt "
       "bar.bundle/Contents/Resources/input2.txt\n"
-      "\n"
       "build bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -129,17 +125,13 @@ TEST(NinjaCreateBundleTargetWriter, InSubDirectory) {
   const char expected[] =
       "build phony/baz/bar.inputdeps: phony || phony/foo/bar "
       "phony/foo/data\n"
-      "\n"
       "build gen/bar.bundle/Contents/Resources/input1.txt: copy_bundle_data "
       "../../foo/input1.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build gen/bar.bundle/Contents/Resources/input2.txt: copy_bundle_data "
       "../../foo/input2.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build phony/baz/bar: phony "
       "gen/bar.bundle/Contents/Resources/input1.txt "
       "gen/bar.bundle/Contents/Resources/input2.txt\n"
-      "\n"
       "build gen/bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -172,10 +164,8 @@ TEST(NinjaCreateBundleTargetWriter, JustPartialInfoPlist) {
 
   const char expected[] =
       "build baz/bar/bar_partial_info.plist: stamp || phony/foo/bar\n"
-      "\n"
       "build phony/baz/bar: phony "
       "baz/bar/bar_partial_info.plist || phony/foo/bar\n"
-      "\n"
       "build bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -239,15 +229,12 @@ TEST(NinjaCreateBundleTargetWriter, AssetCatalog) {
   const char expected[] =
       "build phony/baz/bar.inputdeps: phony || phony/foo/bar "
       "phony/foo/data\n"
-      "\n"
       "build bar.bundle/Contents/Resources/Assets.car: compile_xcassets "
       "../../foo/Foo.xcassets | phony/foo/data phony/baz/bar.inputdeps\n"
       "  product_type = com.apple.product-type\n"
       "  xcasset_compiler_flags = --app-icon foo\n"
-      "\n"
       "build phony/baz/bar: phony "
       "bar.bundle/Contents/Resources/Assets.car\n"
-      "\n"
       "build bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -283,7 +270,6 @@ TEST(NinjaCreateBundleTargetWriter, PhonyTarget) {
 
   const char expected[] =
       "build phony/baz/bar: phony || phony/foo/action\n"
-      "\n"
       "build bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -406,20 +392,15 @@ TEST(NinjaCreateBundleTargetWriter, Complex) {
       "build phony/baz/bar.inputdeps: phony || phony/biz/assets "
       "phony/foo/assets phony/foo/bar phony/foo/data "
       "phony/qux/info_plist phony/quz/assets\n"
-      "\n"
       "build bar.bundle/Contents/Info.plist: copy_bundle_data "
       "../../qux/qux-Info.plist | phony/baz/bar.inputdeps\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input1.txt: copy_bundle_data "
       "../../foo/input1.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input2.txt: copy_bundle_data "
       "../../foo/input2.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build phony/baz/bar.xcassets.inputdeps: phony "
       "phony/foo/assets "
       "phony/quz/assets phony/biz/assets\n"
-      "\n"
       "build bar.bundle/Contents/Resources/Assets.car | "
       "baz/bar/bar_partial_info.plist: compile_xcassets "
       "../../foo/Foo.xcassets ../../quz/Quz.xcassets "
@@ -427,14 +408,12 @@ TEST(NinjaCreateBundleTargetWriter, Complex) {
       "phony/baz/bar.inputdeps\n"
       "  product_type = com.apple.product-type\n"
       "  partial_info_plist = baz/bar/bar_partial_info.plist\n"
-      "\n"
       "build phony/baz/bar: phony "
       "bar.bundle/Contents/Info.plist "
       "bar.bundle/Contents/Resources/input1.txt "
       "bar.bundle/Contents/Resources/input2.txt "
       "bar.bundle/Contents/Resources/Assets.car "
       "baz/bar/bar_partial_info.plist\n"
-      "\n"
       "build bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -492,36 +471,29 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessing) {
   writer.Run();
 
   const char expected[] =
+      "build phony/baz/bar.inputdeps: phony || ./quz phony/foo/bar "
+      "phony/foo/data\n"
       "rule __baz_bar___toolchain_default__post_processing_rule\n"
       "  command =  ../../build/codesign.py -b=quz bar.bundle\n"
       "  description = POST PROCESSING //baz:bar(//toolchain:default)\n"
       "  restat = 1\n"
       "\n"
-      "\n"
-      "build phony/baz/bar.inputdeps: phony || ./quz phony/foo/bar "
-      "phony/foo/data\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input1.txt: copy_bundle_data "
       "../../foo/input1.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input2.txt: copy_bundle_data "
       "../../foo/input2.txt | phony/baz/bar.inputdeps\n"
-      "\n"
       "build phony/baz/bar.postprocessing.inputdeps: phony "
       "../../build/codesign.py "
       "quz "
       "bar.bundle/Contents/Resources/input1.txt "
       "bar.bundle/Contents/Resources/input2.txt | "
       "phony/baz/bar.inputdeps\n"
-      "\n"
       "build bar.bundle/Contents/quz bar.bundle/_CodeSignature/CodeResources: "
       "__baz_bar___toolchain_default__post_processing_rule "
       "| phony/baz/bar.postprocessing.inputdeps\n"
-      "\n"
       "build phony/baz/bar: phony "
       "bar.bundle/Contents/quz "
       "bar.bundle/_CodeSignature/CodeResources ./quz\n"
-      "\n"
       "build bar.bundle: phony phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);
@@ -582,39 +554,32 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessingNoStampFilesCustomToolchain) {
   writer.Run();
 
   const char expected[] =
+      "build toolchain/phony/baz/bar.inputdeps: phony || ./quz "
+      "toolchain/phony/foo/bar "
+      "toolchain/phony/foo/data\n"
       "rule __baz_bar___toolchain_default__post_processing_rule\n"
       "  command =  ../../build/codesign.py -b=quz bar.bundle\n"
       "  description = POST PROCESSING //baz:bar(//toolchain:default)\n"
       "  restat = 1\n"
       "\n"
-      "\n"
-      "build toolchain/phony/baz/bar.inputdeps: phony || ./quz "
-      "toolchain/phony/foo/bar "
-      "toolchain/phony/foo/data\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input1.txt: "
       "toolchain_copy_bundle_data "
       "../../foo/input1.txt | toolchain/phony/baz/bar.inputdeps\n"
-      "\n"
       "build bar.bundle/Contents/Resources/input2.txt: "
       "toolchain_copy_bundle_data "
       "../../foo/input2.txt | toolchain/phony/baz/bar.inputdeps\n"
-      "\n"
       "build toolchain/phony/baz/bar.postprocessing.inputdeps: phony "
       "../../build/codesign.py "
       "quz "
       "bar.bundle/Contents/Resources/input1.txt "
       "bar.bundle/Contents/Resources/input2.txt | "
       "toolchain/phony/baz/bar.inputdeps\n"
-      "\n"
       "build bar.bundle/Contents/quz bar.bundle/_CodeSignature/CodeResources: "
       "__baz_bar___toolchain_default__post_processing_rule "
       "| toolchain/phony/baz/bar.postprocessing.inputdeps\n"
-      "\n"
       "build toolchain/phony/baz/bar: phony "
       "bar.bundle/Contents/quz "
       "bar.bundle/_CodeSignature/CodeResources ./quz\n"
-      "\n"
       "build bar.bundle: phony toolchain/phony/baz/bar\n";
   std::string out_str = out.str();
   EXPECT_EQ(expected, out_str);

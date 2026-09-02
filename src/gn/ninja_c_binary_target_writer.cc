@@ -11,12 +11,15 @@
 #include <set>
 #include <sstream>
 
+#include "base/strings/string_util.h"
 #include "gn/builtin_tool.h"
 #include "gn/c_substitution_type.h"
 #include "gn/config_values_extractors.h"
+#include "gn/deps_iterator.h"
 #include "gn/err.h"
 #include "gn/escape.h"
 #include "gn/filesystem_utils.h"
+#include "gn/general_tool.h"
 #include "gn/ninja_module_writer_util.h"
 #include "gn/ninja_target_command_util.h"
 #include "gn/ninja_utils.h"
@@ -60,7 +63,7 @@ NinjaCBinaryTargetWriter::NinjaCBinaryTargetWriter(const Target* target,
 
 NinjaCBinaryTargetWriter::~NinjaCBinaryTargetWriter() = default;
 
-void NinjaCBinaryTargetWriter::GenerateRules() {
+void NinjaCBinaryTargetWriter::Run() {
   std::set<ClangModuleDep> module_dep_info =
       GetModuleDepsInformation(target_, resolved());
 
@@ -173,7 +176,8 @@ void NinjaCBinaryTargetWriter::WriteCompilerVars(
     const std::set<ClangModuleDep>& module_dep_info) {
   const SubstitutionBits& subst = target_->toolchain()->substitution_bits();
 
-  WriteCCompilerVars(subst, /*respect_source_used=*/true);
+  WriteCCompilerVars(subst, /*indent=*/false,
+                     /*respect_source_types_used=*/true);
 
   WriteModuleNameSubstitution();
 
@@ -194,12 +198,11 @@ void NinjaCBinaryTargetWriter::WriteCompilerVars(
 void NinjaCBinaryTargetWriter::WriteModuleNameSubstitution() {
   if (target_->toolchain()->substitution_bits().used.count(
           &CSubstitutionModuleName)) {
+    out_ << CSubstitutionModuleName.ninja_name << " = ";
     EscapeOptions options;
     options.mode = ESCAPE_NINJA;
-    std::ostringstream val;
-    EscapeStringToStream(val, target_->module_name(), options);
-    target_group_.target_vars.emplace_back(CSubstitutionModuleName.ninja_name,
-                                           val.str());
+    EscapeStringToStream(out_, target_->module_name(), options);
+    out_ << std::endl;
   }
 }
 
@@ -208,11 +211,15 @@ void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
     const std::set<ClangModuleDep>& module_dep_info,
     bool include_self) {
   if (target_->toolchain()->substitution_bits().used.count(substitution)) {
-    std::ostringstream val;
+    EscapeOptions options;
+    options.mode = ESCAPE_NINJA_COMMAND;
+
+    out_ << substitution->ninja_name << " =";
     for (const auto& module_dep : module_dep_info) {
-      module_dep.Write(val, path_output_, include_self);
+      module_dep.Write(out_, path_output_, include_self);
     }
-    target_group_.target_vars.emplace_back(substitution->ninja_name, val.str());
+
+    out_ << std::endl;
   }
 }
 
@@ -305,7 +312,7 @@ void NinjaCBinaryTargetWriter::WriteGCCPCHCommand(
 
   // This build line needs a custom language-specific flags value. Rule-specific
   // variables are just indented underneath the rule line.
-  std::ostringstream flag_val;
+  out_ << "  " << flag_type->ninja_name << " =";
 
   // Each substitution flag is overwritten in the target rule to replace the
   // implicitly generated -include flag with the -x <header lang> flag required
@@ -314,26 +321,27 @@ void NinjaCBinaryTargetWriter::WriteGCCPCHCommand(
   if (tool_name == CTool::kCToolCc) {
     RecursiveTargetConfigStringsToStream(kRecursiveWriterKeepDuplicates,
                                          target_, &ConfigValues::cflags_c, opts,
-                                         flag_val);
+                                         out_);
   } else if (tool_name == CTool::kCToolCxx) {
     RecursiveTargetConfigStringsToStream(kRecursiveWriterKeepDuplicates,
                                          target_, &ConfigValues::cflags_cc,
-                                         opts, flag_val);
+                                         opts, out_);
   } else if (tool_name == CTool::kCToolObjC) {
     RecursiveTargetConfigStringsToStream(kRecursiveWriterKeepDuplicates,
                                          target_, &ConfigValues::cflags_objc,
-                                         opts, flag_val);
+                                         opts, out_);
   } else if (tool_name == CTool::kCToolObjCxx) {
     RecursiveTargetConfigStringsToStream(kRecursiveWriterKeepDuplicates,
                                          target_, &ConfigValues::cflags_objcc,
-                                         opts, flag_val);
+                                         opts, out_);
   }
 
   // Append the command to specify the language of the .gch file.
-  flag_val << " -x " << GetPCHLangForToolType(tool_name);
+  out_ << " -x " << GetPCHLangForToolType(tool_name);
 
-  target_group_.edges.back().edge_vars.emplace_back(flag_type->ninja_name,
-                                                    flag_val.str());
+  // Write two blank lines to help separate the PCH build lines from the
+  // regular source build lines.
+  out_ << std::endl << std::endl;
 }
 
 void NinjaCBinaryTargetWriter::WriteWindowsPCHCommand(
@@ -360,15 +368,16 @@ void NinjaCBinaryTargetWriter::WriteWindowsPCHCommand(
 
   // This build line needs a custom language-specific flags value. Rule-specific
   // variables are just indented underneath the rule line.
-  std::ostringstream flag_val;
+  out_ << "  " << flag_type->ninja_name << " =";
 
   // Append the command to generate the .pch file.
   // This adds the value to the existing flag instead of overwriting it.
-  flag_val << " ${" << flag_type->ninja_name << "} /Yc"
-           << target_->config_values().precompiled_header();
+  out_ << " ${" << flag_type->ninja_name << "}";
+  out_ << " /Yc" << target_->config_values().precompiled_header();
 
-  target_group_.edges.back().edge_vars.emplace_back(flag_type->ninja_name,
-                                                    flag_val.str());
+  // Write two blank lines to help separate the PCH build lines from the
+  // regular source build lines.
+  out_ << std::endl << std::endl;
 }
 
 void NinjaCBinaryTargetWriter::WriteSources(
@@ -466,6 +475,7 @@ void NinjaCBinaryTargetWriter::WriteSources(
 
       WriteCompilerBuildLine({source}, deps, order_only_deps, tool,
                              tool_outputs);
+      WritePool(out_);
     }
 
     // It's theoretically possible for a compiler to produce more than one
@@ -482,6 +492,8 @@ void NinjaCBinaryTargetWriter::WriteSources(
       extra_files->push_back(tool_outputs[i]);
     }
   }
+
+  out_ << std::endl;
 }
 
 void NinjaCBinaryTargetWriter::WriteSwiftSources(
@@ -517,6 +529,8 @@ void NinjaCBinaryTargetWriter::WriteSwiftSources(
                          swift_order_only_deps.vector(), tool, *output_files,
                          /*can_write_source_info=*/false,
                          /*restat_output_allowed=*/true);
+
+  out_ << std::endl;
 }
 
 void NinjaCBinaryTargetWriter::WriteSourceSetStamp(
@@ -555,53 +569,53 @@ void NinjaCBinaryTargetWriter::WriteSourceSetStamp(
   path.append(".linkdeps");
   link_phony = OutputFile(std::move(path));
 
-  NinjaBuildEdge link_edge{
-      .rule = BuiltinTool::kBuiltinToolPhony,
-      .outputs = {link_phony},
-      .explicit_inputs = link_files,
-      .order_only_inputs = order_only_deps,
-      .is_target_output = false,
-  };
-  AddEdge(std::move(link_edge));
+  out_ << "build ";
+  path_output_.WriteFile(out_, link_phony);
+  out_ << ": " << BuiltinTool::kBuiltinToolPhony;
+  path_output_.WriteFiles(out_, link_files);
+  if (!order_only_deps.empty()) {
+    out_ << " ||";
+    path_output_.WriteFiles(out_, order_only_deps);
+  }
+  out_ << std::endl;
 
   // 2. Default phony target containing all files (including additional
   // outputs). Depend on the .link target to avoid duplicating object files.
-  NinjaBuildEdge default_edge{
-      .rule = BuiltinTool::kBuiltinToolPhony,
-      .outputs = {target_->dependency_output()},
-      .explicit_inputs = {link_phony},
-      .is_target_output = false,
-  };
+  out_ << "build ";
+  path_output_.WriteFile(out_, target_->dependency_output());
+  out_ << ": " << BuiltinTool::kBuiltinToolPhony;
+  out_ << " ";
+  path_output_.WriteFile(out_, link_phony);
 
   // Collect non-object files (additional outputs) to add here.
+  std::vector<OutputFile> non_object_files;
   for (const auto& file : object_files) {
     if (!file.AsSourceFile(build_settings).IsObjectType()) {
-      default_edge.explicit_inputs.push_back(file);
+      non_object_files.push_back(file);
     }
   }
-  AddEdge(std::move(default_edge));
+  path_output_.WriteFiles(out_, non_object_files);
+  out_ << std::endl;
 }
 
 void NinjaCBinaryTargetWriter::WriteLinkerStuff(
-    std::vector<OutputFile> object_files,
+    const std::vector<OutputFile>& object_files,
     const std::vector<SourceFile>& other_files,
     const std::vector<OutputFile>& input_deps) {
   std::vector<OutputFile> output_files;
   SubstitutionWriter::ApplyListToLinkerAsOutputFile(
       target_, tool_, tool_->outputs(), &output_files);
 
-  NinjaBuildEdge edge{
-      .rule = rule_prefix_ + tool_->name(),
-      .outputs = std::move(output_files),
-  };
+  out_ << "build";
+  WriteOutputs(output_files);
+
+  out_ << ": " << rule_prefix_ << tool_->name();
 
   ClassifiedDeps classified_deps = GetClassifiedDeps();
 
   // Object files.
-  edge.explicit_inputs = std::move(object_files);
-  edge.explicit_inputs.insert(edge.explicit_inputs.end(),
-                              classified_deps.extra_object_files.begin(),
-                              classified_deps.extra_object_files.end());
+  path_output_.WriteFiles(out_, object_files);
+  path_output_.WriteFiles(out_, classified_deps.extra_object_files);
 
   // Dependencies.
   std::vector<OutputFile> implicit_deps;
@@ -624,7 +638,8 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
       solibs.push_back(cur->link_output_file());
     } else {
       // Normal case, just link to this target.
-      edge.explicit_inputs.push_back(cur->link_output_file());
+      out_ << " ";
+      path_output_.WriteFile(out_, cur->link_output_file());
     }
   }
 
@@ -697,7 +712,11 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
     }
   }
 
-  edge.implicit_inputs = std::move(implicit_deps);
+  // Append implicit dependencies collected above.
+  if (!implicit_deps.empty()) {
+    out_ << " |";
+    path_output_.WriteFiles(out_, implicit_deps);
+  }
 
   // Append data dependencies as order-only dependencies.
   //
@@ -712,77 +731,87 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
   // on the sources, there is already an implicit order-only dependency.
   // However, it's extra work to separate these out and there's no disadvantage
   // to listing them again.
-  edge.order_only_inputs =
-      GetOrderOnlyDepsFromNonLinkableDeps(classified_deps.non_linkable_deps);
+  WriteOrderOnlyDependencies(classified_deps.non_linkable_deps);
 
-  AddValidationInputs(edge);
+  WriteValidations();
+
+  // End of the link "build" line.
+  out_ << std::endl;
 
   // The remaining things go in the inner scope of the link line.
   if (target_->output_type() == Target::EXECUTABLE ||
       target_->output_type() == Target::SHARED_LIBRARY ||
       target_->output_type() == Target::LOADABLE_MODULE) {
-    {
-      std::ostringstream ss;
-      WriteLinkerFlags(ss, tool_, optional_def_file);
-      edge.edge_vars.emplace_back("ldflags", ss.str());
-    }
-    {
-      std::ostringstream ss;
-      WriteLibs(ss, tool_);
-      edge.edge_vars.emplace_back("libs", ss.str());
-    }
-    {
-      std::ostringstream ss;
-      WriteFrameworks(ss, tool_);
-      edge.edge_vars.emplace_back("frameworks", ss.str());
-    }
-    {
-      std::ostringstream ss;
-      WriteSwiftModules(ss, tool_, swiftmodules);
-      edge.edge_vars.emplace_back("swiftmodules", ss.str());
-    }
+    out_ << "  ldflags =";
+    WriteLinkerFlags(out_, tool_, optional_def_file);
+    out_ << std::endl;
+    out_ << "  libs =";
+    WriteLibs(out_, tool_);
+    out_ << std::endl;
+    out_ << "  frameworks =";
+    WriteFrameworks(out_, tool_);
+    out_ << std::endl;
+    out_ << "  swiftmodules =";
+    WriteSwiftModules(out_, tool_, swiftmodules);
+    out_ << std::endl;
   } else if (target_->output_type() == Target::STATIC_LIBRARY) {
-    std::ostringstream ss;
+    out_ << "  arflags =";
     RecursiveTargetConfigStringsToStream(kRecursiveWriterKeepDuplicates,
                                          target_, &ConfigValues::arflags,
-                                         GetFlagOptions(), ss);
-    edge.edge_vars.emplace_back("arflags", ss.str());
+                                         GetFlagOptions(), out_);
+    out_ << std::endl;
   }
+  WriteOutputSubstitutions();
+  WriteLibsList("solibs", solibs);
+  WriteLibsList("rlibs", transitive_rustlibs);
+  WritePool(out_);
+}
 
+void NinjaCBinaryTargetWriter::WriteOutputSubstitutions() {
   const std::string output_extension =
       SubstitutionWriter::GetLinkerSubstitution(target_, tool_,
                                                 &SubstitutionOutputExtension);
-  edge.edge_vars.emplace_back("output_extension", output_extension);
+  out_ << "  output_extension =";
+  if (!output_extension.empty()) {
+    out_ << " " << output_extension;
+  }
+  out_ << std::endl;
 
   const std::string output_dir = SubstitutionWriter::GetLinkerSubstitution(
       target_, tool_, &SubstitutionOutputDir);
-  edge.edge_vars.emplace_back("output_dir", output_dir);
-
-  if (!solibs.empty()) {
-    std::ostringstream ss;
-    PathOutput output(path_output_.current_dir(),
-                      settings_->build_settings()->root_path_utf8(),
-                      ESCAPE_NINJA_COMMAND);
-    output.WriteFiles(ss, solibs);
-    edge.edge_vars.emplace_back("solibs", ss.str());
+  out_ << "  output_dir =";
+  if (!output_dir.empty()) {
+    out_ << " " << output_dir;
   }
+  out_ << std::endl;
+}
 
-  if (!transitive_rustlibs.empty()) {
-    std::ostringstream ss;
-    PathOutput output(path_output_.current_dir(),
-                      settings_->build_settings()->root_path_utf8(),
-                      ESCAPE_NINJA_COMMAND);
-    output.WriteFiles(ss, transitive_rustlibs);
-    edge.edge_vars.emplace_back("rlibs", ss.str());
+void NinjaCBinaryTargetWriter::WriteLibsList(
+    const std::string& label,
+    const std::vector<OutputFile>& libs) {
+  if (libs.empty())
+    return;
+
+  out_ << "  " << label << " =";
+  PathOutput output(path_output_.current_dir(),
+                    settings_->build_settings()->root_path_utf8(),
+                    ESCAPE_NINJA_COMMAND);
+  output.WriteFiles(out_, libs);
+  out_ << std::endl;
+}
+
+void NinjaCBinaryTargetWriter::WriteOrderOnlyDependencies(
+    const UniqueVector<const Target*>& non_linkable_deps) {
+  std::vector<OutputFile> outputs_to_write =
+      GetOrderOnlyDepsFromNonLinkableDeps(non_linkable_deps);
+
+  if (!outputs_to_write.empty()) {
+    out_ << " ||";
+    for (const auto& output : outputs_to_write) {
+      out_ << " ";
+      path_output_.WriteFile(out_, output);
+    }
   }
-
-  if (target_->pool().ptr) {
-    edge.edge_vars.emplace_back("pool",
-                                target_->pool().ptr->GetNinjaName(
-                                    settings_->default_toolchain_label()));
-  }
-
-  AddEdge(std::move(edge));
 }
 
 bool NinjaCBinaryTargetWriter::CheckForDuplicateObjectFiles(

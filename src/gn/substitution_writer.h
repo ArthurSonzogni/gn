@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "gn/ninja_file.h"
 #include "gn/substitution_type.h"
 
 struct EscapeOptions;
@@ -152,13 +151,6 @@ class SubstitutionWriter {
   // variable.
   //
   // The target can be null (see class comment above).
-  static void WriteNinjaVariablesForSource(
-      const Target* target,
-      const Settings* settings,
-      const SourceFile& source,
-      const std::vector<const Substitution*>& types,
-      const EscapeOptions& escape_options,
-      std::vector<NinjaVariable>& edge_vars);
   static void WriteNinjaVariablesForSource(
       const Target* target,
       const Settings* settings,

@@ -14,7 +14,7 @@ NinjaBundleDataTargetWriter::NinjaBundleDataTargetWriter(const Target* target,
 
 NinjaBundleDataTargetWriter::~NinjaBundleDataTargetWriter() = default;
 
-void NinjaBundleDataTargetWriter::GenerateRules() {
+void NinjaBundleDataTargetWriter::Run() {
   std::vector<OutputFile> output_files;
   for (const SourceFile& source_file : target_->sources()) {
     output_files.push_back(

@@ -74,7 +74,7 @@ NinjaCreateBundleTargetWriter::NinjaCreateBundleTargetWriter(
 
 NinjaCreateBundleTargetWriter::~NinjaCreateBundleTargetWriter() = default;
 
-void NinjaCreateBundleTargetWriter::GenerateRules() {
+void NinjaCreateBundleTargetWriter::Run() {
   if (!EnsureAllToolsAvailable(target_))
     return;
 
@@ -109,13 +109,14 @@ void NinjaCreateBundleTargetWriter::GenerateRules() {
   // Write a phony target for the outer bundle directory. This allows other
   // targets to treat the entire bundle as a single unit, even though it is
   // a directory, so that it can be depended upon as a discrete build edge.
-  AddEdge(NinjaBuildEdge{
-      .rule = BuiltinTool::kBuiltinToolPhony,
-      .outputs = {OutputFile(
-          settings_->build_settings(),
-          target_->bundle_data().GetBundleRootDirOutput(settings_))},
-      .explicit_inputs = {target_->dependency_output()},
-  });
+  out_ << "build ";
+
+  WriteOutput(
+      OutputFile(settings_->build_settings(),
+                 target_->bundle_data().GetBundleRootDirOutput(settings_)));
+  out_ << ": " << BuiltinTool::kBuiltinToolPhony << " ";
+  out_ << target_->dependency_output().value();
+  out_ << std::endl;
 }
 
 std::string NinjaCreateBundleTargetWriter::WritePostProcessingRuleDefinition() {
@@ -127,28 +128,24 @@ std::string NinjaCreateBundleTargetWriter::WritePostProcessingRuleDefinition() {
   base::ReplaceChars(custom_rule_name, ":/()", "_", &custom_rule_name);
   custom_rule_name.append("_post_processing_rule");
 
-  std::ostringstream rule_out;
-  rule_out << "rule " << custom_rule_name << std::endl;
-  rule_out << "  command = ";
-  path_output_.WriteFile(rule_out, settings_->build_settings()->python_path());
-  rule_out << " ";
-  path_output_.WriteFile(rule_out,
-                         target_->bundle_data().post_processing_script());
+  out_ << "rule " << custom_rule_name << std::endl;
+  out_ << "  command = ";
+  path_output_.WriteFile(out_, settings_->build_settings()->python_path());
+  out_ << " ";
+  path_output_.WriteFile(out_, target_->bundle_data().post_processing_script());
 
   const SubstitutionList& args = target_->bundle_data().post_processing_args();
   EscapeOptions args_escape_options;
   args_escape_options.mode = ESCAPE_NINJA_COMMAND;
 
   for (const auto& arg : args.list()) {
-    rule_out << " ";
-    SubstitutionWriter::WriteWithNinjaVariables(arg, args_escape_options,
-                                                rule_out);
+    out_ << " ";
+    SubstitutionWriter::WriteWithNinjaVariables(arg, args_escape_options, out_);
   }
-  rule_out << std::endl;
-  rule_out << "  description = POST PROCESSING " << target_label << std::endl;
-  rule_out << "  restat = 1" << std::endl;
-
-  target_group_.custom_rules.push_back(rule_out.str());
+  out_ << std::endl;
+  out_ << "  description = POST PROCESSING " << target_label << std::endl;
+  out_ << "  restat = 1" << std::endl;
+  out_ << std::endl;
 
   WritePostProcessingManifestFile();
   return custom_rule_name;
@@ -211,15 +208,22 @@ void NinjaCreateBundleTargetWriter::WriteCopyBundleFileRuleSteps(
         /*err=*/nullptr);
     output_files->push_back(expanded_output_file);
 
-    AddEdge(NinjaBuildEdge{
-        .rule = GetNinjaRulePrefixForToolchain(settings_) +
-                GeneralTool::kGeneralToolCopyBundleData,
-        .outputs = {expanded_output_file},
-        .explicit_inputs = {OutputFile(settings_->build_settings(),
-                                       source_file)},
-        .implicit_inputs = implicit_deps,
-        .order_only_inputs = order_only_deps,
-    });
+    out_ << "build ";
+    WriteOutput(std::move(expanded_output_file));
+    out_ << ": " << GetNinjaRulePrefixForToolchain(settings_)
+         << GeneralTool::kGeneralToolCopyBundleData << " ";
+    path_output_.WriteFile(out_, source_file);
+
+    if (!implicit_deps.empty()) {
+      out_ << " |";
+      path_output_.WriteFiles(out_, implicit_deps);
+    }
+    if (!order_only_deps.empty()) {
+      out_ << " ||";
+      path_output_.WriteFiles(out_, order_only_deps);
+    }
+
+    out_ << std::endl;
   }
 }
 
@@ -253,68 +257,80 @@ void NinjaCreateBundleTargetWriter::WriteCompileAssetsCatalogStep(
   if (target_->bundle_data().assets_catalog_sources().empty()) {
     DCHECK(!target_->bundle_data().partial_info_plist().is_null());
 
-    AddEdge(NinjaBuildEdge{
-        .rule = GetNinjaRulePrefixForToolchain(settings_) +
-                GeneralTool::kGeneralToolStamp,
-        .outputs = {partial_info_plist},
-        .implicit_inputs = implicit_deps,
-        .order_only_inputs = order_only_deps,
-    });
+    out_ << "build ";
+    WriteOutput(partial_info_plist);
+    out_ << ": " << GetNinjaRulePrefixForToolchain(settings_)
+         << GeneralTool::kGeneralToolStamp;
+    if (!implicit_deps.empty()) {
+      out_ << " |";
+      path_output_.WriteFiles(out_, implicit_deps);
+    }
+    if (!order_only_deps.empty()) {
+      out_ << " ||";
+      path_output_.WriteFiles(out_, order_only_deps);
+    }
+    out_ << std::endl;
     return;
   }
 
   OutputFile input_dep = WriteCompileAssetsCatalogInputDepsStampOrPhony(
       target_->bundle_data().assets_catalog_deps());
+  DCHECK(!input_dep.value().empty());
 
-  std::vector<OutputFile> implicit_outputs;
+  out_ << "build ";
+  WriteOutput(std::move(compiled_catalog));
   if (partial_info_plist != OutputFile()) {
     // If "partial_info_plist" is non-empty, then add it to list of implicit
     // outputs of the asset catalog compilation, so that target can use it
     // without getting the ninja error "'foo', needed by 'bar', missing and
     // no known rule to make it".
-    implicit_outputs.push_back(partial_info_plist);
+    out_ << " | ";
+    WriteOutput(partial_info_plist);
   }
 
-  std::vector<OutputFile> implicit_inputs;
-  implicit_inputs.push_back(input_dep);
-  implicit_inputs.insert(implicit_inputs.end(), implicit_deps.begin(),
-                         implicit_deps.end());
+  out_ << ": " << GetNinjaRulePrefixForToolchain(settings_)
+       << GeneralTool::kGeneralToolCompileXCAssets;
 
-  std::vector<NinjaVariable> edge_vars;
-  edge_vars.emplace_back("product_type", target_->bundle_data().product_type());
+  SourceFileSet asset_catalog_bundles;
+  for (const auto& source : target_->bundle_data().assets_catalog_sources()) {
+    out_ << " ";
+    path_output_.WriteFile(out_, source);
+    asset_catalog_bundles.insert(source);
+  }
+
+  out_ << " | ";
+  path_output_.WriteFile(out_, input_dep);
+  path_output_.WriteFiles(out_, implicit_deps);
+
+  if (!order_only_deps.empty()) {
+    out_ << " ||";
+    path_output_.WriteFiles(out_, order_only_deps);
+  }
+
+  out_ << std::endl;
+
+  out_ << "  product_type = " << target_->bundle_data().product_type()
+       << std::endl;
 
   if (partial_info_plist != OutputFile()) {
-    std::ostringstream ss;
-    path_output_.WriteFile(ss, partial_info_plist);
-    edge_vars.emplace_back("partial_info_plist", ss.str());
+    out_ << "  partial_info_plist = ";
+    path_output_.WriteFile(out_, partial_info_plist);
+    out_ << std::endl;
   }
 
   const std::vector<SubstitutionPattern>& flags =
       target_->bundle_data().xcasset_compiler_flags().list();
   if (!flags.empty()) {
-    std::ostringstream ss;
+    out_ << "  " << SubstitutionXcassetsCompilerFlags.ninja_name << " =";
     EscapeOptions args_escape_options;
     args_escape_options.mode = ESCAPE_NINJA_COMMAND;
     for (const auto& flag : flags) {
-      ss << " ";
+      out_ << " ";
       SubstitutionWriter::WriteWithNinjaVariables(flag, args_escape_options,
-                                                  ss);
+                                                  out_);
     }
-    edge_vars.emplace_back(SubstitutionXcassetsCompilerFlags.ninja_name,
-                           ss.str());
+    out_ << std::endl;
   }
-
-  AddEdge(NinjaBuildEdge{
-      .rule = GetNinjaRulePrefixForToolchain(settings_) +
-              GeneralTool::kGeneralToolCompileXCAssets,
-      .outputs = {compiled_catalog},
-      .implicit_outputs = std::move(implicit_outputs),
-      .explicit_inputs =
-          ToOutputFiles(target_->bundle_data().assets_catalog_sources()),
-      .implicit_inputs = std::move(implicit_inputs),
-      .order_only_inputs = order_only_deps,
-      .edge_vars = std::move(edge_vars),
-  });
 }
 
 OutputFile
@@ -342,18 +358,17 @@ NinjaCreateBundleTargetWriter::WriteCompileAssetsCatalogInputDepsStampOrPhony(
            GeneralTool::kGeneralToolStamp;
   }
 
-  std::vector<OutputFile> explicit_inputs;
+  out_ << "build ";
+  WriteOutput(xcassets_input_stamp_or_phony);
+  out_ << ": " << tool;
+
   for (const Target* target : dependencies) {
     if (target->has_dependency_output()) {
-      explicit_inputs.push_back(target->dependency_output());
+      out_ << " ";
+      path_output_.WriteFile(out_, target->dependency_output());
     }
   }
-
-  AddEdge(NinjaBuildEdge{
-      .rule = tool,
-      .outputs = {xcassets_input_stamp_or_phony},
-      .explicit_inputs = std::move(explicit_inputs),
-  });
+  out_ << std::endl;
   return xcassets_input_stamp_or_phony;
 }
 
@@ -370,21 +385,22 @@ void NinjaCreateBundleTargetWriter::WritePostProcessingStep(
                                                output_files);
   DCHECK(!post_processing_input_stamp_file.value().empty());
 
+  out_ << "build";
   std::vector<OutputFile> post_processing_output_files;
   SubstitutionWriter::GetListAsOutputFiles(
       settings_, target_->bundle_data().post_processing_outputs(),
       &post_processing_output_files);
+  WriteOutputs(post_processing_output_files);
 
   // Since the post-processing step depends on all the files from the bundle,
   // the create_bundle stamp can just depends on the output of the signature
   // script (dependencies are transitive).
-  *output_files = post_processing_output_files;
+  *output_files = std::move(post_processing_output_files);
 
-  AddEdge(NinjaBuildEdge{
-      .rule = post_processing_rule_name,
-      .outputs = std::move(post_processing_output_files),
-      .implicit_inputs = {post_processing_input_stamp_file},
-  });
+  out_ << ": " << post_processing_rule_name;
+  out_ << " | ";
+  path_output_.WriteFile(out_, post_processing_input_stamp_file);
+  out_ << std::endl;
 }
 
 OutputFile
@@ -428,12 +444,22 @@ NinjaCreateBundleTargetWriter::WritePostProcessingInputDepsStampOrPhony(
            GeneralTool::kGeneralToolStamp;
   }
 
-  AddEdge(NinjaBuildEdge{
-      .rule = tool,
-      .outputs = {stamp_or_phony},
-      .explicit_inputs = ToOutputFiles(post_processing_input_files),
-      .implicit_inputs = implicit_deps,
-      .order_only_inputs = order_only_deps,
-  });
+  out_ << "build ";
+  WriteOutput(stamp_or_phony);
+  out_ << ": " << tool;
+
+  for (const SourceFile& source : post_processing_input_files) {
+    out_ << " ";
+    path_output_.WriteFile(out_, source);
+  }
+  if (!implicit_deps.empty()) {
+    out_ << " |";
+    path_output_.WriteFiles(out_, implicit_deps);
+  }
+  if (!order_only_deps.empty()) {
+    out_ << " ||";
+    path_output_.WriteFiles(out_, order_only_deps);
+  }
+  out_ << std::endl;
   return stamp_or_phony;
 }

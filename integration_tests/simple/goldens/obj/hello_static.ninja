@@ -4,7 +4,6 @@ cflags = -fPIC -pthread
 target_out_dir = obj
 target_output_name = libhello_static
 
-
 build obj/libhello_static.hello_static.o: cxx ../hello_static.cc
   source_file_part = hello_static.cc
   source_name_part = hello_static

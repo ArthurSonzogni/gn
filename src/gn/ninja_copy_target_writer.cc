@@ -4,6 +4,7 @@
 
 #include "gn/ninja_copy_target_writer.h"
 
+#include "base/strings/string_util.h"
 #include "gn/general_tool.h"
 #include "gn/ninja_utils.h"
 #include "gn/output_file.h"
@@ -20,7 +21,7 @@ NinjaCopyTargetWriter::NinjaCopyTargetWriter(const Target* target,
 
 NinjaCopyTargetWriter::~NinjaCopyTargetWriter() = default;
 
-void NinjaCopyTargetWriter::GenerateRules() {
+void NinjaCopyTargetWriter::Run() {
   const Tool* copy_tool =
       target_->toolchain()->GetTool(GeneralTool::kGeneralToolCopy);
   if (!copy_tool) {
@@ -54,6 +55,7 @@ void NinjaCopyTargetWriter::GenerateRules() {
 
   std::vector<OutputFile> output_files;
   WriteCopyRules(&output_files);
+  out_ << std::endl;
   WriteStampOrPhonyForTarget(output_files, std::vector<OutputFile>());
 }
 
@@ -113,15 +115,20 @@ void NinjaCopyTargetWriter::WriteCopyRules(
             target_, target_->settings(), output_subst, input_file);
     output_files->push_back(output_file);
 
-    NinjaBuildEdge edge{
-        .rule = tool_name,
-        .outputs = {output_file},
-        .explicit_inputs = {OutputFile(settings_->build_settings(),
-                                       input_file)},
-        .implicit_inputs = implicit_deps,
-        .order_only_inputs = order_only_deps,
-    };
-    AddValidationInputs(edge);
-    AddEdge(std::move(edge));
+    out_ << "build ";
+    WriteOutput(std::move(output_file));
+
+    out_ << ": " << tool_name << " ";
+    path_output_.WriteFile(out_, input_file);
+    if (!implicit_deps.empty()) {
+      out_ << " |";
+      path_output_.WriteFiles(out_, implicit_deps);
+    }
+    if (!order_only_deps.empty()) {
+      out_ << " ||";
+      path_output_.WriteFiles(out_, order_only_deps);
+    }
+    WriteValidations();
+    out_ << std::endl;
   }
 }

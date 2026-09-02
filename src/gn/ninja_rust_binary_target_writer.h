@@ -17,7 +17,7 @@ class NinjaRustBinaryTargetWriter : public NinjaBinaryTargetWriter {
   NinjaRustBinaryTargetWriter(const Target* target, std::ostream& out);
   ~NinjaRustBinaryTargetWriter() override;
 
-  void GenerateRules() override;
+  void Run() override;
 
  private:
   struct ExternCrate {
