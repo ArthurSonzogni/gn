@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <string>
 #include <string_view>
 
 #include "gn/string_atom.h"
@@ -40,6 +41,8 @@ class OutputFile {
  private:
   StringAtom value_;
 };
+
+std::string Pretty(const OutputFile& file);
 
 namespace std {
 

@@ -235,3 +235,7 @@ bool InSourceAllowList(const ParseNode* node, const SourceFileSet* allowlist) {
 
   return allowlist->find(range.begin().file()->name()) != allowlist->end();
 }
+
+std::string Pretty(const SourceFile& file) {
+  return file.value();
+}

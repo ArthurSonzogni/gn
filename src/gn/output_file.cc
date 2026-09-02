@@ -36,3 +36,7 @@ SourceDir OutputFile::AsSourceDir(const BuildSettings* build_settings) const {
   NormalizePath(&path);
   return SourceDir(std::move(path));
 }
+
+std::string Pretty(const OutputFile& file) {
+  return std::string(file.value());
+}

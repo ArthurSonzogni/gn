@@ -141,3 +141,7 @@ SourceDir SourceDir::ResolveRelativeDir(const Value& v,
 base::FilePath SourceDir::Resolve(const base::FilePath& source_root) const {
   return ResolvePath(value_.str(), false, source_root);
 }
+
+std::string Pretty(const SourceDir& dir) {
+  return dir.value();
+}
