@@ -750,21 +750,29 @@ TEST(Functions, Load) {
     setup.build_settings()->SetRootPath(temp_dir.GetPath());
     setup.scope()->set_source_dir(SourceDir("//"));
 
+    base::WriteFile(temp_dir.GetPath().AppendASCII("foo.cc"), "", 0);
+
     std::string scl_content = R"scl(
 load("//builtins:rules.scl", "static_library")
 
 def my_rule_impl(ctx):
-  pass
+  return [DefaultInfo(files = depset([ctx.file.input]))]
 
 my_rule = rule(
   implementation = my_rule_impl,
-  attrs = {"my_attr": attr.string()},
+  attrs = {
+    "my_attr": attr.string(),
+    "input": attr.label(allow_single_file = True, mandatory = True),
+  },
 )
 
 my_rule_extension = rule(
   implementation = my_rule_impl,
   parent = static_library,
-  attrs = {"my_attr": attr.string()},
+  attrs = {
+    "my_attr": attr.string(),
+    "input": attr.label(allow_single_file = True, mandatory = True),
+  },
 )
 
 hello = "hello"
@@ -782,7 +790,8 @@ def sum_wrapper(*args, **kwargs):
         base::WriteFile(scl_path, scl_content.c_str(), scl_content.size()));
 
     {
-      TestParseInput input(R"gn(
+      Err err;
+      setup.ExecuteSnippet(R"gn(
 load("//:rules.scl", "hello", "my_rule", "my_rule_extension", "my_rule_impl", "sum")
 
 assert(my_rule == my_rule)
@@ -803,16 +812,16 @@ assert(sum() {
 
 my_rule_extension("foo_extension") {
   my_attr = "bar"
+  input = "foo.cc"
 }
 
 my_rule("foo") {
   my_attr = "bar"
+  input = "foo.cc"
 }
-)gn");
-      ASSERT_SUCCESS(input);
-      Err err;
-      input.parsed()->Execute(setup.scope(), &err);
-      ASSERT_FALSE(err.has_error()) << err.message();
+)gn",
+                           &err);
+      ASSERT_SUCCESS(err);
 
       const Value* val_hello = setup.scope()->GetValue("hello");
       ASSERT_TRUE(val_hello);
@@ -823,19 +832,24 @@ my_rule("foo") {
       ASSERT_TRUE(val_my_rule);
       EXPECT_EQ(Value::STARLARK_VALUE, val_my_rule->type());
 
-      const Scope::ItemVector* items = setup.scope()->GetItemCollector();
-      ASSERT_TRUE(items);
-      ASSERT_EQ(2u, items->size());
+      ASSERT_EQ(2u, setup.items().size());
 
-      const Target* target_extension = (*items)[0]->AsTarget();
+      const Target* target_extension = setup.items()[0]->AsTarget();
       ASSERT_TRUE(target_extension);
       EXPECT_EQ(Target::STATIC_LIBRARY, target_extension->output_type());
       EXPECT_EQ("//:foo_extension",
                 target_extension->label().GetUserVisibleName(false));
 
-      const Target* target_custom = (*items)[1]->AsTarget();
+      const Target* target_custom = setup.items()[1]->AsTarget();
       ASSERT_TRUE(target_custom);
       EXPECT_EQ("//:foo", target_custom->label().GetUserVisibleName(false));
+
+      // Because they returned the input file as DefaultInfo, it should be set
+      // as an alias.
+      EXPECT_EQ(target_extension->dependency_output_alias(),
+                OutputFile("../../foo.cc"));
+      EXPECT_EQ(target_custom->dependency_output_alias(),
+                OutputFile("../../foo.cc"));
     }
 
     // Verify failure when loading a nonexistent variable.
@@ -908,7 +922,7 @@ sum_wrapper(1, 2, 3) {
       fail_input.parsed()->Execute(setup.scope(), &err);
       ASSERT_TRUE(err.has_error());
       EXPECT_EQ(
-          "ERROR at //:rules.scl:24:10: Found `d` extra named parameter(s) for "
+          "ERROR at //:rules.scl:30:10: Found `d` extra named parameter(s) for "
           "call to //:rules.scl.sum\n"
           "  return sum(*args, **kwargs)\n"
           "         ^-------------------\n"

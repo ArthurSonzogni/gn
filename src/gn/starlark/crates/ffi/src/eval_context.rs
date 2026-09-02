@@ -8,7 +8,7 @@ use allocative::Allocative;
 use starlark::values::ProvidesStaticType;
 use types::{CtxState, LabelRef, PackageRef, PathResolver};
 
-use crate::{errors::Error, Scope, TargetRef};
+use crate::{errors::Error, target::Target, Scope, TargetRef};
 
 enum EvalContextKind {
     BzlFile,
@@ -16,6 +16,9 @@ enum EvalContextKind {
         scope: NonNull<Scope>,
         origin: crate::bridge::ParseNodePtr,
         err: NonNull<crate::bridge::Err>,
+    },
+    RuleImpl {
+        state: RefCell<CtxState<TargetRef>>,
     },
 }
 
@@ -30,6 +33,7 @@ pub struct EvalContext {
 }
 
 impl EvalContext {
+    /// Creates a new `EvalContext` for evaluating a .bzl file.
     pub fn new_bzl_file(
         session: &'static crate::session::Session,
         package: &'static PackageRef,
@@ -41,6 +45,7 @@ impl EvalContext {
         }
     }
 
+    /// Creates a new `EvalContext` for macro evaluation within a GN scope.
     pub fn new_macro(
         session: &'static crate::session::Session,
         scope: NonNull<Scope>,
@@ -59,6 +64,17 @@ impl EvalContext {
             session,
             package,
             kind: EvalContextKind::Macro { scope, origin, err },
+        }
+    }
+
+    /// Creates a new `EvalContext` for rule implementation execution.
+    pub fn new_rule_impl(session: &'static crate::session::Session, target: TargetRef) -> Self {
+        Self {
+            session,
+            package: target.0.label().package(),
+            kind: EvalContextKind::RuleImpl {
+                state: RefCell::new(CtxState::new(target)),
+            },
         }
     }
 }
@@ -87,7 +103,11 @@ impl types::EvalContext for EvalContext {
                 unsafe { scope.as_ref() }.settings().toolchain()
             },
             EvalContextKind::BzlFile => {
-                unreachable!("current_toolchain is only available during macro evaluation")
+                unreachable!("There is no current file during bzl file evaluation")
+            },
+            EvalContextKind::RuleImpl { state, .. } => {
+                let target: &'static Target = state.borrow().target.0;
+                target.toolchain()
             },
         }
     }
@@ -112,7 +132,10 @@ impl types::EvalContext for EvalContext {
     }
 
     fn require_rule_impl(&self) -> starlark::Result<&RefCell<CtxState<TargetRef>>> {
-        todo!()
+        match &self.kind {
+            EvalContextKind::RuleImpl { state, .. } => Ok(state),
+            _ => Err(Error::RequiresRuleImpl.into()),
+        }
     }
 }
 
@@ -161,6 +184,9 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
                     rule: typed_rule,
                     attrs,
                 }),
+            evaluated: Default::default(),
         }))
     }
 }
+
+rule::impl_ctx_methods!(EvalContext);

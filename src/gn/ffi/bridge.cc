@@ -743,6 +743,9 @@ std::size_t align_of() {
 }
 #endif // CXXBRIDGE1_LAYOUT
 
+class Str::uninit {};
+inline Str::Str(uninit) noexcept {}
+
 namespace repr {
 using Fat = ::std::array<::std::uintptr_t, 2>;
 } // namespace repr
@@ -778,6 +781,11 @@ namespace {
 template <>
 class impl<Str> final {
 public:
+ static Str new_unchecked(repr::Fat repr) noexcept {
+   Str str = Str::uninit{};
+   str.repr = repr;
+   return str;
+ }
   static repr::Fat repr(Str str) noexcept {
     return str.repr;
   }
@@ -894,6 +902,8 @@ enum class ValueType : ::std::uint8_t {
 #ifndef CXXBRIDGE1_STRUCT_RustTarget
 #define CXXBRIDGE1_STRUCT_RustTarget
 struct RustTarget final : public ::rust::Opaque {
+  ::rust::Str execute_rule_impl(::Session const& session,
+                                ::Err& err) const noexcept;
   ~RustTarget() = delete;
 
 private:
@@ -1050,6 +1060,14 @@ void cxxbridge1$196$Target$sources(::Target const &self, ::std::vector<::SourceF
 void cxxbridge1$196$Target$public_headers(::Target const &self, ::std::vector<::SourceFile> const **return$) noexcept {
   ::std::vector<::SourceFile> const &(::Target::*public_headers$)() const = &::Target::public_headers;
   new (return$) ::std::vector<::SourceFile> const *(&(self.*public_headers$)());
+}
+
+void cxxbridge1$196$Target$computed_outputs(
+    ::Target const& self,
+    ::std::vector<::OutputFile> const** return$) noexcept {
+  ::std::vector<::OutputFile> const& (::Target::*computed_outputs$)() const =
+      &::Target::computed_outputs;
+  new (return$)::std::vector<::OutputFile> const*(&(self.*computed_outputs$)());
 }
 
 ::RustTarget const *cxxbridge1$196$Target$rust_target(::Target const &self, ::Session const &session) noexcept {
@@ -1213,6 +1231,9 @@ void cxxbridge1$196$Value$starlark_value(::Value const &self, ::OwnedFrozenValue
 }
 ::std::size_t cxxbridge1$196$RustTarget$operator$sizeof() noexcept;
 ::std::size_t cxxbridge1$196$RustTarget$operator$alignof() noexcept;
+
+::rust::repr::Fat cxxbridge1$196$RustTarget$execute_rule_impl(
+    ::RustTarget const& self, ::Session const& session, ::Err& err) noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$sizeof() noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$alignof() noexcept;
 
@@ -1241,6 +1262,12 @@ void cxxbridge1$196$OwnedFrozenValue$invoke(::OwnedFrozenValue const &self, ::Se
 
 ::std::size_t RustTarget::layout::align() noexcept {
   return cxxbridge1$196$RustTarget$operator$alignof();
+}
+
+::rust::Str RustTarget::execute_rule_impl(::Session const& session,
+                                          ::Err& err) const noexcept {
+  return ::rust::impl<::rust::Str>::new_unchecked(
+      cxxbridge1$196$RustTarget$execute_rule_impl(*this, session, err));
 }
 
 ::std::size_t Session::layout::size() noexcept {
@@ -1381,6 +1408,60 @@ void cxxbridge1$unique_ptr$std$vector$SourceFile$raw(::std::unique_ptr<::std::ve
 }
 void cxxbridge1$unique_ptr$std$vector$SourceFile$drop(::std::unique_ptr<::std::vector<::SourceFile>> *ptr) noexcept {
   ::rust::deleter_if<::rust::detail::is_complete<::std::vector<::SourceFile>>::value>{}(ptr);
+}
+
+::std::vector<::OutputFile>* cxxbridge1$std$vector$OutputFile$new() noexcept {
+  return new ::std::vector<::OutputFile>();
+}
+::std::size_t cxxbridge1$std$vector$OutputFile$size(
+    ::std::vector<::OutputFile> const& s) noexcept {
+  return s.size();
+}
+::std::size_t cxxbridge1$std$vector$OutputFile$capacity(
+    ::std::vector<::OutputFile> const& s) noexcept {
+  return s.capacity();
+}
+::OutputFile* cxxbridge1$std$vector$OutputFile$get_unchecked(
+    ::std::vector<::OutputFile>* s, ::std::size_t pos) noexcept {
+  return &(*s)[pos];
+}
+bool cxxbridge1$std$vector$OutputFile$reserve(::std::vector<::OutputFile>* s,
+                                              ::std::size_t new_cap) noexcept {
+  return ::rust::if_move_constructible<::OutputFile>::reserve(*s, new_cap);
+}
+static_assert(
+    ::rust::detail::is_complete<
+        ::std::remove_extent<::std::vector<::OutputFile>>::type>::value,
+    "definition of `::std::vector<::OutputFile>` is required");
+static_assert(sizeof(::std::unique_ptr<::std::vector<::OutputFile>>) ==
+                  sizeof(void*),
+              "");
+static_assert(alignof(::std::unique_ptr<::std::vector<::OutputFile>>) ==
+                  alignof(void*),
+              "");
+void cxxbridge1$unique_ptr$std$vector$OutputFile$null(
+    ::std::unique_ptr<::std::vector<::OutputFile>>* ptr) noexcept {
+  ::new (ptr)::std::unique_ptr<::std::vector<::OutputFile>>();
+}
+void cxxbridge1$unique_ptr$std$vector$OutputFile$raw(
+    ::std::unique_ptr<::std::vector<::OutputFile>>* ptr,
+    ::std::unique_ptr<::std::vector<::OutputFile>>::pointer raw) noexcept {
+  ::new (ptr)::std::unique_ptr<::std::vector<::OutputFile>>(raw);
+}
+::std::unique_ptr<::std::vector<::OutputFile>>::element_type const*
+cxxbridge1$unique_ptr$std$vector$OutputFile$get(
+    ::std::unique_ptr<::std::vector<::OutputFile>> const& ptr) noexcept {
+  return ptr.get();
+}
+::std::unique_ptr<::std::vector<::OutputFile>>::pointer
+cxxbridge1$unique_ptr$std$vector$OutputFile$release(
+    ::std::unique_ptr<::std::vector<::OutputFile>>& ptr) noexcept {
+  return ptr.release();
+}
+void cxxbridge1$unique_ptr$std$vector$OutputFile$drop(
+    ::std::unique_ptr<::std::vector<::OutputFile>>* ptr) noexcept {
+  ::rust::deleter_if<
+      ::rust::detail::is_complete<::std::vector<::OutputFile>>::value>{}(ptr);
 }
 
 static_assert(::rust::detail::is_complete<::std::remove_extent<::Scope>::type>::value, "definition of `::Scope` is required");

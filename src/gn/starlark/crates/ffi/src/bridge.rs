@@ -226,6 +226,7 @@ mod dummy {
         fn all_headers_public(self: &CxxTarget) -> bool;
         fn sources(self: &CxxTarget) -> &CxxVector<SourceFile>;
         fn public_headers(self: &CxxTarget) -> &CxxVector<SourceFile>;
+        fn computed_outputs(self: &CxxTarget) -> &CxxVector<OutputFile>;
         fn rust_target<'a>(self: &'a CxxTarget, session: &'a Session) -> &'static Target;
         fn set_rust_target(self: &CxxTarget, rust_target: &Target);
         #[rust_name = "settings_cxx"]
@@ -320,6 +321,11 @@ mod dummy {
     extern "Rust" {
         #[cxx_name = "RustTarget"]
         type Target;
+        fn execute_rule_impl(
+            self: &Target,
+            session: &'static Session,
+            err: Pin<&mut Err>,
+        ) -> &'static str;
 
         type Session;
 

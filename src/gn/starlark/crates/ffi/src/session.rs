@@ -116,11 +116,12 @@ impl Session {
         self.register_target(Target {
             cxx,
             starlark: None,
+            evaluated: Default::default(),
         })
         .0
     }
 
-    fn load(&'static self, label: LabelRef<'_>) -> starlark::Result<FrozenModule> {
+    pub(crate) fn load(&'static self, label: LabelRef<'_>) -> starlark::Result<FrozenModule> {
         self.loader
             .load(label, &self.path_resolver, &self.globals, &|pkg| {
                 // Safety: The package reference is guaranteed to live as long as the

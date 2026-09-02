@@ -5,5 +5,5 @@
 load(":filegroup.scl", "filegroup")
 
 filegroup("filegroup") {
-  srcs = []
+  srcs = ["first.txt"]
 }
