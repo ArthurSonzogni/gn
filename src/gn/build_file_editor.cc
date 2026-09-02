@@ -216,6 +216,26 @@ std::optional<ListNode*> FindListInAssignment(const TreeNode& assignment) {
   return results.front();
 }
 
+bool IsEmptyList(const ParseNode* node) {
+  auto* list = node->AsList();
+  return list && list->contents().empty();
+}
+
+std::unique_ptr<ParseNode> SimplifyExpression(std::unique_ptr<ParseNode> expr) {
+  // We could recurse into minuses, but `gn edit` never modifies anything in a
+  // minus, so no need to simplify.
+  if (auto op = expr->AsBinaryOpMut(); op && op->op().type() == Token::PLUS) {
+    op->set_left(SimplifyExpression(op->take_left()));
+    op->set_right(SimplifyExpression(op->take_right()));
+    if (IsEmptyList(op->left())) {
+      return op->take_right();
+    } else if (IsEmptyList(op->right())) {
+      return op->take_left();
+    }
+  }
+  return expr;
+}
+
 TreeNode TreeNode::Descend(ParseNode* child) const {
   std::vector<ParseNode*> s = stack_;
   s.push_back(child);

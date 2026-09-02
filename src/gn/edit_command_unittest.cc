@@ -293,6 +293,18 @@ executable("foo") {
                        {Err(Location(),
                             "Target \"//:foo\" does not contain the value "
                             "\"//nonexistent\" in attribute \"deps\".")}}));
+
+  EXPECT_SUCCESS(DoEdit("move deps public_deps //a",
+                        R"(
+executable("foo") {
+  deps = [ "//a" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  public_deps = [ "//a" ]
+}
+)"));
 }
 
 TEST_F(EditCommandTest, NewSubcommand) {
@@ -459,7 +471,7 @@ executable("foo") {
 )"),
                  Edited(R"(
 executable("foo") {
-  deps = [] + [ "//foo:bar" ]
+  deps = [ "//foo:bar" ]
 }
 )"));
 
@@ -479,6 +491,93 @@ executable("foo") {
                                        "Target \"//:foo\" does not contain the "
                                        "value \"//nonexistent\" in attribute "
                                        "\"deps\".")}}));
+
+  EXPECT_SUCCESS(DoEdit("remove deps //base",
+                        R"(
+executable("foo") {
+  deps = [ "//base" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("remove deps //base",
+                        R"(
+executable("foo") {
+  deps = [ "//base" ]
+  if (is_linux) {
+    deps += [ "//linux" ]
+  }
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  if (is_linux) {
+    deps = [ "//linux" ]
+  }
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("remove deps //a",
+                        R"(
+executable("foo") {
+  deps = [ "//a" ]
+  deps += [ "//b" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = [ "//b" ]
+}
+)"));
+
+  EXPECT_SUCCESS(DoEdit("remove deps //base",
+                        R"(
+executable("foo") {
+  deps = [ "//base" ]
+  if (is_linux) {
+    deps += [ "//linux" ]
+  }
+  deps += [ "//other" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = []
+  if (is_linux) {
+    deps += [ "//linux" ]
+  }
+  deps += [ "//other" ]
+}
+)"));
+
+  // When multiple assignments exist, an empty assignment must not be removed,
+  // and subsequent conditional += must not be converted to =.
+  EXPECT_SUCCESS(DoEdit("remove deps //base",
+                        R"(
+executable("foo") {
+  deps = [ "//base" ]
+  if (is_linux) {
+    deps += [ "//linux" ]
+  }
+  if (is_mac) {
+    deps += [ "//mac" ]
+  }
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  deps = []
+  if (is_linux) {
+    deps += [ "//linux" ]
+  }
+  if (is_mac) {
+    deps += [ "//mac" ]
+  }
+}
+)"));
 }
 
 TEST_F(EditCommandTest, RenameSubcommand) {

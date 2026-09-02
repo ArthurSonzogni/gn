@@ -708,7 +708,6 @@ group("all") {
   check_includes_strict = true
   public = [ "includer.h" ]
   sources = [ "includer.cc" ]
-  deps = []
   public_deps = [ "//included" ]
 }
 )";

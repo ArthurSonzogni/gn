@@ -128,7 +128,35 @@ bool RemoveFromTarget(const EditTarget& target,
     done |= !matches.empty();
   }
 
-  if (!done && target.is_explicit) {
+  if (done) {
+    auto assignments = target.assignments(attribute);
+    for (auto i = 0u; i < assignments.size(); ++i) {
+      auto& assign = assignments[i];
+      auto* op = assignments[i]->AsBinaryOpMut();
+      CHECK(op);
+      TreeNode* next =
+          i + 1 < assignments.size() ? &assignments[i + 1] : nullptr;
+
+      op->set_right(SimplifyExpression(op->take_right()));
+      if (IsEmptyList(op->right())) {
+        if (assign.is_modification() || assignments.size() == 1) {
+          assign.RemoveSelfUnconditionally();
+          // Transform a = []; a += ["..."] => a = ["..."]
+          // This can be safely done if `a = []` is unconditional, and either
+          // the += is unconditional, or we know it's the last assignment.
+        } else if (next && !assign.is_conditional() &&
+                   (!next->is_conditional() || assignments.size() == 2)) {
+          auto* next_op = next->node()->AsBinaryOpMut();
+          if (next_op->op().type() == Token::PLUS_EQUALS) {
+            next_op->set_op(Token(next_op->op().location(), Token::EQUAL, "="));
+            assign.RemoveSelfUnconditionally();
+          } else if (next_op->op().type() == Token::EQUAL) {
+            assign.RemoveSelfUnconditionally();
+          }
+        }
+      }
+    }
+  } else if (target.is_explicit) {
     target.add_warning(state, "does not contain the value " +
                                   value.ToString(true) + " in attribute \"" +
                                   attribute + "\".");
