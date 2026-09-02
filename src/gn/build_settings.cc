@@ -10,6 +10,21 @@
 #include "gn/ffi/bridge.h"
 #include "gn/filesystem_utils.h"
 
+namespace {
+
+// Computes the prefix for any source-relative OutputFile.
+// Eg. if the build directory is //out/Default, it would return ../../
+std::string ComputeSourceRootRel(const SourceDir& build_dir,
+                                 std::string_view root_path_utf8) {
+  std::string source_root_rel = RebasePath("//", build_dir, root_path_utf8);
+  if (!EndsWithSlash(source_root_rel)) {
+    source_root_rel.push_back('/');
+  }
+  return source_root_rel;
+}
+
+}  // namespace
+
 BuildSettings::BuildSettings() = default;
 
 BuildSettings::BuildSettings(const BuildSettings& other)
@@ -26,8 +41,9 @@ BuildSettings::BuildSettings(const BuildSettings& other)
       build_dir_(other.build_dir_),
       build_args_(other.build_args_) {
   if (other.starlark_session_.has_value()) {
-    starlark_session_ =
-        Session::new_cxx(other.root_path_utf8_, other.build_dir_.value());
+    starlark_session_ = Session::new_cxx(
+        other.root_path_utf8_,
+        ComputeSourceRootRel(other.build_dir_, other.root_path_utf8_));
   }
 }
 
@@ -44,7 +60,8 @@ void BuildSettings::SetRootPath(const base::FilePath& r) {
   root_path_ = r.NormalizePathSeparatorsTo('/');
   root_path_utf8_ = FilePathToUTF8(root_path_);
   if (!root_path_.empty() && !build_dir_.is_null()) {
-    starlark_session_ = Session::new_cxx(root_path_utf8_, build_dir_.value());
+    starlark_session_ = Session::new_cxx(
+        root_path_utf8_, ComputeSourceRootRel(build_dir_, root_path_utf8_));
   }
 }
 
@@ -69,7 +86,8 @@ void BuildSettings::SetPythonPath(base::FilePath p) {
 void BuildSettings::SetBuildDir(const SourceDir& d) {
   build_dir_ = d;
   if (!root_path_.empty() && !build_dir_.is_null()) {
-    starlark_session_ = Session::new_cxx(root_path_utf8_, build_dir_.value());
+    starlark_session_ = Session::new_cxx(
+        root_path_utf8_, ComputeSourceRootRel(build_dir_, root_path_utf8_));
   }
 }
 
