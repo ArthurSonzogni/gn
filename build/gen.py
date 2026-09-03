@@ -292,6 +292,17 @@ def GenerateLastCommitPosition(host, header):
       f.write(contents)
 
 
+USED_ENV_VARS = (
+    'AR',
+    'CFLAGS',
+    'CXX',
+    'CXXFLAGS',
+    'LD',
+    'LDFLAGS',
+    'LIBFLAGS',
+)
+
+
 def WriteGenericNinja(path, static_libraries, executables,
                       cxx, ar, ld, platform, host, options,
                       args_list, cflags=[], ldflags=[],
@@ -306,6 +317,20 @@ def WriteGenericNinja(path, static_libraries, executables,
 
   rel_self = os.path.relpath(os.path.join(SCRIPT_DIR, 'gen.py'), build_dir)
 
+  sys_exec = f'"{sys.executable}"' if host.is_windows() else shlex.quote(sys.executable)
+  cmd = '%s %s%s' % (sys_exec, rel_self, args)
+  explicit_env = [k for k in USED_ENV_VARS if k in os.environ]
+  if explicit_env:
+    if host.is_windows():
+      set_cmds = ['set "%s=%s"' % (k, os.environ[k].replace('$', '$$')) for k in explicit_env]
+      cmd = 'cmd.exe /s /c "%s && %s"' % (' && '.join(set_cmds), cmd)
+    else:
+      env_prefix = ' '.join(
+          '%s=%s' % (k, shlex.quote(os.environ[k]).replace('$', '$$'))
+          for k in explicit_env
+      )
+      cmd = '%s %s' % (env_prefix, cmd)
+
   ninja_header_lines = [
     'cxx = ' + cxx,
     'ar = ' + ar,
@@ -314,7 +339,7 @@ def WriteGenericNinja(path, static_libraries, executables,
     '  depth = 1',
     '',
     'rule regen',
-    '  command = %s %s%s' % (sys.executable, rel_self, args),
+    '  command = ' + cmd,
     '  description = Regenerating ninja files',
     '',
     'build build.ninja: regen',
