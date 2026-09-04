@@ -300,6 +300,7 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
   bool remaining_violations = false;
   bool needs_separator = false;
   bool has_suggestions = false;
+  TargetResolutionCache cache;
   for (auto& violation : violations) {
     if (needs_separator) {
       OutputString("___________________\n", DECORATION_YELLOW);
@@ -315,7 +316,7 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
           [&](std::string_view str, TextDecoration dec, HtmlEscaping esc) {
             buf.emplace_back(str, dec, esc);
           },
-          apply, setup);
+          cache, apply, setup);
       fixed = apply && (exit_code == SuggestResult::kSuccess);
       if (!buf.empty()) {
         has_suggestions = true;
