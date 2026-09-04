@@ -338,6 +338,20 @@ executable("foo") {
   public_deps = [ "//a" ]
 }
 )"));
+
+  // Moving a value that already exists in the destination attribute should be
+  // a no-op with no warnings.
+  EXPECT_SUCCESS(DoEdit("move deps public_deps //a",
+                        R"(
+executable("foo") {
+  public_deps = [ "//a" ]
+}
+)"),
+                 Edited(R"(
+executable("foo") {
+  public_deps = [ "//a" ]
+}
+)"));
 }
 
 TEST_F(EditCommandTest, NewSubcommand) {

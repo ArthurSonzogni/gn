@@ -117,7 +117,8 @@ EditCommand EditTargetCommand(
 bool RemoveFromTarget(const EditTarget& target,
                       const std::string& attribute,
                       const Value& value,
-                      EditState& state) {
+                      EditState& state,
+                      bool warn_if_missing = true) {
   bool done = false;
   for (auto& assignment : target.assignments(attribute)) {
     auto matches = FindListElementInAssignment(target, assignment, value);
@@ -156,7 +157,7 @@ bool RemoveFromTarget(const EditTarget& target,
         }
       }
     }
-  } else if (target.is_explicit) {
+  } else if (target.is_explicit && warn_if_missing) {
     target.add_warning(state, "does not contain the value " +
                                   value.ToString(true) + " in attribute \"" +
                                   attribute + "\".");
@@ -269,6 +270,23 @@ EditCommand DeleteCommand() {
   });
 }
 
+// Returns whether |target| contains |value| in |attribute|.
+// Assignments using `-=` are filtered out.
+bool AttributeContainsValue(const EditTarget& target,
+                            std::string_view attribute,
+                            const Value& value) {
+  for (const auto& assignment : target.assignments(attribute)) {
+    if (const auto* op = assignment.node()->AsBinaryOp();
+        op && op->op().type() == Token::MINUS_EQUALS) {
+      continue;
+    }
+    if (!FindListElementInAssignment(target, assignment, value).empty()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 EditCommand MoveCommand(std::string from_attribute,
                         std::string to_attribute,
                         std::vector<Value> values) {
@@ -279,7 +297,10 @@ EditCommand MoveCommand(std::string from_attribute,
                                EditState& state) -> Err {
     std::vector<Value> moved_values;
     for (const auto& value : values) {
-      if (RemoveFromTarget(target, from_attribute, value, state)) {
+      bool warn_if_missing =
+          !AttributeContainsValue(target, to_attribute, value);
+      if (RemoveFromTarget(target, from_attribute, value, state,
+                           warn_if_missing)) {
         moved_values.push_back(value);
       }
     }
