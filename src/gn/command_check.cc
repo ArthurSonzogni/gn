@@ -316,7 +316,7 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
           [&](std::string_view str, TextDecoration dec, HtmlEscaping esc) {
             buf.emplace_back(str, dec, esc);
           },
-          cache, apply, setup);
+          cache, /*must_be_file=*/true, apply, setup);
       fixed = apply && (exit_code == SuggestResult::kSuccess);
       if (!buf.empty()) {
         has_suggestions = true;

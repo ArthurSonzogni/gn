@@ -320,6 +320,7 @@ ResolveSuggestionToTarget(const BuildSettings* build_settings,
                           const std::vector<const Target*>& all_targets,
                           const Label& current_toolchain,
                           std::string_view input,
+                          bool must_be_file,
                           TargetResolutionCache& cache,
                           const Target* includer) {
   auto sort_results = [](auto& vec) {
@@ -328,38 +329,40 @@ ResolveSuggestionToTarget(const BuildSettings* build_settings,
     });
   };
   std::vector<std::pair<const Target*, commands::ApiScope>> results;
-  std::string_view module_name = input;
-  commands::ApiScope is_private = commands::ApiScope::kPublic;
-  if (module_name.ends_with(kPrivateSuffix)) {
-    is_private = commands::ApiScope::kPrivate;
-    module_name.remove_suffix(kPrivateSuffix.size());
-  }
-
-  // Try to resolve as a module name.
-  for (const Target* target : all_targets) {
-    if (target->module_name() == module_name) {
-      results.emplace_back(target, is_private);
+  if (!must_be_file) {
+    std::string_view module_name = input;
+    commands::ApiScope is_private = commands::ApiScope::kPublic;
+    if (module_name.ends_with(kPrivateSuffix)) {
+      is_private = commands::ApiScope::kPrivate;
+      module_name.remove_suffix(kPrivateSuffix.size());
     }
-  }
-  if (!results.empty()) {
-    sort_results(results);
-    return {results, true};
-  }
 
-  // If that doesn't work, try to resolve as an absolute target label.
-  if (input.starts_with("//") && input.find(':') != std::string_view::npos) {
-    Err err;
-    Label want;
-    Value input_value(nullptr, std::string(input));
-    want = Label::Resolve(SourceDir("//"), build_settings->root_path_utf8(),
-                          current_toolchain, input_value, &err);
-    if (!err.has_error()) {
-      for (const Target* target : all_targets) {
-        if (target->label() == want) {
-          results.emplace_back(target, is_private);
-          // We know each label corresponds to exactly one target, so we don't
-          // need to keep going.
-          return {results, true};
+    // Try to resolve as a module name.
+    for (const Target* target : all_targets) {
+      if (target->module_name() == module_name) {
+        results.emplace_back(target, is_private);
+      }
+    }
+    if (!results.empty()) {
+      sort_results(results);
+      return {results, true};
+    }
+
+    // If that doesn't work, try to resolve as an absolute target label.
+    if (input.starts_with("//") && input.find(':') != std::string_view::npos) {
+      Err err;
+      Label want;
+      Value input_value(nullptr, std::string(input));
+      want = Label::Resolve(SourceDir("//"), build_settings->root_path_utf8(),
+                            current_toolchain, input_value, &err);
+      if (!err.has_error()) {
+        for (const Target* target : all_targets) {
+          if (target->label() == want) {
+            results.emplace_back(target, is_private);
+            // We know each label corresponds to exactly one target, so we don't
+            // need to keep going.
+            return {results, true};
+          }
         }
       }
     }
@@ -402,6 +405,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
                                 std::string_view included_name,
                                 OutputStringFunc output_fn,
                                 TargetResolutionCache& cache,
+                                bool must_be_file,
                                 bool apply,
                                 Setup* setup) {
   if (apply) {
@@ -547,8 +551,8 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
   auto ResolveSuggestion = [&](std::string_view value,
                                const Target* target_context = nullptr) {
     const auto& [targets, ok] = ResolveSuggestionToTarget(
-        build_settings, all_targets, current_toolchain, value, cache,
-        target_context);
+        build_settings, all_targets, current_toolchain, value, must_be_file,
+        cache, target_context);
     if (!ok) {
       StartError();
       if (value.starts_with("//")) {
@@ -996,7 +1000,7 @@ int RunSuggest(const std::vector<std::string>& args) {
           has_suggestions = true;
           ::OutputString(str, dec, esc);
         },
-        cache, apply, setup);
+        cache, /*must_be_file=*/false, apply, setup);
     if (res == SuggestResult::kFailure) {
       exit_status = SuggestResult::kFailure;
     } else if (res == SuggestResult::kUnapplied &&

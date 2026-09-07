@@ -159,6 +159,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
                                 std::string_view included_name,
                                 OutputStringFunc output_fn,
                                 TargetResolutionCache& cache,
+                                bool must_be_file = false,
                                 bool apply = false,
                                 Setup* setup = nullptr);
 
@@ -337,6 +338,7 @@ ResolveSuggestionToTarget(const BuildSettings* build_settings,
                           const std::vector<const Target*>& all_targets,
                           const Label& current_toolchain,
                           std::string_view input,
+                          bool must_be_file,
                           TargetResolutionCache& cache,
                           const Target* includer = nullptr);
 
