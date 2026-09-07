@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <set>
@@ -16,6 +17,7 @@
 #include <vector>
 
 #include "base/values.h"
+#include "gn/header_checker.h"
 #include "gn/standard_out.h"
 #include "gn/target.h"
 #include "gn/unique_vector.h"
@@ -149,6 +151,9 @@ class TargetResolutionCache {
       const Target& target,
       const std::vector<const Target*>& all_targets);
 
+  // Returns reference to ReachabilityCache for the given target.
+  HeaderChecker::ReachabilityCache& GetReachabilityCache(const Target* target);
+
  private:
   std::once_flag file_to_target_initialized_;
   std::unordered_map<SourceFile,
@@ -161,6 +166,12 @@ class TargetResolutionCache {
   std::once_flag forwarding_parents_initialized_;
   std::unordered_map<const Target*, std::vector<const Target*>>
       forwarding_parents_;
+
+  // Maps a Target to its ReachabilityCache for cycle detection.
+  std::mutex reachability_cache_lock_;
+  std::unordered_map<const Target*,
+                     std::unique_ptr<HeaderChecker::ReachabilityCache>>
+      reachability_cache_;
 };
 
 SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,

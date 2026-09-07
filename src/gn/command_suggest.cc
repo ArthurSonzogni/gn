@@ -5,8 +5,8 @@
 #include <stddef.h>
 
 #include <algorithm>
-#include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <tuple>
 #include <unordered_map>
@@ -187,51 +187,6 @@ SourceFile ResolveFilePath(const BuildSettings* build_settings,
   return SourceFile();
 }
 
-// Finds the shortest dependency path from `from` to `to`.
-// Returns a vector where the first element is `from` and the last is `to`.
-// Returns the empty vector if no path was found.
-std::vector<const Target*> FindDependencyPath(const Target* from,
-                                              const Target* to) {
-  std::deque<const Target*> queue;
-  std::unordered_map<const Target*, const Target*> parents;
-  parents[from] = nullptr;
-  queue.push_back(from);
-
-  const Target* cur = nullptr;
-  while (!queue.empty()) {
-    cur = queue.front();
-    queue.pop_front();
-    if (cur == to) {
-      break;
-    }
-
-    auto add_deps = [&](const LabelTargetVector& deps) {
-      for (const auto& dep : deps) {
-        if (dep.ptr) {
-          if (parents.emplace(dep.ptr, cur).second) {
-            queue.push_back(dep.ptr);
-          }
-        }
-      }
-    };
-
-    add_deps(cur->public_deps());
-    add_deps(cur->private_deps());
-  }
-
-  if (cur != to) {
-    return {};
-  }
-
-  std::vector<const Target*> path;
-  while (cur != nullptr) {
-    path.push_back(cur);
-    cur = parents[cur];
-  }
-  std::reverse(path.begin(), path.end());
-  return path;
-}
-
 }  // namespace
 
 TargetResolutionCache::TargetResolutionCache() = default;
@@ -332,6 +287,20 @@ std::vector<const Target*> TargetResolutionCache::GetTargetsExposing(
       [](const Target* a, const Target* b) { return a->label() < b->label(); });
 
   return results;
+}
+
+HeaderChecker::ReachabilityCache& TargetResolutionCache::GetReachabilityCache(
+    const Target* target) {
+  std::lock_guard<std::mutex> lock(reachability_cache_lock_);
+  auto it = reachability_cache_.find(target);
+  if (it == reachability_cache_.end()) {
+    it =
+        reachability_cache_
+            .emplace(target,
+                     std::make_unique<HeaderChecker::ReachabilityCache>(target))
+            .first;
+  }
+  return *it->second;
 }
 
 // Resolves an input to a list of targets, and whether each are private.
@@ -753,8 +722,10 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     std::vector<CandidateDep> candidate_deps;
     for (const auto& target : candidates) {
       Label label = target->label();
-      std::vector<const Target*> cycle = FindDependencyPath(target, includer);
-      if (!cycle.empty()) {
+      HeaderChecker::Chain cycle;
+      if (cache.GetReachabilityCache(target).SearchForDependencyTo(
+              includer, /*permitted=*/false, &cycle)) {
+        std::reverse(cycle.begin(), cycle.end());
         StartWarning();
         OutputTarget(target);
         OutputString(" depends on ");
@@ -768,7 +739,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
 
         for (size_t i = 0; i < cycle.size(); i++) {
           OutputString("  ");
-          OutputTarget(cycle[i]);
+          OutputTarget(cycle[i].target);
           if (i + 1 < cycle.size()) {
             OutputString(" ->");
           }
@@ -776,7 +747,8 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
         }
 
         bool has_allow_circular_includes_from = false;
-        for (const Target* t : cycle) {
+        for (const auto& link : cycle) {
+          const Target* t = link.target;
           if (!t->allow_circular_includes_from().empty()) {
             has_allow_circular_includes_from = true;
             SetAmbiguous();

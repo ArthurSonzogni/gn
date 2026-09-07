@@ -67,6 +67,141 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
     SourceFile included_file;
   };
 
+  // Store the shortest-dependency-path information for all BFS walks starting
+  // from a given `search_from` target.
+  //
+  // `permitted_breadcrumbs` corresponds to public dependencies only.
+  // `any_breadcrumbs` corresponds to all dependencies.
+  //
+  // Each walk type needs only to be performed once, which is recorded by the
+  // corresponding completion flag.
+  class ReachabilityCache {
+   public:
+    ReachabilityCache(const Target* source) : source_target_(source) {}
+    ReachabilityCache(const ReachabilityCache&) = delete;
+    ReachabilityCache& operator=(const ReachabilityCache&) = delete;
+
+    const Target* source_target() const { return source_target_; }
+
+    // Returns true if the given `search_for` target is reachable from
+    // `source_target_`.
+    //
+    // If found, the vector given in `chain` will be filled with the reverse
+    // dependency chain from the destination target to the source target.
+    //
+    // If `permitted` is true, only permitted (public) dependency paths are
+    // searched.
+    bool SearchForDependencyTo(const Target* search_for,
+                               bool permitted,
+                               Chain* chain);
+
+    // Conducts a breadth-first search through the dependency graph to find a
+    // shortest chain from source_target_.
+    void PerformDependencyWalk(bool permitted);
+
+   private:
+    // Header checking structures ----------------------------------------------
+
+    // Data for BreadcrumbNode.
+    //
+    // This class is a trivial type so it can be used in HashTableBase.
+    // To implement IsDependencyOf(from_target, to_target), a BFS starting from
+    // an arbitrary `from_target` is performed, and a BreadCrumbTable is used to
+    // record during the walk, that a given `|target|` is a dependency of
+    // `|src_target|`, with `|is_public|` indicating the type of dependency.
+    //
+    // This table only records the first (src_target->target) dependency during
+    // the BFS, since only the shortest dependency path is interesting. This
+    // also means that if a target is the dependency of two distinct parents at
+    // the same level, only the first parent will be recorded in the table.
+    // Consider the following graph:
+    //
+    // ```
+    //     A
+    //    / \
+    //   B   C
+    //    \ /
+    //     D
+    // ```
+    //
+    // The BFS will visit nodes in order: A, B, C and D, but will record only
+    // the (D, B) edge, not the (D, C) one, even if B->D is private and C->D is
+    // public.
+    //
+    // This information is later used to reconstruct the dependency chain when
+    // `to_target` is found by the walk.
+    struct BreadcrumbNode {
+      const Target* target;
+      const Target* src_target;
+      bool is_public;
+
+      bool is_null() const { return !target; }
+      static bool is_tombstone() { return false; }
+      bool is_valid() const { return !is_null(); }
+      size_t hash_value() const { return std::hash<const Target*>()(target); }
+    };
+
+    struct BreadcrumbTable : public HashTableBase<BreadcrumbNode> {
+      using Base = HashTableBase<BreadcrumbNode>;
+      using Node = Base::Node;
+
+      // Since we only insert, we don't need to return success/failure.
+      // We can also assume that key uniqueness is checked before insertion if
+      // necessary, or that we simply overwrite (though BFS usually checks
+      // existence first).
+      //
+      // In IsDependencyOf, we use the return value checking if it was already
+      // there. So we need an Insert that returns whether it was new.
+      bool Insert(const Target* target,
+                  const Target* src_target,
+                  bool is_public) {
+        size_t hash = std::hash<const Target*>()(target);
+        Node* node = NodeLookup(
+            hash, [target](const Node* n) { return n->target == target; });
+
+        if (node->is_valid())
+          return false;
+
+        node->target = target;
+        node->src_target = src_target;
+        node->is_public = is_public;
+        UpdateAfterInsert(false);
+        return true;
+      }
+
+      // Returns the ChainLink for the given target, or a null-target ChainLink
+      // if not found. The returned link.target, if not nullptr, is a dependent
+      // of the input target that was found during the BFS walk, with dependency
+      // type link.is_public.
+      ChainLink GetLink(const Target* target) const {
+        size_t hash = std::hash<const Target*>()(target);
+        const Node* node = NodeLookup(
+            hash, [target](const Node* n) { return n->target == target; });
+
+        if (node->is_valid())
+          return ChainLink(node->src_target, node->is_public);
+        return ChainLink();
+      }
+    };
+
+    // Reconstructs the shortest dependency chain to the given target if it was
+    // found during a previous walk of the given type. Returns true on success.
+    bool SearchBreadcrumbs(const Target* search_for,
+                           bool permitted,
+                           Chain* chain) const;
+
+    const Target* source_target_;
+
+    mutable std::shared_mutex lock_;
+    // Breadcrumbs for the shortest permitted path.
+    BreadcrumbTable permitted_breadcrumbs_;
+    // Breadcrumbs for the shortest path of any type.
+    BreadcrumbTable any_breadcrumbs_;
+
+    std::atomic<bool> permitted_complete_ = false;
+    std::atomic<bool> any_complete_ = false;
+  };
+
   // check_generated, if true, will also check generated
   // files. Something that can only be done after running a build that
   // has generated them.
@@ -105,141 +240,6 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
                            CheckIncludesStrictSameTargetPrivateHeader);
 
   ~HeaderChecker();
-
-  // Header checking structures ------------------------------------------------
-
-  // Data for BreadcrumbNode.
-  //
-  // This class is a trivial type so it can be used in HashTableBase.
-  // To implement IsDependencyOf(from_target, to_target), a BFS starting from an
-  // arbitrary `from_target` is performed, and a BreadCrumbTable is used to
-  // record during the walk, that a given `|target|` is a dependency of
-  // `|src_target|`, with `|is_public|` indicating the type of dependency.
-  //
-  // This table only records the first (src_target->target) dependency during
-  // the BFS, since only the shortest dependency path is interesting. This also
-  // means that if a target is the dependency of two distinct parents at the
-  // same level, only the first parent will be recorded in the table. Consider
-  // the following graph:
-  //
-  // ```
-  //     A
-  //    / \
-  //   B   C
-  //    \ /
-  //     D
-  // ```
-  //
-  // The BFS will visit nodes in order: A, B, C and D, but will record only the
-  // (D, B) edge, not the (D, C) one, even if B->D is private and C->D is
-  // public.
-  //
-  // This information is later used to reconstruct the dependency chain when
-  // `to_target` is found by the walk.
-  struct BreadcrumbNode {
-    const Target* target;
-    const Target* src_target;
-    bool is_public;
-
-    bool is_null() const { return !target; }
-    static bool is_tombstone() { return false; }
-    bool is_valid() const { return !is_null(); }
-    size_t hash_value() const { return std::hash<const Target*>()(target); }
-  };
-
-  struct BreadcrumbTable : public HashTableBase<BreadcrumbNode> {
-    using Base = HashTableBase<BreadcrumbNode>;
-    using Node = Base::Node;
-
-    // Since we only insert, we don't need to return success/failure.
-    // We can also assume that key uniqueness is checked before insertion if
-    // necessary, or that we simply overwrite (though BFS usually checks
-    // existence first).
-    //
-    // In IsDependencyOf, we use the return value checking if it was already
-    // there. So we need an Insert that returns whether it was new.
-    bool Insert(const Target* target,
-                const Target* src_target,
-                bool is_public) {
-      size_t hash = std::hash<const Target*>()(target);
-      Node* node = NodeLookup(
-          hash, [target](const Node* n) { return n->target == target; });
-
-      if (node->is_valid())
-        return false;
-
-      node->target = target;
-      node->src_target = src_target;
-      node->is_public = is_public;
-      UpdateAfterInsert(false);
-      return true;
-    }
-
-    // Returns the ChainLink for the given target, or a null-target ChainLink if
-    // not found. The returned link.target, if not nullptr, is a dependent of
-    // the input target that was found during the BFS walk, with dependency
-    // type link.is_public.
-    ChainLink GetLink(const Target* target) const {
-      size_t hash = std::hash<const Target*>()(target);
-      const Node* node = NodeLookup(
-          hash, [target](const Node* n) { return n->target == target; });
-
-      if (node->is_valid())
-        return ChainLink(node->src_target, node->is_public);
-      return ChainLink();
-    }
-  };
-
-  // Store the shortest-dependency-path information for all BFS walks starting
-  // from a given `search_from` target.
-  //
-  // `permitted_breadcrumbs` corresponds to public dependencies only.
-  // `any_breadcrumbs` corresponds to all dependencies.
-  //
-  // Each walk type needs only to be performed once, which is recorded by the
-  // corresponding completion flag.
-  class ReachabilityCache {
-   public:
-    ReachabilityCache(const Target* source) : source_target_(source) {}
-    ReachabilityCache(const ReachabilityCache&) = delete;
-    ReachabilityCache& operator=(const ReachabilityCache&) = delete;
-
-    // Returns true if the given `search_for` target is reachable from
-    // `source_target_`.
-    //
-    // If found, the vector given in `chain` will be filled with the reverse
-    // dependency chain from the destination target to the source target.
-    //
-    // If `permitted` is true, only permitted (public) dependency paths are
-    // searched.
-    bool SearchForDependencyTo(const Target* search_for,
-                               bool permitted,
-                               Chain* chain);
-
-    // Conducts a breadth-first search through the dependency graph to find a
-    // shortest chain from source_target_.
-    void PerformDependencyWalk(bool permitted);
-
-    const Target* source_target() const { return source_target_; }
-
-   private:
-    // Reconstructs the shortest dependency chain to the given target if it was
-    // found during a previous walk of the given type. Returns true on success.
-    bool SearchBreadcrumbs(const Target* search_for,
-                           bool permitted,
-                           Chain* chain) const;
-
-    const Target* source_target_;
-
-    mutable std::shared_mutex lock_;
-    // Breadcrumbs for the shortest permitted path.
-    BreadcrumbTable permitted_breadcrumbs_;
-    // Breadcrumbs for the shortest path of any type.
-    BreadcrumbTable any_breadcrumbs_;
-
-    std::atomic<bool> permitted_complete_ = false;
-    std::atomic<bool> any_complete_ = false;
-  };
 
   struct TargetInfo {
     TargetInfo() : target(nullptr), is_public(false), is_generated(false) {}
