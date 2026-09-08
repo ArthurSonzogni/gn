@@ -5,7 +5,11 @@
 #include "gn/header_checker.h"
 
 #include <algorithm>
+#include <condition_variable>
+#include <mutex>
+#include <span>
 
+#include "base/atomic_ref_count.h"
 #include "base/containers/queue.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_util.h"
@@ -159,6 +163,47 @@ bool FriendMatches(const Target* annotation_on,
                                      is_marked_friend->label());
 }
 
+// Runs work on the items in chunks of chunk_size on the pool and waits for
+// all chunks to complete.
+template <typename T, typename Work>
+void DoWorkChunked(WorkerPool& pool,
+                   const std::vector<T>& items,
+                   size_t chunk_size,
+                   const Work& work) {
+  base::AtomicRefCount task_count;
+  std::mutex task_count_lock;
+  std::condition_variable task_count_cv;
+  auto finish_task = [&]() {
+    // Hold the lock across the decrement so the waiter cannot return and
+    // destroy the completion state before the notification is done.
+    std::unique_lock<std::mutex> lock(task_count_lock);
+    if (!task_count.Decrement()) {
+      // Signal |task_count_cv| when |task_count| becomes zero.
+      task_count_cv.notify_one();
+    }
+  };
+
+  // Hold one extra reference while posting so the count can't reach zero
+  // before all chunks are posted.
+  task_count.Increment();
+  std::span<const T> all(items);
+  for (size_t begin = 0; begin < all.size(); begin += chunk_size) {
+    std::span<const T> chunk =
+        all.subspan(begin, std::min(chunk_size, all.size() - begin));
+    task_count.Increment();
+    pool.PostTask([&work, &finish_task, chunk]() {
+      work(chunk);
+      finish_task();
+    });
+  }
+  finish_task();
+
+  // Wait for all tasks posted by this function to complete.
+  std::unique_lock<std::mutex> lock(task_count_lock);
+  while (!task_count.IsZero())
+    task_count_cv.wait(lock);
+}
+
 }  // namespace
 
 HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
@@ -168,8 +213,7 @@ HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
     : build_settings_(build_settings),
       check_generated_(check_generated),
       check_system_(check_system),
-      errors_lock_(),
-      task_count_cv_() {
+      errors_lock_() {
   for (auto* target : targets)
     AddTargetToFileMap(target, &file_map_);
 }
@@ -195,33 +239,18 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
           targets_to_precompute.push_back(info.target);
       }
     }
-    if (!targets_to_precompute.empty()) {
-      task_count_.Increment();
-      for (const auto* target : targets_to_precompute) {
-        task_count_.Increment();
-        pool.PostTask([this, target]() {
-          ReachabilityCache& cache = GetReachabilityCacheForTarget(target);
-          cache.PerformDependencyWalk(true);
-          cache.PerformDependencyWalk(false);
-          if (!task_count_.Decrement()) {
-            std::unique_lock<std::mutex> lock(task_count_lock_);
-            task_count_cv_.notify_one();
-          }
-        });
-      }
-
-      if (!task_count_.Decrement()) {
-        std::unique_lock<std::mutex> lock(task_count_lock_);
-        task_count_cv_.notify_one();
-      }
-
-      std::unique_lock<std::mutex> lock(task_count_lock_);
-      while (!task_count_.IsZero())
-        task_count_cv_.wait(lock);
-    }
+    DoWorkChunked(pool, targets_to_precompute, 32,
+                  [this](std::span<const Target* const> chunk) {
+                    for (const Target* target : chunk) {
+                      ReachabilityCache& cache =
+                          GetReachabilityCacheForTarget(target);
+                      cache.PerformDependencyWalk(true);
+                      cache.PerformDependencyWalk(false);
+                    }
+                  });
   }
 
-  RunCheckOverFiles(files, &pool);
+  RunCheckOverFiles(files, pool);
 
   if (violations_.empty())
     return true;
@@ -269,40 +298,19 @@ std::vector<HeaderChecker::FileInformation> HeaderChecker::FilesToCheck(
 }
 
 void HeaderChecker::RunCheckOverFiles(const std::vector<FileInformation>& files,
-                                      WorkerPool* pool) {
-  task_count_.Increment();
-
-  for (const FileInformation& file : files) {
-    task_count_.Increment();
-    pool->PostTask([this, &file]() { DoWork(file.targets, file.file); });
-  }
-
-  if (!task_count_.Decrement()) {
-    std::unique_lock<std::mutex> lock(task_count_lock_);
-    task_count_cv_.notify_one();
-  }
-
-  // Wait for all tasks posted by this method to complete.
-  std::unique_lock<std::mutex> auto_lock(task_count_lock_);
-  while (!task_count_.IsZero())
-    task_count_cv_.wait(auto_lock);
-}
-
-void HeaderChecker::DoWork(const TargetVector& targets,
-                           const SourceFile& file) {
-  std::vector<Violation> violations;
-  if (!CheckFile(targets, file, &violations)) {
-    std::lock_guard<std::mutex> lock(errors_lock_);
-    violations_.insert(violations_.end(),
-                       std::make_move_iterator(violations.begin()),
-                       std::make_move_iterator(violations.end()));
-  }
-
-  if (!task_count_.Decrement()) {
-    // Signal |task_count_cv_| when |task_count_| becomes zero.
-    std::unique_lock<std::mutex> auto_lock(task_count_lock_);
-    task_count_cv_.notify_one();
-  }
+                                      WorkerPool& pool) {
+  DoWorkChunked(
+      pool, files, 64, [this](std::span<const FileInformation> chunk) {
+        std::vector<Violation> local_violations;
+        for (const FileInformation& file : chunk)
+          CheckFile(file.targets, file.file, &local_violations);
+        if (local_violations.empty())
+          return;
+        std::lock_guard<std::mutex> lock(errors_lock_);
+        violations_.insert(violations_.end(),
+                           std::make_move_iterator(local_violations.begin()),
+                           std::make_move_iterator(local_violations.end()));
+      });
 }
 
 // static

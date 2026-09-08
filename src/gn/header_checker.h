@@ -7,7 +7,6 @@
 
 #include <array>
 #include <atomic>
-#include <condition_variable>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -18,7 +17,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "base/atomic_ref_count.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "gn/c_include_iterator.h"
@@ -289,9 +287,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // Backend for Run() that checks the given files. The errors_ list will be
   // populated on failure.
   void RunCheckOverFiles(const std::vector<FileInformation>& files,
-                         WorkerPool* pool);
-
-  void DoWork(const TargetVector& targets, const SourceFile& file);
+                         WorkerPool& pool);
 
   // Adds the sources and public files from the given target to the given map.
   static void AddTargetToFileMap(const Target* target, FileMap* dest);
@@ -363,10 +359,6 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // Maps source files to targets it appears in (usually just one target).
   FileMap file_map_;
 
-  // Number of tasks posted by RunCheckOverFiles() that haven't completed their
-  // execution.
-  base::AtomicRefCount task_count_;
-
   static constexpr size_t kNumShards = 64;
   struct DependencyCacheShard {
     mutable std::shared_mutex lock;
@@ -385,13 +377,6 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
 
   // Returns the cache for the given target, creating it if it doesn't exist.
   ReachabilityCache& GetReachabilityCacheForTarget(const Target* target) const;
-
-  // Separate lock for task count synchronization since std::condition_variable
-  // only works with std::unique_lock<std::mutex>.
-  std::mutex task_count_lock_;
-
-  // Signaled when |task_count_| becomes zero.
-  std::condition_variable task_count_cv_;
 
   HeaderChecker(const HeaderChecker&) = delete;
   HeaderChecker& operator=(const HeaderChecker&) = delete;
