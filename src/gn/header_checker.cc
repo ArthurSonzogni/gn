@@ -179,26 +179,22 @@ HeaderChecker::~HeaderChecker() = default;
 bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
                         bool force_check,
                         std::vector<Violation>* violations) {
-  FileMap files_to_check;
-  for (auto* check : to_check) {
-    // This function will get called with all target types, but check only
-    // applies to binary targets.
-    if (check->IsBinary())
-      AddTargetToFileMap(check, &files_to_check);
-  }
+  std::unordered_set<const Target*> to_check_set(to_check.begin(),
+                                                 to_check.end());
+  std::vector<FileInformation> files = FilesToCheck(to_check_set);
 
   WorkerPool pool;
   {
     ScopedTrace precompute_trace(TraceItem::TRACE_CHECK_HEADERS,
                                  "Precompute reachability");
-    std::set<const Target*> targets_to_precompute;
-    for (const auto& file : files_to_check) {
-      for (const auto& target_info : file.second.targets) {
-        if (target_info.target->check_includes())
-          targets_to_precompute.insert(target_info.target);
+    std::vector<const Target*> targets_to_precompute;
+    std::unordered_set<const Target*> seen;
+    for (const FileInformation& file : files) {
+      for (const TargetInfo& info : file.targets) {
+        if (seen.insert(info.target).second)
+          targets_to_precompute.push_back(info.target);
       }
     }
-
     if (!targets_to_precompute.empty()) {
       task_count_.Increment();
       for (const auto* target : targets_to_precompute) {
@@ -225,7 +221,7 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
     }
   }
 
-  RunCheckOverFiles(files_to_check, force_check, &pool);
+  RunCheckOverFiles(files, &pool);
 
   if (violations_.empty())
     return true;
@@ -234,44 +230,51 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
   return false;
 }
 
-void HeaderChecker::RunCheckOverFiles(const FileMap& files,
-                                      bool force_check,
-                                      WorkerPool* pool) {
-  task_count_.Increment();
+std::vector<HeaderChecker::FileInformation> HeaderChecker::FilesToCheck(
+    const std::unordered_set<const Target*>& to_check) const {
+  std::vector<FileInformation> files;
+  files.reserve(file_map_.size());
 
-  for (const auto& file : files) {
+  for (const auto& entry : file_map_) {
+    const FileInformation& info = entry.second;
     // Only check C-like source files (RC files also have includes).
-    const SourceFile::Type type = file.second.file.GetType();
+    const SourceFile::Type type = info.file.GetType();
     if (type != SourceFile::SOURCE_CPP && type != SourceFile::SOURCE_H &&
         type != SourceFile::SOURCE_C && type != SourceFile::SOURCE_M &&
         type != SourceFile::SOURCE_MM && type != SourceFile::SOURCE_RC)
       continue;
 
     if (!check_generated_) {
-      // If any target marks it as generated, don't check it. We have to check
-      // file_map_, which includes all known files; files only includes those
-      // being checked.
+      // If any target marks it as generated, don't check it.
       bool is_generated = false;
-      auto found = file_map_.find(file.first);
-      DCHECK(found != file_map_.end());
-      for (const auto& vect_i : found->second.targets)
+      for (const auto& vect_i : info.targets)
         is_generated |= vect_i.is_generated;
       if (is_generated)
         continue;
     }
 
     TargetVector targets_to_check;
-    for (const auto& vect_i : file.second.targets) {
-      if (vect_i.target->check_includes()) {
+    for (const auto& vect_i : info.targets) {
+      if (vect_i.target->IsBinary() && to_check.contains(vect_i.target) &&
+          vect_i.target->check_includes()) {
         targets_to_check.push_back(vect_i);
       }
     }
     if (targets_to_check.empty())
       continue;
 
+    files.push_back({info.file, std::move(targets_to_check)});
+  }
+  return files;
+}
+
+void HeaderChecker::RunCheckOverFiles(const std::vector<FileInformation>& files,
+                                      WorkerPool* pool) {
+  task_count_.Increment();
+
+  for (const FileInformation& file : files) {
     task_count_.Increment();
-    pool->PostTask([this, targets = std::move(targets_to_check),
-                    file = file.second.file]() { DoWork(targets, file); });
+    pool->PostTask([this, &file]() { DoWork(file.targets, file.file); });
   }
 
   if (!task_count_.Decrement()) {

@@ -15,6 +15,7 @@
 #include <shared_mutex>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "base/atomic_ref_count.h"
@@ -234,6 +235,8 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, CheckIncludeSwiftModule);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, SourceFileForInclude);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest,
+                           RunPrecomputesReachabilityOnlyForCheckedFiles);
+  FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest,
                            SourceFileForInclude_FileNotFound);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, Friend);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, CheckIncludesStrictTransitive);
@@ -278,10 +281,14 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
                                      std::equal_to<>>;
   using PathExistsCallback = std::function<bool(const base::FilePath& path)>;
 
-  // Backend for Run() that takes the list of files to check. The errors_ list
-  // will be populate on failure.
-  void RunCheckOverFiles(const FileMap& files,
-                         bool force_check,
+  // Collects the files of the given targets that need checking, each with the
+  // targets it is checked against.
+  std::vector<FileInformation> FilesToCheck(
+      const std::unordered_set<const Target*>& to_check) const;
+
+  // Backend for Run() that checks the given files. The errors_ list will be
+  // populated on failure.
+  void RunCheckOverFiles(const std::vector<FileInformation>& files,
                          WorkerPool* pool);
 
   void DoWork(const TargetVector& targets, const SourceFile& file);

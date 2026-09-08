@@ -355,6 +355,26 @@ TEST_F(HeaderCheckerTest, CheckIncludeSwiftModule) {
   EXPECT_GT(errors.size(), 0);
 }
 
+TEST_F(HeaderCheckerTest, RunPrecomputesReachabilityOnlyForCheckedFiles) {
+  a_.sources().push_back(SourceFile("//out/Debug/generated.cc"));
+
+  auto checker = CreateChecker();
+  std::vector<HeaderChecker::Violation> violations;
+  EXPECT_TRUE(checker->Run(targets_, false, &violations));
+
+  auto has_cache = [&checker](const Target* target) {
+    for (const auto& shard : checker->dependency_cache_) {
+      if (shard.cache.contains(target))
+        return true;
+    }
+    return false;
+  };
+  EXPECT_TRUE(has_cache(&a_));
+  EXPECT_FALSE(has_cache(&b_));
+  EXPECT_FALSE(has_cache(&c_));
+  EXPECT_FALSE(has_cache(&d_));
+}
+
 TEST_F(HeaderCheckerTest, SourceFileForInclude) {
   using base::FilePath;
   const std::vector<SourceDir> kIncludeDirs = {
