@@ -239,15 +239,15 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
           targets_to_precompute.push_back(info.target);
       }
     }
-    DoWorkChunked(pool, targets_to_precompute, 32,
-                  [this](std::span<const Target* const> chunk) {
-                    for (const Target* target : chunk) {
-                      ReachabilityCache& cache =
-                          GetReachabilityCacheForTarget(target);
-                      cache.PerformDependencyWalk(true);
-                      cache.PerformDependencyWalk(false);
-                    }
-                  });
+    // Only the permitted walk decides whether an include is allowed. The
+    // unrestricted walk over private dependencies is computed on demand by
+    // SearchForDependencyTo to describe a rejected include.
+    DoWorkChunked(
+        pool, targets_to_precompute, 32,
+        [this](std::span<const Target* const> chunk) {
+          for (const Target* target : chunk)
+            GetReachabilityCacheForTarget(target).PerformDependencyWalk(true);
+        });
   }
 
   RunCheckOverFiles(files, pool);
@@ -771,7 +771,13 @@ HeaderChecker::ReachabilityCache& HeaderChecker::GetReachabilityCacheForTarget(
     const Target* target) const {
   size_t shard_index = target->label().hash() % kNumShards;
   auto& shard = dependency_cache_[shard_index];
-  std::unique_lock<std::shared_mutex> lock(shard.lock);
+  {
+    std::shared_lock<std::shared_mutex> read_lock(shard.lock);
+    auto it = shard.cache.find(target);
+    if (it != shard.cache.end())
+      return *it->second;
+  }
+  std::unique_lock<std::shared_mutex> write_lock(shard.lock);
   auto it = shard.cache.find(target);
   if (it == shard.cache.end()) {
     it =
