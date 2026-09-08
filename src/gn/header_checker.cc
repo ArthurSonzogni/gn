@@ -649,105 +649,6 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   if (!present_in_current_toolchain)
     return;
 
-  // For all targets containing this file, we require that at least one be
-  // a direct or public dependency of the current target, and either (1) the
-  // header is public within the target, or (2) there is a friend definition
-  // allowlisting the includor.
-  //
-  // If there is more than one target containing this header, we may encounter
-  // some error cases before finding a good one. This error stores the previous
-  // one encountered, which we may or may not throw away.
-  Err last_error;
-
-  bool found_dependency = false;
-  for (const auto& target : targets) {
-    // We always allow source files in a target to include headers also in that
-    // target, unless strict checking is enabled and a public header includes
-    // a private header.
-    const Target* to_target = target.target;
-    if (to_target == from_target) {
-      if (from_target->check_includes_strict() && is_public_header &&
-          !target.is_public) {
-        last_error = Err(
-            CreatePersistentRange(source_file, range),
-            "Public headers cannot include private headers of the same target.",
-            "The public header:\n  " + source_file.name().value() +
-                "\nis including a private header of the same target:\n  " +
-                include_file.value() +
-                "\nEither make the included header public, make the includer "
-                "private,\n"
-                "or make a source_set containing public = [private_headers] "
-                "and add it to public_deps.");
-        errors->push_back(std::move(last_error));
-      }
-      return;
-    }
-
-    bool is_permitted_chain = false;
-    if (IsDependencyOf(to_target, from_target_cache, &chain,
-                       &is_permitted_chain)) {
-      DCHECK(chain.size() >= 2);
-      DCHECK(chain[0].target == to_target);
-      DCHECK(chain[chain.size() - 1].target == from_target);
-      found_dependency = true;
-
-      bool effectively_public =
-          target.is_public || FriendMatches(to_target, from_target);
-
-      if (effectively_public && is_permitted_chain) {
-        if (from_target->check_includes_strict() && is_public_header &&
-            !chain[chain.size() - 2].is_public) {
-          last_error = Err(
-              CreatePersistentRange(source_file, range),
-              "Public headers cannot include private dependencies.",
-              "The public header:\n  " + source_file.name().value() +
-                  "\nis including a header from private dependency:\n  " +
-                  to_target->label().GetUserVisibleName(false) +
-                  "\nEither move the dependency to public_deps, or make this "
-                  "header private.");
-          continue;
-        }
-        // This one is OK, we're done.
-        last_error = Err();
-        break;
-      }
-
-      // Diagnose the error.
-      if (!effectively_public) {
-        // Danger: must call CreatePersistentRange to put in Err.
-        last_error = Err(CreatePersistentRange(source_file, range),
-                         "Including a private header.",
-                         "This file is private to the target " +
-                             target.target->label().GetUserVisibleName(false));
-      } else if (!is_permitted_chain) {
-        last_error = Err(CreatePersistentRange(source_file, range),
-                         "Can't include this header from here.",
-                         GetDependencyChainPublicError(chain));
-      } else {
-        NOTREACHED();
-      }
-    } else if (to_target->allow_circular_includes_from().find(
-                   from_target->label()) !=
-               to_target->allow_circular_includes_from().end()) {
-      // Not a dependency, but this include is allowlisted from the destination.
-      found_dependency = true;
-      last_error = Err();
-      break;
-    }
-  }
-
-  if (!found_dependency || last_error.has_error()) {
-    if (!found_dependency) {
-      DCHECK(!last_error.has_error());
-      Err err = MakeUnreachableError(source_file, range, from_target, targets);
-      errors->push_back(std::move(err));
-    } else {
-      // Found at least one dependency chain above, but it had an error.
-      errors->push_back(std::move(last_error));
-    }
-    return;
-  }
-
   // One thing we didn't check for is targets that expose their dependents
   // headers in their own public headers.
   //
@@ -765,6 +666,97 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   //  - Save the includes found in each file and actually compute the graph of
   //    includes to detect when A implicitly includes C's header. This will not
   //    have the annoying false positive problem, but is complex to write.
+
+  // Fast path: the include is valid if any target containing this header is
+  // the includer itself, allowlists the includer, or is reachable through a
+  // permitted dependency chain.
+  for (const auto& target : targets) {
+    const Target* to_target = target.target;
+    if (to_target == from_target) {
+      if (from_target->check_includes_strict() && is_public_header &&
+          !target.is_public) {
+        break;
+      }
+      return;
+    }
+
+    if (to_target->allow_circular_includes_from().contains(
+            from_target->label())) {
+      return;
+    }
+
+    if (!target.is_public && !FriendMatches(to_target, from_target))
+      continue;
+
+    if (!from_target_cache.SearchForDependencyTo(to_target, true, &chain))
+      continue;
+    DCHECK(chain.size() >= 2);
+
+    if (from_target->check_includes_strict() && is_public_header &&
+        !chain[chain.size() - 2].is_public) {
+      continue;
+    }
+    return;
+  }
+
+  // Slow path: no target allows the include. Walk all dependencies, including
+  // private ones, to produce the most specific error. If more than one target
+  // contains this header, the error for the last one wins.
+  Err last_error;
+  for (const auto& target : targets) {
+    const Target* to_target = target.target;
+    if (to_target == from_target) {
+      // The fast path only falls through for a same-target strict violation.
+      errors->push_back(Err(
+          CreatePersistentRange(source_file, range),
+          "Public headers cannot include private headers of the same target.",
+          "The public header:\n  " + source_file.name().value() +
+              "\nis including a private header of the same target:\n  " +
+              include_file.value() +
+              "\nEither make the included header public, make the includer "
+              "private,\n"
+              "or make a source_set containing public = [private_headers] "
+              "and add it to public_deps."));
+      return;
+    }
+
+    bool is_permitted_chain = false;
+    if (!IsDependencyOf(to_target, from_target_cache, &chain,
+                        &is_permitted_chain)) {
+      continue;
+    }
+    DCHECK(chain.size() >= 2);
+    DCHECK(chain[0].target == to_target);
+    DCHECK(chain[chain.size() - 1].target == from_target);
+
+    bool effectively_public =
+        target.is_public || FriendMatches(to_target, from_target);
+    if (effectively_public && is_permitted_chain) {
+      // The fast path rejected this chain, so it is a strict violation.
+      last_error =
+          Err(CreatePersistentRange(source_file, range),
+              "Public headers cannot include private dependencies.",
+              "The public header:\n  " + source_file.name().value() +
+                  "\nis including a header from private dependency:\n  " +
+                  to_target->label().GetUserVisibleName(false) +
+                  "\nEither move the dependency to public_deps, or make this "
+                  "header private.");
+    } else if (!effectively_public) {
+      // Danger: must call CreatePersistentRange to put in Err.
+      last_error = Err(CreatePersistentRange(source_file, range),
+                       "Including a private header.",
+                       "This file is private to the target " +
+                           to_target->label().GetUserVisibleName(false));
+    } else {
+      last_error = Err(CreatePersistentRange(source_file, range),
+                       "Can't include this header from here.",
+                       GetDependencyChainPublicError(chain));
+    }
+  }
+
+  if (!last_error.has_error())
+    last_error = MakeUnreachableError(source_file, range, from_target, targets);
+  errors->push_back(std::move(last_error));
 }
 
 HeaderChecker::ReachabilityCache& HeaderChecker::GetReachabilityCacheForTarget(
