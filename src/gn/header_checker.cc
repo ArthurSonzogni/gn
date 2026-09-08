@@ -193,7 +193,7 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
                                  "Precompute reachability");
     std::set<const Target*> targets_to_precompute;
     for (const auto& file : files_to_check) {
-      for (const auto& target_info : file.second) {
+      for (const auto& target_info : file.second.targets) {
         if (target_info.target->check_includes())
           targets_to_precompute.insert(target_info.target);
       }
@@ -241,7 +241,7 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files,
 
   for (const auto& file : files) {
     // Only check C-like source files (RC files also have includes).
-    const SourceFile::Type type = file.first.GetType();
+    const SourceFile::Type type = file.second.file.GetType();
     if (type != SourceFile::SOURCE_CPP && type != SourceFile::SOURCE_H &&
         type != SourceFile::SOURCE_C && type != SourceFile::SOURCE_M &&
         type != SourceFile::SOURCE_MM && type != SourceFile::SOURCE_RC)
@@ -252,14 +252,16 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files,
       // file_map_, which includes all known files; files only includes those
       // being checked.
       bool is_generated = false;
-      for (const auto& vect_i : file_map_[file.first])
+      auto found = file_map_.find(file.first);
+      DCHECK(found != file_map_.end());
+      for (const auto& vect_i : found->second.targets)
         is_generated |= vect_i.is_generated;
       if (is_generated)
         continue;
     }
 
     TargetVector targets_to_check;
-    for (const auto& vect_i : file.second) {
+    for (const auto& vect_i : file.second.targets) {
       if (vect_i.target->check_includes()) {
         targets_to_check.push_back(vect_i);
       }
@@ -269,7 +271,7 @@ void HeaderChecker::RunCheckOverFiles(const FileMap& files,
 
     task_count_.Increment();
     pool->PostTask([this, targets = std::move(targets_to_check),
-                    file = file.first]() { DoWork(targets, file); });
+                    file = file.second.file]() { DoWork(targets, file); });
   }
 
   if (!task_count_.Decrement()) {
@@ -305,7 +307,7 @@ void HeaderChecker::AddTargetToFileMap(const Target* target, FileMap* dest) {
   // Files in the sources have this public bit by default.
   bool default_public = target->all_headers_public();
 
-  std::map<SourceFile, PublicGeneratedPair> files_to_public;
+  std::unordered_map<SourceFile, PublicGeneratedPair> files_to_public;
 
   // First collect the normal files, they get the default visibility. If you
   // depend on the compiled target, it should be enough to be able to include
@@ -355,43 +357,53 @@ void HeaderChecker::AddTargetToFileMap(const Target* target, FileMap* dest) {
 
   // Add the merged list to the master list of all files.
   for (const auto& cur : files_to_public) {
-    (*dest)[cur.first].push_back(
-        TargetInfo(target, cur.second.is_public, cur.second.is_generated));
+    dest->try_emplace(cur.first.value(), FileInformation{cur.first, {}})
+        .first->second.targets.emplace_back(target, cur.second.is_public,
+                                            cur.second.is_generated);
   }
 }
 
 bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
   const std::string& build_dir = build_settings_->build_dir().value();
-  return file.value().compare(0, build_dir.size(), build_dir) == 0;
+  return file.value().starts_with(build_dir);
 }
 
 SourceFile HeaderChecker::SourceFileForInclude(
     const IncludeStringWithLocation& include,
     const std::vector<SourceDir>& include_dirs,
-    const InputFile& source_file,
-    Err* err) const {
-  using base::FilePath;
+    const InputFile& source_file) const {
+  std::string_view inc = include.contents;
+  if (inc.empty())
+    return SourceFile();
 
-  Value relative_file_value(nullptr, std::string(include.contents));
-
-  auto find_predicate = [relative_file_value, err,
-                         this](const SourceDir& dir) -> bool {
-    SourceFile include_file = dir.ResolveRelativeFile(relative_file_value, err);
-    return file_map_.find(include_file) != file_map_.end();
+  auto find_file = [this](std::string_view path) -> const SourceFile* {
+    auto it = file_map_.find(path);
+    return it == file_map_.end() ? nullptr : &it->second.file;
   };
-  if (!include.system_style_include) {
-    const SourceDir& file_dir = source_file.dir();
-    if (find_predicate(file_dir)) {
-      return file_dir.ResolveRelativeFile(relative_file_value, err);
-    }
+
+  if (inc.starts_with("//") || IsPathAbsolute(inc)) {
+    const SourceFile* found = find_file(
+        ResolveRelative(inc, std::string(), true, std::string_view()));
+    return found ? *found : SourceFile();
   }
 
-  auto it =
-      std::find_if(include_dirs.begin(), include_dirs.end(), find_predicate);
+  std::string buffer;
+  buffer.reserve(128);
+  auto find_in_dir = [&](const SourceDir& dir) -> const SourceFile* {
+    buffer.assign(dir.value());
+    buffer.append(inc);
+    NormalizePath(&buffer);
+    return find_file(buffer);
+  };
 
-  if (it != include_dirs.end())
-    return it->ResolveRelativeFile(relative_file_value, err);
-
+  if (!include.system_style_include) {
+    if (const SourceFile* found = find_in_dir(source_file.dir()))
+      return *found;
+  }
+  for (const SourceDir& dir : include_dirs) {
+    if (const SourceFile* found = find_in_dir(dir))
+      return *found;
+  }
   return SourceFile();
 }
 
@@ -554,9 +566,8 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
         GetReachabilityCacheForTarget(from_target);
 
     for (const auto& inc : includes) {
-      Err err;
       SourceFile included_file =
-          SourceFileForInclude(inc, include_dirs, input_file, &err);
+          SourceFileForInclude(inc, include_dirs, input_file);
       if (!included_file.is_null()) {
         std::vector<Err> include_errors;
         CheckInclude(from_target_cache,
@@ -591,11 +602,11 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   // our include finder is too primitive and returns all includes, even if
   // they're in a #if not executed in the current build. In that case, it's
   // not unusual for the buildfiles to not specify that header at all.
-  FileMap::const_iterator found = file_map_.find(include_file);
+  FileMap::const_iterator found = file_map_.find(include_file.value());
   if (found == file_map_.end())
     return;
 
-  const TargetVector& targets = found->second;
+  const TargetVector& targets = found->second.targets;
   Chain chain;  // Prevent reallocating in the loop.
 
   const Target* from_target = from_target_cache.source_target();

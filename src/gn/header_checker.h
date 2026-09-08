@@ -259,7 +259,23 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   };
 
   using TargetVector = std::vector<TargetInfo>;
-  using FileMap = std::map<SourceFile, TargetVector>;
+
+  struct FileInformation {
+    SourceFile file;
+    TargetVector targets;
+  };
+
+  struct StringViewHash {
+    using is_transparent = void;
+    size_t operator()(std::string_view sv) const noexcept {
+      return std::hash<std::string_view>{}(sv);
+    }
+  };
+
+  using FileMap = std::unordered_map<std::string_view,
+                                     FileInformation,
+                                     StringViewHash,
+                                     std::equal_to<>>;
   using PathExistsCallback = std::function<bool(const base::FilePath& path)>;
 
   // Backend for Run() that takes the list of files to check. The errors_ list
@@ -279,8 +295,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // Resolves the contents of an include to a SourceFile.
   SourceFile SourceFileForInclude(const IncludeStringWithLocation& include,
                                   const std::vector<SourceDir>& include_dirs,
-                                  const InputFile& source_file,
-                                  Err* err) const;
+                                  const InputFile& source_file) const;
 
   // targets is a list of targets using the source file. They will be used in
   // error messages.

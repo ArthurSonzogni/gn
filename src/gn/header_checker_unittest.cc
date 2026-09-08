@@ -368,49 +368,41 @@ TEST_F(HeaderCheckerTest, SourceFileForInclude) {
 
   auto checker = CreateChecker();
   {
-    Err err;
     IncludeStringWithLocation include;
     include.contents = "lib/header1.h";
-    SourceFile source_file = checker->SourceFileForInclude(
-        include, kIncludeDirs, dummy_input_file, &err);
-    EXPECT_SUCCESS(err);
+    SourceFile source_file =
+        checker->SourceFileForInclude(include, kIncludeDirs, dummy_input_file);
     EXPECT_EQ(SourceFile("//lib/header1.h"), source_file);
   }
 
   {
-    Err err;
     IncludeStringWithLocation include;
     include.contents = "header2.h";
-    SourceFile source_file = checker->SourceFileForInclude(
-        include, kIncludeDirs, dummy_input_file, &err);
-    EXPECT_SUCCESS(err);
+    SourceFile source_file =
+        checker->SourceFileForInclude(include, kIncludeDirs, dummy_input_file);
     EXPECT_EQ(SourceFile("/c/custom_include/header2.h"), source_file);
   }
 
   // A non system style include should find a header file in the same directory
   // as the source file, regardless of include dirs.
   {
-    Err err;
     IncludeStringWithLocation include;
     include.contents = "header3.h";
     include.system_style_include = false;
-    SourceFile source_file = checker->SourceFileForInclude(
-        include, kIncludeDirs, dummy_input_file, &err);
-    EXPECT_SUCCESS(err);
+    SourceFile source_file =
+        checker->SourceFileForInclude(include, kIncludeDirs, dummy_input_file);
     EXPECT_EQ(SourceFile("/d/subdir/header3.h"), source_file);
   }
 
   // A system style include should *not* find a header file in the same
   // directory as the source file if that directory is not in the include dirs.
   {
-    Err err;
     IncludeStringWithLocation include;
     include.contents = "header3.h";
     include.system_style_include = true;
-    SourceFile source_file = checker->SourceFileForInclude(
-        include, kIncludeDirs, dummy_input_file, &err);
+    SourceFile source_file =
+        checker->SourceFileForInclude(include, kIncludeDirs, dummy_input_file);
     EXPECT_TRUE(source_file.is_null());
-    EXPECT_SUCCESS(err);
   }
 }
 
@@ -420,16 +412,14 @@ TEST_F(HeaderCheckerTest, SourceFileForInclude_FileNotFound) {
   const std::vector<SourceDir> kIncludeDirs = {SourceDir("//")};
   auto checker = CreateChecker();
 
-  Err err;
   InputFile input_file(SourceFile("//input.cc"));
   input_file.SetContents(std::string(kFileContents));
 
   IncludeStringWithLocation include;
   include.contents = "header.h";
   SourceFile source_file =
-      checker->SourceFileForInclude(include, kIncludeDirs, input_file, &err);
+      checker->SourceFileForInclude(include, kIncludeDirs, input_file);
   EXPECT_TRUE(source_file.is_null());
-  EXPECT_SUCCESS(err);
 }
 
 TEST_F(HeaderCheckerTest, Friend) {
