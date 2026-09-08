@@ -12,6 +12,7 @@
 #include "gn/command_format.h"
 #include "gn/edit_subcommands.h"
 #include "gn/filesystem_utils.h"
+#include "gn/functions.h"
 #include "gn/input_file.h"
 #include "gn/label.h"
 #include "gn/loader.h"
@@ -572,10 +573,16 @@ std::vector<EditTarget> BuildFile::targets(
       tree_root_.get(),
       [this, &filter](TreeNode& node_ref) -> std::optional<EditTarget> {
         if (auto* func = node_ref->AsFunctionCallMut()) {
-          if (func->block() && func->args() &&
-              func->args()->contents().size() == 1) {
-            if (auto name =
-                    AsStringLiteral(func->args()->contents()[0].get())) {
+          if (func->block() && func->args()) {
+            std::optional<std::string> name;
+            const auto& args = func->args()->contents();
+            if (args.size() == 1) {
+              name = AsStringLiteral(args[0].get());
+            } else if (args.size() == 2 &&
+                       func->function().value() == functions::kTarget) {
+              name = AsStringLiteral(args[1].get());
+            }
+            if (name) {
               EditTarget target{
                   .is_explicit = true,
                   .label = Label(source_file_.GetDir(), *name),

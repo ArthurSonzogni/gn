@@ -103,7 +103,7 @@ using EditCommandTest = TestWithScheduler;
 TEST_F(EditCommandTest, MultipleTargetsSubset) {
   EXPECT_SUCCESS(DoEdit("set testonly true", {"//:foo"},
                         R"(
-executable("foo") {
+target(my_target_type, "foo") {
   testonly = false
 }
 executable("bar") {
@@ -111,7 +111,7 @@ executable("bar") {
 }
 )"),
                  Edited(R"(
-executable("foo") {
+target(my_target_type, "foo") {
   testonly = true
 }
 
