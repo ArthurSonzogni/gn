@@ -805,17 +805,8 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
       std::string label_str = label.dir() == includer->label().dir()
                                   ? ":" + label.name()
                                   : label.GetUserVisibleName(current_toolchain);
-      bool is_move =
-          dep_field == "public_deps" &&
-          std::ranges::any_of(includer->private_deps(), [&](const auto& dep) {
-            return dep.ptr == target || dep.label == target->label();
-          });
       EditCommand edit{
-          .command =
-              is_move ? std::vector<std::string>{"move", "deps", "public_deps",
-                                                 label_str}
-                      : std::vector<std::string>{"add", std::string(dep_field),
-                                                 label_str},
+          .command = {"add", std::string(dep_field), label_str},
           .target = includer->label().GetUserVisibleName(current_toolchain),
       };
       candidate_deps.push_back({target, std::move(label_str), std::move(edit)});
@@ -836,19 +827,9 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
 
     SetAmbiguous();
     StartSuggestion();
-    auto is_move = [](const auto& c) { return c.edit.command[0] == "move"; };
-    if (std::ranges::all_of(candidate_deps, is_move)) {
-      OutputString(
-          "Move one of the following from `deps` to `public_deps` in ");
-    } else if (std::ranges::any_of(candidate_deps, is_move)) {
-      OutputString("Add or move one of the following to ");
-      OutputString(dep_field);
-      OutputString(" in ");
-    } else {
-      OutputString("Add one of the following to ");
-      OutputString(dep_field);
-      OutputString(" in ");
-    }
+    OutputString("Add one of the following to ");
+    OutputString(dep_field);
+    OutputString(" in ");
     OutputDefinition(includer);
     OutputString(":\n");
     for (const auto& c : candidate_deps) {

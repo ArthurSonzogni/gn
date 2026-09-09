@@ -165,15 +165,50 @@ bool RemoveFromTarget(const EditTarget& target,
   return done;
 }
 
+// Returns whether |target| contains |value| in |attribute|.
+// Assignments using `-=` are filtered out.
+bool AttributeContainsValue(const EditTarget& target,
+                            std::string_view attribute,
+                            const Value& value) {
+  for (const auto& assignment : target.assignments(attribute)) {
+    if (const auto* op = assignment.node()->AsBinaryOp();
+        op && op->op().type() == Token::MINUS_EQUALS) {
+      continue;
+    }
+    if (!FindListElementInAssignment(target, assignment, value).empty()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void AddToTarget(BuildFile& build_file,
                  const EditTarget& target,
                  const std::string& attribute,
-                 const std::vector<Value>& values) {
+                 const std::vector<Value>& values,
+                 EditState& state) {
   auto assignments = target.assignments(attribute);
-  std::vector<Value> to_add = values;
-
-  // Iterate over a copy of values since we're mutating it.
+  std::vector<Value> to_add;
+  to_add.reserve(values.size());
   for (const auto& value : values) {
+    // Add deps when in public_deps -> no-op
+    // Add public_deps when in deps -> remove from deps
+    // Same for sources / public
+    if (attribute == "deps" &&
+        AttributeContainsValue(target, "public_deps", value)) {
+      continue;
+    } else if (attribute == "sources" &&
+               AttributeContainsValue(target, "public", value)) {
+      continue;
+    } else if (attribute == "public_deps") {
+      RemoveFromTarget(target, "deps", value, state,
+                       /*warn_if_missing=*/false);
+    } else if (attribute == "public") {
+      RemoveFromTarget(target, "sources", value, state,
+                       /*warn_if_missing=*/false);
+    }
+
+    bool already_present_unconditionally = false;
     for (auto& assignment : assignments) {
       auto matches = FindListElementInAssignment(target, assignment, value);
       for (const auto& match : matches) {
@@ -186,10 +221,18 @@ void AddToTarget(BuildFile& build_file,
         } else {
           // If it's added unconditionally, we don't need to worry about
           // adding it anymore.
-          std::erase(to_add, value);
+          already_present_unconditionally = true;
         }
       }
     }
+
+    if (!already_present_unconditionally) {
+      to_add.push_back(value);
+    }
+  }
+
+  if (to_add.empty()) {
+    return;
   }
 
   if (const auto* first = FirstUnconditionalAssignment(assignments); first) {
@@ -257,7 +300,7 @@ EditCommand AddToAttributeCommand(std::string attribute,
       [attribute = std::move(attribute), values = std::move(values)](
           BuildFile& build_file, const EditTarget& target,
           EditState& state) -> Err {
-        AddToTarget(build_file, target, attribute, values);
+        AddToTarget(build_file, target, attribute, values, state);
         return Ok();
       });
 }
@@ -268,23 +311,6 @@ EditCommand DeleteCommand() {
     target.node.RemoveSelf(state, target);
     return Ok();
   });
-}
-
-// Returns whether |target| contains |value| in |attribute|.
-// Assignments using `-=` are filtered out.
-bool AttributeContainsValue(const EditTarget& target,
-                            std::string_view attribute,
-                            const Value& value) {
-  for (const auto& assignment : target.assignments(attribute)) {
-    if (const auto* op = assignment.node()->AsBinaryOp();
-        op && op->op().type() == Token::MINUS_EQUALS) {
-      continue;
-    }
-    if (!FindListElementInAssignment(target, assignment, value).empty()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 EditCommand MoveCommand(std::string from_attribute,
@@ -305,7 +331,7 @@ EditCommand MoveCommand(std::string from_attribute,
       }
     }
     if (!moved_values.empty()) {
-      AddToTarget(build_file, target, to_attribute, moved_values);
+      AddToTarget(build_file, target, to_attribute, moved_values, state);
     }
     return Ok();
   });

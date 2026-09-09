@@ -131,9 +131,10 @@ executable("foo") {
 }
 
 TEST_F(EditCommandTest, AddSubcommand) {
-  EXPECT_SUCCESS(DoEdit("add deps //add1 //add2 //add3 :dep2",
+  EXPECT_SUCCESS(DoEdit("add deps //add1 //add2 //add3 :dep2 //in_public_deps",
                         R"(
 executable("foo") {
+  public_deps = [ "//in_public_deps" ]
   deps = [ "//dep1" ]
   deps += [ "//:dep2" ]
   if (is_linux) {
@@ -143,6 +144,7 @@ executable("foo") {
 )"),
                  Edited(R"(
 executable("foo") {
+  public_deps = [ "//in_public_deps" ]
   deps = [
     "//add1",
     "//add2",
@@ -204,15 +206,17 @@ executable("foo") {
 }
 )"));
 
-  EXPECT_SUCCESS(DoEdit("add deps //base",
+  EXPECT_SUCCESS(DoEdit("add sources bar.cc foo.h",
                         R"(
 executable("foo") {
-  deps = other_deps
+  public = [ "foo.h" ]
+  sources = other_sources
 }
 )"),
                  Edited(R"(
 executable("foo") {
-  deps = [ "//base" ] + other_deps
+  public = [ "foo.h" ]
+  sources = [ "bar.cc" ] + other_sources
 }
 )"));
 
@@ -220,7 +224,10 @@ executable("foo") {
                         R"(
 executable("foo") {
   sources = [ "foo.cc" ]
-  deps = [ "//dep" ]
+  deps = [
+    "//base",
+    "//dep",
+  ]
 }
 )"),
                  Edited(R"(
@@ -231,10 +238,13 @@ executable("foo") {
 }
 )"));
 
-  EXPECT_SUCCESS(DoEdit("add deps //base",
+  EXPECT_SUCCESS(DoEdit("add public foo.h",
                         R"(
 executable("foo") {
-  sources = [ "foo.cc" ]
+  sources = [
+    "foo.cc",
+    "foo.h",
+  ]
   if (is_linux) {
     deps = [ "//dep" ]
   }
@@ -243,9 +253,9 @@ executable("foo") {
                  Edited(R"(
 executable("foo") {
   sources = [ "foo.cc" ]
-  deps = [ "//base" ]
+  public = [ "foo.h" ]
   if (is_linux) {
-    deps += [ "//dep" ]
+    deps = [ "//dep" ]
   }
 }
 )"));

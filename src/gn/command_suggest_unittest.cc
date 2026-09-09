@@ -438,9 +438,9 @@ TEST_F(SuggestTest, OutputSuggestions) {
 
   includer->private_deps().push_back(LabelTargetPair(visible.get()));
   EXPECT_EQ(
-      "Suggestion: Move \":visible\" from `deps` to `public_deps` in :includer "
+      "Suggestion: Add public_deps = [ \":visible\" ] to :includer "
       "(defined at //BUILD.gn:1)\n"
-      "  (`gn edit \"move deps public_deps :visible\" //:includer`)\n",
+      "  (`gn edit \"add public_deps :visible\" //:includer`)\n",
       run_suggest(visible->module_name()));
   includer->private_deps().clear();
 
@@ -708,8 +708,8 @@ group("all") {
       "private dependencies.\n"
       "#include \"included/included.h\"\n"
       "          ^\n"
-      "[APPLIED] Suggestion: Move \"//included:included\" from `deps` to "
-      "`public_deps` in :includer (defined at //includer/BUILD.gn:1)\n",
+      "[APPLIED] Suggestion: Add public_deps = [ \"//included:included\" ] to "
+      ":includer (defined at //includer/BUILD.gn:1)\n",
       output);
   std::string expected_build_gn = R"(source_set("includer") {
   check_includes_strict = true
