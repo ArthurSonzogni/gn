@@ -587,11 +587,13 @@ TEST_F(SuggestTest, ApplyValidSuggestion) {
 }
 
 source_set("included") {
-  sources = [ "included.h" ]
+  public = [ "included.h" ]
+  sources = [ "private.h" ]
 }
 )"},
       {SourceFile("//includer.cc"), ""},
       {SourceFile("//included.h"), ""},
+      {SourceFile("//private.h"), ""},
   });
 
   std::string output;
@@ -617,9 +619,31 @@ source_set("included") {
 }
 
 source_set("included") {
-  sources = [ "included.h" ]
+  public = [ "included.h" ]
+  sources = [ "private.h" ]
 }
 )";
+  EXPECT_EQ(expected_build_gn, project.Read(SourceFile("//BUILD.gn")));
+
+  output.clear();
+  commands::TargetResolutionCache same_target_cache;
+  commands::SuggestResult same_target_result = commands::OutputSuggestions(
+      project.targets(), &project.setup.build_settings(),
+      project.default_toolchain(), "//included.h", "//private.h", collect,
+      same_target_cache, /*must_be_file=*/false, /*apply=*/true,
+      &project.setup);
+
+  EXPECT_EQ(commands::SuggestResult::kUnapplied, same_target_result);
+  EXPECT_EQ(
+      R"(Warning: "//private.h" is in the private API of //:included
+[AMBIGUOUS] Suggestion: Choose one of the following to resolve the intra-target include:
+* Create a new source_set for "private.h" and add it to public_deps in //:included (preferred)
+* Move "private.h" from `sources` to `public` in :included (defined at //BUILD.gn:5)
+  (`gn edit "move sources public private.h" //:included`)
+* Move "included.h" from `public` to `sources` in :included (defined at //BUILD.gn:5)
+  (`gn edit "move public sources included.h" //:included`)
+)",
+      output);
   EXPECT_EQ(expected_build_gn, project.Read(SourceFile("//BUILD.gn")));
 }
 
