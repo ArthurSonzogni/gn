@@ -517,7 +517,7 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
                   from_target->label().GetUserVisibleName(false) +
                   "\nhas a source file:\n  " + file.value() +
                   "\nwhich was not found."),
-          file, SourceFile());
+          from_target, file, SourceFile());
     }
     return false;
   }
@@ -564,7 +564,7 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
                          file.GetType() == SourceFile::SOURCE_H,
                      input_file, included_file, inc.location, &include_errors);
         for (auto& e : include_errors) {
-          violations->emplace_back(std::move(e), file,
+          violations->emplace_back(std::move(e), from_target, file,
                                    std::move(included_file));
         }
       }

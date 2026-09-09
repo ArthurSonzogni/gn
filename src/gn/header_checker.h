@@ -59,6 +59,9 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
     // The diagnostic error describing the violation.
     Err error;
 
+    // The target whose source file had the violation.
+    const Target* source_target;
+
     // The source file that contained the invalid #include directive.
     SourceFile source_file;
 
