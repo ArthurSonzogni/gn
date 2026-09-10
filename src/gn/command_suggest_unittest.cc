@@ -385,11 +385,10 @@ TEST_F(SuggestTest, OutputSuggestions) {
   };
 
   auto create_target = [&](std::string_view name, Target::OutputType type,
-                           auto fn) {
+                           auto fn, SourceDir dir = SourceDir("//")) {
     auto target = std::make_unique<Target>(
         setup_scope.settings(),
-        Label(SourceDir("//"), name, default_toolchain.dir(),
-              default_toolchain.name()));
+        Label(dir, name, default_toolchain.dir(), default_toolchain.name()));
     target->set_output_type(type);
     target->SetToolchain(setup_scope.toolchain());
     target->set_user_friendly_location(dummy_loc);
@@ -399,7 +398,7 @@ TEST_F(SuggestTest, OutputSuggestions) {
       target->set_module_type(module_type);
       target->set_module_name(std::string(name));
       target->public_headers().push_back(
-          SourceFile("//" + std::string(name) + ".h"));
+          SourceFile(dir.value() + std::string(name) + ".h"));
     }
     fn(target.get());
     Err err;
@@ -410,16 +409,19 @@ TEST_F(SuggestTest, OutputSuggestions) {
 
   auto includer = create_target("includer", Target::GROUP, [](Target*) {});
 
-  auto run_suggest = [&](std::string_view want) {
+  auto run_suggest_for = [&](std::string_view from, std::string_view want) {
     std::string output;
     auto collect = [&](std::string_view s, TextDecoration, HtmlEscaping) {
       output.append(s);
     };
     commands::TargetResolutionCache cache;
     commands::OutputSuggestions(all_targets, setup_scope.build_settings(),
-                                default_toolchain, "//:includer", want, collect,
-                                cache);
+                                default_toolchain, from, want, collect, cache);
     return output;
+  };
+
+  auto run_suggest = [&](std::string_view want) {
+    return run_suggest_for("//:includer", want);
   };
 
   auto visible = create_target("visible", Target::SOURCE_SET,
@@ -578,6 +580,34 @@ TEST_F(SuggestTest, OutputSuggestions) {
       "(defined at //BUILD.gn:1)\n"
       "  (`gn edit \"add public_deps :private_target\" //:includer`)\n",
       run_suggest("private_target_Private"));
+
+  auto pkg_target = create_target(
+      "pkg_target", Target::SOURCE_SET, [](Target* t) {}, SourceDir("//pkg/"));
+  auto pkg_includer = create_target(
+      "pkg_includer", Target::GROUP, [](Target*) {}, SourceDir("//pkg/sub/"));
+  auto other_exposer = create_target(
+      "other_exposer", Target::GROUP,
+      [&](Target* t) {
+        t->public_deps().push_back(LabelTargetPair(pkg_target.get()));
+        t->visibility().SetPublic();
+      },
+      SourceDir("//other/"));
+  auto parent_exposer = create_target(
+      "parent_exposer", Target::GROUP,
+      [&](Target* t) {
+        t->public_deps().push_back(LabelTargetPair(pkg_target.get()));
+        t->visibility().SetPublic();
+      },
+      SourceDir("//pkg/"));
+
+  // Disambiguate by package closeness: parent_exposer is in //pkg/, which is an
+  // ancestor of //pkg/sub/, so it is preferred over other_exposer in //other/.
+  EXPECT_EQ(
+      "Suggestion: Add public_deps = [ \"//pkg:parent_exposer\" ] to "
+      ":pkg_includer (defined at //BUILD.gn:1)\n"
+      "  (`gn edit \"add public_deps //pkg:parent_exposer\" "
+      "//pkg/sub:pkg_includer`)\n",
+      run_suggest_for("//pkg/sub:pkg_includer", pkg_target->module_name()));
 }
 
 TEST_F(SuggestTest, ApplyValidSuggestion) {

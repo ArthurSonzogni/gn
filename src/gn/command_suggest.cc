@@ -918,6 +918,50 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     visible_candidates = nonpublic_candidates;
   }
 
+  if (visible_candidates.size() > 1) {
+    auto ClosenessHeuristic =
+        [&](const Target* candidate) -> std::pair<int, size_t> {
+      // Consider the following example:
+      // * We attempted to include a file from //absl:strings.
+      // * //absl:strings is private, but is part of a group //absl:absl.
+      // * //angle:absl re-exports //absl:absl. It should ideally only be
+      //   visible to //angle/..., but may not be.
+      //
+      // Then:
+      // * If we include it from //angle:foo or //angle/subdir:foo, we should
+      //   get //angle:absl.
+      // * If we include it from outside, we should get the canonical one
+      //   (//absl:absl).
+      std::string_view cand_dir = candidate->label().dir().value();
+      std::string_view includer_dir = includer->label().dir().value();
+      std::string_view included_dir = included->label().dir().value();
+      // SourceDir always ends with "/", so string starts_with is ok.
+      if (includer_dir.starts_with(cand_dir)) {
+        // Prefer the more specific option.
+        return {2, cand_dir.size()};
+      } else if (included_dir.starts_with(cand_dir)) {
+        // If no option is more specific, we should prefer the "canonical" one.
+        // We assume it to be canonical if it's defined in the tree of the
+        // original target. (Eg. //absl re-exporting //absl/subdir:foo)
+        //
+        // We intentionally make no decision on whether //absl:exporter or
+        // //absl/subdir:exporter would be "more canonical" - we can change this
+        // later if we'd like, but for now we'd treat this as ambiguous.
+        return {1, 0};
+      }
+      return {0, 0};
+    };
+
+    std::ranges::stable_sort(
+        visible_candidates, [&](const Target* lhs, const Target* rhs) {
+          return ClosenessHeuristic(lhs) > ClosenessHeuristic(rhs);
+        });
+    if (ClosenessHeuristic(visible_candidates[0]) !=
+        ClosenessHeuristic(visible_candidates[1])) {
+      visible_candidates.resize(1);
+    }
+  }
+
   if (visible_candidates.size() == 1) {
     OutputDepSuggestion(visible_candidates);
   } else if (visible_candidates.size() > 1) {
