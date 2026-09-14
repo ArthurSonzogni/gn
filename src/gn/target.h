@@ -5,7 +5,10 @@
 #ifndef TOOLS_GN_TARGET_H_
 #define TOOLS_GN_TARGET_H_
 
+#include <atomic>
 #include <bitset>
+#include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -22,14 +25,17 @@
 #include "gn/metadata.h"
 #include "gn/output_file.h"
 #include "gn/pointer_set.h"
+#include "gn/resolved_target_deps.h"
 #include "gn/rust_values.h"
 #include "gn/settings.h"
 #include "gn/source_file.h"
 #include "gn/swift_values.h"
+#include "gn/target_public_pair.h"
 #include "gn/toolchain.h"
 #include "gn/unique_vector.h"
 
 class DepsIteratorRange;
+class ResolvedTargetData;
 class Settings;
 class Target;
 class Toolchain;
@@ -621,6 +627,92 @@ class Target : public Item {
 
   // GeneratedFile as metadata collection values.
   std::unique_ptr<GeneratedFile> generated_file_;
+
+  friend class ResolvedTargetData;
+
+  enum class LazyBool : uint8_t {
+    kUnknown,
+    kTrue,
+    kFalse,
+  };
+
+  // Cached resolved dependency and link information computed on demand by
+  // ResolvedTargetData. Owned directly by Target so its lifetime matches
+  // the target itself without requiring external maps, locks, or generation
+  // IDs.
+  struct TargetInfo {
+    TargetInfo() = default;
+
+    explicit TargetInfo(const Target* target)
+        : target(target),
+          deps(target->public_deps(),
+               target->private_deps(),
+               target->data_deps()) {}
+
+    const Target* target = nullptr;
+    ResolvedTargetDeps deps;
+    mutable std::mutex mutex;
+
+    std::atomic<bool> has_lib_info = false;
+    std::atomic<bool> has_framework_info = false;
+    std::atomic<bool> has_hard_deps = false;
+    std::atomic<bool> has_inherited_libs = false;
+    std::atomic<bool> has_module_deps_information = false;
+    std::atomic<bool> has_rust_libs = false;
+    std::atomic<bool> has_swift_values = false;
+    std::atomic<bool> has_order_only_deps = false;
+    std::atomic<LazyBool> does_export_public_inputs = LazyBool::kUnknown;
+
+    // Only valid if |has_lib_info| is true.
+    std::vector<SourceDir> lib_dirs;
+    std::vector<LibFile> libs;
+
+    // Only valid if |has_framework_info| is true.
+    std::vector<SourceDir> framework_dirs;
+    std::vector<std::string> frameworks;
+    std::vector<std::string> weak_frameworks;
+    std::vector<std::string> weak_libraries;
+
+    // Only valid if |has_hard_deps| is true.
+    TargetSet hard_deps;
+
+    // Only valid if |has_inherited_libs| is true.
+    std::vector<TargetPublicPair> inherited_libs;
+
+    // Only valid if |has_module_deps_information| is true.
+    std::vector<TargetPublicPair> module_deps_information;
+
+    // Only valid if |has_rust_libs| is true.
+    std::vector<TargetPublicPair> rust_inherited_libs;
+    std::vector<TargetPublicPair> rust_inheritable_libs;
+
+    // Only valid if |has_swift_values| is true.
+    // Most targets will not have Swift dependencies, so only
+    // allocate a SwiftValues struct when needed. A null pointer
+    // indicates empty lists.
+    struct SwiftValues {
+      std::vector<const Target*> modules;
+      std::vector<const Target*> public_modules;
+
+      SwiftValues(std::vector<const Target*> modules,
+                  std::vector<const Target*> public_modules)
+          : modules(std::move(modules)),
+            public_modules(std::move(public_modules)) {}
+    };
+    std::unique_ptr<SwiftValues> swift_values;
+
+    // Only valid if |has_order_only_deps| is true.
+    std::vector<OutputFile> order_only_deps;
+  };
+
+  TargetInfo& info() const {
+    if (!info_.has_value()) {
+      info_.emplace(this);
+    }
+    return *info_;
+  }
+
+  mutable std::optional<TargetInfo> info_;
 
   Target(const Target&) = delete;
   Target& operator=(const Target&) = delete;

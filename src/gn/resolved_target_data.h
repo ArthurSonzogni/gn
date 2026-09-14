@@ -8,7 +8,6 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
-#include <shared_mutex>
 #include <vector>
 
 #include "base/containers/span.h"
@@ -167,81 +166,13 @@ class ResolvedTargetData {
   }
 
  private:
-  enum class LazyBool : uint8_t {
-    kUnknown,
-    kTrue,
-    kFalse,
-  };
+  using LazyBool = Target::LazyBool;
+  using TargetInfo = Target::TargetInfo;
 
-  // The information associated with a given Target pointer.
-  struct TargetInfo {
-    TargetInfo() = default;
-
-    TargetInfo(const Target* target)
-        : target(target),
-          deps(target->public_deps(),
-               target->private_deps(),
-               target->data_deps()) {}
-
-    const Target* target = nullptr;
-    ResolvedTargetDeps deps;
-    mutable std::mutex mutex;
-
-    std::atomic<bool> has_lib_info = false;
-    std::atomic<bool> has_framework_info = false;
-    std::atomic<bool> has_hard_deps = false;
-    std::atomic<bool> has_inherited_libs = false;
-    std::atomic<bool> has_module_deps_information = false;
-    std::atomic<bool> has_rust_libs = false;
-    std::atomic<bool> has_swift_values = false;
-    std::atomic<bool> has_order_only_deps = false;
-    std::atomic<LazyBool> does_export_public_inputs = LazyBool::kUnknown;
-
-    // Only valid if |has_lib_info| is true.
-    std::vector<SourceDir> lib_dirs;
-    std::vector<LibFile> libs;
-
-    // Only valid if |has_framework_info| is true.
-    std::vector<SourceDir> framework_dirs;
-    std::vector<std::string> frameworks;
-    std::vector<std::string> weak_frameworks;
-    std::vector<std::string> weak_libraries;
-
-    // Only valid if |has_hard_deps| is true.
-    TargetSet hard_deps;
-
-    // Only valid if |has_inherited_libs| is true.
-    std::vector<TargetPublicPair> inherited_libs;
-
-    // Only valid if |has_module_deps_information| is true.
-    std::vector<TargetPublicPair> module_deps_information;
-
-    // Only valid if |has_rust_libs| is true.
-    std::vector<TargetPublicPair> rust_inherited_libs;
-    std::vector<TargetPublicPair> rust_inheritable_libs;
-
-    // Only valid if |has_swift_values| is true.
-    // Most targets will not have Swift dependencies, so only
-    // allocate a SwiftValues struct when needed. A null pointer
-    // indicates empty lists.
-    struct SwiftValues {
-      std::vector<const Target*> modules;
-      std::vector<const Target*> public_modules;
-
-      SwiftValues(std::vector<const Target*> modules,
-                  std::vector<const Target*> public_modules)
-          : modules(std::move(modules)),
-            public_modules(std::move(public_modules)) {}
-    };
-    std::unique_ptr<SwiftValues> swift_values;
-
-    // Only valid if |has_order_only_deps| is true.
-    std::vector<OutputFile> order_only_deps;
-  };
-
-  // Retrieve TargetInfo value associated with |target|. Create
-  // a new empty instance on demand if none is already available.
-  TargetInfo* GetTargetInfo(const Target* target) const;
+  // Retrieve TargetInfo value associated with |target|.
+  TargetInfo* GetTargetInfo(const Target* target) const {
+    return &target->info();
+  }
 
   const TargetInfo* GetTargetLibInfo(const Target* target) const {
     TargetInfo* info = GetTargetInfo(target);
@@ -374,30 +305,6 @@ class ResolvedTargetData {
   void ComputeRustLibsFor(base::span<const Target*> deps,
                           bool is_public,
                           RustLibsBuilder* rust_libs) const;
-
-  // A { Target* -> TargetInfo } map that will create entries
-  // on demand (hence the mutable qualifier). Implemented with a
-  // UniqueVector<> and a parallel vector of unique TargetInfo
-  // instances for best performance.
-  // We shard the TargetInfo map to reduce lock contention under the
-  // high-concurrency parallel writing phase of 'gn gen'. 128 shards is chosen
-  // as the sweet spot based on benchmarking, providing optimal scaling for
-  // high-core workstation counts (up to 128 threads) with negligible memory
-  // overhead from empty shards.
-  static constexpr size_t kNumShards = 128;
-  struct Shard {
-    mutable std::shared_mutex mutex;
-    UniqueVector<const Target*> targets;
-    std::vector<std::unique_ptr<TargetInfo>> infos;
-  };
-
-  // We use std::hash to distribute targets evenly across shards and avoid
-  // pointer alignment biases.
-  size_t GetShardIndex(const Target* target) const {
-    return std::hash<const Target*>()(target) % kNumShards;
-  }
-
-  mutable Shard shards_[kNumShards];
 };
 
 #endif  // TOOLS_GN_RESOLVED_TARGET_DATA_H_

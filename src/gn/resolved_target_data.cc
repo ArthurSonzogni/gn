@@ -6,26 +6,6 @@
 
 #include "gn/config_values_extractors.h"
 
-ResolvedTargetData::TargetInfo* ResolvedTargetData::GetTargetInfo(
-    const Target* target) const {
-  size_t shard_idx = GetShardIndex(target);
-  Shard& shard = shards_[shard_idx];
-  {
-    std::shared_lock<std::shared_mutex> lock(shard.mutex);
-    size_t index = shard.targets.IndexOf(target);
-    if (index != UniqueVector<const Target*>::kIndexNone) {
-      return shard.infos[index].get();
-    }
-  }
-
-  std::unique_lock<std::shared_mutex> lock(shard.mutex);
-  auto ret = shard.targets.PushBackWithIndex(target);
-  if (ret.first) {
-    shard.infos.push_back(std::make_unique<TargetInfo>(target));
-  }
-  return shard.infos[ret.second].get();
-}
-
 void ResolvedTargetData::ComputeLibInfo(TargetInfo* info) const {
   UniqueVector<SourceDir> all_lib_dirs;
   UniqueVector<LibFile> all_libs;
