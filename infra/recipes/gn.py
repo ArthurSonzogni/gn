@@ -241,6 +241,10 @@ def RunSteps(api, repository):
               '--enable-static',
               '--disable-syscall',
               '--disable-stats',
+              # Enable Transparent Huge Pages (THP) by default via madvise to reduce
+              # minor page faults and page table walk overhead during large generation
+              # tasks (e.g. saves ~54% minor faults and ~7% wall time on Chromium).
+              '--with-malloc-conf=thp:always',
             ]
             if platform == 'linux-arm64':
               configure_args.append('--with-lg-page=16')

@@ -301,7 +301,8 @@
       "--disable-shared",
       "--enable-static",
       "--disable-syscall",
-      "--disable-stats"
+      "--disable-stats",
+      "--with-malloc-conf=thp:always"
     ],
     "cwd": "[START_DIR]/jemalloc/build-linux-amd64",
     "env": {
@@ -400,6 +401,7 @@
       "--enable-static",
       "--disable-syscall",
       "--disable-stats",
+      "--with-malloc-conf=thp:always",
       "--with-lg-page=16"
     ],
     "cwd": "[START_DIR]/jemalloc/build-linux-arm64",
@@ -498,7 +500,8 @@
       "--disable-shared",
       "--enable-static",
       "--disable-syscall",
-      "--disable-stats"
+      "--disable-stats",
+      "--with-malloc-conf=thp:always"
     ],
     "cwd": "[START_DIR]/jemalloc/build-linux-riscv64",
     "env": {
