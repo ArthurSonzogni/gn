@@ -1608,10 +1608,12 @@ TEST_F(NinjaCBinaryTargetWriterTest, GCCPrecompiledHeaders) {
 // This is dependent on the toolchain's object file mapping.
 TEST_F(NinjaCBinaryTargetWriterTest, DupeObjFileError) {
   TestWithScope setup;
+  Err err;
   TestTarget target(setup, "//foo:bar", Target::EXECUTABLE);
   target.sources().push_back(SourceFile("//a.cc"));
   target.sources().push_back(SourceFile("//a.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
+  ASSERT_TRUE(target.OnResolved(&err));
 
   EXPECT_FALSE(scheduler().is_failed());
 

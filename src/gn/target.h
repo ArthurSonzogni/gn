@@ -706,9 +706,7 @@ class Target : public Item {
   };
 
   TargetInfo& info() const {
-    if (!info_.has_value()) {
-      info_.emplace(this);
-    }
+    DCHECK(info_.has_value());
     return *info_;
   }
 
