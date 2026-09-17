@@ -19,12 +19,17 @@
 #include "gn/label_pattern.h"
 #include "gn/parse_tree.h"
 #include "gn/source_file.h"
+#include "gn/string_atom.h"
 
 class BuildSettings;
 class Loader;
 
 struct EditState;
 struct EditTarget;
+
+using SourceConditionsMap =
+    std::unordered_map<SourceFile, std::optional<StringAtom>>;
+using TargetSourcesMap = std::unordered_map<StringAtom, SourceConditionsMap>;
 
 // A TreeNode represents a node in a tree.
 // It fundamentally represents a ParseNode, but differs from one as it
@@ -46,6 +51,10 @@ class TreeNode {
   // Returns whether the node is conditional in a target.
   // Note that if the target itself is conditional, this will return false.
   bool is_conditional() const;
+
+  // Returns the human-readable condition string if this node is inside a
+  // conditional statement within a target (e.g. "if (foo)'s else -> if (bar)").
+  std::optional<StringAtom> GetConditionString() const;
 
   // Returns whether the node is a "+=" or "-=" operation.
   bool is_modification() const;
@@ -300,5 +309,9 @@ Result<std::vector<BuildFile>> ResolvePatternsToBuildFiles(
     const BuildSettings* build_settings,
     const Loader* loader,
     const std::vector<LabelPattern>& patterns);
+
+// Extracts all targets in the build file along with their sources and any
+// enclosing conditions.
+TargetSourcesMap GetSourcesForTargets(BuildFile& build_file);
 
 #endif  // TOOLS_GN_BUILD_FILE_EDITOR_H_

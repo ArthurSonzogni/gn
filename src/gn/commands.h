@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base/values.h"
+#include "gn/build_file_editor.h"
 #include "gn/header_checker.h"
 #include "gn/standard_out.h"
 #include "gn/target.h"
@@ -130,6 +131,26 @@ enum class ApiScope {
   kOutput,
 };
 
+// Represents something that has resolved to a target.
+// May be a source file, a module name, or a target label.
+struct ResolvedTarget {
+  // Can never be null. Unfortunately can't use a reference because it's stored
+  // in a vector.
+  const Target* target;
+  ApiScope scope;
+  // If the input was a conditional source, this is a human-readable
+  // representation of the condition. eg. When looking up foo.cc in a target
+  // with: if (foo) {
+  //   if (bar) {
+  //     sources += [ "foo.cc" ]
+  //   }
+  // }
+  // Conditional could be "if (foo) and if (bar)"
+  std::optional<StringAtom> conditional = std::nullopt;
+
+  bool operator==(const ResolvedTarget&) const = default;
+};
+
 // Caches the mapping of SourceFile -> target(s) to accelerate suggestion
 // resolution.
 // May potentially be used in the future to cache other properties of the build
@@ -154,6 +175,12 @@ class TargetResolutionCache {
   // Returns reference to ReachabilityCache for the given target.
   HeaderChecker::ReachabilityCache& GetReachabilityCache(const Target* target);
 
+  // Returns cached source-to-condition map for all targets in the given build
+  // file.
+  const TargetSourcesMap* GetSourcesForBuildFile(
+      const SourceFile& build_file,
+      const BuildSettings* build_settings);
+
  private:
   std::once_flag file_to_target_initialized_;
   std::unordered_map<SourceFile,
@@ -172,6 +199,11 @@ class TargetResolutionCache {
   std::unordered_map<const Target*,
                      std::unique_ptr<HeaderChecker::ReachabilityCache>>
       reachability_cache_;
+
+  // Maps a BUILD.gn file to the sources conditions map for targets in that
+  // file.
+  std::mutex sources_cache_lock_;
+  std::unordered_map<SourceFile, TargetSourcesMap> build_file_sources_cache_;
 };
 
 SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
@@ -355,15 +387,16 @@ const Target* ResolveTargetFromCommandLineString(
 
 // Resolves an input to a list of targets for suggestion.
 // Specifically also decides whether it resolves to the public or private API
-// of the target.
-std::pair<std::vector<std::pair<const Target*, ApiScope>>, bool>
-ResolveSuggestionToTarget(const BuildSettings* build_settings,
-                          const std::vector<const Target*>& all_targets,
-                          const Label& current_toolchain,
-                          std::string_view input,
-                          bool must_be_file,
-                          TargetResolutionCache& cache,
-                          const Target* includer = nullptr);
+// of the target, and any enclosing conditions if it resolves to a conditional
+// source.
+std::pair<std::vector<ResolvedTarget>, bool> ResolveSuggestionToTarget(
+    const BuildSettings* build_settings,
+    const std::vector<const Target*>& all_targets,
+    const Label& current_toolchain,
+    std::string_view input,
+    bool must_be_file,
+    TargetResolutionCache& cache,
+    const Target* includer = nullptr);
 
 // Resolves a vector of command line inputs and figures out the full set of
 // things they resolve to.

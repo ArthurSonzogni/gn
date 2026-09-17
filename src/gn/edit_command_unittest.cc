@@ -10,9 +10,11 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "gn/build_file_editor.h"
 #include "gn/err.h"
 #include "gn/filesystem_utils.h"
 #include "gn/setup.h"
+#include "gn/string_atom.h"
 #include "gn/test_with_scheduler.h"
 #include "util/test/test.h"
 
@@ -963,6 +965,58 @@ static_library("foo") {
   ]
 }
 )"));
+}
+
+TEST_F(EditCommandTest, ExtractTargetSourcesConditions) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath root_path = base::MakeAbsoluteFilePath(temp_dir.GetPath());
+
+  base::FilePath build_gn_path = root_path.AppendASCII("BUILD.gn");
+  std::string content = R"(
+source_set("my_target") {
+  sources = [ "uncond.cc" ]
+
+  if (is_win) {
+    sources += [ "win1.cc", "win2.cc" ]
+    if (nested) {
+      sources += [ "nested.cc" ]
+    }
+  } else if (is_linux) {
+    sources += [ "linux.cc" ]
+  } else {
+    sources += [ "generic.cc" ]
+    public = [ "generic.h" ]
+  }
+}
+)";
+  ASSERT_TRUE(WriteFile(build_gn_path, content, nullptr));
+
+  Setup setup;
+  setup.build_settings().SetRootPath(root_path);
+
+  auto build_file =
+      BuildFile::Create(&setup.build_settings(), SourceFile("//BUILD.gn"), {});
+  ASSERT_TRUE(build_file.has_value());
+
+  TargetSourcesMap target_sources = GetSourcesForTargets(*build_file);
+  ASSERT_TRUE(target_sources.contains(StringAtom("my_target")));
+
+  const auto& sources = target_sources[StringAtom("my_target")];
+
+  SourceConditionsMap expected = {
+      {SourceFile("//uncond.cc"), std::nullopt},
+      {SourceFile("//win1.cc"), StringAtom("if (is_win)")},
+      {SourceFile("//win2.cc"), StringAtom("if (is_win)")},
+      {SourceFile("//nested.cc"), StringAtom("if (is_win) -> if (nested)")},
+      {SourceFile("//linux.cc"),
+       StringAtom("if (is_win)'s else if (is_linux)")},
+      {SourceFile("//generic.cc"),
+       StringAtom("if (is_win)'s else (after else if)")},
+      {SourceFile("//generic.h"),
+       StringAtom("if (is_win)'s else (after else if)")},
+  };
+  EXPECT_EQ(expected, sources);
 }
 
 }  // namespace commands

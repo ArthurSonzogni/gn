@@ -8,6 +8,7 @@
 
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
+#include "base/strings/string_util.h"
 #include "gn/build_settings.h"
 #include "gn/command_format.h"
 #include "gn/edit_subcommands.h"
@@ -371,6 +372,60 @@ bool TreeNode::is_conditional() const {
     }
   }
   return false;
+}
+
+std::optional<StringAtom> TreeNode::GetConditionString() const {
+  if (!is_conditional()) {
+    return std::nullopt;
+  }
+
+  std::vector<std::string> clauses;
+  std::vector<const ConditionNode*> chain;
+
+  auto get_condition_text = [](const ConditionNode* node) {
+    return base::CollapseWhitespaceASCII(
+        std::string(node->condition()->GetRange().GetText()), false);
+  };
+
+  for (const ParseNode* node : stack_) {
+    if (node->AsFunctionCall()) {
+      // Remove the conditionals outside the target definition.
+      clauses.clear();
+      chain.clear();
+      continue;
+    }
+
+    const auto* condition = node->AsCondition();
+    if (!chain.empty() &&
+        (condition == nullptr || chain.back()->if_false() != condition)) {
+      std::string head = get_condition_text(chain.front());
+      if (node == chain.back()->if_false()) {
+        if (chain.size() == 1) {
+          clauses.push_back("if (" + head + ")'s else");
+        } else if (chain.size() == 2) {
+          clauses.push_back("if (" + head + ")'s else (after else if)");
+        } else {
+          clauses.push_back("if (" + head + ")'s else (after else ifs)");
+        }
+      } else if (chain.size() == 1) {
+        clauses.push_back("if (" + head + ")");
+      } else {
+        clauses.push_back("if (" + head + ")'s else if (" +
+                          get_condition_text(chain.back()) + ")");
+      }
+      chain.clear();
+    }
+
+    if (condition) {
+      chain.push_back(condition);
+    }
+  }
+
+  if (clauses.empty()) {
+    return std::nullopt;
+  }
+
+  return StringAtom(base::JoinString(clauses, " -> "));
 }
 
 bool TreeNode::is_modification() const {
@@ -771,6 +826,32 @@ Result<std::vector<BuildFile>> ResolvePatternsToBuildFiles(
         result.push_back(std::move(parsed));
       }
     }
+  }
+  return result;
+}
+
+TargetSourcesMap GetSourcesForTargets(BuildFile& build_file) {
+  TargetSourcesMap result;
+  for (const auto& target :
+       build_file.targets([](EditTarget&) { return true; })) {
+    SourceConditionsMap source_conditions;
+    for (const auto& assignment : target.assignments({"sources", "public"})) {
+      auto condition = assignment.GetConditionString();
+      for (const auto& element : FindAllListElements(assignment)) {
+        auto str = AsStringLiteral(element.node());
+        if (!str)
+          continue;
+        Err err;
+        SourceFile source_file =
+            build_file.source_file().GetDir().ResolveRelativeFile(
+                Value(nullptr, *str), &err);
+        if (err.has_error() || source_file.is_null())
+          continue;
+
+        source_conditions.try_emplace(source_file, condition);
+      }
+    }
+    result.emplace(target.label.name_atom(), std::move(source_conditions));
   }
   return result;
 }

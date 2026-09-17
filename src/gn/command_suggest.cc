@@ -16,6 +16,7 @@
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_split.h"
+#include "gn/build_file_editor.h"
 #include "gn/commands.h"
 #include "gn/config_values_extractors.h"
 #include "gn/edit_command.h"
@@ -104,17 +105,40 @@ enum class ApplyResult {
 
 // Finds all targets that use a file as a source from a specific toolchain and
 // adds them to results. Checks every toolchain if current_toolchain is null.
-bool AddToolchainSources(
-    const std::vector<const Target*>& all_targets,
-    const Label* current_toolchain,
-    const SourceFile& file,
-    TargetResolutionCache& cache,
-    std::vector<std::pair<const Target*, commands::ApiScope>>& results) {
+bool AddToolchainSources(const std::vector<const Target*>& all_targets,
+                         const Label* current_toolchain,
+                         const SourceFile& file,
+                         const BuildSettings* build_settings,
+                         TargetResolutionCache& cache,
+                         std::vector<ResolvedTarget>& results) {
   for (const auto& [target, scope] :
        cache.GetTargetsForFile(file, all_targets)) {
     if (!current_toolchain ||
         target->label().GetToolchainLabel() == *current_toolchain) {
-      results.emplace_back(target, scope);
+      // Gracefully fall back to assuming it's unconditional if the build file
+      // is badly formatted or the source was added via a .gni file, for
+      // example.
+      std::optional<StringAtom> condition;
+      Err err;
+      SourceFile build_file = target->label().dir().ResolveRelativeFile(
+          Value(nullptr, "BUILD.gn"), &err);
+      if (!err.has_error() && !build_file.is_null()) {
+        if (const auto* sources_map =
+                cache.GetSourcesForBuildFile(build_file, build_settings)) {
+          auto target_it = sources_map->find(target->label().name_atom());
+          if (target_it != sources_map->end()) {
+            auto source_it = target_it->second.find(file);
+            if (source_it != target_it->second.end()) {
+              condition = source_it->second;
+            }
+          }
+        }
+      }
+      results.push_back(ResolvedTarget{
+          .target = target,
+          .scope = scope,
+          .conditional = std::move(condition),
+      });
     }
   }
   return !results.empty();
@@ -303,6 +327,23 @@ HeaderChecker::ReachabilityCache& TargetResolutionCache::GetReachabilityCache(
   return *it->second;
 }
 
+const TargetSourcesMap* TargetResolutionCache::GetSourcesForBuildFile(
+    const SourceFile& build_file,
+    const BuildSettings* build_settings) {
+  std::lock_guard<std::mutex> lock(sources_cache_lock_);
+  auto it = build_file_sources_cache_.find(build_file);
+  if (it != build_file_sources_cache_.end()) {
+    return &it->second;
+  }
+  auto parsed = BuildFile::Create(build_settings, build_file, {});
+  if (parsed.has_error()) {
+    return nullptr;
+  }
+  auto [inserted, _] = build_file_sources_cache_.emplace(
+      build_file, GetSourcesForTargets(*parsed));
+  return &inserted->second;
+}
+
 // Resolves an input to a list of targets, and whether each are private.
 // The input can be:
 // * A module name for a target
@@ -311,20 +352,20 @@ HeaderChecker::ReachabilityCache& TargetResolutionCache::GetReachabilityCache(
 //   * Targets defined in the current toolchain that contain the file
 //   * Targets defined in the default toolchain that contain the file
 //   * Targets defined in any toolchain that contain the file
-std::pair<std::vector<std::pair<const Target*, commands::ApiScope>>, bool>
-ResolveSuggestionToTarget(const BuildSettings* build_settings,
-                          const std::vector<const Target*>& all_targets,
-                          const Label& current_toolchain,
-                          std::string_view input,
-                          bool must_be_file,
-                          TargetResolutionCache& cache,
-                          const Target* includer) {
+std::pair<std::vector<ResolvedTarget>, bool> ResolveSuggestionToTarget(
+    const BuildSettings* build_settings,
+    const std::vector<const Target*>& all_targets,
+    const Label& current_toolchain,
+    std::string_view input,
+    bool must_be_file,
+    TargetResolutionCache& cache,
+    const Target* includer) {
   auto sort_results = [](auto& vec) {
     std::sort(vec.begin(), vec.end(), [](const auto& lhs, const auto& rhs) {
-      return lhs.first->label() < rhs.first->label();
+      return lhs.target->label() < rhs.target->label();
     });
   };
-  std::vector<std::pair<const Target*, commands::ApiScope>> results;
+  std::vector<ResolvedTarget> results;
   if (!must_be_file) {
     std::string_view module_name = input;
     commands::ApiScope is_private = commands::ApiScope::kPublic;
@@ -336,7 +377,7 @@ ResolveSuggestionToTarget(const BuildSettings* build_settings,
     // Try to resolve as a module name.
     for (const Target* target : all_targets) {
       if (target->module_name() == module_name) {
-        results.emplace_back(target, is_private);
+        results.push_back(ResolvedTarget{target, is_private, std::nullopt});
       }
     }
     if (!results.empty()) {
@@ -354,7 +395,7 @@ ResolveSuggestionToTarget(const BuildSettings* build_settings,
       if (!err.has_error()) {
         for (const Target* target : all_targets) {
           if (target->label() == want) {
-            results.emplace_back(target, is_private);
+            results.push_back(ResolvedTarget{target, is_private, std::nullopt});
             // We know each label corresponds to exactly one target, so we don't
             // need to keep going.
             return {results, true};
@@ -373,21 +414,22 @@ ResolveSuggestionToTarget(const BuildSettings* build_settings,
 
   // If we see //foo(:toolchain) request bar.h, prefer //:bar(:toolchain)
   // over other toolchains.
-  if (!AddToolchainSources(all_targets, &current_toolchain, file, cache,
-                           results)) {
-    AddToolchainSources(all_targets, nullptr, file, cache, results);
+  if (!AddToolchainSources(all_targets, &current_toolchain, file,
+                           build_settings, cache, results)) {
+    AddToolchainSources(all_targets, nullptr, file, build_settings, cache,
+                        results);
   }
   // If we have an action that generates "gen/foo.h", we should prefer
   // depending on the source set that declares it as a header.
   if (std::ranges::all_of(results, [](const auto& result) {
-        return result.second == commands::ApiScope::kOutput;
+        return result.scope == commands::ApiScope::kOutput;
       })) {
     for (auto& result : results) {
-      result.second = commands::ApiScope::kPublic;
+      result.scope = commands::ApiScope::kPublic;
     }
   } else {
     std::erase_if(results, [](const auto& result) {
-      return result.second == commands::ApiScope::kOutput;
+      return result.scope == commands::ApiScope::kOutput;
     });
   }
   sort_results(results);
@@ -575,8 +617,8 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     return SuggestResult::kFailure;
 
   if (includer_target) {
-    std::erase_if(includer_targets, [&](const auto& pair) {
-      return pair.first != includer_target;
+    std::erase_if(includer_targets, [&](const auto& match) {
+      return match.target != includer_target;
     });
   }
 
@@ -589,14 +631,16 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     StartError();
     OutputQuoted(includer_name);
     OutputString(" resolved to multiple targets\n");
-    for (const auto& [target, is_private] : includer_targets) {
+    for (const auto& match : includer_targets) {
       OutputString("* ");
-      OutputTarget(target);
+      OutputTarget(match.target);
       OutputString("\n");
     }
     return SuggestResult::kFailure;
   }
-  const auto& [includer, dep_kind] = includer_targets.front();
+  const auto& includer_match = includer_targets.front();
+  const Target* includer = includer_match.target;
+  commands::ApiScope dep_kind = includer_match.scope;
   current_toolchain = includer->label().GetToolchainLabel();
 
   std::string_view dep_field =
@@ -622,11 +666,12 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
   }
 
   std::set<Label> labels_without_toolchain;
-  for (const auto& [target, _] : targets) {
-    labels_without_toolchain.insert(target->label().GetWithNoToolchain());
+  for (const auto& match : targets) {
+    labels_without_toolchain.insert(match.target->label().GetWithNoToolchain());
   }
   if (labels_without_toolchain.size() == 1 &&
-      targets.front().first->label().GetToolchainLabel() != current_toolchain) {
+      targets.front().target->label().GetToolchainLabel() !=
+          current_toolchain) {
     // The resolution requires that if //:bar(:toolchain1) contained bar.h, we
     // would have returned no targets from any other toolchain. Thus, we now
     // have:
@@ -641,7 +686,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     OutputString("\n");
     SourceFile file = ResolveFilePath(build_settings, all_targets,
                                       included_name, cache, includer);
-    const Target* target = targets.front().first;
+    const Target* target = targets.front().target;
     std::string path = file.is_null()
                            ? std::string(included_name)
                            : RebasePath(file.value(), target->label().dir(),
@@ -658,9 +703,9 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     StartWarning();
     OutputQuoted(included_name);
     OutputString(" is ambiguous because it belongs to multiple targets:\n");
-    for (const auto& [target, _] : targets) {
+    for (const auto& match : targets) {
       OutputString("* ");
-      OutputTarget(target);
+      OutputTarget(match.target);
       OutputString("\n");
     }
     StartSuggestion();
@@ -675,7 +720,8 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     return result;
   }
 
-  const auto& [included, included_dep_kind] = targets.front();
+  const Target* included = targets.front().target;
+  commands::ApiScope included_dep_kind = targets.front().scope;
   if (included_dep_kind == commands::ApiScope::kPrivate) {
     StartWarning();
     OutputQuoted(included_name);
@@ -873,6 +919,37 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
                 return std::tie(lhs_abs, lhs.label) <
                        std::tie(rhs_abs, rhs.label);
               });
+    if (includer_match.conditional) {
+      if (apply) {
+        result = SuggestResult::kUnapplied;
+      }
+      StartSuggestion();
+      if (candidate_deps.size() == 1) {
+        OutputString("Under ");
+        OutputString(includer_match.conditional->str());
+        OutputString(", add ");
+        OutputString(dep_field);
+        OutputString(" = [ ");
+        OutputQuoted(candidate_deps.front().label);
+        OutputString(" ] to ");
+        OutputDefinition(includer);
+        OutputString("\n");
+      } else {
+        SetAmbiguous();
+        OutputString("Under ");
+        OutputString(includer_match.conditional->str());
+        OutputString(", add one of the following to ");
+        OutputString(dep_field);
+        OutputString(" in ");
+        OutputDefinition(includer);
+        OutputString(":\n");
+        for (const auto& c : candidate_deps) {
+          OutputString("* " + c.label + "\n");
+        }
+      }
+      return;
+    }
+
     if (candidate_deps.size() == 1) {
       OutputEditCommand(candidate_deps.front().edit, includer);
       return;
