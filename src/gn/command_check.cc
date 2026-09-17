@@ -310,7 +310,8 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
       SuggestResult exit_code = OutputSuggestions(
           all_targets, build_settings,
           violation.source_target->label().GetToolchainLabel(),
-          violation.source_file.value(), violation.included_file.value(),
+          violation.source_file.value(), violation.source_target,
+          violation.included_file.value(),
           [&](std::string_view str, TextDecoration dec, HtmlEscaping esc) {
             buf.emplace_back(str, dec, esc);
           },

@@ -415,8 +415,9 @@ TEST_F(SuggestTest, OutputSuggestions) {
       output.append(s);
     };
     commands::TargetResolutionCache cache;
-    commands::OutputSuggestions(all_targets, setup_scope.build_settings(),
-                                default_toolchain, from, want, collect, cache);
+    commands::OutputSuggestions(
+        all_targets, setup_scope.build_settings(), default_toolchain, from,
+        /*includer_target=*/nullptr, want, collect, cache);
     return output;
   };
 
@@ -634,8 +635,9 @@ source_set("included") {
   commands::TargetResolutionCache cache;
   commands::SuggestResult result = commands::OutputSuggestions(
       project.targets(), &project.setup.build_settings(),
-      project.default_toolchain(), "//includer.cc", "//included.h", collect,
-      cache, /*must_be_file=*/false, /*apply=*/true, &project.setup);
+      project.default_toolchain(), "//includer.cc",
+      /*includer_target=*/nullptr, "//included.h", collect, cache,
+      /*must_be_file=*/false, /*apply=*/true, &project.setup);
 
   EXPECT_EQ(commands::SuggestResult::kSuccess, result);
   EXPECT_EQ(
@@ -659,9 +661,9 @@ source_set("included") {
   commands::TargetResolutionCache same_target_cache;
   commands::SuggestResult same_target_result = commands::OutputSuggestions(
       project.targets(), &project.setup.build_settings(),
-      project.default_toolchain(), "//included.h", "//private.h", collect,
-      same_target_cache, /*must_be_file=*/false, /*apply=*/true,
-      &project.setup);
+      project.default_toolchain(), "//included.h",
+      /*includer_target=*/nullptr, "//private.h", collect, same_target_cache,
+      /*must_be_file=*/false, /*apply=*/true, &project.setup);
 
   EXPECT_EQ(commands::SuggestResult::kUnapplied, same_target_result);
   EXPECT_EQ(

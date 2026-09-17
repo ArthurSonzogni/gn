@@ -398,6 +398,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
                                 const BuildSettings* build_settings,
                                 const Label& default_toolchain,
                                 std::string_view includer_name,
+                                const Target* includer_target,
                                 std::string_view included_name,
                                 OutputStringFunc output_fn,
                                 TargetResolutionCache& cache,
@@ -432,7 +433,9 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     OutputString("\"", kLabelLike);
   };
 
-  Label current_toolchain = default_toolchain;
+  Label current_toolchain = includer_target
+                                ? includer_target->label().GetToolchainLabel()
+                                : default_toolchain;
 
   auto OutputDefinition = [&](const Target* target) {
     OutputString(":", kLabelLike);
@@ -567,10 +570,15 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
     return std::make_pair(targets, ok);
   };
 
-  const auto& [includer_targets, includer_ok] =
-      ResolveSuggestion(includer_name);
+  auto [includer_targets, includer_ok] = ResolveSuggestion(includer_name);
   if (!includer_ok)
     return SuggestResult::kFailure;
+
+  if (includer_target) {
+    std::erase_if(includer_targets, [&](const auto& pair) {
+      return pair.first != includer_target;
+    });
+  }
 
   if (includer_targets.empty()) {
     StartError();
@@ -1064,7 +1072,8 @@ int RunSuggest(const std::vector<std::string>& args) {
 
     SuggestResult res = OutputSuggestions(
         all_targets, &setup->build_settings(),
-        setup->loader()->default_toolchain_label(), includer, included,
+        setup->loader()->default_toolchain_label(), includer,
+        /*includer_target=*/nullptr, included,
         [&](std::string_view str, TextDecoration dec, HtmlEscaping esc) {
           has_suggestions = true;
           ::OutputString(str, dec, esc);
