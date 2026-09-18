@@ -122,7 +122,8 @@ const char kEdit_Help[] =
 
 Result<std::pair<std::vector<SourceFile>, EditState>> RunEditImpl(
     const std::vector<std::string>& args,
-    Setup& setup) {
+    Setup& setup,
+    std::vector<BuildFile>& build_files) {
   if (args.size() < 2) {
     return Err(Location(), "Insufficient arguments.",
                "Usage: gn edit <command> <labels...>\n"
@@ -172,7 +173,7 @@ Result<std::pair<std::vector<SourceFile>, EditState>> RunEditImpl(
     patterns.push_back(std::move(pattern));
   }
 
-  ASSIGN_OR_RETURN(std::vector<BuildFile> build_files,
+  ASSIGN_OR_RETURN(build_files,
                    ::ResolvePatternsToBuildFiles(&setup.build_settings(),
                                                  setup.loader(), patterns));
 
@@ -198,7 +199,8 @@ int RunEdit(const std::vector<std::string>& args) {
   if (!setup.DoSetupForEditing()) {
     return 1;
   }
-  auto result = RunEditImpl(args, setup);
+  std::vector<BuildFile> build_files;
+  auto result = RunEditImpl(args, setup, build_files);
   if (result.has_error()) {
     result.error().PrintToStdout();
     return 1;

@@ -12,13 +12,17 @@
 #include "gn/err.h"
 #include "gn/source_file.h"
 
+class BuildFile;
 class Setup;
 namespace commands {
 
 // Runs an edit command, and returns a list of files that were modified.
+//
+// `build_files` is filled with the build files the edit ran against.
 Result<std::pair<std::vector<SourceFile>, EditState>> RunEditImpl(
     const std::vector<std::string>& args,
-    Setup& setup);
+    Setup& setup,
+    std::vector<BuildFile>& build_files);
 
 }  // namespace commands
 

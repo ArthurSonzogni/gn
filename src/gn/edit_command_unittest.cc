@@ -24,8 +24,11 @@ struct Edited;
 std::string Pretty(const Edited& edited);
 
 struct Edited {
-  Edited(std::string_view contents, EditState edit_state = EditState())
+  Edited(std::string_view contents,
+         EditState edit_state = EditState(),
+         std::vector<BuildFile> build_files = {})
       : contents_(contents.starts_with('\n') ? contents.substr(1) : contents),
+        build_files_(std::move(build_files)),
         edit_state_(std::move(edit_state)) {}
 
   bool operator==(const Edited& other) const {
@@ -33,6 +36,8 @@ struct Edited {
   }
 
   std::string contents_;
+  // Owns the input files `edit_state_`'s warnings point at.
+  std::vector<BuildFile> build_files_;
   EditState edit_state_;
 };
 
@@ -81,7 +86,8 @@ Result<Edited> DoEdit(std::string command,
     args.push_back(std::move(p));
   }
 
-  auto result = RunEditImpl(args, setup);
+  std::vector<BuildFile> build_files;
+  auto result = RunEditImpl(args, setup, build_files);
   if (result.has_error()) {
     return result.error();
   }
@@ -90,7 +96,7 @@ Result<Edited> DoEdit(std::string command,
   if (!base::ReadFileToString(build_gn_path, &after)) {
     return Err(Location(), "Failed to read BUILD.gn");
   }
-  return Edited(after, std::move(result->second));
+  return Edited(after, std::move(result->second), std::move(build_files));
 }
 
 // Runs an edit command matching all targets in the root BUILD.gn ("//:*").
@@ -503,6 +509,21 @@ executable("foo") {
                        {Err(Location(),
                             "Target \"//:foo\" does not contain the "
                             "attribute \"nonexistent_attribute\".")}}));
+}
+
+TEST_F(EditCommandTest, WarningLocationOutlivesTheEdit) {
+  // A warning points at the build file it came from, so the parsed file has to
+  // outlive the edit that produced the warning.
+  auto edited = DoEdit("remove nonexistent_attribute", {"//:foo"},
+                       R"(
+executable("foo") {
+}
+)");
+  ASSERT_TRUE(edited.has_value());
+  ASSERT_EQ(edited->edit_state_.warnings.size(), 1u);
+  // The build file above starts with a newline, so the target is on line 2.
+  EXPECT_EQ(edited->edit_state_.warnings[0].location().Describe(true),
+            "//BUILD.gn:2:1");
 }
 
 TEST_F(EditCommandTest, RemoveFromAttributeSubcommand) {

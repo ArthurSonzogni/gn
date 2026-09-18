@@ -519,7 +519,8 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
         }
       }
       if (res != ApplyResult::kAmbiguous) {
-        auto edit_result = RunEditImpl(edit.Args(), *setup);
+        std::vector<BuildFile> build_files;
+        auto edit_result = RunEditImpl(edit.Args(), *setup, build_files);
         if (!edit_result.has_value() ||
             !edit_result.value().second.warnings.empty()) {
           // Warnings should be treated as errors.
