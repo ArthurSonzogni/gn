@@ -70,6 +70,18 @@ modifying Rust code in this repository:
   `pub(crate)` by default to maintain clean boundaries. Only use `pub` for APIs
   that are intended to be consumed by other crates.
 
+## Building and testing
+
+* *NEVER* use cargo to build and test rust changes
+  * `cargo` commands are run for you as a part of `ninja`.
+* To build, use `ninja -C out gn/gn_unittests/rust_unittests` respectively,
+  depending on what you want to build.
+* To test a single test, run
+  `ninja -C out gn_unittests && out/gn_unittests --gtest_filter=prefix*`.
+* To run all unit tests, run `ninja -C out run_gn_unittests run_rust_unittests`
+* To perform tests that would be run on CQ, run `ninja -C out`
+  * Note: This also runs linter and formatter tests
+
 # C++ Style guidelines and best practices
 
 * Never use `#pragma once` - use header guards instead.
