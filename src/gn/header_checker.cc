@@ -5,11 +5,10 @@
 #include "gn/header_checker.h"
 
 #include <algorithm>
-#include <condition_variable>
+#include <latch>
 #include <mutex>
 #include <span>
 
-#include "base/atomic_ref_count.h"
 #include "base/containers/queue.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_util.h"
@@ -175,38 +174,22 @@ void DoWorkChunked(WorkerPool& pool,
                    const std::vector<T>& items,
                    size_t chunk_size,
                    const Work& work) {
-  base::AtomicRefCount task_count;
-  std::mutex task_count_lock;
-  std::condition_variable task_count_cv;
-  auto finish_task = [&]() {
-    // Hold the lock across the decrement so the waiter cannot return and
-    // destroy the completion state before the notification is done.
-    std::unique_lock<std::mutex> lock(task_count_lock);
-    if (!task_count.Decrement()) {
-      // Signal |task_count_cv| when |task_count| becomes zero.
-      task_count_cv.notify_one();
-    }
-  };
+  if (items.empty())
+    return;
 
-  // Hold one extra reference while posting so the count can't reach zero
-  // before all chunks are posted.
-  task_count.Increment();
   std::span<const T> all(items);
+
+  size_t num_chunks = (all.size() + chunk_size - 1) / chunk_size;
+  std::latch chunks_done(num_chunks);
   for (size_t begin = 0; begin < all.size(); begin += chunk_size) {
     std::span<const T> chunk =
         all.subspan(begin, std::min(chunk_size, all.size() - begin));
-    task_count.Increment();
-    pool.PostTask([&work, &finish_task, chunk]() {
+    pool.PostTask([&work, &chunks_done, chunk]() {
       work(chunk);
-      finish_task();
+      chunks_done.count_down();
     });
   }
-  finish_task();
-
-  // Wait for all tasks posted by this function to complete.
-  std::unique_lock<std::mutex> lock(task_count_lock);
-  while (!task_count.IsZero())
-    task_count_cv.wait(lock);
+  chunks_done.wait();
 }
 
 }  // namespace
