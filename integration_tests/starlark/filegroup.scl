@@ -2,13 +2,19 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FilegroupInfo = provider(fields = ["files"])
+FilegroupInfo = provider(fields = ["files", "manifest"])
 
 def _filegroup_impl(ctx):
   files = depset(ctx.files.srcs)
+  manifest = ctx.actions.declare_file(ctx.label.name + ".manifest")
+  ctx.actions.write(
+    manifest,
+    "manifest for " + str(ctx.label) + "\n" +
+    "\n".join(sorted([f.path for f in ctx.files.srcs]))
+  )
   return [
     DefaultInfo(files = files),
-    FilegroupInfo(files = files),
+    FilegroupInfo(files = files, manifest = manifest),
   ]
 
 filegroup = rule(

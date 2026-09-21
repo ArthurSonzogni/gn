@@ -4,6 +4,8 @@
 
 use std::path::PathBuf;
 
+use normalize_path::NormalizePath as _;
+
 use crate::{File, PackageRef};
 
 /// Resolves paths to Files relative to the root_build_dir.
@@ -24,8 +26,8 @@ impl PathResolver {
     pub fn new(source_root: PathBuf, build_root: PathBuf, source_root_rel: String) -> Self {
         assert!(source_root_rel.ends_with('/'));
         Self {
-            source_root,
-            build_root,
+            source_root: source_root.normalize(),
+            build_root: build_root.normalize(),
             source_root_rel,
         }
     }
@@ -42,10 +44,7 @@ impl PathResolver {
     /// directory.
     pub fn resolve(&self, file: &File) -> PathBuf {
         let joined = self.build_root.join(file.as_path());
-        debug_assert!(joined
-            .canonicalize()
-            .unwrap()
-            .starts_with(self.build_root.clone()));
+        debug_assert!(joined.normalize().starts_with(&self.build_root));
         joined
     }
 

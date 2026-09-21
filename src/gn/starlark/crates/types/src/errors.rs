@@ -24,6 +24,21 @@ pub(crate) enum Error {
     FileNotFound(Package, String),
     #[error("Invalid package, must start with \"//\": \"{0}\"")]
     NotAPackage(String),
+    /// The output file was not declared by this target.
+    #[error("Output file '{0}' was not declared by this target")]
+    OutputNotDeclaredByTarget(crate::File),
+    /// The output file has already been generated.
+    #[error("Output file '{0}' has already been generated")]
+    OutputAlreadyGenerated(crate::File),
+    /// Declared file name is unsupported.
+    #[error("Invalid ctx.actions.declare_file filename: {0:?}")]
+    UnsupportedFilename(String),
+    /// The output file was already declared.
+    #[error("Output file '{0}' was already declared")]
+    DuplicateDeclaredOutput(crate::File),
+    /// Declared output file was never generated.
+    #[error("Declared output file '{0}' was never generated")]
+    DeclaredOutputNeverGenerated(crate::File),
 }
 
 impl From<Error> for starlark::Error {

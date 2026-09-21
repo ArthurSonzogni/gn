@@ -1,0 +1,84 @@
+# Copyright 2026 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+ActionInfo = provider(fields = ["out_file"])
+
+def _write_impl(ctx):
+  declared = ctx.actions.declare_file("declared.txt")
+  ctx.actions.write(output = declared, content = str(ctx.label))
+  undeclared = ctx.actions.declare_file("undeclared.txt")
+  ctx.actions.write(output = undeclared, content = "undeclared")
+  return [
+    DefaultInfo(files = depset([declared])),
+    ActionInfo(out_file = undeclared),
+  ]
+
+write = rule(
+  implementation = _write_impl,
+)
+
+def _label_impl(ctx):
+  out = ctx.actions.declare_file(ctx.label.name + ".txt")
+  ctx.actions.write(
+    output = out,
+    content = "label",
+  )
+  return [ActionInfo(out_file = out)]
+
+label = rule(
+  implementation = _label_impl,
+)
+
+def _generated_file_impl(ctx):
+  files = []
+  for k, v in ctx.attr.files.items():
+    f = ctx.actions.declare_file(k)
+    files.append(f)
+    if v:
+      ctx.actions.write(output = f, content = v)
+  return [DefaultInfo(files = depset(files))]
+
+generated_file = rule(
+  implementation = _generated_file_impl,
+  attrs = {"files": attr.string_dict()},
+)
+
+def _duplicate_declare_file_impl(ctx):
+  ctx.actions.declare_file("dup.txt")
+  ctx.actions.declare_file("dup.txt")
+  return []
+
+duplicate_declare_file = rule(
+  implementation = _duplicate_declare_file_impl,
+)
+
+def _already_generated_impl(ctx):
+  out = ctx.actions.declare_file("gen.txt")
+  ctx.actions.write(
+    output = out,
+    content = "first",
+  )
+  ctx.actions.write(
+    output = out,
+    content = "second",
+  )
+  return []
+
+already_generated = rule(
+  implementation = _already_generated_impl,
+)
+
+def _undeclared_output_impl(ctx):
+  ctx.actions.write(
+    output = ctx.files.src[0],
+    content = "fail",
+  )
+  return []
+
+undeclared_output = rule(
+  implementation = _undeclared_output_impl,
+  attrs = {
+    "src": attr.label(allow_files = True),
+  },
+)

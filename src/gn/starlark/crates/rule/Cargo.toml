@@ -8,6 +8,7 @@ doctest = false
 
 [dependencies]
 allocative = { workspace = true }
+args = { path = "../args" }
 attr = { path = "../attr" }
 depset = { path = "../depset" }
 providers = { path = "../providers" }
@@ -18,4 +19,6 @@ thiserror = { workspace = true }
 types = { path = "../types" }
 
 [dev-dependencies]
+anyhow = { workspace = true }
+tempfile = { workspace = true }
 testutils = { path = "../testutils" }
