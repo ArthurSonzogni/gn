@@ -55,23 +55,28 @@ impl PathResolver {
     }
 
     /// Creates a `File` object for a file path relative to a package.
-    /// Validates that the file exists on disk.
-    pub fn source_file(&self, pkg: &PackageRef, s: &str) -> starlark::Result<File> {
-        // Gn *does not* check that the files you refer to exist on disk.
-        // This is because native GN allows referencing generated files that do
-        // not yet exist at `gn gen` time.
-        // We explicitly disallow referencing generated files in starlark, so
-        // we should validate that the files exist on disk for correctness.
-        let abs_path = self.absolute_path(pkg, s);
-        if !abs_path.exists() {
-            return Err(crate::Error::FileNotFound(pkg.to_owned(), s.to_owned()).into());
-        }
+    pub fn source_file(&self, pkg: &PackageRef, s: &str) -> File {
         let pkg_dir = pkg.as_source_relative();
         let rel_path = if pkg.is_root() {
             format!("{}{s}", self.source_root_rel)
         } else {
             format!("{}{pkg_dir}/{s}", self.source_root_rel)
         };
-        Ok(File::intern(&rel_path))
+        File::intern(&rel_path)
+    }
+
+    /// Creates a `File` object for a file path relative to a package.
+    /// Validates that the file exists on disk.
+    pub fn existing_source_file(&self, pkg: &PackageRef, s: &str) -> starlark::Result<File> {
+        // Gn *does not* check that the files you refer to exist on disk.
+        // This is because native GN allows referencing generated files that do
+        // not yet exist at `gn gen` time.
+        // We explicitly disallow referencing generated files in starlark, so
+        // we should validate that the files exist on disk for correctness.
+        if self.absolute_path(pkg, s).exists() {
+            Ok(self.source_file(pkg, s))
+        } else {
+            Err(crate::Error::FileNotFound(pkg.to_owned(), s.to_owned()).into())
+        }
     }
 }

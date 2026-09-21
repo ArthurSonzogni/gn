@@ -13,16 +13,20 @@
 #include "base/files/file_path.h"
 #include "base/json/json_writer.h"
 #include "base/json/string_escape.h"
+#include "gn/build_settings.h"
 #include "gn/builder.h"
 #include "gn/commands.h"
 #include "gn/deps_iterator.h"
 #include "gn/desc_builder.h"
+#include "gn/ffi/bridge.h"
+#include "gn/ffi/session.h"
 #include "gn/filesystem_utils.h"
 #include "gn/invoke_python.h"
 #include "gn/resolved_target_data.h"
 #include "gn/scheduler.h"
 #include "gn/settings.h"
 #include "gn/string_output_buffer.h"
+#include "gn/value.h"
 #include "util/worker_pool.h"
 
 // Structure of JSON output file
@@ -358,27 +362,42 @@ StringOutputBuffer JSONProjectWriter::GenerateJSON(
 
     // Other files read by the build.
     std::vector<base::FilePath> other_files = g_scheduler->GetGenDependencies();
+    g_scheduler->input_file_manager()->AddAllPhysicalInputFiles(other_files);
 
-    const InputFileManager* input_file_manager =
-        g_scheduler->input_file_manager();
-
-    VectorSetSorter<base::FilePath> sorter(
-        input_file_manager->GetInputFileCount() + other_files.size());
-
-    input_file_manager->AddAllPhysicalInputFileNamesToVectorSetSorter(&sorter);
-
-    sorter.Add(other_files.begin(), other_files.end());
-
-    std::string build_path = FilePathToUTF8(build_settings->root_path());
-    auto item_callback = [&json_writer,
-                          &build_path](const base::FilePath& input_file) {
+    std::vector<SourceFile> files;
+    const std::string root_path = FilePathToUTF8(build_settings->root_path());
+    for (const auto& other_file : other_files) {
       std::string file;
       if (MakeAbsolutePathRelativeIfPossible(
-              build_path, FilePathToUTF8(input_file), &file)) {
-        json_writer.AddListItem(file);
+              root_path, FilePathToUTF8(other_file), &file)) {
+        files.emplace_back(std::move(file));
       }
-    };
-    sorter.IterateOver(item_callback);
+    }
+
+    if (build_settings->has_starlark_session()) {
+      std::vector<base::FilePath> loaded_files;
+      add_all_loaded_files(build_settings->starlark_session(), loaded_files);
+      for (const auto& loaded_file : loaded_files) {
+        Err err;
+        SourceFile source_file =
+            build_settings->build_dir().ResolveRelativeFile(
+                Value(nullptr, FilePathToUTF8(loaded_file)), &err,
+                build_settings->root_path_utf8());
+        // Starlark intentionally doesn't support loading files outside of the
+        // source root.
+        DCHECK(!err.has_error());
+        DCHECK(source_file.is_source_absolute());
+        files.push_back(std::move(source_file));
+      }
+    }
+
+    std::ranges::sort(files);
+    auto [first, last] = std::ranges::unique(files);
+    files.erase(first, last);
+
+    for (const auto& file : files) {
+      json_writer.AddListItem(file.value());
+    }
 
     json_writer.EndList();  // gen_input_files
 

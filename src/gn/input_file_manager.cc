@@ -264,13 +264,17 @@ int InputFileManager::GetInputFileCount() const {
   return static_cast<int>(input_files_.size());
 }
 
-void InputFileManager::AddAllPhysicalInputFileNamesToVectorSetSorter(
-    VectorSetSorter<base::FilePath>* sorter) const {
+void InputFileManager::AddAllPhysicalInputFiles(
+    std::vector<base::FilePath>& files) const {
   std::lock_guard<std::mutex> lock(lock_);
 
+  files.reserve(files.size() + input_files_.size());
+
   for (const auto& file : input_files_) {
-    if (!file.second->file.physical_name().empty())
-      sorter->Add(file.second->file.physical_name());
+    const base::FilePath& physical = file.second->file.physical_name();
+    if (!physical.empty()) {
+      files.push_back(physical);
+    }
   }
 }
 

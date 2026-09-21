@@ -54,10 +54,11 @@ fn build_globals() -> Globals {
 impl Session {
     /// Creates a new `Session`.
     pub fn from_resolver(path_resolver: PathResolver) -> Self {
-        let loader = FileLoader::default();
-        loader.preload(rule::register_builtin_rules::<
-            crate::eval_context::EvalContext,
-        >());
+        let mut loader = FileLoader::default();
+        loader.preload(
+            Label::parse("//builtins:rules.scl", PackageRef::root()).unwrap(),
+            rule::register_builtin_rules::<crate::eval_context::EvalContext>(),
+        );
         Self {
             loader,
             path_resolver,
@@ -78,6 +79,18 @@ impl Session {
     /// Associated function for C++ constructor.
     pub fn new_for_testing() -> Box<Self> {
         Box::new(Self::from_resolver(PathResolver::new_for_testing()))
+    }
+
+    pub fn loaded(&self) -> Vec<&'static str> {
+        self.loader
+            .loaded()
+            .into_iter()
+            .map(|label| {
+                self.path_resolver
+                    .source_file(label.package(), label.name())
+                    .as_str()
+            })
+            .collect()
     }
 
     pub(crate) fn register_target(&self, target: Target) -> crate::TargetRef {

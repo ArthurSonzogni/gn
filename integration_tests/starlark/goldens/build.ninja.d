@@ -1,1 +1,1 @@
-build.ninja.stamp: ../.gn ../BUILD.gn ../build/BUILDCONFIG.gn ../build/toolchain/BUILD.gn ./args.gn
+build.ninja.stamp: ../.gn ../BUILD.gn ../build/BUILDCONFIG.gn ../build/toolchain/BUILD.gn ../filegroup.scl ./args.gn

@@ -385,7 +385,7 @@ mod tests {
             assert_eq!(
                 Attr::create(&schema, Some(heap.alloc("file.cc")), pkg, &path_resolver,).unwrap(),
                 Attr::Label(Some(LabelOrFile::File(
-                    path_resolver.source_file(pkg, "file.cc").unwrap()
+                    path_resolver.existing_source_file(pkg, "file.cc").unwrap()
                 )))
             );
 

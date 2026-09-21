@@ -19,6 +19,8 @@
 #include "gn/builder.h"
 #include "gn/err.h"
 #include "gn/escape.h"
+#include "gn/ffi/bridge.h"
+#include "gn/ffi/session.h"
 #include "gn/filesystem_utils.h"
 #include "gn/input_file_manager.h"
 #include "gn/loader.h"
@@ -352,33 +354,31 @@ void NinjaBuildWriter::WriteNinjaRules() {
   dep_out_ << "build.ninja.stamp:";
 
   // Other files read by the build.
-  std::vector<base::FilePath> other_files = g_scheduler->GetGenDependencies();
-
-  const InputFileManager* input_file_manager =
-      g_scheduler->input_file_manager();
-
-  VectorSetSorter<base::FilePath> sorter(
-      input_file_manager->GetInputFileCount() + other_files.size());
-
-  input_file_manager->AddAllPhysicalInputFileNamesToVectorSetSorter(&sorter);
-  sorter.Add(other_files.begin(), other_files.end());
+  std::vector<base::FilePath> files = g_scheduler->GetGenDependencies();
+  g_scheduler->input_file_manager()->AddAllPhysicalInputFiles(files);
 
   const base::FilePath build_path =
       build_settings_->build_dir().Resolve(build_settings_->root_path());
 
+  for (auto& file : files) {
+    file = MakeAbsoluteFilePathRelativeIfPossible(build_path, file)
+               .NormalizePathSeparatorsTo('/');
+  }
+
+  if (build_settings_->has_starlark_session()) {
+    add_all_loaded_files(build_settings_->starlark_session(), files);
+  }
+
+  std::sort(files.begin(), files.end());
+  files.erase(std::unique(files.begin(), files.end()), files.end());
+
   EscapeOptions depfile_escape;
   depfile_escape.mode = ESCAPE_DEPFILE;
-  auto item_callback = [this, &depfile_escape,
-                        &build_path](const base::FilePath& input_file) {
-    const base::FilePath file =
-        MakeAbsoluteFilePathRelativeIfPossible(build_path, input_file);
+  for (const auto& file : files) {
     dep_out_ << " ";
-    EscapeStringToStream(dep_out_,
-                         FilePathToUTF8(file.NormalizePathSeparatorsTo('/')),
-                         depfile_escape);
-  };
-
-  sorter.IterateOver(item_callback);
+    EscapeStringToStream(dep_out_, FilePathToUTF8(file), depfile_escape);
+  }
+  dep_out_ << "\n";
 
   out_ << std::endl;
 }

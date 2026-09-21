@@ -9,6 +9,7 @@
 #include "gn/build_settings.h"
 #include "gn/err.h"
 #include "gn/ffi/bridge.h"
+#include "gn/filesystem_utils.h"
 #include "gn/functions.h"
 #include "gn/parse_tree.h"
 #include "gn/scope.h"
@@ -75,4 +76,13 @@ bool session_load(const Session& session,
       *dest_scope.settings(), parse_node, err);
 
   return !err.has_error();
+}
+
+void add_all_loaded_files(const Session& session,
+                          std::vector<base::FilePath>& files) {
+  const auto& loaded = session.loaded();
+  files.reserve(files.size() + loaded.size());
+  for (const auto& file : loaded) {
+    files.push_back(UTF8ToFilePath(std::string_view(file)));
+  }
 }

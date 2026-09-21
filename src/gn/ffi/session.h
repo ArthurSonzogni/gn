@@ -6,6 +6,9 @@
 #define TOOLS_GN_FFI_SESSION_H_
 
 #include <span>
+#include <vector>
+
+#include "base/files/file_path.h"
 
 class Err;
 class ParseNode;
@@ -34,5 +37,11 @@ bool session_load(const Session& session,
                   Scope& dest_scope,
                   ParseNodePtr parse_node,
                   Err& err);
+
+// Collects all files loaded by the session and adds them to files.
+// Note that this specifically refers to *starlark* files.
+// Returned file paths will be relaltive and normalized to '/' separators.
+void add_all_loaded_files(const Session& session,
+                          std::vector<base::FilePath>& files);
 
 #endif  // TOOLS_GN_FFI_SESSION_H_

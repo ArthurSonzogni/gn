@@ -91,7 +91,7 @@ pub(crate) fn parse_label_like(
         } else {
             // It's a file.
             allow_files.validate(s)?;
-            LabelOrFile::File(path_resolver.source_file(relative_to, s)?)
+            LabelOrFile::File(path_resolver.existing_source_file(relative_to, s)?)
         },
     )
 }

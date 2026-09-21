@@ -294,7 +294,7 @@ TEST_F(NinjaBuildWriterTest, SpaceInDepfile) {
   ASSERT_TRUE(writer.Run(&err));
 
   EXPECT_EQ(depfile_out.str(),
-            "build.ninja.stamp: ../../path\\ with\\ space/BUILD.gn");
+            "build.ninja.stamp: ../../path\\ with\\ space/BUILD.gn\n");
 }
 
 TEST_F(NinjaBuildWriterTest, DuplicateOutputs) {

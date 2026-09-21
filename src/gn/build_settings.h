@@ -157,6 +157,7 @@ class BuildSettings {
   }
 
   const Session& starlark_session() const;
+  bool has_starlark_session() const { return starlark_session_.has_value(); }
 
   // A list of target label patterns that can use allow_circular_includes_from.
   // If the returned pointer is null, allow_circular_includes_from may be used
