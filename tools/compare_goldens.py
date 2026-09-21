@@ -22,12 +22,16 @@ STRIP_REGEN_COMMAND = re.compile(
     r'^(rule gn|build build.ninja.stamp.*)\n(?:[ \t]+.+\n)*', flags=re.MULTILINE
 )
 
+IGNORED_FILES = [
+  'args.gn',
+  '.gitignore'
+]
 
 def get_ninja_files(directory: Path) -> set[Path]:
   ninja_files = set()
   for root, _, files in os.walk(directory):
     for f in files:
-      if f.endswith('.ninja'):
+      if f not in IGNORED_FILES:
         rel = os.path.relpath(os.path.join(root, f), directory)
         ninja_files.add(Path(rel))
   return ninja_files
@@ -100,6 +104,7 @@ def main():
         return_code = 1
     elif f not in want_files:
       if args.update:
+        os.makedirs(want.parent, exist_ok=True)
         shutil.copy2(got, want)
       else:
         print(f'Error: Unexpected generated file: {f}', file=sys.stderr)
