@@ -1,0 +1,19 @@
+ninja_required_version = 1.7.2
+
+
+# The 'gn' rule also writes build.ninja, unbeknownst to ninja. The
+# build.ninja edge is separate to prevent ninja from deleting it
+# (due to depfile usage) if interrupted. gn uses atomic writes to
+# ensure that build.ninja is always valid even if interrupted.
+
+build build.ninja: phony build.ninja.stamp
+  generator = 1
+
+subninja toolchain.ninja
+
+build dummy: phony 
+build $:dummy: phony 
+
+build all: phony
+
+default all

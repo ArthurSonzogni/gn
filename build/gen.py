@@ -475,7 +475,10 @@ def WriteGenericNinja(path, static_libraries, executables,
               args='--quiet',
           ),
           ninja.Phony(
-              'run_integration_tests', inputs=[ninja.IntegrationTest('simple')]
+              'run_integration_tests',
+              inputs=[ninja.IntegrationTest('simple')]
+              + ([ninja.IntegrationTest('starlark')]
+                 if options.starlark else []),
           ),
       ] + ([
           ninja.RunBinary(
