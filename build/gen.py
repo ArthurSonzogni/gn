@@ -236,9 +236,13 @@ def main(argv):
   out_dir = options.out_path
   if not os.path.isdir(out_dir):
     os.makedirs(out_dir)
-  if not options.no_last_commit_position:
-    GenerateLastCommitPosition(host,
-                               os.path.join(out_dir, 'last_commit_position.h'))
+  GenerateLastCommitPosition(
+    host,
+    os.path.join(out_dir, 'last_commit_position.h'),
+    # Don't generate last commit position for debug builds to ensure that `jj/git squash`
+    # does not invalidate the cache.
+    options.no_last_commit_position or options.debug,
+  )
   WriteGNNinja(os.path.join(out_dir, 'build.ninja'), platform, host, options, args_list)
   return 0
 
@@ -254,9 +258,9 @@ def is_gcc(cxx):
 
   return ret.returncode == 0 and "#define __GNUC__" in ret.stdout and not "#define __clang__" in ret.stdout
 
-def GenerateLastCommitPosition(host, header):
+def GenerateLastCommitPosition(host, header, generate_dummy):
   ROOT_TAG = 'initial-commit'
-  if os.path.isdir(os.path.join(REPO_ROOT, '.git')):
+  if not generate_dummy and os.path.isdir(os.path.join(REPO_ROOT, '.git')):
     describe_output = subprocess.check_output(
         ['git', 'describe', 'HEAD', '--abbrev=12', '--match', ROOT_TAG],
         shell=host.is_windows(), cwd=REPO_ROOT)
