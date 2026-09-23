@@ -908,7 +908,7 @@ private:
 #ifndef CXXBRIDGE1_STRUCT_Session
 #define CXXBRIDGE1_STRUCT_Session
 struct Session final : public ::rust::Opaque {
-  static ::rust::Box<::Session> new_cxx(::rust::Str source_root, ::rust::Str source_root_rel) noexcept;
+  static ::rust::Box<::Session> new_cxx(::rust::Str source_root, ::rust::Str build_root, ::rust::Str source_root_rel) noexcept;
   static ::rust::Box<::Session> new_for_testing() noexcept;
   ::RustTarget const &register_cxx_target(::Target const &target) const noexcept;
   void load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept;
@@ -1216,7 +1216,7 @@ void cxxbridge1$196$Value$starlark_value(::Value const &self, ::OwnedFrozenValue
 ::std::size_t cxxbridge1$196$Session$operator$sizeof() noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$alignof() noexcept;
 
-::Session *cxxbridge1$196$Session$new(::rust::Str source_root, ::rust::Str source_root_rel) noexcept;
+::Session *cxxbridge1$196$Session$new(::rust::Str source_root, ::rust::Str build_root, ::rust::Str source_root_rel) noexcept;
 
 ::Session *cxxbridge1$196$Session$new_for_testing() noexcept;
 
@@ -1251,8 +1251,8 @@ void cxxbridge1$196$OwnedFrozenValue$invoke(::OwnedFrozenValue const &self, ::Se
   return cxxbridge1$196$Session$operator$alignof();
 }
 
-::rust::Box<::Session> Session::new_cxx(::rust::Str source_root, ::rust::Str source_root_rel) noexcept {
-  return ::rust::Box<::Session>::from_raw(cxxbridge1$196$Session$new(source_root, source_root_rel));
+::rust::Box<::Session> Session::new_cxx(::rust::Str source_root, ::rust::Str build_root, ::rust::Str source_root_rel) noexcept {
+  return ::rust::Box<::Session>::from_raw(cxxbridge1$196$Session$new(source_root, build_root, source_root_rel));
 }
 
 ::rust::Box<::Session> Session::new_for_testing() noexcept {

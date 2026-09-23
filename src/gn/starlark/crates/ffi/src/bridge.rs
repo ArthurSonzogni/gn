@@ -325,7 +325,7 @@ mod dummy {
 
         #[Self = "Session"]
         #[cxx_name = "new_cxx"]
-        fn new(source_root: &str, source_root_rel: &str) -> Box<Session>;
+        fn new(source_root: &str, build_root: &str, source_root_rel: &str) -> Box<Session>;
 
         #[Self = "Session"]
         fn new_for_testing() -> Box<Session>;

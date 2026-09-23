@@ -67,9 +67,10 @@ impl Session {
     }
 
     /// Associated function for C++ constructor.
-    pub fn new(source_root: &str, source_root_rel: &str) -> Box<Self> {
+    pub fn new(source_root: &str, build_root: &str, source_root_rel: &str) -> Box<Self> {
         Box::new(Self::from_resolver(PathResolver::new(
             std::path::PathBuf::from(source_root),
+            std::path::PathBuf::from(build_root),
             source_root_rel.to_owned(),
         )))
     }

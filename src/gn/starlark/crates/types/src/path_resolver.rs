@@ -11,6 +11,8 @@ use crate::{File, PackageRef};
 pub struct PathResolver {
     /// Absolute path to the root source dir on disk.
     source_root: PathBuf,
+    /// Absolute path to the root build dir on disk.
+    build_root: PathBuf,
     /// Path to the root source dir relative to the root_build_dir.
     /// *Must* end with a trailing slash.
     source_root_rel: String,
@@ -19,10 +21,11 @@ pub struct PathResolver {
 impl PathResolver {
     /// Creates a new `PathResolver` with the given absolute and relative root
     /// paths.
-    pub fn new(source_root: PathBuf, source_root_rel: String) -> Self {
+    pub fn new(source_root: PathBuf, build_root: PathBuf, source_root_rel: String) -> Self {
         assert!(source_root_rel.ends_with('/'));
         Self {
             source_root,
+            build_root,
             source_root_rel,
         }
     }
@@ -30,10 +33,20 @@ impl PathResolver {
     /// Creates a new PathResolver preconfigured for the starlark testdata
     /// directory.
     pub fn new_for_testing() -> Self {
-        Self::new(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../src/testdata"),
-            "../../".to_string(),
-        )
+        let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../src/testdata");
+        Self::new(src.clone(), src.join("out/Default"), "../../".to_string())
+    }
+
+    /// Resolves an output file to its absolute on-disk path.
+    /// The caller is responsible for ensuring that file is in the output
+    /// directory.
+    pub fn resolve(&self, file: &File) -> PathBuf {
+        let joined = self.build_root.join(file.as_path());
+        debug_assert!(joined
+            .canonicalize()
+            .unwrap()
+            .starts_with(self.build_root.clone()));
+        joined
     }
 
     /// Calculates where the file should exist on disk.

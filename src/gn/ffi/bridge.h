@@ -834,7 +834,7 @@ private:
 #ifndef CXXBRIDGE1_STRUCT_Session
 #define CXXBRIDGE1_STRUCT_Session
 struct Session final : public ::rust::Opaque {
-  static ::rust::Box<::Session> new_cxx(::rust::Str source_root, ::rust::Str source_root_rel) noexcept;
+  static ::rust::Box<::Session> new_cxx(::rust::Str source_root, ::rust::Str build_root, ::rust::Str source_root_rel) noexcept;
   static ::rust::Box<::Session> new_for_testing() noexcept;
   ::RustTarget const &register_cxx_target(::Target const &target) const noexcept;
   void load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept;

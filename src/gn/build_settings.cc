@@ -43,6 +43,7 @@ BuildSettings::BuildSettings(const BuildSettings& other)
   if (other.starlark_session_.has_value()) {
     starlark_session_ = Session::new_cxx(
         other.root_path_utf8_,
+        FilePathToUTF8(other.GetFullPath(other.build_dir_)),
         ComputeSourceRootRel(other.build_dir_, other.root_path_utf8_));
   }
 }
@@ -61,7 +62,8 @@ void BuildSettings::SetRootPath(const base::FilePath& r) {
   root_path_utf8_ = FilePathToUTF8(root_path_);
   if (!root_path_.empty() && !build_dir_.is_null()) {
     starlark_session_ = Session::new_cxx(
-        root_path_utf8_, ComputeSourceRootRel(build_dir_, root_path_utf8_));
+        root_path_utf8_, FilePathToUTF8(GetFullPath(build_dir_)),
+        ComputeSourceRootRel(build_dir_, root_path_utf8_));
   }
 }
 
@@ -87,7 +89,8 @@ void BuildSettings::SetBuildDir(const SourceDir& d) {
   build_dir_ = d;
   if (!root_path_.empty() && !build_dir_.is_null()) {
     starlark_session_ = Session::new_cxx(
-        root_path_utf8_, ComputeSourceRootRel(build_dir_, root_path_utf8_));
+        root_path_utf8_, FilePathToUTF8(GetFullPath(build_dir_)),
+        ComputeSourceRootRel(build_dir_, root_path_utf8_));
   }
 }
 
