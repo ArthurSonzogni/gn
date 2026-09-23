@@ -17,8 +17,6 @@ pub(crate) struct StarlarkTarget {
 /// The results of running the rule implementation on a target.
 #[derive(Debug)]
 pub(crate) struct EvaluatedTarget {
-    // Not yet used
-    #[expect(dead_code)]
     pub(crate) providers: Providers,
 }
 
@@ -65,6 +63,14 @@ impl Target {
         } else {
             ""
         }
+    }
+
+    pub fn providers(&self) -> &Providers {
+        &self
+            .evaluated
+            .get()
+            .expect("Should only be called on an evaluated target")
+            .providers
     }
 }
 

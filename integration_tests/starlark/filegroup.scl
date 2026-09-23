@@ -2,12 +2,29 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+FilegroupInfo = provider(fields = ["files"])
+
 def _filegroup_impl(ctx):
-  return [DefaultInfo(files = depset(ctx.files.srcs))]
+  files = depset(ctx.files.srcs)
+  return [
+    DefaultInfo(files = files),
+    FilegroupInfo(files = files),
+  ]
 
 filegroup = rule(
     implementation = _filegroup_impl,
     attrs = {
         "srcs": attr.label_list(allow_files = True),
+    }
+)
+
+def _filegroups_impl(ctx):
+  filegroups = [fg[FilegroupInfo].files for fg in ctx.attr.filegroups]
+  return [DefaultInfo(files = depset(transitive = filegroups))]
+
+filegroups = rule(
+    implementation = _filegroups_impl,
+    attrs = {
+        "filegroups": attr.label_list(allow_files = True),
     }
 )

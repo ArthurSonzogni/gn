@@ -4,6 +4,8 @@
 
 use types::Label;
 
+use crate::TargetRef;
+
 /// Errors returned by the FFI layer.
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum Error {
@@ -19,6 +21,8 @@ pub(crate) enum Error {
     RequiresRuleImpl,
     #[error("Rules require exactly one string argument for the target name.")]
     RuleRequiresTargetName,
+    #[error("Unable to find provider {1} in target {0}")]
+    MissingProvider(TargetRef, String),
 }
 
 impl From<Error> for starlark::Error {

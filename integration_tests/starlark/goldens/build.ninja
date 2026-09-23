@@ -12,9 +12,12 @@ build build.ninja: phony build.ninja.stamp
 subninja toolchain.ninja
 
 build filegroup: phony ../first.txt
+build filegroups: phony ../first.txt
 build $:filegroup: phony ../first.txt
+build $:filegroups: phony ../first.txt
 
 build all: phony $
+    ../first.txt $
     ../first.txt
 
 default all

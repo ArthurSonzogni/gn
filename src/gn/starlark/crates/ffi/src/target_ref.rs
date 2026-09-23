@@ -21,6 +21,14 @@ impl PartialEq for TargetRef {
 }
 impl Eq for TargetRef {}
 
+impl std::ops::Deref for TargetRef {
+    type Target = Target;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
 impl std::hash::Hash for TargetRef {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::ptr::hash(self.0, state);
@@ -57,6 +65,17 @@ impl<'v> StarlarkValue<'v> for TargetRef {
         use std::hash::Hash as _;
         self.hash(hasher);
         Ok(())
+    }
+
+    fn at(&self, index: Value<'v>, _heap: Heap<'v>) -> starlark::Result<Value<'v>> {
+        match self.providers().get(self, index)? {
+            Some(&val) => Ok(val.to_value()),
+            None => Err(crate::errors::Error::MissingProvider(*self, index.to_string()).into()),
+        }
+    }
+
+    fn is_in(&self, index: Value<'v>) -> starlark::Result<bool> {
+        Ok(self.providers().get(self, index)?.is_some())
     }
 }
 
