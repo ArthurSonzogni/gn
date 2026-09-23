@@ -188,7 +188,7 @@ std::string NinjaTargetWriter::RunAndWriteFile(
       private_storage.WriteToFileIfChanged(private_path, nullptr);
     }
     writer.Run();
-  } else {
+  } else if (target->output_type() != Target::NOOP) {
     CHECK(0) << "Output type of target not handled.";
   }
 

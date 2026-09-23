@@ -11,8 +11,8 @@ build build.ninja: phony build.ninja.stamp
 
 subninja toolchain.ninja
 
-build dummy: phony 
-build $:dummy: phony 
+build filegroup: phony 
+build $:filegroup: phony 
 
 build all: phony
 

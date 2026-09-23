@@ -721,6 +721,12 @@ bool Target::SetToolchain(const Toolchain* toolchain, Err* err) {
   DCHECK_NE(UNKNOWN, output_type_);
   toolchain_ = toolchain;
 
+  // Pure starlark rules don't need a toolchain.
+  // Toolchains can be defined as just regular starlark rules.
+  // They do, however, need a toolchain label to distinguish them.
+  if (output_type_ == NOOP)
+    return true;
+
   const Tool* tool = toolchain->GetToolForTargetFinalOutput(this);
   if (tool)
     return true;
@@ -967,6 +973,10 @@ bool Target::HasRealInputs() const {
 }
 
 bool Target::FillOutputFiles(Err* err) {
+  // Filled by the rule implementation
+  if (output_type_ == NOOP)
+    return true;
+
   const Tool* tool = toolchain_->GetToolForTargetFinalOutput(this);
   bool check_tool_outputs = false;
   switch (output_type_) {
