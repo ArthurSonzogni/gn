@@ -382,23 +382,23 @@ mod tests {
         // phony.
         a.eq(
             "depset(transitive = [depset([make_file('a.txt'), make_file('b.txt')])])",
-            UnpackFileDepset(Some(f("phony/$TOOLCHAIN/$LABEL_0"))),
+            UnpackFileDepset(Some(f("phony/:default_0"))),
         );
         assert_eq!(
             new_phonies(&a),
-            &[(f("phony/$TOOLCHAIN/$LABEL_0"), vec![f("a.txt"), f("b.txt")])]
+            &[(f("phony/:default_0"), vec![f("a.txt"), f("b.txt")])]
         );
         a.eq(
             "depset([make_file('c.txt')], transitive=[depset([make_file('a.txt'), make_file('b.txt')])])",
-            UnpackFileDepset(Some(f("phony/$TOOLCHAIN/$LABEL_2"))),
+            UnpackFileDepset(Some(f("phony/:default_2"))),
         );
         assert_eq!(
             new_phonies(&a),
             &[
-                (f("phony/$TOOLCHAIN/$LABEL_1"), vec![f("a.txt"), f("b.txt")]),
+                (f("phony/:default_1"), vec![f("a.txt"), f("b.txt")]),
                 (
-                    f("phony/$TOOLCHAIN/$LABEL_2"),
-                    vec![f("c.txt"), f("phony/$TOOLCHAIN/$LABEL_1")]
+                    f("phony/:default_2"),
+                    vec![f("c.txt"), f("phony/:default_1")]
                 ),
             ]
         );
@@ -412,11 +412,11 @@ mod tests {
 
         a.eq(
             "new_file_depset([make_file('a.txt'), make_file('b.txt')])",
-            UnpackFileDepset(Some(f("phony/$TOOLCHAIN/$LABEL_3"))),
+            UnpackFileDepset(Some(f("phony/:default_3"))),
         );
         assert_eq!(
             new_phonies(&a),
-            &[(f("phony/$TOOLCHAIN/$LABEL_3"), vec![f("a.txt"), f("b.txt")])]
+            &[(f("phony/:default_3"), vec![f("a.txt"), f("b.txt")])]
         );
     }
 }

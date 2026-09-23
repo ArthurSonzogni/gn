@@ -156,8 +156,8 @@ impl TargetRef for FakeTargetRef {
         self.get().outputs.clone()
     }
 
-    fn target_out_dir(&self, prefix: &str, suffix: &str, _separator: &str) -> String {
-        format!("{prefix}$TOOLCHAIN/{suffix}$LABEL")
+    fn is_default_toolchain(&self) -> bool {
+        true
     }
 
     fn builtin_attrs<'v>(&self, _session: &Self::Session, _heap: &Heap<'v>) -> Vec<Value<'v>> {

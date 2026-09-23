@@ -31,19 +31,38 @@ impl<T: TargetRef> CtxState<T> {
 
     /// Declares a new phony build step in the target's build state.
     pub fn new_phony(&mut self, deps: Vec<File>) -> File {
+        let mut path = String::from("phony/");
+        if !self.target.is_default_toolchain() {
+            path.push_str(self.target.toolchain().name());
+            path.push('/');
+        }
+        let label = self.target.label();
+        path.push_str(label.package().as_source_relative());
+        path.push(':');
+        path.push_str(label.name());
         let count = self.phonies.len();
-        let mut path = self.target.target_out_dir("phony/", "", ":");
         path.push('_');
         path.push_str(&count.to_string());
         let phony = File::intern(&path);
-
         self.phonies.push((phony.clone(), deps));
         phony
     }
 
     /// Declares a new output file relative to the target's output directory.
     pub fn declare_file(&mut self, name: &str) -> File {
-        let mut path = self.target.target_out_dir("", "obj/", "/");
+        let mut path = String::new();
+        if !self.target.is_default_toolchain() {
+            path.push_str(self.target.toolchain().name());
+            path.push('/');
+        }
+        path.push_str("obj/");
+        let label = self.target.label();
+        path.push_str(label.package().as_source_relative());
+        if !path.ends_with('/') {
+            path.push('/');
+        }
+        path.push_str(label.name());
+        path.push('/');
         path.push_str(name);
         let file = File::intern(&path);
         self.unused_declared_outputs.insert(file.clone());
