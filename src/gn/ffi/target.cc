@@ -9,6 +9,7 @@
 #include "gn/ffi/bridge.h"
 #include "gn/label.h"
 #include "gn/label_ptr.h"
+#include "gn/parse_tree.h"
 #include "gn/source_dir.h"
 #include "gn/target.h"
 #include "gn/target_generator.h"
@@ -18,12 +19,13 @@ uint8_t output_type_u8(const Target& target) {
 }
 
 Target* create_target(Scope& scope,
+                      ParseNodePtr origin,
                       rust::Str name,
                       rust::Str output_type,
                       Err& err) {
-  return TargetGenerator::GenerateTarget(&scope, nullptr,
-                                         std::string_view(name),
-                                         std::string_view(output_type), &err);
+  return TargetGenerator::GenerateTarget(
+      &scope, origin.ptr ? origin.ptr->AsFunctionCall() : nullptr,
+      std::string_view(name), std::string_view(output_type), &err);
 }
 
 void register_dependency(Target& target,

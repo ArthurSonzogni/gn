@@ -1067,9 +1067,9 @@ void cxxbridge1$196$Target$set_rust_target(::Target const &self, ::RustTarget co
   return (self.*settings_cxx$)();
 }
 
-::Target *cxxbridge1$196$create_target(::Scope &scope, ::rust::Str name, ::rust::Str output_type, ::Err &err) noexcept {
-  ::Target *(*create_target$)(::Scope &, ::rust::Str, ::rust::Str, ::Err &) = ::create_target;
-  return create_target$(scope, name, output_type, err);
+::Target *cxxbridge1$196$create_target(::Scope &scope, ::ParseNodePtr *origin, ::rust::Str name, ::rust::Str output_type, ::Err &err) noexcept {
+  ::Target *(*create_target$)(::Scope &, ::ParseNodePtr, ::rust::Str, ::rust::Str, ::Err &) = ::create_target;
+  return create_target$(scope, ::std::move(*origin), name, output_type, err);
 }
 
 void cxxbridge1$196$register_dependency(::Target &target, ::rust::Str package, ::rust::Str name, ::rust::Str toolchain_package, ::rust::Str toolchain_name) noexcept {

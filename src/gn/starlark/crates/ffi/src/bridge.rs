@@ -53,7 +53,8 @@ impl OwnedFrozenValue {
         let mut err_ptr = unsafe { std::ptr::NonNull::new_unchecked(err.get_unchecked_mut()) };
         // Safety: The Scope pointer is valid and non-null.
         let settings = unsafe { scope_ptr.as_ref() }.settings();
-        let eval_context = crate::eval_context::EvalContext::new_macro(session, scope_ptr, err_ptr);
+        let eval_context =
+            crate::eval_context::EvalContext::new_macro(session, scope_ptr, origin, err_ptr);
         let res = (|| {
             let val = starlark::environment::Module::with_temp_heap(
                 |module| -> starlark::Result<Self> {
@@ -231,6 +232,7 @@ mod dummy {
         fn settings(self: &CxxTarget) -> *const Settings;
         fn create_target(
             scope: Pin<&mut Scope>,
+            origin: ParseNodePtr,
             name: &str,
             output_type: &str,
             err: Pin<&mut Err>,

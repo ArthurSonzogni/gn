@@ -14,6 +14,7 @@ enum EvalContextKind {
     BzlFile,
     Macro {
         scope: NonNull<Scope>,
+        origin: crate::bridge::ParseNodePtr,
         err: NonNull<crate::bridge::Err>,
     },
 }
@@ -43,6 +44,7 @@ impl EvalContext {
     pub fn new_macro(
         session: &'static crate::session::Session,
         scope: NonNull<Scope>,
+        origin: crate::bridge::ParseNodePtr,
         err: NonNull<crate::bridge::Err>,
     ) -> Self {
         // Safety: The Scope pointer is valid and non-null for the duration of macro
@@ -56,7 +58,7 @@ impl EvalContext {
         Self {
             session,
             package,
-            kind: EvalContextKind::Macro { scope, err },
+            kind: EvalContextKind::Macro { scope, origin, err },
         }
     }
 }
@@ -126,13 +128,14 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
         >,
     > {
         let output_type = target_type.map_or("noop", |t| t.into());
-        let mut err_ptr = match &self.kind {
-            EvalContextKind::Macro { err, .. } => *err,
+        let (mut err_ptr, origin) = match &self.kind {
+            EvalContextKind::Macro { err, origin, .. } => (*err, *origin),
             _ => return Err(Error::RequiresMacro.into()),
         };
         // Safety: err_ptr is valid and pinned for evaluation duration.
         let err_pin = unsafe { std::pin::Pin::new_unchecked(err_ptr.as_mut()) };
-        let target_ptr = crate::bridge::create_target(scope, target_name, output_type, err_pin);
+        let target_ptr =
+            crate::bridge::create_target(scope, origin, target_name, output_type, err_pin);
         // Safety: err_ptr is valid for evaluation duration.
         unsafe { err_ptr.as_ref() }.into_result()?;
         let mut target_non_null =

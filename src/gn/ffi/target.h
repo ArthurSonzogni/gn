@@ -17,8 +17,11 @@ class Target;
 // Returns the output type of the target as a uint8_t discriminant.
 uint8_t output_type_u8(const Target& target);
 
+struct ParseNodePtr;
+
 // Creates and generates a new target in the given scope.
 Target* create_target(Scope& scope,
+                      ParseNodePtr origin,
                       rust::Str name,
                       rust::Str output_type,
                       Err& err);
