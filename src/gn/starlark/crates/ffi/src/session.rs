@@ -43,31 +43,34 @@ fn make_attr_schema<'v>(
     )
 }
 
-fn build_globals() -> Globals {
-    let mut builder = starlark::environment::GlobalsBuilder::standard();
-    builder.set("attr", attr::AttrModule { make_attr_schema });
-    providers::globals::register_providers(&mut builder);
-    depset::depset_globals!(&mut builder, crate::eval_context::EvalContext);
-    rule::register_rule_globals!(&mut builder, crate::eval_context::EvalContext);
-    builder.build()
-}
-
 impl Session {
     /// Creates a new `Session`.
     pub fn from_resolver(path_resolver: PathResolver) -> Self {
+        let mut builder = starlark::environment::GlobalsBuilder::standard();
+        builder.set("attr", attr::AttrModule { make_attr_schema });
+        providers::globals::register_providers(&mut builder);
+        depset::depset_globals!(&mut builder, crate::eval_context::EvalContext);
+        rule::register_rule_globals!(&mut builder, crate::eval_context::EvalContext);
+
         let mut loader: FileLoader = Default::default();
-        let rules_module = loader.preload(
-            Label::parse("//builtins:rules.scl", PackageRef::root()).unwrap(),
-            rule::register_builtin_rules::<crate::eval_context::EvalContext>(),
+        // Safety: The module lives as long as the loader lasts, which is as long as the session
+        // lasts, which is 'static.
+        let rules_module: &'static FrozenModule = unsafe {
+            extend_lifetime(loader.preload(
+                Label::parse("//builtins:rules.scl", PackageRef::root()).unwrap(),
+                rule::register_builtin_rules::<crate::eval_context::EvalContext>(),
+            ))
+        };
+        loader.preload(
+            Label::parse("//builtins:providers.scl", PackageRef::root()).unwrap(),
+            providers::builtin_providers_module(),
         );
 
         Self {
             path_resolver,
-            globals: build_globals(),
+            globals: builder.build(),
             targets: Default::default(),
-            // Safety: The module lives as long as the loader lasts, which is as long as the session
-            // lasts, which is 'static.
-            builtin_rules: rule::extract_builtin_rules(unsafe { extend_lifetime(rules_module) }),
+            builtin_rules: rule::extract_builtin_rules(rules_module),
             loader,
         }
     }

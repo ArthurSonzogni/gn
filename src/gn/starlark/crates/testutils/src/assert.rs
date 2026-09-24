@@ -87,6 +87,8 @@ impl Assert {
         });
         let builtins = rule::register_builtin_rules::<FakeEvalContext>();
         assert.module_add(builtins);
+        let builtin_providers = providers::builtin_providers_module();
+        assert.module_add(builtin_providers);
         assert
     }
 

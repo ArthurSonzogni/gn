@@ -1,11 +1,11 @@
 use starlark::{environment::GlobalsBuilder, eval::Evaluator, values::Value};
 use starlark_derive::starlark_module;
 
-use crate::{BuiltinProviders, Error};
+use crate::Error;
 
 /// Registers the global `provider()` function.
 #[starlark_module]
-pub(crate) fn register_providers_globals(builder: &mut GlobalsBuilder) {
+fn register_provider_global(builder: &mut GlobalsBuilder) {
     fn provider<'v>(
         #[starlark(require = named)] fields: Value<'v>,
         eval: &mut Evaluator<'v, '_, '_>,
@@ -27,7 +27,7 @@ pub(crate) fn register_providers_globals(builder: &mut GlobalsBuilder) {
     }
 }
 
-pub fn register_providers(builder: &mut GlobalsBuilder) -> BuiltinProviders {
-    register_providers_globals(builder);
-    crate::builtins::register_builtin_providers(builder)
+pub fn register_providers(builder: &mut GlobalsBuilder) {
+    register_provider_global(builder);
+    crate::builtins::register_builtin_providers_globals(builder);
 }
