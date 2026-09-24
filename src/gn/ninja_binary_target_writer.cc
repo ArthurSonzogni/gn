@@ -544,11 +544,72 @@ void NinjaBinaryTargetWriter::WritePool(std::ostream& out) {
   }
 }
 
+// Returns true if the build statement for |target|'s dependency output is
+// written by NinjaCBinaryTargetWriter and lists the order-only deps of all
+// non-linkable deps of |target|, which include (almost, see below) all of
+// |target|'s inherited libraries: Source sets list them on their .linkdeps
+// phony target, static libraries on their link step.
+static bool ListsOrderOnlyDepsOfInheritedLibs(const Target* target) {
+  return (target->output_type() == Target::SOURCE_SET ||
+          target->output_type() == Target::STATIC_LIBRARY) &&
+         !target->IsFinal() && !target->source_types_used().RustSourceUsed() &&
+         target->has_dependency_output();
+}
+
 std::vector<OutputFile>
 NinjaBinaryTargetWriter::GetOrderOnlyDepsFromNonLinkableDeps(
     const UniqueVector<const Target*>& non_linkable_deps) const {
+  // |non_linkable_deps| contains the transitive closure of all inherited
+  // libraries. Listing all of them is redundant: If this target depends on a
+  // source set or static library D, then every library inherited through D is
+  // a non-linkable dep of D, and D's build statement (which this target
+  // depends on) already has an order-only dep on it. So only list:
+  // 1. direct deps, looking through groups
+  // 2. libraries inherited through direct deps whose build statement doesn't
+  //    list them (see ListsOrderOnlyDepsOfInheritedLibs())
+  // 3. frameworks, since ClassifyDependency() doesn't treat them as
+  //    non-linkable deps for non-final targets.
+  TargetSet direct_deps;
+  TargetSet inherited_through_other_deps;
+  bool can_omit_deps = false;
+  // The Rust writer lists some deps differently; keep it simple there.
+  if (!target_->source_types_used().RustSourceUsed()) {
+    const auto& target_deps = resolved().GetTargetDeps(target_);
+    std::vector<const Target*> worklist(target_deps.linked_deps().begin(),
+                                        target_deps.linked_deps().end());
+    while (!worklist.empty()) {
+      const Target* dep = worklist.back();
+      worklist.pop_back();
+      if (!direct_deps.add(dep))
+        continue;
+      if (dep->output_type() == Target::GROUP) {
+        const auto& group_deps = resolved().GetTargetDeps(dep);
+        worklist.insert(worklist.end(), group_deps.linked_deps().begin(),
+                        group_deps.linked_deps().end());
+        continue;
+      }
+      if (ListsOrderOnlyDepsOfInheritedLibs(dep)) {
+        can_omit_deps = true;
+        continue;
+      }
+      // Final targets only forward (some) final targets, see
+      // ResolvedTargetData::ComputeInheritedLibsFor().
+      for (const auto& pair : resolved().GetInheritedLibraries(dep)) {
+        if (!dep->IsFinal() || pair.target()->IsFinal())
+          inherited_through_other_deps.add(pair.target());
+      }
+    }
+    for (const Target* data_dep : target_deps.data_deps())
+      direct_deps.add(data_dep);
+  }
+
   UniqueVector<OutputFile> outputs_to_write;
   for (const Target* dep : non_linkable_deps) {
+    if (can_omit_deps && !direct_deps.contains(dep) &&
+        !inherited_through_other_deps.contains(dep) &&
+        dep->output_type() != Target::CREATE_BUNDLE) {
+      continue;
+    }
     outputs_to_write.Append(resolved().GetOrderOnlyDeps(dep));
   }
   return outputs_to_write.release();

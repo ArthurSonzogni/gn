@@ -493,7 +493,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, EscapeDefines) {
       "defines = -DBOOL_DEF -DINT_DEF=123 -DSTR_DEF=\\\"ABCD-1\\\"";
 #endif
   std::string out_str = out.str();
-  EXPECT_TRUE(out_str.find(expectedSubstr) != std::string::npos);
+  EXPECT_TRUE(out_str.contains(expectedSubstr));
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, StaticLibrary) {
@@ -2038,9 +2038,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
       "obj/staticlib/libstaticlib.a "
       "obj/dylib/libdylib.so | "
       "obj/pub_in_staticlib/libpub_in_staticlib.rlib "
-      "obj/priv_in_staticlib/libpriv_in_staticlib.rlib || "
-      "phony/pub_sset_in_staticlib/pub_sset_in_staticlib.linkdeps "
-      "phony/priv_sset_in_staticlib/priv_sset_in_staticlib.linkdeps\n"
+      "obj/priv_in_staticlib/libpriv_in_staticlib.rlib\n"
       "  ldflags =\n"
       "  libs =\n"
       "  frameworks =\n"
@@ -3141,7 +3139,7 @@ build obj/stuff/libc.c.pcm: cxx_module ../../stuff/c.modulemap | obj/stuff/libb.
   source_file_part = c.modulemap
   source_name_part = c
 
-build obj/things/libc.a: alink || obj/stuff/libb.a obj/blah/liba.a
+build obj/things/libc.a: alink || obj/stuff/libb.a
   arflags =
   output_extension =
   output_dir =
@@ -3675,5 +3673,132 @@ TEST_F(NinjaCBinaryTargetWriterTest,
         "build phony/foo/a: phony phony/foo/a.linkdeps\n";
 
     EXPECT_EQ(expected, out.str());
+  }
+}
+
+// Order-only deps on inherited libraries are only written if they aren't
+// already reachable through the build statement of a direct dependency.
+TEST_F(NinjaCBinaryTargetWriterTest, OrderOnlyDepsOmitTransitiveDeps) {
+  Err err;
+  TestWithScope setup;
+
+  auto make_source_set = [&](Target* target) {
+    target->set_output_type(Target::SOURCE_SET);
+    target->visibility().SetPublic();
+    target->sources().push_back(
+        SourceFile("//foo/" + target->label().name() + ".cc"));
+    target->source_types_used().Set(SourceFile::SOURCE_CPP);
+    target->SetToolchain(setup.toolchain());
+  };
+
+  // a -> b -> c: a doesn't need to list c because b's .linkdeps already does.
+  Target c(setup.settings(), Label(SourceDir("//foo/"), "c"));
+  make_source_set(&c);
+  ASSERT_TRUE(c.OnResolved(&err));
+  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"));
+  make_source_set(&b);
+  b.public_deps().push_back(LabelTargetPair(&c));
+  ASSERT_TRUE(b.OnResolved(&err));
+
+  // a -> group -> d -> e: a needs to list d (groups are looked through and
+  // have no build statement that could list d), but not e.
+  Target e(setup.settings(), Label(SourceDir("//foo/"), "e"));
+  make_source_set(&e);
+  ASSERT_TRUE(e.OnResolved(&err));
+  Target d(setup.settings(), Label(SourceDir("//foo/"), "d"));
+  make_source_set(&d);
+  d.private_deps().push_back(LabelTargetPair(&e));
+  ASSERT_TRUE(d.OnResolved(&err));
+  Target group(setup.settings(), Label(SourceDir("//foo/"), "group"));
+  group.set_output_type(Target::GROUP);
+  group.visibility().SetPublic();
+  group.public_deps().push_back(LabelTargetPair(&d));
+  group.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(group.OnResolved(&err));
+
+  // a -> rlib -> f: Rust libraries forward inherited libraries but their
+  // build statements aren't known to list them, so a needs to list f.
+  Target f(setup.settings(), Label(SourceDir("//foo/"), "f"));
+  make_source_set(&f);
+  ASSERT_TRUE(f.OnResolved(&err));
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "rlib"));
+  rlib.set_output_type(Target::RUST_LIBRARY);
+  rlib.visibility().SetPublic();
+  SourceFile rlib_root("//foo/lib.rs");
+  rlib.sources().push_back(rlib_root);
+  rlib.source_types_used().Set(SourceFile::SOURCE_RS);
+  rlib.rust_values().set_crate_root(rlib_root);
+  rlib.rust_values().crate_name() = "rlib";
+  rlib.private_deps().push_back(LabelTargetPair(&f));
+  rlib.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(rlib.OnResolved(&err));
+
+  // a -> b2 -> c (again), and a -> e2 directly while also a -> d2 -> e2:
+  // direct deps are always listed.
+  Target e2(setup.settings(), Label(SourceDir("//foo/"), "e2"));
+  make_source_set(&e2);
+  ASSERT_TRUE(e2.OnResolved(&err));
+  Target d2(setup.settings(), Label(SourceDir("//foo/"), "d2"));
+  make_source_set(&d2);
+  d2.private_deps().push_back(LabelTargetPair(&e2));
+  ASSERT_TRUE(d2.OnResolved(&err));
+
+  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"));
+  make_source_set(&a);
+  a.private_deps().push_back(LabelTargetPair(&b));
+  a.private_deps().push_back(LabelTargetPair(&group));
+  a.private_deps().push_back(LabelTargetPair(&rlib));
+  a.private_deps().push_back(LabelTargetPair(&d2));
+  a.private_deps().push_back(LabelTargetPair(&e2));
+  ASSERT_TRUE(a.OnResolved(&err));
+
+  // Source set: deps are on the .linkdeps phony.
+  {
+    std::ostringstream out;
+    NinjaCBinaryTargetWriter writer(&a, out);
+    writer.Run();
+    const char expected[] =
+        "build phony/foo/a.linkdeps: phony obj/foo/a.a.o || "
+        "phony/foo/b.linkdeps phony/foo/d.linkdeps obj/foo/librlib.rlib "
+        "phony/foo/d2.linkdeps phony/foo/e2.linkdeps phony/foo/f.linkdeps\n";
+    EXPECT_TRUE(out.str().contains(expected)) << out.str();
+  }
+
+  // Static library: deps are on the alink step.
+  {
+    Target lib(setup.settings(), Label(SourceDir("//foo/"), "lib"));
+    lib.set_output_type(Target::STATIC_LIBRARY);
+    lib.visibility().SetPublic();
+    lib.sources().push_back(SourceFile("//foo/lib.cc"));
+    lib.source_types_used().Set(SourceFile::SOURCE_CPP);
+    lib.private_deps().push_back(LabelTargetPair(&a));
+    lib.SetToolchain(setup.toolchain());
+    ASSERT_TRUE(lib.OnResolved(&err));
+
+    std::ostringstream out;
+    NinjaCBinaryTargetWriter writer(&lib, out);
+    writer.Run();
+    const char expected[] =
+        "build obj/foo/lib.a: alink obj/foo/lib.lib.o || "
+        "phony/foo/a.linkdeps\n";
+    EXPECT_TRUE(out.str().contains(expected)) << out.str();
+
+    // An executable depending on the static library links all the source
+    // sets' object files, but gets their order-only deps through the library.
+    Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"));
+    exe.set_output_type(Target::EXECUTABLE);
+    exe.visibility().SetPublic();
+    exe.sources().push_back(SourceFile("//foo/exe.cc"));
+    exe.source_types_used().Set(SourceFile::SOURCE_CPP);
+    exe.private_deps().push_back(LabelTargetPair(&lib));
+    exe.SetToolchain(setup.toolchain());
+    ASSERT_TRUE(exe.OnResolved(&err));
+
+    std::ostringstream exe_out;
+    NinjaCBinaryTargetWriter exe_writer(&exe, exe_out);
+    exe_writer.Run();
+    EXPECT_TRUE(exe_out.str().contains(" obj/foo/c.c.o ")) << exe_out.str();
+    EXPECT_TRUE(exe_out.str().contains(" obj/foo/lib.a ")) << exe_out.str();
+    EXPECT_FALSE(exe_out.str().contains(".linkdeps")) << exe_out.str();
   }
 }
