@@ -24,36 +24,52 @@ where
         TargetAttrExt<Rule = Rule<'static, C>, Session = C::Session>,
 {
     let rule = target.rule();
+    let rule_context = create_context(target);
 
     Module::with_temp_heap(|module| {
-        let rule_context = create_context(target);
-
-        // When the module is frozen, only things transitively required by extra_value
-        // are kept.
-        module.set_extra_value({
-            let mut eval = Evaluator::new(&module);
-            eval.set_context(&rule_context);
-            let rule = HeapEdge::immortal().rebrand_ref(rule);
-            let ctx = eval.heap().alloc(Ctx::<C>::new(
-                rule.schema.create_ctx_fields(
-                    target.attrs(),
-                    rule_context.session(),
-                    &rule_context.current_toolchain(),
-                    rule.output_type,
-                    target.builtin_attrs(rule_context.session(), &eval.heap()),
-                    &eval.heap(),
-                )?,
-                rule,
-                eval.heap().alloc(target.label().to_owned()),
-                eval.heap().alloc(crate::actions::Actions::<C>::default()),
-            ));
-            let res = eval.eval_function(rule.implementation, &[ctx], &[])?;
-            rule_context
-                .require_rule_impl()?
-                .borrow()
-                .rule_impl_complete()?;
-            res
-        });
+        if rule.is_builtin() {
+            // The other branch would also work, but this allows us to skip several
+            // allocations (eg. ctx.attr.*) and spinning up a starlark
+            // interpreter.
+            let eval = Evaluator::new(&module);
+            let heap = eval.heap();
+            let state_cell = rule_context.require_rule_impl()?;
+            let res = {
+                let mut state = state_cell.borrow_mut();
+                rule_context
+                    .session()
+                    .run_builtin_rule(&heap, target, &mut state)
+            };
+            state_cell.borrow().rule_impl_complete()?;
+            module.set_extra_value(res);
+        } else {
+            // When the module is frozen, only things transitively required by extra_value
+            // are kept.
+            module.set_extra_value({
+                let mut eval = Evaluator::new(&module);
+                eval.set_context(&rule_context);
+                let rule = HeapEdge::immortal().rebrand_ref(rule);
+                let ctx = eval.heap().alloc(Ctx::<C>::new(
+                    rule.schema.create_ctx_fields(
+                        target.attrs(),
+                        rule_context.session(),
+                        &rule_context.current_toolchain(),
+                        rule.output_type,
+                        target.builtin_attrs(rule_context.session(), &eval.heap()),
+                        &eval.heap(),
+                    )?,
+                    rule,
+                    eval.heap().alloc(target.label().to_owned()),
+                    eval.heap().alloc(crate::actions::Actions::<C>::default()),
+                ));
+                let res = eval.eval_function(rule.implementation, &[ctx], &[])?;
+                rule_context
+                    .require_rule_impl()?
+                    .borrow()
+                    .rule_impl_complete()?;
+                res
+            });
+        }
 
         let frozen = module.freeze()?;
         Ok(frozen.extra_value().unwrap())

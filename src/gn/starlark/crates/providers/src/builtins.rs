@@ -5,7 +5,7 @@
 use starlark::{
     environment::{FrozenModule, Globals, GlobalsBuilder, Module},
     eval::ParametersSpecParam::{Defaulted, Required},
-    values::{FrozenHeapName, OwnedFrozen, Value, ValueTyped},
+    values::{FrozenHeapName, Heap, OwnedFrozen, ProvidesStaticType, Value, ValueTyped},
 };
 
 use crate::{ProviderId, ProviderInstance, ProviderType};
@@ -39,17 +39,19 @@ pub(crate) const SUBSTITUTIONS_INFO_ID: ProviderId = ProviderId::builtin(3);
 ///   ```
 ///   * Adds "foo = --foo path/to/foo" to the ninja file
 ///   * Adding command = "... {{foo}}" to your GN tool will allow you to use this in GN.
-pub struct BuiltinProviders {
+pub struct BuiltinProviders(OwnedFrozen<BuiltinProvidersInternal<'static>>);
+
+#[derive(ProvidesStaticType)]
+struct BuiltinProvidersInternal<'v> {
     /// Default instance of `DefaultInfo`.
-    /// Targets that do not return an explicit DefaultInfo provider will have
-    /// target[DefaultInfo] return this.
-    pub default_defaultinfo: OwnedFrozen<Value<'static>>,
+    default_defaultinfo: Value<'v>,
+    default_info: ValueTyped<'v, ProviderType>,
 }
 
 impl BuiltinProviders {
     /// Creates a new `BuiltinProviders` from the session globals.
     pub fn new(globals: &Globals) -> Self {
-        let default_defaultinfo = OwnedFrozen::build(
+        Self(OwnedFrozen::build(
             FrozenHeapName::user("//builtins:default_defaultinfo"),
             |heap| {
                 let default_info_val = globals
@@ -58,19 +60,47 @@ impl BuiltinProviders {
                     .add_to_frozen_heap(heap);
                 let default_info = ValueTyped::<ProviderType>::new(default_info_val).unwrap();
 
-                heap.alloc(ProviderInstance {
+                let default_defaultinfo = heap.alloc(ProviderInstance {
                     provider_type: default_info,
                     values: Box::new([
                         Some(heap.alloc(depset::Depset::default())),
                         Some(Value::new_none()),
                     ]),
-                })
-            },
-        );
+                });
 
-        Self {
-            default_defaultinfo,
-        }
+                BuiltinProvidersInternal {
+                    default_defaultinfo,
+                    default_info,
+                }
+            },
+        ))
+    }
+
+    /// Returns the default `DefaultInfo` instance.
+    pub fn default_defaultinfo<'v>(&self, heap: &Heap<'v>) -> Value<'v> {
+        self.0.by_ref_with_reconstructor(|inner, reconstructor| {
+            reconstructor.edge(*heap).rebrand(inner.default_defaultinfo)
+        })
+    }
+
+    /// Creates a new `DefaultInfo` instance with the given files and optional
+    /// executable.
+    pub fn new_defaultinfo<'v>(
+        &self,
+        files: Value<'v>,
+        executable: Option<Value<'v>>,
+        heap: &Heap<'v>,
+    ) -> Value<'v> {
+        let provider_type = self.0.by_ref_with_reconstructor(|inner, reconstructor| {
+            reconstructor.edge(*heap).rebrand(inner.default_info)
+        });
+        heap.alloc_complex(ProviderInstance {
+            provider_type,
+            values: Box::new([
+                Some(files),
+                Some(executable.unwrap_or_else(Value::new_none)),
+            ]),
+        })
     }
 }
 

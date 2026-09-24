@@ -131,7 +131,11 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
     }
 
     /// Creates a new `Rule` for a built-in rule.
-    pub fn new_builtin(builtin: OutputType, frozen_heap: &FrozenHeap<'v>) -> Self {
+    pub fn new_builtin(
+        builtin: OutputType,
+        implementation: Value<'v>,
+        frozen_heap: &FrozenHeap<'v>,
+    ) -> Self {
         let schema = CtxAttrSchema::new(SmallMap::new(), Some(builtin), frozen_heap);
         let name: &str = builtin.into();
         let signature = build_signature(name, &schema, true);
@@ -141,7 +145,7 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
             schema,
             once_named,
             output_type: Some(builtin),
-            implementation: Value::new_none(),
+            implementation,
             parent: None,
             _phantom: PhantomData,
         }

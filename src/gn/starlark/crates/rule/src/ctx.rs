@@ -164,6 +164,23 @@ macro_rules! impl_ctx_methods {
 
         $crate::impl_actions_methods!($ctx_type);
 
+        /// The singleton starlark function for the rule implementation for builtin functions.
+        #[starlark_derive::starlark_module]
+        pub fn builtin_impl_module(builder: &mut starlark::environment::GlobalsBuilder) {
+            fn _builtin_impl<'v>(
+                _ctx: starlark::values::Value<'v>,
+                eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
+            ) -> starlark::Result<starlark::values::Value<'v>> {
+                use types::{EvalContext as _, EvaluatorContextExt as _, Session as _};
+                let ctx = eval.context::<$ctx_type>();
+                let state_cell = ctx.require_rule_impl()?;
+                let mut state = state_cell.borrow_mut();
+                let target = state.target.clone();
+                let heap = eval.heap();
+                Ok(ctx.session().run_builtin_rule(&heap, &target, &mut state))
+            }
+        }
+
         impl $crate::CtxMethods for $ctx_type {
             fn methods() -> &'static starlark::environment::Methods {
                 starlark::methods_static!(RES = ctx_methods);
@@ -173,6 +190,11 @@ macro_rules! impl_ctx_methods {
             fn actions_methods() -> &'static starlark::environment::Methods {
                 starlark::methods_static!(RES = actions_methods);
                 RES.methods()
+            }
+
+            fn builtin_impl() -> starlark::values::Value<'static> {
+                starlark::globals_static!(RES = builtin_impl_module);
+                RES.function()
             }
         }
     };

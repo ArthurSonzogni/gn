@@ -81,4 +81,5 @@ impl<'v, 'a, 'e> EvaluatorContextExt<'v, 'a, 'e> for starlark::eval::Evaluator<'
 pub trait CtxMethods {
     fn methods() -> &'static starlark::environment::Methods;
     fn actions_methods() -> &'static starlark::environment::Methods;
+    fn builtin_impl() -> starlark::values::Value<'static>;
 }

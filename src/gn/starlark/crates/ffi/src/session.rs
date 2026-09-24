@@ -9,6 +9,7 @@ use std::{
 };
 
 use loader::FileLoader;
+use providers::BuiltinProviders;
 use starlark::environment::{FrozenModule, Globals};
 use types::{
     Label, LabelRef, PackageRef, PathResolver, Session as TypesSession, util::extend_lifetime,
@@ -25,6 +26,7 @@ pub struct Session {
     globals: Globals,
     targets: RwLock<TargetMap>,
     builtin_rules: Vec<&'static rule::Rule<'static, crate::eval_context::EvalContext>>,
+    builtin_providers: BuiltinProviders,
 }
 
 fn make_attr_schema<'v>(
@@ -66,12 +68,15 @@ impl Session {
             providers::builtin_providers_module(),
         );
 
+        let globals = builder.build();
+
         Self {
             path_resolver,
-            globals: builder.build(),
             targets: Default::default(),
             builtin_rules: rule::extract_builtin_rules(rules_module),
+            builtin_providers: providers::BuiltinProviders::new(&globals),
             loader,
+            globals,
         }
     }
 
@@ -198,5 +203,21 @@ impl TypesSession for Session {
         // Safety: A target object can never be deleted.
         let static_ref: &'static Target = unsafe { extend_lifetime(&**target_pin) };
         crate::TargetRef(static_ref)
+    }
+
+    fn run_builtin_rule<'v>(
+        &self,
+        heap: &starlark::values::Heap<'v>,
+        target: &Self::TargetRef,
+        state: &mut types::CtxState<Self::TargetRef>,
+    ) -> starlark::values::Value<'v> {
+        use types::TargetRef as _;
+        let outputs = target.outputs();
+        let default_info = self.builtin_providers.new_defaultinfo(
+            heap.alloc(depset::Depset::new_file_depset(outputs, heap, state)),
+            None,
+            heap,
+        );
+        heap.alloc(vec![default_info])
     }
 }

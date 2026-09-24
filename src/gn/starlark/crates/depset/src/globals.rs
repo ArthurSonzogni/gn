@@ -190,10 +190,16 @@ pub(crate) mod tests {
             files: UnpackList<&File>,
             eval: &mut Evaluator<'v, '_, '_>,
         ) -> starlark::Result<Depset<'v>> {
+            use types::EvalContext as _;
             let heap = eval.heap();
             let ctx = eval.context::<testutils::eval_context::FakeEvalContext>();
             let direct = files.items.into_iter().cloned().collect();
-            Depset::new_file_depset(direct, &heap, ctx)
+            let state = ctx.require_rule_impl()?;
+            Ok(Depset::new_file_depset(
+                direct,
+                &heap,
+                &mut *state.borrow_mut(),
+            ))
         }
     }
 

@@ -110,4 +110,13 @@ impl Session for FakeSession {
             );
         }
     }
+
+    fn run_builtin_rule<'v>(
+        &self,
+        heap: &starlark::values::Heap<'v>,
+        _target: &Self::TargetRef,
+        _state: &mut types::CtxState<Self::TargetRef>,
+    ) -> starlark::values::Value<'v> {
+        heap.alloc(Vec::<starlark::values::Value<'v>>::new())
+    }
 }

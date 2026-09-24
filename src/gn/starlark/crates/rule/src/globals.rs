@@ -5,7 +5,7 @@
 use attr::{TargetAttrExt, traits::EvalContextAttrExt};
 use starlark::{
     environment::{FrozenModule, Module},
-    values::FrozenHeapName,
+    values::{FrozenHeapName, HeapEdge},
 };
 use strum::IntoEnumIterator as _;
 
@@ -20,15 +20,20 @@ use crate::{OutputType, Rule};
 ///   sources = [...],
 ///   ...
 /// )
-pub fn register_builtin_rules<C: EvalContextAttrExt>() -> FrozenModule
+pub fn register_builtin_rules<C: EvalContextAttrExt + crate::CtxMethods>() -> FrozenModule
 where
     <C::Session as types::Session>::TargetRef: TargetAttrExt,
 {
+    let builtin_impl = C::builtin_impl();
     Module::with_temp_heap(|module| {
         module.frozen_heap(|heap, edge| {
             for output_type in OutputType::iter() {
                 let name = output_type.to_string();
-                let rule = Rule::<C>::new_builtin(output_type, &heap);
+                let rule = Rule::<C>::new_builtin(
+                    output_type,
+                    HeapEdge::immortal().rebrand(builtin_impl),
+                    &heap,
+                );
                 let frozen_value = heap.alloc(rule);
                 module.set(&name, edge.rebrand(frozen_value.to_value()));
             }

@@ -115,23 +115,19 @@ pub struct Depset<'v> {
 
 impl<'v> Depset<'v> {
     /// Creates a new `Depset` containing `File` elements.
-    pub fn new_file_depset<C: types::EvalContext>(
+    pub fn new_file_depset<T: types::TargetRef>(
         direct: Vec<File>,
         heap: &Heap<'v>,
-        ctx: &C,
-    ) -> starlark::Result<Self> {
+        state: &mut types::CtxState<T>,
+    ) -> Self {
         let phony = if direct.len() == 1 {
             Some(direct[0].clone())
         } else if !direct.is_empty() {
-            Some(
-                ctx.require_rule_impl()?
-                    .borrow_mut()
-                    .new_phony(direct.clone()),
-            )
+            Some(state.new_phony(direct.clone()))
         } else {
             None
         };
-        Ok(Self {
+        Self {
             order: Order::Unspecified,
             transitive: Vec::new(),
             kind: if direct.is_empty() {
@@ -141,7 +137,7 @@ impl<'v> Depset<'v> {
             },
             direct: direct.into_iter().map(|f| heap.alloc(f)).collect(),
             phony,
-        })
+        }
     }
 }
 
