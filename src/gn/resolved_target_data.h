@@ -147,6 +147,11 @@ class ResolvedTargetData {
 
   // Retrieves an ordered list of all order-only dependency outputs for this
   // target.
+  // Returns true if a target depending on |dep| inherits the hard deps of
+  // |dep|. Used to compute GetHardDeps(), and by code that needs to mirror
+  // that computation.
+  static bool ForwardsHardDeps(const Target* dep);
+
   const std::vector<OutputFile>& GetOrderOnlyDeps(const Target* target) const {
     return GetTargetOrderOnlyDeps(target)->order_only_deps;
   }

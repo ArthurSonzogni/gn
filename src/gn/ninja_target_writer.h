@@ -61,6 +61,25 @@ class NinjaTargetWriter {
                                             ResolvedTargetData* resolved,
                                             std::ostream& out);
 
+  // Targets need to depend on all their recursive hard deps. Listing all of
+  // them on each target makes the generated ninja files very large, since
+  // targets near the top of the dependency graph tend to have thousands of
+  // recursive hard deps. Instead, every target with at least two hard deps
+  // gets a stamp or phony rule for its hard deps which depends on the target's
+  // direct hard deps, and on the hard deps rules of the direct deps that hard
+  // deps are inherited from. BUNDLE_DATA targets are never included (see
+  // WriteInputDepsStampOrPhonyAndGetDep()).
+  static void WriteHardDepsStampOrPhony(const Target* target,
+                                        ResolvedTargetData* resolved,
+                                        std::ostream& out);
+
+  // Appends what a build statement needs to depend on to depend on all hard
+  // deps of |target|: Nothing if it has no hard deps, the hard dep itself if
+  // it has just one, else the rule written by WriteHardDepsStampOrPhony().
+  static void AppendHardDepsOutputs(const Target* target,
+                                    const ResolvedTargetData& resolved,
+                                    std::vector<OutputFile>* outputs);
+
   virtual void Run() = 0;
 
  protected:

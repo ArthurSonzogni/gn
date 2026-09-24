@@ -40,3 +40,14 @@ OutputFile GetPublicInputsOutputFile(const Target* target,
                          ".public_inputs.stamp");
   }
 }
+
+OutputFile GetHardDepsOutputFile(const Target* target,
+                                 const BuildSettings* build_settings) {
+  if (build_settings->no_stamp_files()) {
+    return GetOutputFile(*target, BuildDirType::PHONY, target->label().name(),
+                         ".harddeps");
+  } else {
+    return GetOutputFile(*target, BuildDirType::OBJ, target->label().name(),
+                         ".harddeps.stamp");
+  }
+}

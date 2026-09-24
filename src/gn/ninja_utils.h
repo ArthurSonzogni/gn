@@ -24,6 +24,12 @@ SourceFile GetNinjaFileForToolchain(const Settings* settings);
 // don't collide with rules from other toolchains.
 std::string GetNinjaRulePrefixForToolchain(const Settings* settings);
 
+// Returns the name of the phony target (or stamp file) that depends on all
+// hard deps of |target|. Only written if |target| has at least two hard deps,
+// see NinjaTargetWriter::WriteHardDepsStampOrPhony().
+OutputFile GetHardDepsOutputFile(const Target* target,
+                                 const BuildSettings* build_settings);
+
 // Returns the output file path for the target's public inputs stamp or phony
 // target.
 OutputFile GetPublicInputsOutputFile(const Target* target,

@@ -760,3 +760,138 @@ TEST(NinjaTargetWriter, GroupPublicInputs) {
     EXPECT_FALSE(out.contains("../../foo/g.in")) << out;
   }
 }
+
+TEST(NinjaTargetWriter, HardDeps) {
+  TestWithScope setup;
+  Err err;
+
+  auto make_action = [&](Target* target) {
+    target->set_output_type(Target::ACTION);
+    target->visibility().SetPublic();
+    target->SetToolchain(setup.toolchain());
+    target->action_values().set_script(SourceFile("//foo/script.py"));
+    std::string output = "//out/Debug/" + target->label().name() + ".out";
+    target->action_values().outputs() =
+        SubstitutionList::MakeForTest(output.c_str());
+  };
+  auto make_source_set = [&](Target* target) {
+    target->set_output_type(Target::SOURCE_SET);
+    target->visibility().SetPublic();
+    target->sources().push_back(SourceFile("//foo/source.cc"));
+    target->source_types_used().Set(SourceFile::SOURCE_CPP);
+    target->SetToolchain(setup.toolchain());
+  };
+  auto hard_deps_rule = [](const Target* target) {
+    std::ostringstream out;
+    NinjaTargetWriter::WriteHardDepsStampOrPhony(target, nullptr, out);
+    return out.str();
+  };
+  auto hard_deps_outputs = [](const Target* target) {
+    ResolvedTargetData resolved;
+    std::vector<OutputFile> outputs;
+    NinjaTargetWriter::AppendHardDepsOutputs(target, resolved, &outputs);
+    std::string result;
+    for (const OutputFile& output : outputs)
+      result += std::string(output.value()) + " ";
+    return result;
+  };
+
+  Target action1(setup.settings(), Label(SourceDir("//foo/"), "action1"));
+  make_action(&action1);
+  ASSERT_TRUE(action1.OnResolved(&err));
+  Target action2(setup.settings(), Label(SourceDir("//foo/"), "action2"));
+  make_action(&action2);
+  ASSERT_TRUE(action2.OnResolved(&err));
+  Target action3(setup.settings(), Label(SourceDir("//foo/"), "action3"));
+  make_action(&action3);
+  ASSERT_TRUE(action3.OnResolved(&err));
+  Target bundle_data(setup.settings(), Label(SourceDir("//foo/"), "data"));
+  bundle_data.set_output_type(Target::BUNDLE_DATA);
+  bundle_data.visibility().SetPublic();
+  bundle_data.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(bundle_data.OnResolved(&err));
+
+  // No hard deps: No rule, nothing to depend on.
+  EXPECT_EQ("", hard_deps_rule(&action1));
+  EXPECT_EQ("", hard_deps_outputs(&action1));
+
+  // A single hard dep: No rule, dependents depend on the hard dep itself.
+  // BUNDLE_DATA targets don't count.
+  Target single(setup.settings(), Label(SourceDir("//foo/"), "single"));
+  make_source_set(&single);
+  single.private_deps().push_back(LabelTargetPair(&action1));
+  single.private_deps().push_back(LabelTargetPair(&bundle_data));
+  ASSERT_TRUE(single.OnResolved(&err));
+  EXPECT_EQ("", hard_deps_rule(&single));
+  EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&single));
+
+  // Several hard deps: The rule lists them.
+  Target mid(setup.settings(), Label(SourceDir("//foo/"), "mid"));
+  make_source_set(&mid);
+  mid.private_deps().push_back(LabelTargetPair(&action2));
+  mid.private_deps().push_back(LabelTargetPair(&action1));
+  mid.private_deps().push_back(LabelTargetPair(&bundle_data));
+  ASSERT_TRUE(mid.OnResolved(&err));
+  EXPECT_EQ(
+      "build phony/foo/mid.harddeps: phony phony/foo/action1 "
+      "phony/foo/action2\n",
+      hard_deps_rule(&mid));
+  EXPECT_EQ("phony/foo/mid.harddeps ", hard_deps_outputs(&mid));
+
+  // Hard deps of deps are referenced through the rule of the dep if there
+  // is one, and directly else. Duplicates are omitted.
+  Target top(setup.settings(), Label(SourceDir("//foo/"), "top"));
+  make_source_set(&top);
+  top.private_deps().push_back(LabelTargetPair(&mid));
+  top.private_deps().push_back(LabelTargetPair(&single));
+  top.private_deps().push_back(LabelTargetPair(&action3));
+  top.private_deps().push_back(LabelTargetPair(&action1));
+  ASSERT_TRUE(top.OnResolved(&err));
+  EXPECT_EQ(
+      "build phony/foo/top.harddeps: phony phony/foo/action1 "
+      "phony/foo/action3 phony/foo/mid.harddeps\n",
+      hard_deps_rule(&top));
+
+  // The input deps of a target just refer to its hard deps rule.
+  {
+    std::ostringstream stream;
+    TestingNinjaTargetWriter writer(&top, setup.toolchain(), stream);
+    auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 10u);
+    EXPECT_EQ("", stream.str());
+    EXPECT_TRUE(deps.implicit.empty());
+    ASSERT_EQ(1u, deps.order_only.size());
+    EXPECT_EQ("phony/foo/top.harddeps", deps.order_only[0].value());
+  }
+
+  // Binary targets without public headers don't forward their hard deps.
+  Target no_public_headers(setup.settings(),
+                           Label(SourceDir("//foo/"), "no_public_headers"));
+  make_source_set(&no_public_headers);
+  no_public_headers.set_all_headers_public(false);
+  no_public_headers.private_deps().push_back(LabelTargetPair(&action1));
+  no_public_headers.private_deps().push_back(LabelTargetPair(&action2));
+  ASSERT_TRUE(no_public_headers.OnResolved(&err));
+  EXPECT_EQ("phony/foo/no_public_headers.harddeps ",
+            hard_deps_outputs(&no_public_headers));
+  Target top2(setup.settings(), Label(SourceDir("//foo/"), "top2"));
+  make_source_set(&top2);
+  top2.private_deps().push_back(LabelTargetPair(&no_public_headers));
+  top2.private_deps().push_back(LabelTargetPair(&action3));
+  ASSERT_TRUE(top2.OnResolved(&err));
+  EXPECT_EQ("", hard_deps_rule(&top2));
+  EXPECT_EQ("phony/foo/action3 ", hard_deps_outputs(&top2));
+
+  // Targets that are hard deps themselves (here, an action) depend on all
+  // their deps, but don't inherit hard deps from them. Their input deps are
+  // implicit deps so that they re-run if a hard dep changes; that works
+  // through the hard deps rule since its deps aren't order-only.
+  Target action4(setup.settings(), Label(SourceDir("//foo/"), "action4"));
+  make_action(&action4);
+  action4.private_deps().push_back(LabelTargetPair(&mid));
+  action4.private_deps().push_back(LabelTargetPair(&action3));
+  ASSERT_TRUE(action4.OnResolved(&err));
+  EXPECT_EQ(
+      "build phony/foo/action4.harddeps: phony phony/foo/action3 "
+      "phony/foo/mid\n",
+      hard_deps_rule(&action4));
+}
