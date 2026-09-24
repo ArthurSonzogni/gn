@@ -234,7 +234,7 @@ impl Attr {
 mod tests {
     use starlark::{
         environment::Module,
-        values::{list::UnpackList, UnpackValue as _, ValueLike as _},
+        values::{list::UnpackList, UnpackValue as _},
     };
     use testutils::{FakeSession, FakeTarget, FakeTargetRef};
     use types::PackageRef;

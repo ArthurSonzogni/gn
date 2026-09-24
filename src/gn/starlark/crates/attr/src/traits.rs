@@ -31,7 +31,7 @@ pub trait EvalContextAttrExt: types::EvalContext {
     fn register_target(
         &self,
         cxx_target: &'static <<Self::Session as types::Session>::TargetRef as types::TargetRef>::Cxx,
-        rule: starlark::values::FrozenValue,
+        rule: starlark::values::Value<'static>,
         attrs: Vec<crate::Attr>,
     ) -> starlark::Result<<Self::Session as types::Session>::TargetRef>;
 }

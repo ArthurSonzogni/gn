@@ -10,7 +10,7 @@ use starlark::values::FrozenValueTyped;
 use crate::{eval_context::EvalContext, TargetRef};
 
 pub(crate) struct StarlarkTarget {
-    pub(crate) rule: FrozenValueTyped<'static, rule::FrozenRule<EvalContext>>,
+    pub(crate) rule: FrozenValueTyped<'static, rule::Rule<'static, EvalContext>>,
     pub(crate) attrs: Vec<attr::Attr>,
 }
 

@@ -4,11 +4,11 @@
 
 use starlark::{
     typing::Ty,
-    values::{type_repr::StarlarkTypeRepr, FrozenValueTyped, UnpackValue, Value, ValueTyped},
+    values::{type_repr::StarlarkTypeRepr, UnpackValue, Value},
 };
 use types::File;
 
-use crate::depset::{Depset, FrozenDepset};
+use crate::depset::Depset;
 
 /// Helper type to unpack a Starlark `Value` as either a mutable or frozen
 /// `Depset`.
@@ -29,17 +29,7 @@ impl<'v> UnpackValue<'v> for UnpackDepset<'v> {
     type Error = starlark::Error;
 
     fn unpack_value_impl(value: Value<'v>) -> Result<Option<Self>, Self::Error> {
-        if let Some(frozen) = value
-            .unpack_frozen()
-            .and_then(FrozenValueTyped::<FrozenDepset>::new)
-        {
-            let depset: &'v Depset<'v> = starlark::coerce::coerce(frozen.as_ref());
-            Ok(Some(UnpackDepset { depset, value }))
-        } else {
-            let mutable = ValueTyped::<Depset<'v>>::new_err(value)?;
-            let depset: &'v Depset<'v> = mutable.as_ref();
-            Ok(Some(UnpackDepset { depset, value }))
-        }
+        Ok(Depset::from_value(value).map(|depset| UnpackDepset { depset, value }))
     }
 }
 

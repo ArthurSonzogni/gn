@@ -3,10 +3,14 @@
 // found in the LICENSE file.
 
 use attr::{traits::EvalContextAttrExt, TargetAttrExt, TargetRef};
-use starlark::{environment::Module, eval::Evaluator, values::OwnedFrozenValue};
+use starlark::{
+    environment::Module,
+    eval::Evaluator,
+    values::{HeapEdge, OwnedFrozen, Value},
+};
 use types::{EvaluatorContextExt, Session};
 
-use crate::{Ctx, FrozenRule};
+use crate::{Ctx, Rule};
 
 /// Runs the rule implementation function for a given target.
 /// This matches the execution phase where rule implementation is run
@@ -14,9 +18,10 @@ use crate::{Ctx, FrozenRule};
 pub fn run<C: EvalContextAttrExt + crate::CtxMethods>(
     target: &<C::Session as Session>::TargetRef,
     create_context: impl FnOnce(&<C::Session as Session>::TargetRef) -> C,
-) -> starlark::Result<OwnedFrozenValue>
+) -> starlark::Result<OwnedFrozen<Value<'static>>>
 where
-    <C::Session as Session>::TargetRef: TargetAttrExt<Rule = FrozenRule<C>, Session = C::Session>,
+    <C::Session as Session>::TargetRef:
+        TargetAttrExt<Rule = Rule<'static, C>, Session = C::Session>,
 {
     // Safety: rule is always a rule for custom rule-built targets.
     let rule = target.rule().unwrap();
@@ -28,6 +33,8 @@ where
         // are kept.
         module.set_extra_value({
             let mut eval = Evaluator::new(&module);
+            eval.set_context(&rule_context);
+            let rule = HeapEdge::immortal().rebrand_ref(rule);
             let ctx = eval.heap().alloc(Ctx::<C>::new(
                 rule.schema.create_ctx_fields(
                     target.attrs(),
@@ -40,11 +47,10 @@ where
                 rule,
             ));
 
-            eval.set_context(&rule_context);
-            eval.eval_function(rule.implementation.to_value(), &[ctx], &[])?
+            eval.eval_function(rule.implementation, &[ctx], &[])?
         });
 
         let frozen = module.freeze()?;
-        Ok(frozen.owned_extra_value().unwrap())
+        Ok(frozen.extra_value().unwrap())
     })
 }

@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 use allocative::Allocative;
-use starlark::values::{
-    AllocValue, Heap, ProvidesStaticType, StarlarkValue, Value, ValueLike as _,
-};
+use starlark::values::{AllocValue, Heap, ProvidesStaticType, StarlarkValue, Value};
 use starlark_derive::{starlark_value, NoSerialize};
 use types::{LabelRef, TargetRef as _};
 
@@ -67,15 +65,15 @@ impl<'v> StarlarkValue<'v> for TargetRef {
         Ok(())
     }
 
-    fn at(&self, index: Value<'v>, _heap: Heap<'v>) -> starlark::Result<Value<'v>> {
-        match self.providers().get(self, index)? {
-            Some(&val) => Ok(val.to_value()),
+    fn at(&self, index: Value<'v>, heap: Heap<'v>) -> starlark::Result<Value<'v>> {
+        match self.providers().get(self, index, heap)? {
+            Some(val) => Ok(val),
             None => Err(crate::errors::Error::MissingProvider(*self, index.to_string()).into()),
         }
     }
 
     fn is_in(&self, index: Value<'v>) -> starlark::Result<bool> {
-        Ok(self.providers().get(self, index)?.is_some())
+        self.providers().contains(self, index)
     }
 }
 
@@ -87,7 +85,7 @@ impl<'v> AllocValue<'v> for TargetRef {
 
 impl types::TargetRef for TargetRef {
     type Cxx = crate::bridge::CxxTarget;
-    type Rule = rule::FrozenRule<crate::eval_context::EvalContext>;
+    type Rule = rule::Rule<'static, crate::eval_context::EvalContext>;
     type Session = crate::Session;
 
     fn label(&self) -> LabelRef<'_> {

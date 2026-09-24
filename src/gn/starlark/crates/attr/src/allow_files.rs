@@ -2,19 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use allocative::Allocative;
 use starlark::{
     typing::Ty,
-    values::{
-        list::UnpackList, type_repr::StarlarkTypeRepr, Freeze, FreezeError, Freezer, UnpackValue,
-        Value,
-    },
+    values::{list::UnpackList, type_repr::StarlarkTypeRepr, Freeze, UnpackValue, Value},
 };
 use types::{Label, PackageRef, PathResolver};
 
 use crate::attr::LabelOrFile;
 
 /// The rust type for the starlark value passed to attr.label(allow_files = ...)
-#[derive(Debug, Clone, PartialEq, Eq, allocative::Allocative)]
+#[derive(Allocative, Clone, Debug, Eq, Freeze, PartialEq)]
 pub enum AllowFiles {
     None,
     All,
@@ -81,14 +79,6 @@ impl AllowFiles {
     }
 }
 
-impl Freeze for AllowFiles {
-    type Frozen = Self;
-
-    fn freeze(self, _freezer: &Freezer) -> Result<Self::Frozen, FreezeError> {
-        Ok(self)
-    }
-}
-
 pub(crate) fn parse_label_like(
     s: &str,
     allow_files: &AllowFiles,
@@ -108,8 +98,6 @@ pub(crate) fn parse_label_like(
 
 #[cfg(test)]
 mod tests {
-    use starlark::values::FrozenHeap;
-
     use super::*;
     use crate::{
         cfg::AttrCfg,
@@ -120,38 +108,39 @@ mod tests {
     #[test]
     fn test_allow_files_matching() {
         let path_resolver = types::PathResolver::new_for_testing();
-        let heap = FrozenHeap::new();
 
-        let check_match = |pattern: &str, file: &str| -> bool {
-            let schema = AttrSchema {
-                kind: AttrKind::Label,
-                default: None,
-                disallow_empty: false,
-                allow_files: AllowFilesSchema::Many(AllowFiles::Some(vec![pattern.to_owned()])),
-                cfg: AttrCfg::CurrentToolchain,
-                doc: String::new(),
+        starlark::values::Heap::temp(|heap| {
+            let check_match = |pattern: &str, file: &str| -> bool {
+                let schema = AttrSchema {
+                    kind: AttrKind::Label,
+                    default: None,
+                    disallow_empty: false,
+                    allow_files: AllowFilesSchema::Many(AllowFiles::Some(vec![pattern.to_owned()])),
+                    cfg: AttrCfg::CurrentToolchain,
+                    doc: String::new(),
+                };
+                Attr::create(
+                    &schema,
+                    Some(heap.alloc(file)),
+                    PackageRef::new("//allow_files").unwrap(),
+                    &path_resolver,
+                )
+                .is_ok()
             };
-            Attr::create(
-                &schema,
-                Some(Value::new_frozen(heap.alloc(file))),
-                PackageRef::new("//allow_files").unwrap(),
-                &path_resolver,
-            )
-            .is_ok()
-        };
 
-        assert!(check_match(".cc", "file.cc"));
-        assert!(check_match(".cc", "subdir/file.cc"));
-        assert!(!check_match(".cc", "file.h"));
-        assert!(!check_match(".cc", "cc"));
-        assert!(!check_match(".cc", "nonexistent.cc"));
+            assert!(check_match(".cc", "file.cc"));
+            assert!(check_match(".cc", "subdir/file.cc"));
+            assert!(!check_match(".cc", "file.h"));
+            assert!(!check_match(".cc", "cc"));
+            assert!(!check_match(".cc", "nonexistent.cc"));
 
-        assert!(check_match("cc", "file.cc"));
-        assert!(!check_match("cc", "file.h"));
-        assert!(check_match("cc", "cc"));
+            assert!(check_match("cc", "file.cc"));
+            assert!(!check_match("cc", "file.h"));
+            assert!(check_match("cc", "cc"));
 
-        assert!(check_match("foo.cc", "foo.cc"));
-        assert!(check_match("foo.cc", "test.foo.cc"));
-        assert!(!check_match("foo.cc", "bar.cc"));
+            assert!(check_match("foo.cc", "foo.cc"));
+            assert!(check_match("foo.cc", "test.foo.cc"));
+            assert!(!check_match("foo.cc", "bar.cc"));
+        });
     }
 }

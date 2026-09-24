@@ -8,7 +8,7 @@ use starlark::{
     environment::{FrozenModule, GlobalsBuilder},
     values::UnpackValue,
 };
-use types::{EvalContext, EvaluatorContextExt, Label, PathResolver, UnpackedOwnedValue};
+use types::{EvalContext, EvaluatorContextExt, Label, PathResolver};
 
 use crate::{register_globals, FakeEvalContext, FakeSession};
 
@@ -102,6 +102,10 @@ impl Assert {
         });
     }
 
+    pub fn module(&mut self, name: &str, code: &str) -> FrozenModule {
+        self.assert.module(name, code)
+    }
+
     pub fn module_add(&mut self, module: FrozenModule) {
         let name = module.frozen_heap().name().unwrap().to_string();
         self.assert.module_add(&name, module);
@@ -135,17 +139,19 @@ impl Assert {
     where
         T: PartialEq + std::fmt::Debug + for<'v> UnpackValue<'v> + 'static,
     {
-        assert_eq!(*self.eval::<T>(code), expected);
+        assert_eq!(self.eval::<T>(code), expected);
     }
 
     /// Evaluates code and unpacks it to a given type.
     #[track_caller]
-    pub fn eval<T>(&mut self, code: &str) -> UnpackedOwnedValue<T>
+    pub fn eval<T>(&mut self, code: &str) -> T
     where
         T: for<'v> UnpackValue<'v> + 'static,
     {
-        let owned_val = self.assert.pass(code);
-        UnpackedOwnedValue::<T>::try_from(owned_val).unwrap()
+        self.assert
+            .pass(code)
+            .by_ref(|v| T::unpack_value_err(*v))
+            .unwrap()
     }
 
     /// Asserts that the two pieces of code produce something equivalent.
@@ -153,7 +159,9 @@ impl Assert {
     pub fn equivalent(&mut self, lhs_code: &str, rhs_code: &str) {
         let lhs_val = self.assert.pass(lhs_code);
         let rhs_val = self.assert.pass(rhs_code);
-        assert_eq!(lhs_val.value(), rhs_val.value());
+        starlark::values::Heap::temp(|heap| {
+            assert_eq!(lhs_val.add_to_heap(heap), rhs_val.add_to_heap(heap));
+        });
     }
 
     // We explicitly implement `pass`, `fail`, and `fails` with `&mut self`
@@ -164,15 +172,11 @@ impl Assert {
 
     /// Evaluates code and returns the Starlark value.
     #[track_caller]
-    pub fn pass(&mut self, code: &str) -> starlark::values::OwnedFrozenValue {
+    pub fn pass(
+        &mut self,
+        code: &str,
+    ) -> starlark::values::OwnedFrozen<starlark::values::Value<'static>> {
         self.assert.pass(code)
-    }
-
-    /// Asserts that freezing the evaluated module fails with the expected
-    /// error.
-    #[track_caller]
-    pub fn fail_to_freeze(&mut self, code: &str, expected_error: &str) -> starlark::Error {
-        self.assert.fail_to_freeze(code, expected_error)
     }
 
     /// Asserts that the code fails to evaluate with the expected error.

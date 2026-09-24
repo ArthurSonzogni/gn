@@ -7,10 +7,7 @@ use std::fmt;
 use allocative::Allocative;
 use starlark::{
     collections::{SmallMap, SmallSet},
-    values::{
-        list::UnpackList, none::NoneOr, Freeze, FreezeResult, Freezer, Heap, UnpackValue as _,
-        Value,
-    },
+    values::{list::UnpackList, none::NoneOr, Freeze, Heap, UnpackValue as _, Value},
 };
 use types::{File, Label, LabelRef, PackageRef, PathResolver};
 
@@ -23,7 +20,7 @@ use crate::{
 ///
 /// We do this because at the time we resolve attributes, the dependency has
 /// not yet been resolved, and thus we don't know what files it expands to.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Allocative)]
+#[derive(Allocative, Clone, Debug, Eq, Freeze, Hash, PartialEq)]
 pub enum LabelOrFile {
     Label(Label),
     File(File),
@@ -57,7 +54,7 @@ impl std::fmt::Display for LabelOrFile {
 /// For example, the bool type defaults to false, attr.bool() can never produce
 /// `Attr::Label(None)`. On the other hand, `attr.label()` defaults to
 /// `Attr::Label(None)`.
-#[derive(Clone, Debug, PartialEq, Eq, Allocative)]
+#[derive(Allocative, Clone, Debug, Eq, Freeze, PartialEq)]
 pub enum Attr {
     Bool(bool),
     Int(i32),
@@ -76,14 +73,6 @@ pub enum Attr {
 impl std::fmt::Display for Attr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self:?}")
-    }
-}
-
-impl Freeze for Attr {
-    type Frozen = Self;
-
-    fn freeze(self, _freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        Ok(self)
     }
 }
 
@@ -308,8 +297,6 @@ impl Attr {
 
 #[cfg(test)]
 mod tests {
-    use starlark::values::FrozenHeap;
-
     use super::*;
     use crate::{cfg::AttrCfg, schema::AllowFilesSchema};
 
@@ -317,7 +304,6 @@ mod tests {
     fn test_attr_bool() {
         let pkg = PackageRef::new("//foo").unwrap();
         let path_resolver = types::PathResolver::new_for_testing();
-        let heap = FrozenHeap::new();
 
         let schema = AttrSchema {
             kind: AttrKind::Bool,
@@ -328,39 +314,28 @@ mod tests {
             doc: String::new(),
         };
 
-        // Test explicit true
-        assert_eq!(
-            Attr::create(
-                &schema,
-                Some(Value::new_frozen(heap.alloc(true))),
-                pkg,
-                &path_resolver,
-            )
-            .unwrap(),
-            Attr::Bool(true)
-        );
+        starlark::values::Heap::temp(|heap| {
+            // Test explicit true
+            assert_eq!(
+                Attr::create(&schema, Some(heap.alloc(true)), pkg, &path_resolver,).unwrap(),
+                Attr::Bool(true)
+            );
 
-        // Test default when value is None
-        assert_eq!(
-            Attr::create(&schema, None, pkg, &path_resolver).unwrap(),
-            Attr::Bool(false)
-        );
+            // Test default when value is None
+            assert_eq!(
+                Attr::create(&schema, None, pkg, &path_resolver).unwrap(),
+                Attr::Bool(false)
+            );
 
-        // Test non-boolean value fails
-        assert!(Attr::create(
-            &schema,
-            Some(Value::new_frozen(heap.alloc(42))),
-            pkg,
-            &path_resolver,
-        )
-        .is_err());
+            // Test non-boolean value fails
+            assert!(Attr::create(&schema, Some(heap.alloc(42)), pkg, &path_resolver,).is_err());
+        });
     }
 
     #[test]
     fn test_attr_label_no_files() {
         let pkg = PackageRef::new("//foo").unwrap();
         let path_resolver = types::PathResolver::new_for_testing();
-        let heap = FrozenHeap::new();
 
         let schema = AttrSchema {
             kind: AttrKind::Label,
@@ -371,39 +346,30 @@ mod tests {
             doc: String::new(),
         };
 
-        // Test parsing a label ":bar"
-        assert_eq!(
-            Attr::create(
-                &schema,
-                Some(Value::new_frozen(heap.alloc(":bar"))),
-                pkg,
-                &path_resolver,
-            )
-            .unwrap(),
-            Attr::Label(Some(LabelOrFile::Label(Label::new(
-                PackageRef::new("//foo").unwrap().to_owned(),
-                "bar".to_owned(),
-            ))))
-        );
+        starlark::values::Heap::temp(|heap| {
+            // Test parsing a label ":bar"
+            assert_eq!(
+                Attr::create(&schema, Some(heap.alloc(":bar")), pkg, &path_resolver,).unwrap(),
+                Attr::Label(Some(LabelOrFile::Label(Label::new(
+                    PackageRef::new("//foo").unwrap().to_owned(),
+                    "bar".to_owned(),
+                ))))
+            );
 
-        // Test that a file string fails because files are not allowed
-        assert!(Attr::create(
-            &schema,
-            Some(Value::new_frozen(heap.alloc("file.cc"))),
-            pkg,
-            &path_resolver,
-        )
-        .is_err());
+            // Test that a file string fails because files are not allowed
+            assert!(
+                Attr::create(&schema, Some(heap.alloc("file.cc")), pkg, &path_resolver,).is_err()
+            );
 
-        // Test that passing None to a mandatory label fails
-        assert!(Attr::create(&schema, Some(Value::new_none()), pkg, &path_resolver,).is_err());
+            // Test that passing None to a mandatory label fails
+            assert!(Attr::create(&schema, Some(Value::new_none()), pkg, &path_resolver).is_err());
+        });
     }
 
     #[test]
     fn test_attr_label_allow_files() {
         let pkg = PackageRef::new("//foo").unwrap();
         let path_resolver = types::PathResolver::new_for_testing();
-        let heap = FrozenHeap::new();
 
         let schema = AttrSchema {
             kind: AttrKind::Label,
@@ -414,43 +380,29 @@ mod tests {
             doc: String::new(),
         };
 
-        // Test a valid file "file.cc" (exists in testdata/foo/file.cc)
-        assert_eq!(
-            Attr::create(
-                &schema,
-                Some(Value::new_frozen(heap.alloc("file.cc"))),
-                pkg,
-                &path_resolver,
-            )
-            .unwrap(),
-            Attr::Label(Some(LabelOrFile::File(
-                path_resolver.source_file(pkg, "file.cc").unwrap()
-            )))
-        );
+        starlark::values::Heap::temp(|heap| {
+            // Test a valid file "file.cc" (exists in testdata/foo/file.cc)
+            assert_eq!(
+                Attr::create(&schema, Some(heap.alloc("file.cc")), pkg, &path_resolver,).unwrap(),
+                Attr::Label(Some(LabelOrFile::File(
+                    path_resolver.source_file(pkg, "file.cc").unwrap()
+                )))
+            );
 
-        // Test an invalid file "file.h" (extension not in allowed list)
-        assert!(Attr::create(
-            &schema,
-            Some(Value::new_frozen(heap.alloc("file.h"))),
-            pkg,
-            &path_resolver,
-        )
-        .is_err());
+            // Test an invalid file "file.h" (extension not in allowed list)
+            assert!(
+                Attr::create(&schema, Some(heap.alloc("file.h")), pkg, &path_resolver,).is_err()
+            );
 
-        // Test that a label still resolves
-        assert_eq!(
-            Attr::create(
-                &schema,
-                Some(Value::new_frozen(heap.alloc(":bar"))),
-                pkg,
-                &path_resolver,
-            )
-            .unwrap(),
-            Attr::Label(Some(LabelOrFile::Label(Label::new(
-                PackageRef::new("//foo").unwrap().to_owned(),
-                "bar".to_owned(),
-            ))))
-        );
+            // Test that a label still resolves
+            assert_eq!(
+                Attr::create(&schema, Some(heap.alloc(":bar")), pkg, &path_resolver,).unwrap(),
+                Attr::Label(Some(LabelOrFile::Label(Label::new(
+                    PackageRef::new("//foo").unwrap().to_owned(),
+                    "bar".to_owned(),
+                ))))
+            );
+        });
     }
 
     #[test]

@@ -29,17 +29,18 @@ members = [
 ]
 
 [workspace.dependencies]
-allocative = "0.3"
+# allocative on crates.io still points to the old location.
+allocative = { version = "0.3.6", git = "https://github.com/facebook/buck2.git", branch = "main" }
 anyhow = "1.0"
 # cxx's C++ version must be <= GN's C++ version. This does not need to be kept
 # in sync unless you're trying to use new C++ features in the bridge.
 cxx = { version = "1.0", features = ["c++20"] }
-either = "1.16"
+either = "1.18"
 link-cplusplus = "1.0"
-starlark = "0.14"
-starlark_derive = "0.14"
+starlark = "0.14.2"
+starlark_derive = "0.14.2"
 thiserror = "2.0"
-strum = { version = "0.26", features = ["derive"] }
+strum = { version = "0.28", features = ["derive"] }
 
 [features]
 # When compiling with ninja, ninja has its own set of link flags.
@@ -57,10 +58,6 @@ starlark = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_s
 starlark_derive = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_starlark" }
 starlark_map = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_starlark" }
 starlark_syntax = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_starlark" }
-allocative = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_starlark" }
-allocative_derive = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_starlark" }
-pagable = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_starlark" }
-pagable_derive = { git = "https://github.com/matts1/starlark-rust.git", branch = "gn_starlark" }
 
 # In debug mode, we still optimize our dependencies.
 # Otherwise our static library for this package is

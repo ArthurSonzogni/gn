@@ -6,31 +6,27 @@ use std::{cell::RefCell, fmt, fmt::Display};
 
 use allocative::Allocative;
 use starlark::{
-    environment::{Methods, MethodsBuilder, MethodsStatic},
+    environment::{Methods, MethodsBuilder},
     eval::Evaluator,
-    starlark_simple_value,
-    values::{
-        Coerce, Freeze, FreezeResult, Freezer, FrozenValue, ProvidesStaticType, StarlarkValue,
-        Trace, Tracer, Value, ValueLike as _,
-    },
+    starlark_complex_value,
+    values::{Freeze, FreezeResult, Freezer, ProvidesStaticType, StarlarkValue, Trace, Value},
 };
 use starlark_derive::{starlark_module, starlark_value, NoSerialize};
 
 use crate::{formatter::Formatter, Error};
 
 /// Internal representation of individual arguments stored in `Args`.
-#[derive(Debug, Clone, Trace, Coerce, ProvidesStaticType, NoSerialize, Allocative)]
-#[repr(C)]
-pub enum ArgValue<V> {
+#[derive(Allocative, Clone, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
+pub enum ArgValue<'v> {
     Scalar {
         arg_name: Option<String>,
-        value: V,
+        value: Value<'v>,
         format: Option<Formatter>,
     },
     All {
         flag: Option<String>,
-        values: V,
-        map_each: Option<V>,
+        values: Value<'v>,
+        map_each: Option<Value<'v>>,
         format_each: Option<Formatter>,
         before_each: Option<String>,
         terminate_with: Option<String>,
@@ -39,9 +35,9 @@ pub enum ArgValue<V> {
     },
     Joined {
         flag: Option<String>,
-        values: V,
+        values: Value<'v>,
         join_with: String,
-        map_each: Option<V>,
+        map_each: Option<Value<'v>>,
         format_each: Option<Formatter>,
         format_joined: Option<Formatter>,
         omit_if_empty: bool,
@@ -49,140 +45,22 @@ pub enum ArgValue<V> {
     },
 }
 
-impl ArgValue<FrozenValue> {
-    pub fn to_value<'v>(&self) -> ArgValue<Value<'v>> {
-        match self {
-            Self::Scalar {
-                arg_name,
-                value,
-                format,
-            } => ArgValue::Scalar {
-                arg_name: arg_name.clone(),
-                value: value.to_value(),
-                format: format.clone(),
-            },
-            Self::All {
-                flag,
-                values,
-                map_each,
-                format_each,
-                before_each,
-                terminate_with,
-                omit_if_empty,
-                uniquify,
-            } => ArgValue::All {
-                flag: flag.clone(),
-                values: values.to_value(),
-                map_each: map_each.map(|m| m.to_value()),
-                format_each: format_each.clone(),
-                before_each: before_each.clone(),
-                terminate_with: terminate_with.clone(),
-                omit_if_empty: *omit_if_empty,
-                uniquify: *uniquify,
-            },
-            Self::Joined {
-                flag,
-                values,
-                join_with,
-                map_each,
-                format_each,
-                format_joined,
-                omit_if_empty,
-                uniquify,
-            } => ArgValue::Joined {
-                flag: flag.clone(),
-                values: values.to_value(),
-                join_with: join_with.clone(),
-                map_each: map_each.map(|m| m.to_value()),
-                format_each: format_each.clone(),
-                format_joined: format_joined.clone(),
-                omit_if_empty: *omit_if_empty,
-                uniquify: *uniquify,
-            },
-        }
-    }
-}
-
-impl Freeze for ArgValue<Value<'_>> {
-    type Frozen = ArgValue<FrozenValue>;
-
-    fn freeze(self, freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        match self {
-            ArgValue::Scalar {
-                arg_name,
-                value,
-                format,
-            } => Ok(ArgValue::Scalar {
-                arg_name,
-                value: value.freeze(freezer)?,
-                format: format.freeze(freezer)?,
-            }),
-            ArgValue::All {
-                flag,
-                values,
-                map_each,
-                format_each,
-                before_each,
-                terminate_with,
-                omit_if_empty,
-                uniquify,
-            } => Ok(ArgValue::All {
-                flag,
-                values: values.freeze(freezer)?,
-                map_each: map_each.map(|m| m.freeze(freezer)).transpose()?,
-                format_each: format_each.freeze(freezer)?,
-                before_each,
-                terminate_with,
-                omit_if_empty,
-                uniquify,
-            }),
-            ArgValue::Joined {
-                flag,
-                values,
-                join_with,
-                map_each,
-                format_each,
-                format_joined,
-                omit_if_empty,
-                uniquify,
-            } => Ok(ArgValue::Joined {
-                flag,
-                values: values.freeze(freezer)?,
-                join_with,
-                map_each: map_each.map(|m| m.freeze(freezer)).transpose()?,
-                format_each: format_each.freeze(freezer)?,
-                format_joined: format_joined.freeze(freezer)?,
-                omit_if_empty,
-                uniquify,
-            }),
-        }
-    }
-}
-
 /// The mutable Starlark `Args` object used to construct command lines for
 /// actions.
-#[derive(Debug, Default, ProvidesStaticType, NoSerialize, Allocative)]
+#[derive(Allocative, Debug, Default, NoSerialize, ProvidesStaticType, Trace)]
 pub struct Args<'v> {
     /// List of arguments added to the builder.
-    pub(crate) arguments: RefCell<Vec<ArgValue<Value<'v>>>>,
+    pub(crate) arguments: RefCell<Vec<ArgValue<'v>>>,
 }
 
 /// The frozen Starlark `Args` object, which is read-only and thread-safe.
-#[derive(Debug, Default, ProvidesStaticType, NoSerialize, Allocative)]
-pub struct FrozenArgs {
+#[derive(Allocative, Debug, Default, Freeze, NoSerialize, ProvidesStaticType, Trace)]
+pub struct FrozenArgs<'v> {
     /// List of frozen arguments.
-    pub(crate) arguments: Vec<ArgValue<FrozenValue>>,
+    pub(crate) arguments: Vec<ArgValue<'v>>,
 }
 
-unsafe impl<'v> Trace<'v> for Args<'v> {
-    fn trace(&mut self, tracer: &Tracer<'v>) {
-        for arg in self.arguments.borrow_mut().iter_mut() {
-            arg.trace(tracer);
-        }
-    }
-}
-
-starlark_simple_value!(FrozenArgs);
+starlark_complex_value!(pub FrozenArgs);
 
 impl<'v> starlark::values::AllocValue<'v> for Args<'v> {
     #[inline]
@@ -197,7 +75,7 @@ impl<'v> Display for Args<'v> {
     }
 }
 
-impl Display for FrozenArgs {
+impl<'v> Display for FrozenArgs<'v> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "args")
     }
@@ -205,40 +83,35 @@ impl Display for FrozenArgs {
 
 #[starlark_value(type = "Args")]
 impl<'v> StarlarkValue<'v> for Args<'v> {
-    type Canonical = FrozenArgs;
+    type Canonical = FrozenArgs<'v>;
 
     fn get_methods() -> Option<&'static Methods> {
-        static RES: MethodsStatic = MethodsStatic::new("Args", |builder| {
-            args_methods(builder);
-        });
+        starlark::methods_static!(RES = args_methods);
         Some(RES.methods())
     }
 }
 
 #[starlark_value(type = "Args")]
-impl<'v> StarlarkValue<'v> for FrozenArgs {
+impl<'v> StarlarkValue<'v> for FrozenArgs<'v> {
     type Canonical = Self;
 
     fn get_methods() -> Option<&'static Methods> {
-        static RES: MethodsStatic = MethodsStatic::new("Args", |builder| {
-            args_methods(builder);
-        });
+        starlark::methods_static!(RES = args_methods);
         Some(RES.methods())
     }
 }
 
-impl<'v> Freeze for Args<'v> {
-    type Frozen = FrozenArgs;
+impl<'v> Freeze<'v> for Args<'v> {
+    type Frozen<'fv> = FrozenArgs<'fv>;
 
-    fn freeze(self, freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        Ok(FrozenArgs {
-            arguments: self
-                .arguments
-                .into_inner()
-                .into_iter()
-                .map(|arg| arg.freeze(freezer))
-                .collect::<Result<Vec<_>, _>>()?,
-        })
+    fn freeze<'fv>(self, freezer: &Freezer<'v, 'fv>) -> FreezeResult<Self::Frozen<'fv>> {
+        let arguments = self
+            .arguments
+            .into_inner()
+            .into_iter()
+            .map(|arg| arg.freeze(freezer))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(FrozenArgs { arguments })
     }
 }
 
@@ -263,10 +136,10 @@ fn arg_name_and_value<'v>(
 
 fn get_mutable_args<'v>(
     this: Value<'v>,
-) -> starlark::Result<std::cell::RefMut<'v, Vec<ArgValue<Value<'v>>>>> {
+) -> starlark::Result<std::cell::RefMut<'v, Vec<ArgValue<'v>>>> {
     if let Some(args) = this.downcast_ref::<Args<'v>>() {
         Ok(args.arguments.borrow_mut())
-    } else if this.downcast_ref::<FrozenArgs>().is_some() {
+    } else if this.downcast_ref::<FrozenArgs<'v>>().is_some() {
         Err(starlark::Error::new_other(Error::CannotMutateFrozenArgs))
     } else {
         unreachable!();
@@ -370,7 +243,7 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
     }
 }
 
-impl<'v> FrozenArgs {
+impl<'v> FrozenArgs<'v> {
     /// Expands the stored arguments list into command-line arguments and input
     /// files.
     pub fn expand(&self, eval: &mut Evaluator<'v, '_, '_>) -> starlark::Result<Vec<String>> {

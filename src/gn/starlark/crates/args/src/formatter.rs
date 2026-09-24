@@ -5,13 +5,13 @@
 use allocative::Allocative;
 use starlark::{
     typing::Ty,
-    values::{type_repr::StarlarkTypeRepr, Freeze, FreezeResult, Freezer},
+    values::{type_repr::StarlarkTypeRepr, Freeze},
 };
 
 use crate::errors::Error;
 
 /// Helper to format argument values using a template containing `%s`.
-#[derive(Debug, Clone, Allocative)]
+#[derive(Allocative, Clone, Debug, Freeze)]
 pub struct Formatter {
     before: String,
     after: String,
@@ -52,14 +52,6 @@ impl Formatter {
     /// Formats the string by replacing `%s` with the input string.
     pub fn format(&self, s: &str) -> String {
         format!("{}{}{}", self.before, s, self.after)
-    }
-}
-
-impl Freeze for Formatter {
-    type Frozen = Self;
-
-    fn freeze(self, _freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        Ok(self)
     }
 }
 

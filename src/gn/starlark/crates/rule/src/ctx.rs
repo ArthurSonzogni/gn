@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::cell::RefCell;
+use std::{cell::RefCell, fmt};
 
 use allocative::Allocative;
 use attr::{traits::EvalContextAttrExt, CtxAttr, TargetAttrExt};
@@ -14,7 +14,7 @@ use starlark::{
 use starlark_derive::{starlark_value, NoSerialize};
 use types::{CtxMethods, Session};
 
-use crate::FrozenRule;
+use crate::Rule;
 
 #[derive(Allocative, NoSerialize)]
 pub struct Ctx<'v, C: EvalContextAttrExt> {
@@ -24,11 +24,11 @@ pub struct Ctx<'v, C: EvalContextAttrExt> {
     /// If you have a parent and child rule, this will start as [child], then
     /// when you call ctx.super() it will be [child, parent].
     #[allocative(skip)]
-    rule_stack: RefCell<Vec<&'v FrozenRule<C>>>,
+    rule_stack: RefCell<Vec<&'v Rule<'v, C>>>,
 }
 
 impl<'v, C: EvalContextAttrExt> Ctx<'v, C> {
-    pub fn new(attrs: CtxAttr<'v>, rule: &'v FrozenRule<C>) -> Self {
+    pub fn new(attrs: CtxAttr<'v>, rule: &'v Rule<'v, C>) -> Self {
         Self {
             attrs,
             rule_stack: RefCell::new(vec![rule]),
@@ -41,26 +41,29 @@ impl<'v, C: EvalContextAttrExt> Ctx<'v, C> {
         this: Value<'v>,
         eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
     ) -> starlark::Result<Value<'v>> {
-        let parent = {
+        let parent: &'v Rule<'v, C> = {
             let rule_stack = self.rule_stack.borrow();
             let current = rule_stack.last().expect("rule_stack is never empty");
-            current.parent.ok_or(crate::errors::Error::NoParentRule)?
+            match current.parent {
+                Some(parent) => parent.as_ref(),
+                None => return Err(crate::errors::Error::NoParentRule.into()),
+            }
         };
         self.rule_stack.borrow_mut().push(parent);
-        let res = eval.eval_function(parent.implementation.to_value(), &[this], &[]);
+        let res = eval.eval_function(parent.implementation, &[this], &[]);
         self.rule_stack.borrow_mut().pop();
         res
     }
 }
 
 impl<'v, C: EvalContextAttrExt> std::fmt::Debug for Ctx<'v, C> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ctx")
     }
 }
 
 impl<'v, C: EvalContextAttrExt> std::fmt::Display for Ctx<'v, C> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ctx")
     }
 }
@@ -111,13 +114,13 @@ where
     }
 }
 
-impl<'v, C: EvalContextAttrExt + CtxMethods> Freeze for Ctx<'v, C>
+impl<'v, C: EvalContextAttrExt + CtxMethods> Freeze<'v> for Ctx<'v, C>
 where
     <C::Session as Session>::TargetRef: TargetAttrExt,
 {
-    type Frozen = starlark::values::none::NoneType;
+    type Frozen<'fv> = starlark::values::none::NoneType;
 
-    fn freeze(self, _packer: &Freezer) -> FreezeResult<Self::Frozen> {
+    fn freeze<'fv>(self, _packer: &Freezer<'v, 'fv>) -> FreezeResult<Self::Frozen<'fv>> {
         Err(crate::errors::Error::ObjectUnfreezable("ctx").into())
     }
 }
@@ -132,7 +135,6 @@ macro_rules! impl_ctx_methods {
                 this: starlark::values::Value<'v>,
                 eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
             ) -> starlark::Result<starlark::values::Value<'v>> {
-                use starlark::values::ValueLike as _;
                 this.downcast_ref::<$crate::Ctx<'v, $ctx_type>>()
                     .unwrap()
                     .run_super(this, eval)
@@ -141,10 +143,7 @@ macro_rules! impl_ctx_methods {
 
         impl $crate::CtxMethods for $ctx_type {
             fn methods() -> &'static starlark::environment::Methods {
-                static RES: starlark::environment::MethodsStatic =
-                    starlark::environment::MethodsStatic::new("Ctx", |builder| {
-                        ctx_methods(builder);
-                    });
+                starlark::methods_static!(RES = ctx_methods);
                 RES.methods()
             }
         }

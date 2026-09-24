@@ -7,57 +7,30 @@ use std::{fmt, fmt::Display, hash::Hasher as _};
 use allocative::Allocative;
 use starlark::{
     any::ProvidesStaticType,
-    coerce::Coerce,
     collections::{Hashed, StarlarkHasher},
     starlark_complex_value,
-    values::{
-        Freeze, FreezeResult, Freezer, Heap, StarlarkValue, Trace, Value, ValueLifetimeless,
-        ValueLike,
-    },
+    values::{Freeze, Heap, StarlarkValue, StringValue, Value, ValueTyped},
 };
-use starlark_derive::{starlark_value, NoSerialize};
+use starlark_derive::{starlark_value, NoSerialize, Trace};
 
-use crate::provider_type::FrozenProviderType;
+use crate::provider_type::ProviderType;
 
 /// Represents an instance of a provider.
-#[derive(Clone, Trace, Coerce, ProvidesStaticType, Allocative, NoSerialize)]
+#[derive(Allocative, Clone, Freeze, NoSerialize, ProvidesStaticType, Trace)]
 #[repr(C)]
-pub struct ProviderInstanceGen<V: ValueLifetimeless> {
-    pub(crate) provider_type: &'static FrozenProviderType,
-    pub(crate) values: Box<[Option<V>]>,
-}
-
-impl<V: ValueLifetimeless + Freeze> Freeze for ProviderInstanceGen<V>
-where
-    V::Frozen: ValueLifetimeless,
-{
-    type Frozen = ProviderInstanceGen<V::Frozen>;
-
-    fn freeze(self, freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        Ok(ProviderInstanceGen {
-            provider_type: self.provider_type,
-            values: self
-                .values
-                .into_vec()
-                .into_iter()
-                .map(|v| v.freeze(freezer))
-                .collect::<Result<Vec<_>, _>>()?
-                .into_boxed_slice(),
-        })
-    }
+pub struct ProviderInstance<'v> {
+    pub(crate) provider_type: ValueTyped<'v, ProviderType>,
+    pub(crate) values: Box<[Option<Value<'v>>]>,
 }
 
 starlark_complex_value!(pub ProviderInstance);
 
-impl<'v, V: ValueLike<'v>> ProviderInstanceGen<V>
-where
-    Self: ProvidesStaticType<'v>,
-{
-    pub(crate) fn ty_name(&self) -> &'static str {
+impl<'v> ProviderInstance<'v> {
+    pub fn ty_name(&self) -> &str {
         self.get_type_value_dyn().as_str()
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'v str, V)> + 'a
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a str, Value<'v>)> + 'a
     where
         'v: 'a,
     {
@@ -76,16 +49,13 @@ where
                 write!(collector, ", ").unwrap();
             }
             write!(collector, "{name} = ").unwrap();
-            val.to_value().collect_repr(collector);
+            val.collect_repr(collector);
         }
         write!(collector, ")").unwrap();
     }
 }
 
-impl<'v, V: ValueLike<'v>> fmt::Debug for ProviderInstanceGen<V>
-where
-    Self: ProvidesStaticType<'v>,
-{
+impl<'v> fmt::Debug for ProviderInstance<'v> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = String::new();
         self.collect_repr_impl(&mut s);
@@ -93,24 +63,23 @@ where
     }
 }
 
-impl<'v, V: ValueLike<'v>> Display for ProviderInstanceGen<V>
-where
-    Self: ProvidesStaticType<'v>,
-{
+impl<'v> Display for ProviderInstance<'v> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
 #[starlark_value(type = "provider")]
-impl<'v, V: ValueLike<'v>> StarlarkValue<'v> for ProviderInstanceGen<V>
-where
-    Self: ProvidesStaticType<'v>,
-{
-    type Canonical = FrozenProviderInstance;
-
-    fn get_type_value_dyn(&self) -> starlark::values::FrozenStringValue {
-        self.provider_type.data.name
+impl<'v> StarlarkValue<'v> for ProviderInstance<'v> {
+    fn get_type_value_dyn<'a>(&'a self) -> StringValue<'v> {
+        self.provider_type
+            .as_ref()
+            .data
+            .get()
+            .unwrap()
+            .name
+            .as_ref()
+            .value()
     }
 
     fn equals(&self, other: Value<'v>) -> starlark::Result<bool> {
@@ -123,7 +92,7 @@ where
         for (v1, v2) in self.values.iter().zip(other.values.iter()) {
             match (v1, v2) {
                 (Some(val1), Some(val2)) => {
-                    if !val1.to_value().equals(val2.to_value())? {
+                    if !val1.equals(*val2)? {
                         return Ok(false);
                     }
                 },
@@ -149,7 +118,7 @@ where
 
     fn get_attr_hashed(&self, attribute: Hashed<&str>, _heap: Heap<'v>) -> Option<Value<'v>> {
         let &i = self.provider_type.fields.get_hashed(attribute)?;
-        self.values[i].map(|v| v.to_value())
+        self.values[i]
     }
 
     fn write_hash(&self, hasher: &mut StarlarkHasher) -> starlark::Result<()> {
@@ -197,7 +166,7 @@ mod tests {
     fn test_unpack_fails() {
         let mut a = new_assert();
         let val = a.pass("1");
-        let err = <&ProviderInstance>::unpack_value_err(val.value()).unwrap_err();
+        let err = <&ProviderInstance<'_>>::unpack_value_err(val.as_ref().value()).unwrap_err();
         assert_eq!(
             err.to_string(),
             "Expected `provider`, but got `int (repr: 1)`"
@@ -214,7 +183,8 @@ mod tests {
         });
 
         let instance = a.pass("MyInfo(first = 'hello', third = 3)");
-        let unpacked = <&ProviderInstance>::unpack_value_err(instance.value()).unwrap();
+        let unpacked =
+            <&ProviderInstance<'_>>::unpack_value_err(instance.as_ref().value()).unwrap();
         assert_eq!(unpacked.ty_name(), "MyInfo");
 
         a.modify_globals(move |builder| {

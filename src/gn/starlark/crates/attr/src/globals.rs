@@ -4,9 +4,9 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use allocative::{Allocative, Visitor};
+use allocative::Allocative;
 use starlark::{
-    environment::{Methods, MethodsBuilder, MethodsStatic},
+    environment::{Methods, MethodsBuilder},
     eval::Evaluator,
     values::{list::UnpackList, none::NoneOr, ProvidesStaticType, StarlarkValue, Value},
 };
@@ -29,20 +29,14 @@ pub struct AttrSpecArgs<'v> {
 }
 
 /// The Starlark `attr` module containing functions to declare rule attributes.
-#[derive(Debug, ProvidesStaticType, NoSerialize)]
+#[derive(Allocative, Debug, NoSerialize, ProvidesStaticType)]
 pub struct AttrModule {
+    #[allocative(skip)]
     pub make_attr_schema: for<'v, 'a, 'e> fn(
         AttrKind,
         AttrSpecArgs<'v>,
         &mut Evaluator<'v, 'a, 'e>,
     ) -> starlark::Result<Value<'v>>,
-}
-
-impl Allocative for AttrModule {
-    fn visit<'a, 'b: 'a>(&self, visitor: &'a mut Visitor<'b>) {
-        let visitor = visitor.enter_self_sized::<Self>();
-        visitor.exit();
-    }
 }
 
 starlark::starlark_simple_value!(AttrModule);
@@ -56,7 +50,7 @@ impl Display for AttrModule {
 #[starlark_value(type = "attr")]
 impl<'v> StarlarkValue<'v> for AttrModule {
     fn get_methods() -> Option<&'static Methods> {
-        static RES: MethodsStatic = MethodsStatic::new("attr", attr_methods);
+        starlark::methods_static!(RES = attr_methods);
         Some(RES.methods())
     }
 }

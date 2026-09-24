@@ -11,10 +11,7 @@ use allocative::Allocative;
 use starlark::{
     eval::ParametersSpecParam,
     starlark_simple_value,
-    values::{
-        none::NoneOr, Freeze, FreezeResult, Freezer, FrozenValue, Heap, ProvidesStaticType,
-        StarlarkValue, Trace, Value,
-    },
+    values::{none::NoneOr, Freeze, Heap, ProvidesStaticType, StarlarkValue, Trace, Value},
 };
 use starlark_derive::{starlark_value, NoSerialize};
 use types::{PackageRef, PathResolver};
@@ -23,7 +20,7 @@ use crate::{allow_files::AllowFiles, cfg::AttrCfg, globals::AttrSpecArgs, Attr};
 
 /// The underlying data type of a target attribute (e.g. Bool, String,
 /// LabelList).
-#[derive(Debug, Clone, PartialEq, Eq, Allocative)]
+#[derive(Allocative, Clone, Debug, Eq, Freeze, PartialEq)]
 pub enum AttrKind {
     Bool,
     // Allowed is typically *very* small, so we use a Vec.
@@ -43,7 +40,7 @@ pub enum AttrKind {
 
 /// Schema specifying what files (single or multiple) are allowed on a
 /// label-like attribute.
-#[derive(Debug, Clone, PartialEq, Eq, Allocative)]
+#[derive(Allocative, Clone, Debug, Eq, Freeze, PartialEq)]
 pub enum AllowFilesSchema {
     None,
     Single(AllowFiles),
@@ -52,7 +49,9 @@ pub enum AllowFilesSchema {
 
 /// Represents an attr.foo(...) parameter.
 /// Eg. attr.label(allow_single_file = True)
-#[derive(Debug, Clone, PartialEq, Eq, Trace, NoSerialize, Allocative)]
+#[derive(
+    Allocative, Clone, Debug, Eq, Freeze, NoSerialize, PartialEq, ProvidesStaticType, Trace,
+)]
 pub struct AttrSchema {
     pub(crate) kind: AttrKind,
     pub(crate) default: Option<Attr>,
@@ -62,21 +61,7 @@ pub struct AttrSchema {
     pub(crate) doc: String,
 }
 
-// Safety: AttrSchema does not contain lifetime parameters, so it satisfies the
-// lifetime requirement of StaticType.
-unsafe impl ProvidesStaticType<'_> for AttrSchema {
-    type StaticType = Self;
-}
-
 starlark_simple_value!(AttrSchema);
-
-impl Freeze for AttrSchema {
-    type Frozen = Self;
-
-    fn freeze(self, _freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        Ok(self)
-    }
-}
 
 impl Display for AttrSchema {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -217,7 +202,7 @@ impl AttrSchema {
     // Converts the attribute to a parameter spec.
     // Note that we intentionally do not use Defaulted(T) as it only supports
     // Defaulted(starlark::Value), while we want Defaulted(Attr).
-    pub fn as_param_spec(&self) -> ParametersSpecParam<FrozenValue> {
+    pub fn as_param_spec(&self) -> ParametersSpecParam<Value<'static>> {
         match &self.default {
             None => ParametersSpecParam::Required,
             Some(_) => ParametersSpecParam::Optional,
@@ -239,8 +224,7 @@ mod tests {
         expected: &AttrSchema,
     ) {
         let val = a.pass(code);
-        let unpacked: &AttrSchema =
-            starlark::values::UnpackValue::unpack_value_err(val.value()).unwrap();
+        let unpacked: &AttrSchema = val.as_ref().value().downcast_ref::<AttrSchema>().unwrap();
         assert_eq!(unpacked, expected);
     }
 

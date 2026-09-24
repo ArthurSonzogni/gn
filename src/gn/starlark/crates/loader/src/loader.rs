@@ -189,7 +189,7 @@ impl FileLoader {
                 eval.set_loader(&loader);
                 eval.eval_module(ast, globals)?;
             }
-            Ok(module.freeze_named(FrozenHeapName::User(Box::new(label_str.to_owned())))?)
+            Ok(module.freeze_named(FrozenHeapName::user(label_str.to_owned()))?)
         })
     }
 
@@ -277,7 +277,12 @@ mod tests {
         let loader = FileLoader::default();
         let module = load(&loader, "//load:absolute.scl").unwrap();
         assert_eq!(
-            module.get("absolute").unwrap().unpack_str(),
+            module
+                .get("absolute")
+                .unwrap()
+                .as_ref()
+                .value()
+                .unpack_str(),
             Some("absolute")
         );
     }
@@ -287,17 +292,29 @@ mod tests {
         let loader = FileLoader::default();
         let module = load(&loader, "//load:root.scl").unwrap();
         assert_eq!(
-            module.get("absolute_value").unwrap().unpack_str(),
+            module
+                .get("absolute_value")
+                .unwrap()
+                .as_ref()
+                .value()
+                .unpack_str(),
             Some("absolute")
         );
         assert_eq!(
-            module.get("relative_value").unwrap().unpack_str(),
+            module
+                .get("relative_value")
+                .unwrap()
+                .as_ref()
+                .value()
+                .unpack_str(),
             Some("relative")
         );
         assert_eq!(
             module
                 .get("relative_as_absolute_value")
                 .unwrap()
+                .as_ref()
+                .value()
                 .unpack_str(),
             Some("relative")
         );

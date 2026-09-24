@@ -5,11 +5,11 @@
 use allocative::Allocative;
 use starlark::{
     typing::Ty,
-    values::{type_repr::StarlarkTypeRepr, UnpackValue, Value},
+    values::{type_repr::StarlarkTypeRepr, Freeze, UnpackValue, Value},
 };
 
 /// The rust type for the starlark value passed to attr.label(cfg = ...)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Allocative)]
+#[derive(Allocative, Clone, Copy, Debug, Eq, Freeze, Hash, PartialEq)]
 pub enum AttrCfg {
     CurrentToolchain,
 }

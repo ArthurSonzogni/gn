@@ -24,7 +24,7 @@ pub trait TargetRef:
     fn toolchain(&self) -> LabelRef<'_>;
 
     type Cxx: TargetMut;
-    type Rule: for<'v> StarlarkValue<'v>;
+    type Rule: StarlarkValue<'static>;
     type Session: Session<TargetRef = Self>;
 
     /// Returns the rule that this target was built from.

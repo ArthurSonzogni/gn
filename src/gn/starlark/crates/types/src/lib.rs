@@ -15,7 +15,6 @@ pub mod path_resolver;
 pub mod scope;
 pub mod session;
 pub mod target_ref;
-pub mod unpacked_owned_value;
 pub mod util;
 
 pub use ctx_state::CtxState;
@@ -31,4 +30,3 @@ pub use path_resolver::PathResolver;
 pub use scope::Scope;
 pub use session::Session;
 pub use target_ref::{IPromiseToImplementStarlarkEqAndHash, TargetMut, TargetRef};
-pub use unpacked_owned_value::UnpackedOwnedValue;

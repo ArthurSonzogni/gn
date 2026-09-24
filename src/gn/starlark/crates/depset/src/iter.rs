@@ -4,11 +4,11 @@
 
 use starlark::{
     collections::SmallSet,
-    values::{ProvidesStaticType, UnpackValue as _, Value, ValueLike},
+    values::{UnpackValue as _, Value},
 };
 
 use crate::{
-    depset::{Depset, DepsetGen, Order},
+    depset::{Depset, Order},
     unpack::UnpackDepset,
 };
 
@@ -102,11 +102,7 @@ where
     }
 }
 
-impl<'v, V: ValueLike<'v>> DepsetGen<V>
-where
-    V: starlark::coerce::Coerce<Value<'v>>,
-    Self: ProvidesStaticType<'v>,
-{
+impl<'v> Depset<'v> {
     fn iter_ordered<'a>(&'a self, order: Order) -> DepsetIterator<'a, 'v>
     where
         'v: 'a,
@@ -126,7 +122,7 @@ where
             },
         };
         if order != Order::Topological {
-            let depset: &Depset<'v> = starlark::coerce::coerce(self);
+            let depset: &Depset<'v> = self;
             iter.visited_nodes
                 .insert(std::ptr::from_ref::<Depset<'v>>(depset) as usize);
             iter.push_depset(depset, order);

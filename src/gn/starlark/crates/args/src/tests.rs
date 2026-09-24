@@ -42,7 +42,7 @@ impl ArgsAssert {
 
         let res = starlark::environment::Module::with_temp_heap(|module| {
             let mut eval = starlark::eval::Evaluator::new(&module);
-            let val_ref = eval.heap().access_owned_frozen_value(&val);
+            let val_ref = val.as_ref().add_to_heap(module.heap());
             let seq = FrozenArgsSequence::unpack_value_err(val_ref).unwrap();
             seq.expand(&mut eval)
         });
@@ -269,11 +269,9 @@ fn test_args_chaining() {
 #[test]
 fn test_mutate_frozen_args_fails() {
     let mut a = ArgsAssert::new();
-    a.assert.modify_globals(|builder| {
-        builder.set("frozen_args", crate::args::FrozenArgs::default());
-    });
+    a.assert.module("frozen.scl", "frozen_args = args()");
     a.fail(
-        "frozen_args.add('foo')",
+        "load('frozen.scl', 'frozen_args'); frozen_args.add('foo')",
         "trying to mutate a frozen Args value",
     );
 }

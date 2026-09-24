@@ -4,7 +4,7 @@
 
 use starlark::{
     collections::SmallSet,
-    values::{list::UnpackList, Heap, UnpackValue as _, Value, ValueLike as _},
+    values::{list::UnpackList, Heap, UnpackValue as _, Value},
 };
 use types::File;
 

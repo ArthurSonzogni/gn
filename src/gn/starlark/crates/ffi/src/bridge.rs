@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use starlark::values::ValueLike as _;
 use types::EvaluatorContextExt as _;
 
 /// The consolidated cxx FFI bridge defining all shared C++ classes, structs,
@@ -15,7 +14,7 @@ use types::EvaluatorContextExt as _;
 /// * The `cxxbridge` command generates shims to allow us to use C++ types in rust.
 use crate::{session::Session, target::Target};
 
-pub struct OwnedFrozenValue(pub starlark::values::OwnedFrozenValue);
+pub struct OwnedFrozenValue(pub starlark::values::OwnedFrozen<starlark::values::Value<'static>>);
 
 impl OwnedFrozenValue {
     pub fn clone_cxx(&self) -> Box<Self> {
@@ -23,11 +22,16 @@ impl OwnedFrozenValue {
     }
 
     pub fn to_string_cxx(&self) -> String {
-        self.0.value().to_string()
+        self.0.as_ref().value().to_string()
     }
 
     pub fn eq_cxx(&self, other: &Self) -> bool {
-        self.0.value() == other.0.value()
+        let v1 = self.0.as_ref().value();
+        let v2 = other.0.as_ref().value();
+        if v1.ptr_eq(v2) {
+            return true;
+        }
+        v1.equals(v2).unwrap_or(false)
     }
 
     pub fn invoke(
@@ -40,9 +44,6 @@ impl OwnedFrozenValue {
         origin: ParseNodePtr,
         err: std::pin::Pin<&mut Err>,
     ) {
-        // Safety: `self` (and thus self.0.owner()) is guaranteed to outlive
-        // the temp module and thus this cannot be GC'd during this call.
-        let func_val = unsafe { self.0.unchecked_frozen_value() };
         // Safety: The Scope reference is valid and non-null for the duration of the
         // invocation.
         let scope_ptr = unsafe { std::ptr::NonNull::new_unchecked(scope.get_unchecked_mut()) };
@@ -57,6 +58,7 @@ impl OwnedFrozenValue {
             let val = starlark::environment::Module::with_temp_heap(
                 |module| -> starlark::Result<Self> {
                     let heap = module.heap();
+                    let func_val = self.0.as_ref().add_to_heap(heap);
                     let mut args: Vec<_> = args.iter().map(|arg| arg.to_rust(&heap)).collect();
                     let mut kwargs: Vec<_> = kwargs
                         .items()
@@ -65,7 +67,7 @@ impl OwnedFrozenValue {
                         .map(|kw| (kw.key, kw.value.to_rust(&heap)))
                         .collect();
                     if func_val
-                        .downcast_ref::<rule::FrozenRule<crate::eval_context::EvalContext>>()
+                        .downcast_ref::<rule::Rule<crate::eval_context::EvalContext>>()
                         .is_some()
                     {
                         // Rules require the parameter name, but GN uses rule(name, **kwargs).
@@ -80,18 +82,19 @@ impl OwnedFrozenValue {
                     let res = {
                         let mut eval = starlark::eval::Evaluator::new(&module);
                         eval.set_context(&eval_context);
-                        eval.eval_function(func_val.to_value(), &args, &kwargs)
+                        eval.eval_function(func_val, &args, &kwargs)
                     };
 
                     module.set_extra_value(res?);
                     let frozen_module = module.freeze().map_err(starlark::Error::new_other)?;
-                    Ok(Self(frozen_module.owned_extra_value().unwrap()))
+                    Ok(Self(frozen_module.extra_value().unwrap()))
                 },
             )?;
 
+            let owner = val.0.owner().to_owned();
             out_val
                 .as_mut()
-                .assign(val.0.value(), Some(val.0.owner()), settings, origin)?;
+                .assign(val.0.as_ref().value(), Some(&owner), settings, origin)?;
             Ok(())
         })();
         // Safety: The Err pointer is valid, non-null, and pinned.

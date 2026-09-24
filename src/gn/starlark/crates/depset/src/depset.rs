@@ -9,19 +9,19 @@ use std::{
 
 use allocative::Allocative;
 use starlark::{
-    environment::{Methods, MethodsBuilder, MethodsStatic},
+    environment::{Methods, MethodsBuilder},
     starlark_complex_value,
     typing::Ty,
     values::{
-        type_repr::StarlarkTypeRepr, Freeze, FreezeResult, Freezer, Heap, ProvidesStaticType,
-        StarlarkValue, Trace, UnpackValue, Value, ValueLike,
+        type_repr::StarlarkTypeRepr, Heap, ProvidesStaticType, StarlarkValue, Trace, UnpackValue,
+        Value,
     },
 };
-use starlark_derive::{starlark_module, starlark_value, Coerce, NoSerialize};
+use starlark_derive::{starlark_module, starlark_value, Freeze, NoSerialize};
 use types::File;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Allocative)]
 /// All orderings are guaranteed to be deterministic.
+#[derive(Allocative, Clone, Copy, Debug, Eq, Freeze, Hash, PartialEq)]
 pub enum Order {
     /// Our unspecified order is postorder. However, this should not be relied
     /// upon.
@@ -77,7 +77,7 @@ impl Display for Order {
 }
 
 /// The type of elements contained in a depset.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, allocative::Allocative)]
+#[derive(Allocative, Clone, Copy, Debug, Eq, Freeze, PartialEq)]
 pub enum Kind {
     Empty,
     Unknown,
@@ -95,18 +95,17 @@ impl Display for Kind {
 }
 
 /// A generic implementation of a Starlark Depset.
-#[derive(Debug, Trace, Coerce, ProvidesStaticType, NoSerialize, Allocative)]
-// By implementing coerce, freezing depsets is zero-cost.
+#[derive(Allocative, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
 // Coerce requires repr(C).
 // Starlark knows that it can just do a reinterpret cast of the memory.
 #[repr(C)]
-pub struct DepsetGen<V> {
+pub struct Depset<'v> {
     /// The traversal order of this depset.
     pub(crate) order: Order,
     /// The direct elements of this depset. De-duped on creation.
-    pub(crate) direct: Vec<V>,
+    pub(crate) direct: Vec<Value<'v>>,
     /// Transitive depsets. Each entry is guaranteed to be a non-empty depset.
-    pub(crate) transitive: Vec<V>,
+    pub(crate) transitive: Vec<Value<'v>>,
     /// The element type kind of this depset.
     pub(crate) kind: Kind,
     /// The single phony file for this depset. Set for `depset[File]` only.
@@ -146,7 +145,7 @@ impl<'v> Depset<'v> {
     }
 }
 
-impl<V> Default for DepsetGen<V> {
+impl<'v> Default for Depset<'v> {
     fn default() -> Self {
         Self {
             order: Order::Unspecified,
@@ -158,16 +157,16 @@ impl<V> Default for DepsetGen<V> {
     }
 }
 
-impl<V> DepsetGen<V> {
+impl<'v> Depset<'v> {
     pub(crate) fn order(&self) -> Order {
         self.order
     }
 
-    pub(crate) fn direct(&self) -> &[V] {
+    pub(crate) fn direct(&self) -> &[Value<'v>] {
         &self.direct
     }
 
-    pub(crate) fn transitive(&self) -> &[V] {
+    pub(crate) fn transitive(&self) -> &[Value<'v>] {
         &self.transitive
     }
 
@@ -190,10 +189,7 @@ impl<V> DepsetGen<V> {
 
 starlark_complex_value!(pub Depset);
 
-impl<'v, V: ValueLike<'v>> Display for DepsetGen<V>
-where
-    Self: ProvidesStaticType<'v>,
-{
+impl<'v> Display for Depset<'v> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // Explicitly DO NOT flatten a depset implicitly, they can get massive.
         // We may consider printing some fields in the future, but for now
@@ -207,31 +203,14 @@ where
 }
 
 #[starlark_value(type = "depset")]
-impl<'v, V: ValueLike<'v>> StarlarkValue<'v> for DepsetGen<V>
-where
-    Self: ProvidesStaticType<'v>,
-{
+impl<'v> StarlarkValue<'v> for Depset<'v> {
     fn get_methods() -> Option<&'static Methods> {
-        static RES: MethodsStatic = MethodsStatic::new("depset", depset_methods);
+        starlark::methods_static!(RES = depset_methods);
         Some(RES.methods())
     }
 
     fn to_bool(&self) -> bool {
         !self.is_empty()
-    }
-}
-
-impl Freeze for Depset<'_> {
-    type Frozen = FrozenDepset;
-
-    fn freeze(self, freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        Ok(DepsetGen {
-            order: self.order,
-            direct: self.direct.freeze(freezer)?,
-            transitive: self.transitive.freeze(freezer)?,
-            kind: self.kind,
-            phony: self.phony,
-        })
     }
 }
 
@@ -254,7 +233,11 @@ mod tests {
     fn test_depset_deduplication() {
         let mut a = new_assert();
         let depset_val = a.pass("depset(['a', 'a'])");
-        let depset = depset_val.value().downcast_ref::<FrozenDepset>().unwrap();
+        let depset = depset_val
+            .as_ref()
+            .value()
+            .downcast_ref::<Depset>()
+            .unwrap();
         assert_eq!(depset.direct().len(), 1);
     }
 
@@ -263,7 +246,7 @@ mod tests {
         let mut a = new_assert();
         a.fail(
             "depset(['c'], transitive=['not a depset'])",
-            "Expected value of type `depset` but got `string (repr: \"not a depset\")`",
+            "Type of parameter `transitive` doesn't match, expected `list[depset]`",
         );
     }
 
@@ -369,7 +352,9 @@ mod tests {
             result
         };
 
-        assert!(UnpackFileDepset::unpack_value_err(a.pass("depset([1])").value()).is_err());
+        assert!(
+            UnpackFileDepset::unpack_value_err(a.pass("depset([1])").as_ref().value()).is_err()
+        );
 
         a.eq("depset()", UnpackFileDepset(None));
         assert_eq!(new_phonies(&a), &[]);

@@ -152,9 +152,13 @@ impl Session {
                     .get(key)
                     .map_err(|_| Error::KeyNotFound(key.to_string(), label.clone()))?;
                 let mut cxx_value = crate::bridge::SetValue(scope.as_mut(), key, origin);
-                cxx_value
-                    .as_mut()
-                    .assign(value.value(), Some(value.owner()), settings, origin)?;
+                let owner = value.owner().to_owned();
+                cxx_value.as_mut().assign(
+                    value.as_ref().value(),
+                    Some(&owner),
+                    settings,
+                    origin,
+                )?;
             }
             Ok(())
         })());

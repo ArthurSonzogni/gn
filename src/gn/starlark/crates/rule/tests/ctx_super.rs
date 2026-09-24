@@ -40,7 +40,7 @@ child_rule(
     })
     .unwrap();
 
-    let list = ListRef::from_value(res.value()).unwrap();
+    let list = ListRef::from_value(res.as_ref().value()).unwrap();
     let items: Vec<starlark::values::Value<'_>> = list.iter().collect();
     assert_eq!(items.len(), 2);
     assert_eq!(items[0].to_repr(), r#"ParentInfo(parent = "parent_val")"#);

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use allocative::Allocative;
+use starlark_derive::Freeze;
+
 use crate::PackageRef;
 
 /// A package, conceptually, is a directory in the source tree.
@@ -12,7 +15,7 @@ use crate::PackageRef;
 ///
 /// A package *always* starts with //, and may be either the root package "//",
 /// or a subdirectory "//foo/bar".
-#[derive(Debug, Clone, Eq, PartialEq, Hash, allocative::Allocative)]
+#[derive(Allocative, Clone, Debug, Eq, Freeze, Hash, PartialEq)]
 pub struct Package(pub(crate) String);
 
 impl std::ops::Deref for Package {

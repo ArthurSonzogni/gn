@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use allocative::Allocative;
 use starlark::{
     collections::StarlarkHasher,
-    environment::{Methods, MethodsBuilder, MethodsStatic},
+    environment::{Methods, MethodsBuilder},
     starlark_simple_value,
-    values::{
-        Freeze, FreezeResult, Freezer, ProvidesStaticType, StarlarkValue, Trace, Tracer,
-        ValueLike as _,
-    },
+    values::{ProvidesStaticType, StarlarkValue},
 };
-use starlark_derive::{starlark_module, starlark_value, NoSerialize};
+use starlark_derive::{starlark_module, starlark_value, Freeze, NoSerialize, Trace};
 
 use crate::{LabelRef, Package, PackageRef};
 
@@ -22,7 +20,9 @@ use crate::{LabelRef, Package, PackageRef};
 /// In Starlark, a fully qualified GN label is represented as a tuple
 /// (label, toolchain). "//foo:bar(//toolchain:name)" would thus convert to
 /// (Label("//foo:bar"), Label("//toolchain:name")).
-#[derive(Clone, Eq, PartialEq, Hash, ProvidesStaticType, NoSerialize, allocative::Allocative)]
+#[derive(
+    Allocative, Clone, Eq, Freeze, Hash, NoSerialize, PartialEq, ProvidesStaticType, Trace,
+)]
 pub struct Label {
     /// The package part of the label.
     package: Package,
@@ -129,25 +129,13 @@ impl std::fmt::Debug for Label {
     }
 }
 
-unsafe impl<'v> Trace<'v> for Label {
-    fn trace(&mut self, _tracer: &Tracer<'v>) {}
-}
-
-impl Freeze for Label {
-    type Frozen = Self;
-
-    fn freeze(self, _freezer: &Freezer) -> FreezeResult<Self::Frozen> {
-        Ok(self)
-    }
-}
-
 #[starlark_value(type = "Label")]
 impl<'v> StarlarkValue<'v> for Label {
     fn get_methods() -> Option<&'static Methods>
     where
         Self: Sized,
     {
-        static RES: MethodsStatic = MethodsStatic::new("Label", label_methods);
+        starlark::methods_static!(RES = label_methods);
         Some(RES.methods())
     }
 

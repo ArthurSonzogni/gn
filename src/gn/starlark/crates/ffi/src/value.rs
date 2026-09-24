@@ -4,7 +4,7 @@
 
 use std::pin::Pin;
 
-use starlark::values::{list::ListRef, structs::StructRef, OwnedFrozenValue};
+use starlark::values::{list::ListRef, structs::StructRef, OwnedFrozen};
 
 use crate::{
     bridge,
@@ -38,10 +38,7 @@ impl Value {
             },
             ValueType::StarlarkValue => {
                 let rust_val = self.starlark_value();
-                heap.add_reference(rust_val.0.owner());
-                // Safety: This is safe when combined with the above line, which ensures it will
-                // not get GC'd.
-                starlark::values::Value::new_frozen(unsafe { rust_val.0.unchecked_frozen_value() })
+                rust_val.0.as_ref().add_to_heap(*heap)
             },
             _ => unreachable!(),
         }
@@ -50,7 +47,7 @@ impl Value {
     pub fn assign<'v>(
         mut self: Pin<&mut Self>,
         val: starlark::values::Value<'v>,
-        owner: Option<&starlark::values::FrozenHeapRef>,
+        owner: Option<&starlark::values::OwnedFrozen<()>>,
         settings: &Settings,
         origin: crate::bridge::ParseNodePtr,
     ) -> starlark::Result<()> {
@@ -81,9 +78,15 @@ impl Value {
 
             crate::bridge::SetValueScope(self.as_mut(), origin, r#struct);
         } else {
-            let owned_frozen = if let (Some(owner), Some(frozen)) = (owner, val.unpack_frozen()) {
-                // Safety: The caller guarantees that owner owns val.
-                bridge::OwnedFrozenValue(unsafe { OwnedFrozenValue::new(owner.clone(), frozen) })
+            let owned_frozen = if let Some(owner) = owner {
+                if val.is_frozen() {
+                    // Safety: The caller guarantees that owner owns val.
+                    bridge::OwnedFrozenValue(unsafe {
+                        OwnedFrozen::unchecked_new(owner.clone(), val)
+                    })
+                } else {
+                    return Err(Error::PassingNonFrozenStarlarkValueToGn(val.to_string()).into());
+                }
             } else {
                 return Err(Error::PassingNonFrozenStarlarkValueToGn(val.to_string()).into());
             };
@@ -95,7 +98,7 @@ impl Value {
 
 #[cfg(test)]
 mod tests {
-    use starlark::values::{FrozenValue, Heap, ValueLike as _};
+    use starlark::values::{Heap, Value};
 
     use super::*;
     use crate::TestWithScope;
@@ -126,7 +129,7 @@ mod tests {
     fn test_none_conversion() {
         starlark::environment::Module::with_temp_heap(|module| {
             let heap = module.heap();
-            assert!(back_and_forth(&heap, FrozenValue::new_none().to_value()).is_none());
+            assert!(back_and_forth(&heap, Value::new_none()).is_none());
         });
     }
 

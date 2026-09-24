@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use depset::{Depset, FrozenDepset};
+use depset::Depset;
 use starlark::{
     eval::Evaluator,
-    values::{list::ListRef, tuple::TupleRef, Value, ValueLike},
+    values::{list::ListRef, tuple::TupleRef, Value},
 };
 
 use crate::{
@@ -18,7 +18,7 @@ use crate::{
 /// command line.
 pub fn expand_into<'v>(
     command: &mut Vec<String>,
-    args_obj: &FrozenArgs,
+    args_obj: &FrozenArgs<'v>,
     eval: &mut Evaluator<'v, '_, '_>,
 ) -> starlark::Result<()> {
     for arg in &args_obj.arguments {
@@ -28,9 +28,8 @@ pub fn expand_into<'v>(
                 value,
                 format,
             } => {
-                let value = (*value).to_value();
                 if !value.is_none() {
-                    handle_arg(arg_name.as_deref(), value, format.as_ref(), command)?;
+                    handle_arg(arg_name.as_deref(), *value, format.as_ref(), command)?;
                 }
             },
             ArgValue::All {
@@ -50,10 +49,10 @@ pub fn expand_into<'v>(
 
                 let start_idx = command.len();
                 handle_many_args(
-                    (*values).to_value(),
-                    map_each.as_ref(),
+                    *values,
+                    *map_each,
                     format_each.as_ref(),
-                    before_each.as_ref().map(|x| x.as_str()),
+                    before_each.as_deref(),
                     command,
                     *uniquify,
                     eval,
@@ -79,8 +78,8 @@ pub fn expand_into<'v>(
             } => {
                 let mut dest = Vec::new();
                 handle_many_args(
-                    (*values).to_value(),
-                    map_each.as_ref(),
+                    *values,
+                    *map_each,
                     format_each.as_ref(),
                     None,
                     &mut dest,
@@ -137,11 +136,6 @@ where
             f(v)?;
         }
         Ok(())
-    } else if let Some(depset) = value.downcast_ref::<FrozenDepset>() {
-        for v in depset.iter() {
-            f(v.to_value())?;
-        }
-        Ok(())
     } else if let Some(t) = TupleRef::from_value(value) {
         for v in t.iter() {
             f(v)?;
@@ -152,9 +146,9 @@ where
     }
 }
 
-fn handle_many_args<'v, V: ValueLike<'v>>(
+fn handle_many_args<'v>(
     value: Value<'v>,
-    map_each: Option<&V>,
+    map_each: Option<Value<'v>>,
     format_each: Option<&Formatter>,
     before_each: Option<&str>,
     dest: &mut Vec<String>,
@@ -185,7 +179,7 @@ fn handle_many_args<'v, V: ValueLike<'v>>(
 
     for_each(value, |v| {
         if let Some(map_each) = map_each {
-            let mapped = eval.eval_function((*map_each).to_value(), &[v], &[])?;
+            let mapped = eval.eval_function(map_each, &[v], &[])?;
             if let Some(l) = ListRef::from_value(mapped) {
                 for item in l.iter() {
                     if item.unpack_str().is_none() {

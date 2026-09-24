@@ -8,7 +8,7 @@ mod globals;
 mod iter;
 mod unpack;
 
-pub use depset::{Depset, DepsetGen, FrozenDepset, Kind, Order};
+pub use depset::{Depset, Kind, Order};
 pub use errors::Error;
 pub use globals::{__private, depset_constructor};
 pub use unpack::{UnpackDepset, UnpackFileDepset};
