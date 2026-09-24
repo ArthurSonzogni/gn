@@ -23,8 +23,7 @@ where
     <C::Session as Session>::TargetRef:
         TargetAttrExt<Rule = Rule<'static, C>, Session = C::Session>,
 {
-    // Safety: rule is always a rule for custom rule-built targets.
-    let rule = target.rule().unwrap();
+    let rule = target.rule();
 
     Module::with_temp_heap(|module| {
         let rule_context = create_context(target);
@@ -40,7 +39,7 @@ where
                     target.attrs(),
                     rule_context.session(),
                     &rule_context.current_toolchain(),
-                    rule.builtin,
+                    rule.output_type,
                     target.builtin_attrs(rule_context.session(), &eval.heap()),
                     &eval.heap(),
                 )?,
@@ -48,7 +47,6 @@ where
                 eval.heap().alloc(target.label().to_owned()),
                 eval.heap().alloc(crate::actions::Actions::<C>::default()),
             ));
-
             let res = eval.eval_function(rule.implementation, &[ctx], &[])?;
             rule_context
                 .require_rule_impl()?

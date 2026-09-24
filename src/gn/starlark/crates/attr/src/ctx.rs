@@ -125,11 +125,11 @@ impl<'v> CtxAttrSchema<'v> {
         fields: &[Attr],
         session: &S,
         current_toolchain: &LabelRef,
-        builtin: Option<OutputType>,
+        output_type: Option<OutputType>,
         mut ctx_attr: Vec<Value<'v>>,
         heap: &Heap<'v>,
     ) -> starlark::Result<CtxAttr<'v>> {
-        let (builtin_files, builtin_attrs) = builtin.map(|b| b.attrs()).unwrap_or_default();
+        let (builtin_files, builtin_attrs) = output_type.map(|b| b.attrs()).unwrap_or_default();
         debug_assert!(builtin_files.len() + builtin_attrs.len() == ctx_attr.len());
         ctx_attr.reserve_exact(self.attr.len() - ctx_attr.len());
         let mut ctx_files = Vec::with_capacity(self.files.len());

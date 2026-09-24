@@ -16,7 +16,10 @@ use starlark::{
     syntax::{AstModule, Dialect},
     values::FrozenHeapName,
 };
-use types::{EvalContext, EvaluatorContextExt as _, Label, LabelRef, PackageRef, PathResolver};
+use types::{
+    EvalContext, EvaluatorContextExt as _, Label, LabelRef, PackageRef, PathResolver,
+    util::extend_lifetime,
+};
 
 use crate::Error;
 
@@ -59,13 +62,18 @@ impl FileLoader {
     /// Preloads a frozen module into the loader's cache.
     /// This should be called once for each builtin module.
     /// By convention, builtin modules will be named "//builtins:$NAME.scl"
-    pub fn preload(&mut self, label: Label, module: FrozenModule) {
+    pub fn preload(&mut self, label: Label, module: FrozenModule) -> &FrozenModule {
         let mut files = self.files.write().unwrap();
         self.preloaded.push(label.clone());
-        files.insert(
-            label,
-            Arc::new(Mutex::new(FileStatus::Loaded(Ok(Box::pin(module))))),
-        );
+        let pinned = Box::pin(module);
+        // Safety:
+        // * We don't allow overwriting entries in the map, so values last as long as the map
+        //   (though may move in memory).
+        // * The map value is Pin<Box<T>>, guaranteeing that the &T lives and remains valid as long
+        //   as the Pin<Box<T>> remains valid, even if the Pin<Box<T>> moves in memory.
+        let module_ref: &FrozenModule = unsafe { extend_lifetime(&*pinned) };
+        files.insert(label, Arc::new(Mutex::new(FileStatus::Loaded(Ok(pinned)))));
+        module_ref
     }
 
     fn wait_for_load(

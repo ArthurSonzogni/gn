@@ -28,9 +28,7 @@ pub trait TargetRef:
     type Session: Session<TargetRef = Self>;
 
     /// Returns the rule that this target was built from.
-    /// May return None if the target is a pure GN target.
-    fn rule(&self) -> Option<&'static Self::Rule>;
-
+    fn rule(&self) -> &'static Self::Rule;
     /// Returns the output files produced by this target.
     fn outputs(&self) -> Vec<File>;
 

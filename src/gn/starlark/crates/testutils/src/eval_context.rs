@@ -154,7 +154,7 @@ impl EvalContextAttrExt for FakeEvalContext {
             dependencies: Default::default(),
             toolchain,
             output_type: target_type,
-            rule: None,
+            rule: self.session.default_rule(),
             cxx_attrs: scope.0.clone(),
             outputs: vec![],
             attrs: vec![],
@@ -182,7 +182,7 @@ impl EvalContextAttrExt for FakeEvalContext {
             .expect("Registering target that was not created in this context");
         let mut target = targets.remove(idx);
         let typed = FrozenValueTyped::<'static, rule::Rule<'static, Self>>::new_err(rule)?;
-        target.rule = typed.has_implementation().then(|| typed.as_ref());
+        target.rule = typed.as_ref();
         target.attrs = attrs;
         Ok(self.session.insert_target(*target))
     }

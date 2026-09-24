@@ -10,7 +10,7 @@ pub use args;
 pub use attr::AttrSchema;
 pub use ctx::Ctx;
 pub use errors::Error;
-pub use globals::register_builtin_rules;
+pub use globals::{extract_builtin_rules, register_builtin_rules};
 pub use implementation::run;
 pub use rule::{OutputType, Rule};
 pub use types::CtxMethods;

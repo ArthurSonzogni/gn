@@ -40,6 +40,29 @@ where
     })
 }
 
+/// Returns a vector such that `v[OutputType as usize]` is the builtin rule for that output type.
+pub fn extract_builtin_rules<C: EvalContextAttrExt>(
+    module: &'static FrozenModule,
+) -> Vec<&'static Rule<'static, C>> {
+    let mut rules = Vec::new();
+    for output_type in OutputType::iter() {
+        rules.push(
+            module
+                .get_option_ref(&output_type.to_string())
+                .unwrap()
+                .unwrap()
+                .value()
+                .downcast_ref::<Rule<'static, C>>()
+                .unwrap(),
+        );
+        assert!(rules.len() == output_type as usize);
+    }
+    // Shift all elements one to the right by inserting a dummy element
+    // Output types start at 1, while indexes start at 0
+    rules.insert(0, rules[0]);
+    rules
+}
+
 /// Registers standard target rules in the session.
 #[macro_export]
 macro_rules! register_rule_globals {
@@ -67,14 +90,7 @@ macro_rules! register_rule_globals {
                     .map(|(k, v)| (k.to_string(), v.clone()))
                     .collect();
                 let rule = eval.frozen_heap(|heap, edge| {
-                    <$crate::Rule<'v, $ctx_type>>::new(
-                        attrs,
-                        None,
-                        parent,
-                        implementation,
-                        &heap,
-                        edge,
-                    )
+                    <$crate::Rule<'v, $ctx_type>>::new(attrs, parent, implementation, &heap, edge)
                 })?;
                 Ok(eval.heap().alloc(rule))
             }

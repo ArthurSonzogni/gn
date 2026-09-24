@@ -5,7 +5,7 @@
 use std::{cell::RefCell, collections::HashSet};
 
 use attr::Session;
-use types::{Label, LabelRef, PackageRef, TargetRef as _};
+use types::{Label, LabelRef, PackageRef, TargetRef as _, util::extend_lifetime};
 
 use crate::{FakeTarget, FakeTargetRef};
 
@@ -17,6 +17,11 @@ pub struct FakeSession {
     pub targets: RefCell<HashSet<FakeTargetRef>>,
     /// Temporary storage for targets being constructed.
     pub targets_under_construction: RefCell<Vec<Box<FakeTarget>>>,
+    /// Builtin rules registered for the session.
+    builtin_rules: Vec<&'static rule::Rule<'static, crate::FakeEvalContext>>,
+    /// The module associated with the default rules.
+    /// Never used, just an RAII guard for builtin_rules.
+    _module: starlark::environment::FrozenModule,
 }
 
 impl Default for FakeSession {
@@ -29,6 +34,7 @@ impl FakeSession {
     /// Creates a new `FakeSession` instance with empty targets and a
     /// preconfigured default toolchain.
     pub fn new() -> Self {
+        let module = rule::register_builtin_rules::<crate::FakeEvalContext>();
         let this = Self {
             default_toolchain: Label::new(
                 PackageRef::root().to_owned(),
@@ -36,6 +42,10 @@ impl FakeSession {
             ),
             targets: RefCell::new(HashSet::new()),
             targets_under_construction: RefCell::new(Vec::new()),
+            // Safety: The module lives as long as the session lasts, which is as long as the test
+            // lasts, which is 'static.
+            builtin_rules: rule::extract_builtin_rules(unsafe { extend_lifetime(&module) }),
+            _module: module,
         };
         this.insert_empty_target(PackageRef::root(), "default");
         this
@@ -59,6 +69,11 @@ impl FakeSession {
         target_ref
     }
 
+    /// Returns the default rule used for testing.
+    pub fn default_rule(&self) -> &'static rule::Rule<'static, crate::FakeEvalContext> {
+        self.builtin_rules[types::OutputType::SourceSet as usize]
+    }
+
     /// Helper to create an empty target with the default toolchain.
     pub fn empty_target(&self, package: &PackageRef, name: &str) -> FakeTarget {
         FakeTarget {
@@ -67,7 +82,7 @@ impl FakeSession {
             outputs: Default::default(),
             attrs: Default::default(),
             output_type: Default::default(),
-            rule: Default::default(),
+            rule: self.default_rule(),
             cxx_attrs: Default::default(),
             dependencies: Default::default(),
         }

@@ -180,12 +180,8 @@ impl attr::traits::EvalContextAttrExt for EvalContext {
             )?;
         Ok(self.session.register_target(crate::target::Target {
             cxx,
-            starlark: typed_rule
-                .has_implementation()
-                .then(|| crate::target::StarlarkTarget {
-                    rule: typed_rule,
-                    attrs,
-                }),
+            rule: typed_rule.as_ref(),
+            attrs,
             evaluated: Default::default(),
         }))
     }
