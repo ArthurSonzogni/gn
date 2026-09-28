@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::ptr::NonNull;
+use std::{cell::RefCell, ptr::NonNull};
 
 use allocative::Allocative;
 use starlark::values::ProvidesStaticType;
-use types::{LabelRef, PackageRef, PathResolver};
+use types::{CtxState, LabelRef, PackageRef, PathResolver};
 
-use crate::{errors::Error, Scope};
+use crate::{errors::Error, Scope, TargetRef};
 
 enum EvalContextKind {
     BzlFile,
@@ -111,7 +111,7 @@ impl types::EvalContext for EvalContext {
             .ok_or_else(|| Error::RequiresBzlFile.into())
     }
 
-    fn require_rule_impl(&self) -> starlark::Result<&mut types::CtxState<crate::TargetRef>> {
+    fn require_rule_impl(&self) -> starlark::Result<&RefCell<CtxState<TargetRef>>> {
         todo!()
     }
 }

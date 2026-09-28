@@ -124,7 +124,11 @@ impl<'v> Depset<'v> {
         let phony = if direct.len() == 1 {
             Some(direct[0].clone())
         } else if !direct.is_empty() {
-            Some(ctx.require_rule_impl()?.new_phony(direct.clone()))
+            Some(
+                ctx.require_rule_impl()?
+                    .borrow_mut()
+                    .new_phony(direct.clone()),
+            )
         } else {
             None
         };
@@ -359,10 +363,10 @@ mod tests {
         // Collect the phonies we've seen since last time we called new_phonies.
         let mut new_phonies = |a: &Assert| {
             use types::EvalContext as _;
-            let phonies = &a.context().require_rule_impl().unwrap().phonies;
-            let result = &phonies[upto_phony..];
+            let phonies = &a.context().require_rule_impl().unwrap().borrow().phonies;
+            let result = phonies[upto_phony..].to_vec();
             upto_phony = phonies.len();
-            result.to_vec()
+            result
         };
 
         assert!(UnpackFileDepset::unpack_value_err(a.pass("depset([1])").value()).is_err());

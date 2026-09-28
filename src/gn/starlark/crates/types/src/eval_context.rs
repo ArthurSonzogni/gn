@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use crate::{LabelRef, PackageRef, PathResolver, Scope, Session};
+use std::cell::RefCell;
+
+use crate::{CtxState, LabelRef, PackageRef, PathResolver, Scope, Session};
 
 /// The starlark Evaluator has an "extra" object that you can use to store
 /// whatever metadata you want, accessible to any custom functions you write
@@ -45,13 +47,9 @@ pub trait EvalContext:
 
     /// Asserts that the evaluator is executing a rule implementation, and
     /// returns the state of the rule implementation.
-    ///
-    /// We require EvalContext to have interior mutability, and thus it can
-    /// return a mutable reference to the state from an immutable reference.
-    #[allow(clippy::mut_from_ref)]
     fn require_rule_impl(
         &self,
-    ) -> starlark::Result<&mut crate::CtxState<<Self::Session as Session>::TargetRef>>;
+    ) -> starlark::Result<&RefCell<CtxState<<Self::Session as Session>::TargetRef>>>;
 }
 
 /// Extension trait to add the methods `.context` and `.set_context` to the
