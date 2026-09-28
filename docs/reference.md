@@ -7828,6 +7828,14 @@
       A boolean flag that can be set to generate Ninja files that use phony
       rules instead of stamp files whenever possible. This results in smaller
       Ninja build plans, but requires at least Ninja 1.11.
+
+  experimental_collect_validations_metadata [optional]
+      NOTE: This flag is experimental and will be removed in the future.
+
+      A boolean flag that determines whether generated_file() metadata walks
+      should include validations targets's metadata. This is false by default
+      but may be required temporarily by the Fuchsia build. See
+      https://gn.g-issues.chromium.org/issues/566346002 for details.
 ```
 
 #### **Example .gn file contents**
@@ -8880,6 +8888,7 @@
     *   --dotfile: Override the name of the ".gn" file.
     *   --enumerate-files-with-git: Use git to list files.
     *   --error-limit: Limit the number of errors or warnings to print.
+    *   --experimental-collect-validations-metadata: Collect metadata from validations.
     *   --fail-on-unused-args: Treat unused build args as fatal errors.
     *   --format-width: Set the formatting width (default is 80)
     *   --markdown: Write help output in the Markdown format.

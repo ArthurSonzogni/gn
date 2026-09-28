@@ -165,6 +165,15 @@ class BuildSettings {
     allow_circular_includes_from_allowlist_ = std::move(list);
   }
 
+  // If true, all generated_file() metadata walks include metadata from
+  // validations targets.
+  bool experimental_collect_validations_metadata() const {
+    return experimental_collect_validations_metadata_;
+  }
+  void set_experimental_collect_validations_metadata(bool value) {
+    experimental_collect_validations_metadata_ = value;
+  }
+
  private:
   Label root_target_label_;
   std::vector<LabelPattern> root_patterns_;
@@ -178,6 +187,7 @@ class BuildSettings {
   // See 40045b9 for the reason behind using 1.7.2 as the default version.
   Version ninja_required_version_{1, 7, 2};
   bool no_stamp_files_ = true;
+  bool experimental_collect_validations_metadata_ = false;
 
   SourceFile build_config_file_;
   SourceFile arg_file_template_path_;

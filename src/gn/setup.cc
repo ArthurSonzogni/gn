@@ -260,6 +260,14 @@ Variables
       rules instead of stamp files whenever possible. This results in smaller
       Ninja build plans, but requires at least Ninja 1.11.
 
+  experimental_collect_validations_metadata [optional]
+      NOTE: This flag is experimental and will be removed in the future.
+
+      A boolean flag that determines whether generated_file() metadata walks
+      should include validations targets's metadata. This is false by default
+      but may be required temporarily by the Fuchsia build. See
+      https://gn.g-issues.chromium.org/issues/566346002 for details.
+
 Example .gn file contents
 
   buildconfig = "//build/config/BUILDCONFIG.gn"
@@ -1300,6 +1308,24 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
       return false;
     }
     export_compile_commands_.push_back(std::move(pat));
+  }
+
+  // Collect validations metadata during generate_file() walks.
+  // See https://gn.g-issues.chromium.org/issues/566346002
+  if (cmdline.HasSwitch(switches::kExperimentalCollectValidationsMetadata)) {
+    build_settings_.set_experimental_collect_validations_metadata(true);
+  } else {
+    const Value* experimental_collect_validations_metadata_value =
+        dotfile_scope_.GetValue("experimental_collect_validations_metadata",
+                                true);
+    if (experimental_collect_validations_metadata_value) {
+      if (!experimental_collect_validations_metadata_value->VerifyTypeIs(
+              Value::BOOLEAN, err)) {
+        return false;
+      }
+      build_settings_.set_experimental_collect_validations_metadata(
+          experimental_collect_validations_metadata_value->boolean_value());
+    }
   }
 
   return true;
