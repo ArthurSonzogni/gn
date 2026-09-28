@@ -472,6 +472,13 @@ class Target : public Item {
     user_friendly_location_ = location;
   }
 
+  bool collect_validations_metadata() const {
+    return collect_validations_metadata_;
+  }
+  void set_collect_validations_metadata(bool value) {
+    collect_validations_metadata_ = value;
+  }
+
   // Computes and returns the outputs of this target expressed as SourceFiles.
   //
   // For binary target this depends on the tool for this target so the toolchain
@@ -577,6 +584,7 @@ class Target : public Item {
   bool check_includes_ = true;
   bool check_includes_strict_ = false;
   bool complete_static_lib_ = false;
+  bool collect_validations_metadata_ = false;
   std::vector<std::string> data_;
   std::unique_ptr<BundleData> bundle_data_;
   OutputFile write_runtime_deps_output_;

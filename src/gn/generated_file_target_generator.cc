@@ -36,6 +36,10 @@ void GeneratedFileTargetGenerator::DoRun() {
 
   if (!FillContents())
     return;
+
+  if (!FillCollectValidationsMetadata())
+    return;
+
   if (!FillDataKeys())
     return;
 
@@ -78,6 +82,30 @@ bool GeneratedFileTargetGenerator::IsMetadataCollectionTarget(
                 " will have no effect as no metadata collection will occur.");
     return false;
   }
+  return true;
+}
+
+bool GeneratedFileTargetGenerator::FillCollectValidationsMetadata() {
+  std::string_view variable = variables::kCollectValidationsMetadata;
+
+  bool flag_value = false;
+
+  const Value* value = scope_->GetValue(variable, true);
+  if (value) {
+    if (!value->VerifyTypeIs(Value::BOOLEAN, err_))
+      return false;
+
+    if (!IsMetadataCollectionTarget(variable, value->origin()))
+      return false;
+
+    flag_value = value->boolean_value();
+  } else if (!contents_defined_) {
+    flag_value = target_->settings()
+                     ->build_settings()
+                     ->experimental_collect_validations_metadata();
+  }
+
+  target_->set_collect_validations_metadata(flag_value);
   return true;
 }
 

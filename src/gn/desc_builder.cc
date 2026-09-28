@@ -584,6 +584,10 @@ class TargetDescBuilder : public BaseDescBuilder {
           keys.GetList().push_back(base::Value(k));
         res->SetKey(variables::kWalkKeys, std::move(keys));
       }
+      if (what(variables::kCollectValidationsMetadata)) {
+        res->SetKey(variables::kCollectValidationsMetadata,
+                    base::Value(target_->collect_validations_metadata()));
+      }
     }
 
     if (what(variables::kDeps))

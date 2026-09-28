@@ -1545,10 +1545,10 @@ TEST_F(TargetTest, ModuleMap) {
   EXPECT_EQ("input.modulemap.pcm", output[0].value()) << output[0].value();
 }
 
-TEST(TargetTest, CollectMetadataWithValidation) {
+TEST(TargetTest, CollectMetadataMustIgnoreValidationByDefault) {
   TestWithScope setup;
 
-  TestTarget a(setup, "//foo:a", Target::SOURCE_SET);
+  TestTarget a(setup, "//foo:a", Target::GENERATED_FILE);
   Value a_expected(nullptr, Value::LIST);
   a_expected.list_value().push_back(Value(nullptr, "foo"));
   a.metadata().contents().emplace("walk", a_expected);
@@ -1559,6 +1559,35 @@ TEST(TargetTest, CollectMetadataWithValidation) {
   b.metadata().contents().emplace("walk", b_expected);
 
   a.validations().push_back(LabelTargetPair(&b));
+
+  std::vector<std::string> data_keys = {"walk"};
+  std::vector<std::string> walk_keys;
+  std::vector<Value> result;
+  TargetSet targets;
+  Err err;
+  a.GetMetadata(data_keys, walk_keys, SourceDir(), false, &result, &targets,
+                &err);
+  EXPECT_SUCCESS(err);
+
+  std::vector<Value> expected = {Value(nullptr, "foo")};
+  EXPECT_EQ(result, expected);
+}
+
+TEST(TargetTest, CollectValidationsMetadataFlag) {
+  TestWithScope setup;
+
+  TestTarget a(setup, "//foo:a", Target::GENERATED_FILE);
+  Value a_expected(nullptr, Value::LIST);
+  a_expected.list_value().push_back(Value(nullptr, "foo"));
+  a.metadata().contents().emplace("walk", a_expected);
+
+  TestTarget b(setup, "//foo:b", Target::SOURCE_SET);
+  Value b_expected(nullptr, Value::LIST);
+  b_expected.list_value().push_back(Value(nullptr, "bar"));
+  b.metadata().contents().emplace("walk", b_expected);
+
+  a.validations().push_back(LabelTargetPair(&b));
+  a.set_collect_validations_metadata(true);
 
   std::vector<std::string> data_keys = {"walk"};
   std::vector<std::string> walk_keys;

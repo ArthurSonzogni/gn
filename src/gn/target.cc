@@ -1288,12 +1288,14 @@ struct MetadataWalker {
   MetadataWalker(const KeyList& data_keys,
                  const KeyList& walk_keys,
                  const SourceDir& rebase_dir,
+                 bool collect_validations_metadata,
                  std::vector<Value>* result,
                  TargetSet& targets_walked,
                  Err& err)
       : data_keys_(data_keys),
         walk_keys_(walk_keys),
         rebase_dir_(rebase_dir),
+        collect_validations_metadata_(collect_validations_metadata),
         result_(result),
         targets_walked_(targets_walked),
         err_(err) {}
@@ -1339,11 +1341,13 @@ struct MetadataWalker {
               return false;
           }
         }
-        for (const auto& dep : target.validations()) {
-          // If we haven't walked this dep yet, go down into it.
-          if (targets_walked_.add(dep.ptr)) {
-            if (!Walk(*dep.ptr, false))
-              return false;
+        if (collect_validations_metadata_) {
+          for (const auto& dep : target.validations()) {
+            // If we haven't walked this dep yet, go down into it.
+            if (targets_walked_.add(dep.ptr)) {
+              if (!Walk(*dep.ptr, false))
+                return false;
+            }
           }
         }
 
@@ -1379,7 +1383,7 @@ struct MetadataWalker {
           break;
         }
       }
-      if (!found_next) {
+      if (!found_next && collect_validations_metadata_) {
         for (const auto& dep : target.validations()) {
           // Match against the label with the toolchain.
           if (dep.label.Matches(next_label, toolchain_label)) {
@@ -1418,6 +1422,7 @@ struct MetadataWalker {
   const KeyList& data_keys_;
   const KeyList& walk_keys_;
   const SourceDir& rebase_dir_;
+  bool collect_validations_metadata_;
   std::vector<Value>* result_;
   TargetSet& targets_walked_;
   Err& err_;
@@ -1432,8 +1437,9 @@ bool Target::GetMetadata(const std::vector<std::string>& data_keys,
                          std::vector<Value>* result,
                          TargetSet* targets_walked,
                          Err* err) const {
-  MetadataWalker walker(data_keys, walk_keys, rebase_dir, result,
-                        *targets_walked, *err);
+  MetadataWalker walker(data_keys, walk_keys, rebase_dir,
+                        collect_validations_metadata_, result, *targets_walked,
+                        *err);
   return walker.Walk(*this, deps_only);
 }
 

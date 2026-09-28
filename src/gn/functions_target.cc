@@ -987,12 +987,15 @@ const char kGeneratedFile_Help[] =
   Collected metadata, if specified, will be returned in postorder of
   dependencies. See the example for details.
 
+  By default, validations dependencies are never visited by metadata collection,
+  but setting `collect_validations_metadata = true` changes this behavior.
+
 Variables
 
 )" DEPENDENT_CONFIG_VARS DEPS_VARS GENERAL_TARGET_VARS
 
     R"(  Generated file: contents, data_keys, rebase, walk_keys, output_conversion,
-                  outputs
+                  outputs, collect_validations_metadata
 
 Example (metadata collection)
 

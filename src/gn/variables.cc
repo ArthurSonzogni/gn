@@ -948,6 +948,28 @@ Example
   }
 )";
 
+const char kCollectValidationsMetadata[] = "collect_validations_metadata";
+const char kCollectValidationsMetadata_HelpShort[] =
+    "collect_validations_metadata: [bool] Collect metadata values from "
+    "validations deps.";
+const char kCollectValidationsMetadata_Help[] =
+    R"(collect_validations_metadata: Collect metadata values from validations deps
+
+  A boolean flag for generated_file() targets. When true, a metadata walk
+  will visit validations dependencies (and their transitive dependencies,
+  including other validations ones) and collect metadata from them, unless
+  there are explicit barriers to prevent this.
+
+  When false (the default) the metadata walk will ignore validations
+  deps, to avoid inserting unexpected results in the result.
+
+  The default value can be changed by setting
+  'experimental_collect_validations_metadata = true' in the .gn file,
+  but this feature is temporary and will be removed in the future. See
+  https://gn.issues.chromium.org/566346002 for details.
+
+)";
+
 const char kCompleteStaticLib[] = "complete_static_lib";
 const char kCompleteStaticLib_HelpShort[] =
     "complete_static_lib: [boolean] Links all deps into a static library.";
@@ -2604,6 +2626,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(CflagsObjCC)
     INSERT_VARIABLE(CheckIncludes)
     INSERT_VARIABLE(CheckIncludesStrict)
+    INSERT_VARIABLE(CollectValidationsMetadata)
     INSERT_VARIABLE(CompleteStaticLib)
     INSERT_VARIABLE(Configs)
     INSERT_VARIABLE(Data)

@@ -117,6 +117,7 @@
     *   [cflags_objcc: [string list] Flags passed to the Objective C++ compiler.](#var_cflags_objcc)
     *   [check_includes: [boolean] Controls whether a target's files are checked.](#var_check_includes)
     *   [check_includes_strict: [boolean] Controls whether strict include checking is enforced.](#var_check_includes_strict)
+    *   [collect_validations_metadata: [bool] Collect metadata values from validations deps.](#var_collect_validations_metadata)
     *   [complete_static_lib: [boolean] Links all deps into a static library.](#var_complete_static_lib)
     *   [configs: [label list] Configs applying to this target or config.](#var_configs)
     *   [contents: Contents to write to file.](#var_contents)
@@ -558,6 +559,7 @@
   cflags_c [--blame]
   cflags_cc [--blame]
   check_includes
+  collect_validations_metadata
   configs [--tree] (see below)
   data_keys
   defines [--blame]
@@ -2162,6 +2164,9 @@
 
   Collected metadata, if specified, will be returned in postorder of
   dependencies. See the example for details.
+
+  By default, validations dependencies are never visited by metadata collection,
+  but setting `collect_validations_metadata = true` changes this behavior.
 ```
 
 #### **Variables**
@@ -2174,7 +2179,7 @@
            output_extension, output_name, public, sources, testonly,
            visibility
   Generated file: contents, data_keys, rebase, walk_keys, output_conversion,
-                  outputs
+                  outputs, collect_validations_metadata
 ```
 
 #### **Example (metadata collection)**
@@ -5783,6 +5788,22 @@
     check_includes_strict = true
     ...
   }
+```
+### <a name="var_collect_validations_metadata"></a>**collect_validations_metadata**: Collect metadata values from validations deps&nbsp;[Back to Top](#gn-reference)
+
+```
+  A boolean flag for generated_file() targets. When true, a metadata walk
+  will visit validations dependencies (and their transitive dependencies,
+  including other validations ones) and collect metadata from them, unless
+  there are explicit barriers to prevent this.
+
+  When false (the default) the metadata walk will ignore validations
+  deps, to avoid inserting unexpected results in the result.
+
+  The default value can be changed by setting
+  'experimental_collect_validations_metadata = true' in the .gn file,
+  but this feature is temporary and will be removed in the future. See
+  https://gn.issues.chromium.org/566346002 for details.
 ```
 ### <a name="var_complete_static_lib"></a>**complete_static_lib**: [boolean] Links all deps into a static library.&nbsp;[Back to Top](#gn-reference)
 
