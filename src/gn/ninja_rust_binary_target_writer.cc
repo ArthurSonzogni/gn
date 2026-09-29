@@ -132,6 +132,15 @@ void NinjaRustBinaryTargetWriter::Run() {
   std::copy(input_deps.begin(), input_deps.end(),
             std::back_inserter(order_only_deps));
 
+  // rustc does not invoke a linker when building an rlib, so non-Rust native
+  // dependencies (object files, static and shared libraries) are not used to
+  // build it. Since RUST_LIBRARY is not final, those dependencies are instead
+  // propagated to the final linked target as inherited libraries. Don't add
+  // them to the rlib's command line nor its implicit deps, so that compiling
+  // an rlib doesn't have to wait for C/C++ code to be compiled and linked.
+  const bool is_rlib =
+      RustValues::InferredCrateType(target_) == RustValues::CRATE_RLIB;
+
   // Build lists which will go into different bits of the rustc command line.
   // Public rust_library deps go in a --extern rlibs, public non-rust deps go in
   // -Ldependency. Also assemble a list of extra (i.e. implicit) deps
@@ -139,8 +148,10 @@ void NinjaRustBinaryTargetWriter::Run() {
   UniqueVector<OutputFile> implicit_deps;
   implicit_deps.Append(stamp_deps.implicit.begin(), stamp_deps.implicit.end());
   AppendSourcesAndInputsToImplicitDeps(&implicit_deps);
-  implicit_deps.Append(classified_deps.extra_object_files.begin(),
-                       classified_deps.extra_object_files.end());
+  if (!is_rlib) {
+    implicit_deps.Append(classified_deps.extra_object_files.begin(),
+                         classified_deps.extra_object_files.end());
+  }
 
   if (auto phony = tool_->inputs_phony_or_file(rule_prefix_,
                                                *settings_->build_settings());
@@ -151,9 +162,11 @@ void NinjaRustBinaryTargetWriter::Run() {
   std::vector<OutputFile> rustdeps;
   std::vector<OutputFile> nonrustdeps;
   std::vector<OutputFile> swiftmodules;
-  nonrustdeps.insert(nonrustdeps.end(),
-                     classified_deps.extra_object_files.begin(),
-                     classified_deps.extra_object_files.end());
+  if (!is_rlib) {
+    nonrustdeps.insert(nonrustdeps.end(),
+                       classified_deps.extra_object_files.begin(),
+                       classified_deps.extra_object_files.end());
+  }
   for (const auto* framework_dep : classified_deps.framework_deps) {
     if (framework_dep->has_dependency_output_file()) {
       order_only_deps.push_back(framework_dep->dependency_output_file());
@@ -183,6 +196,9 @@ void NinjaRustBinaryTargetWriter::Run() {
     if (linkable_dep->source_types_used().RustSourceUsed() &&
         linkable_dep->rust_values().crate_type() != RustValues::CRATE_CDYLIB) {
       rustdeps.push_back(linkable_dep->link_output_file());
+    } else if (is_rlib) {
+      // Not needed to build an rlib. See the comment on `is_rlib` above.
+      continue;
     } else {
       nonrustdeps.push_back(linkable_dep->link_output_file());
     }
