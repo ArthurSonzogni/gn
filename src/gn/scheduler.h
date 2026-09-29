@@ -39,8 +39,10 @@ class Scheduler {
   bool verbose_logging() const { return verbose_logging_; }
   void set_verbose_logging(bool v) { verbose_logging_ = v; }
 
-  // TODO(brettw) data race on this access (benign?).
-  bool is_failed() const { return is_failed_; }
+  bool is_failed() const {
+    std::lock_guard<std::mutex> lock(lock_);
+    return is_failed_;
+  }
 
   void Log(const std::string& verb, const std::string& msg);
   void FailWithError(const Err& err);

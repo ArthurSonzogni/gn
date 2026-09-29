@@ -28,21 +28,29 @@ bool Scheduler::Run() {
   // Reentrancy check.
   CHECK(!is_running_);
 
-  // Ensure there is at least one task, (or else this will wait forever).
-  if (is_failed_ || (work_count_.IsZero() && pool_work_count_.IsZero())) {
-    // Flush any posted tasks (that were posted from the UI thread).
-    main_thread_run_loop_->PostQuit();
-    main_thread_run_loop_->Run();
-    return !is_failed_;
-  }
-
-  has_been_shutdown_ = false;
-  is_running_ = true;
-  main_thread_run_loop_->Run();
+  // has_been_shutdown_ and is_failed_ are read or modified
+  // from other threads in Scheduler::FailWithError.
   bool local_is_failed;
   {
     std::lock_guard<std::mutex> lock(lock_);
-    local_is_failed = is_failed();
+    has_been_shutdown_ = false;
+    local_is_failed = is_failed_;
+  }
+
+  // Ensure there is at least one task, (or else this will wait forever).
+  if (local_is_failed || (work_count_.IsZero() && pool_work_count_.IsZero())) {
+    // Flush any posted tasks (that were posted from the UI thread).
+    main_thread_run_loop_->PostQuit();
+    main_thread_run_loop_->Run();
+    WaitForPoolTasks();
+    return !is_failed();
+  }
+
+  is_running_ = true;
+  main_thread_run_loop_->Run();
+  {
+    std::lock_guard<std::mutex> lock(lock_);
+    local_is_failed = is_failed_;
     has_been_shutdown_ = true;
   }
   // Don't do this while holding |lock_|, since it will block on the workers,
@@ -63,10 +71,10 @@ void Scheduler::FailWithError(const Err& err) {
 
     if (is_failed_ || has_been_shutdown_)
       return;  // Ignore errors once we see one.
-    is_failed_ = true;
-  }
 
-  task_runner()->PostTask([this, err]() { FailWithErrorOnMainThread(err); });
+    is_failed_ = true;
+    task_runner()->PostTask([this, err]() { FailWithErrorOnMainThread(err); });
+  }
 }
 
 void Scheduler::ScheduleWork(std::function<void()> work) {
