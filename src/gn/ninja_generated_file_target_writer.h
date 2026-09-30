@@ -16,8 +16,6 @@ class NinjaGeneratedFileTargetWriter : public NinjaTargetWriter {
   void Run() override;
 
  private:
-  void GenerateFile();
-
   NinjaGeneratedFileTargetWriter(const NinjaGeneratedFileTargetWriter&) =
       delete;
   NinjaGeneratedFileTargetWriter& operator=(

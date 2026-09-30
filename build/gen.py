@@ -863,6 +863,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
               'src/gn/functions_target.cc',
               'src/gn/general_tool.cc',
               'src/gn/generated_file_target_generator.cc',
+              'src/gn/generated_file_writer.cc',
               'src/gn/group_target_generator.cc',
               'src/gn/header_checker.cc',
               'src/gn/import_manager.cc',
