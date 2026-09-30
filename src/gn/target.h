@@ -212,8 +212,8 @@ class Target : public Item {
 
   // Get metadata from this target and its dependencies. This is intended to
   // be called after the target is resolved.
-  bool GetMetadata(const std::vector<std::string>& keys_to_extract,
-                   const std::vector<std::string>& keys_to_walk,
+  bool GetMetadata(const std::vector<std::string>& data_keys,
+                   const std::vector<std::string>& walk_keys,
                    const SourceDir& rebase_dir,
                    bool deps_only,
                    std::vector<Value>* result,

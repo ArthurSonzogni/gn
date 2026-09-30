@@ -1279,101 +1279,98 @@ void Target::CheckSourcesGenerated() const {
   // http://crbug.com/571731
 }
 
-bool Target::GetMetadata(const std::vector<std::string>& keys_to_extract,
-                         const std::vector<std::string>& keys_to_walk,
-                         const SourceDir& rebase_dir,
-                         bool deps_only,
-                         std::vector<Value>* result,
-                         TargetSet* targets_walked,
-                         Err* err) const {
-  std::vector<Value> next_walk_keys;
-  std::vector<Value> current_result;
-  // If deps_only, this is the top-level target and thus we don't want to
-  // collect its metadata, only that of its deps and data_deps.
-  if (deps_only) {
-    // Empty string will be converted below to mean all deps and data_deps.
-    // Origin is null because this isn't declared anywhere, and should never
-    // trigger any errors.
-    next_walk_keys.push_back(Value(nullptr, ""));
-  } else {
-    // Otherwise, we walk this target and collect the appropriate data.
-    // NOTE: Always call WalkStep() even when have_metadata() is false,
-    // because WalkStep() will append to 'next_walk_keys' in this case.
-    // See https://crbug.com/1273069.
-    if (!metadata().WalkStep(settings()->build_settings(), keys_to_extract,
-                             keys_to_walk, rebase_dir, &next_walk_keys,
-                             &current_result, err))
-      return false;
-  }
+namespace {
 
-  // Gather walk keys and find the appropriate target. Targets identified in
-  // the walk key set must be deps or data_deps of the declaring target.
-  const DepsIteratorRange& all_deps = GetDeps(Target::DEPS_ALL);
-  const SourceDir& current_dir = label().dir();
-  for (const auto& next : next_walk_keys) {
-    DCHECK(next.type() == Value::STRING);
+// Internal state for metadata collection. Used by Target::GetMetadata()
+struct MetadataWalker {
+  using KeyList = std::vector<std::string>;
 
-    // If we hit an empty string in this list, add all deps and data_deps. The
-    // ordering in the resulting list of values as a result will be the data
-    // from each explicitly listed dep prior to this, followed by all data in
-    // walk order of the remaining deps.
-    if (next.string_value().empty()) {
-      for (const auto& dep : all_deps) {
-        // If we haven't walked this dep yet, go down into it.
-        if (targets_walked->add(dep.ptr)) {
-          if (!dep.ptr->GetMetadata(keys_to_extract, keys_to_walk, rebase_dir,
-                                    false, result, targets_walked, err))
-            return false;
-        }
+  MetadataWalker(const KeyList& data_keys,
+                 const KeyList& walk_keys,
+                 const SourceDir& rebase_dir,
+                 std::vector<Value>* result,
+                 TargetSet& targets_walked,
+                 Err& err)
+      : data_keys_(data_keys),
+        walk_keys_(walk_keys),
+        rebase_dir_(rebase_dir),
+        result_(result),
+        targets_walked_(targets_walked),
+        err_(err) {}
+
+  bool Walk(const Target& target, bool deps_only) {
+    std::vector<Value> next_walk_labels;
+    std::vector<Value> current_result;
+    // If deps_only, this is the top-level target and thus we don't want to
+    // collect its metadata, only that of its deps and data_deps.
+    if (deps_only) {
+      // Empty string will be converted below to mean all deps and data_deps.
+      // Origin is null because this isn't declared anywhere, and should never
+      // trigger any errors.
+      next_walk_labels.push_back(Value(nullptr, ""));
+    } else {
+      // Otherwise, we walk this target and collect the appropriate data.
+      // NOTE: Always call WalkStep() even when have_metadata() is false,
+      // because WalkStep() will append to 'next_walk_labels' in this case.
+      // See https://crbug.com/1273069.
+      if (!target.metadata().WalkStep(
+              target.settings()->build_settings(), data_keys_, walk_keys_,
+              rebase_dir_, &next_walk_labels, &current_result, &err_)) {
+        return false;
       }
-      for (const auto& dep : validations_) {
-        // If we haven't walked this dep yet, go down into it.
-        if (targets_walked->add(dep.ptr)) {
-          if (!dep.ptr->GetMetadata(keys_to_extract, keys_to_walk, rebase_dir,
-                                    false, result, targets_walked, err))
-            return false;
-        }
-      }
-
-      // Any other walk keys are superfluous, as they can only be a subset of
-      // all deps.
-      break;
     }
 
-    // Otherwise, look through the target's deps for the specified one.
-    // Canonicalize the label if possible.
-    Label next_label = Label::Resolve(
-        current_dir, settings()->build_settings()->root_path_utf8(),
-        settings()->toolchain_label(), next, err);
-    if (next_label.is_null()) {
-      *err = Err(next.origin(), std::string("Failed to canonicalize ") +
-                                    next.string_value() + std::string("."));
-    }
-    std::string canonicalize_next_label = next_label.GetUserVisibleName(true);
+    // Gather walk keys and find the appropriate target. Targets identified in
+    // the walk key set must be deps or data_deps of the declaring target.
+    const DepsIteratorRange& all_deps = target.GetDeps(Target::DEPS_ALL);
+    SourceDir current_dir = target.label().dir();
+    for (const auto& next : next_walk_labels) {
+      DCHECK(next.type() == Value::STRING);
 
-    bool found_next = false;
-    for (const auto& dep : all_deps) {
-      // Match against the label with the toolchain.
-      if (dep.label.GetUserVisibleName(true) == canonicalize_next_label) {
-        // If we haven't walked this dep yet, go down into it.
-        if (targets_walked->add(dep.ptr)) {
-          if (!dep.ptr->GetMetadata(keys_to_extract, keys_to_walk, rebase_dir,
-                                    false, result, targets_walked, err))
-            return false;
+      // If we hit an empty string in this list, add all deps and data_deps. The
+      // ordering in the resulting list of values as a result will be the data
+      // from each explicitly listed dep prior to this, followed by all data in
+      // walk order of the remaining deps.
+      if (next.string_value().empty()) {
+        for (const auto& dep : all_deps) {
+          // If we haven't walked this dep yet, go down into it.
+          if (targets_walked_.add(dep.ptr)) {
+            if (!Walk(*dep.ptr, false))
+              return false;
+          }
         }
-        // We found it, so we can exit this search now.
-        found_next = true;
+        for (const auto& dep : target.validations()) {
+          // If we haven't walked this dep yet, go down into it.
+          if (targets_walked_.add(dep.ptr)) {
+            if (!Walk(*dep.ptr, false))
+              return false;
+          }
+        }
+
+        // Any other walk keys are superfluous, as they can only be a subset of
+        // all deps.
         break;
       }
-    }
-    if (!found_next) {
-      for (const auto& dep : validations_) {
+
+      // Otherwise, look through the target's deps for the specified one.
+      // Canonicalize the label if possible.
+      Label next_label = Label::Resolve(
+          current_dir, target.settings()->build_settings()->root_path_utf8(),
+          target.settings()->toolchain_label(), next, &err_);
+      if (next_label.is_null()) {
+        err_ = Err(next.origin(), std::string("Failed to canonicalize ") +
+                                      next.string_value() + std::string("."));
+        return false;
+      }
+      std::string canonicalize_next_label = next_label.GetUserVisibleName(true);
+
+      bool found_next = false;
+      for (const auto& dep : all_deps) {
         // Match against the label with the toolchain.
         if (dep.label.GetUserVisibleName(true) == canonicalize_next_label) {
           // If we haven't walked this dep yet, go down into it.
-          if (targets_walked->add(dep.ptr)) {
-            if (!dep.ptr->GetMetadata(keys_to_extract, keys_to_walk, rebase_dir,
-                                      false, result, targets_walked, err))
+          if (targets_walked_.add(dep.ptr)) {
+            if (!Walk(*dep.ptr, false))
               return false;
           }
           // We found it, so we can exit this search now.
@@ -1381,22 +1378,61 @@ bool Target::GetMetadata(const std::vector<std::string>& keys_to_extract,
           break;
         }
       }
+      if (!found_next) {
+        for (const auto& dep : target.validations()) {
+          // Match against the label with the toolchain.
+          if (dep.label.GetUserVisibleName(true) == canonicalize_next_label) {
+            // If we haven't walked this dep yet, go down into it.
+            if (targets_walked_.add(dep.ptr)) {
+              if (!Walk(*dep.ptr, false))
+                return false;
+            }
+            // We found it, so we can exit this search now.
+            found_next = true;
+            break;
+          }
+        }
+      }
+      // If we didn't find the specified dep in the target, that's an error.
+      // Propagate it back to the user.
+      if (!found_next) {
+        err_ =
+            Err(next.origin(),
+                std::string("I was expecting ") + canonicalize_next_label +
+                    std::string(" to be a dependency of ") +
+                    target.label().GetUserVisibleName(true) +
+                    ". Make sure it's included in the deps or data_deps, and "
+                    "that you've specified the appropriate toolchain.");
+        return false;
+      }
     }
-    // If we didn't find the specified dep in the target, that's an error.
-    // Propagate it back to the user.
-    if (!found_next) {
-      *err = Err(next.origin(),
-                 std::string("I was expecting ") + canonicalize_next_label +
-                     std::string(" to be a dependency of ") +
-                     label().GetUserVisibleName(true) +
-                     ". Make sure it's included in the deps or data_deps, and "
-                     "that you've specified the appropriate toolchain.");
-      return false;
-    }
+    result_->insert(result_->end(),
+                    std::make_move_iterator(current_result.begin()),
+                    std::make_move_iterator(current_result.end()));
+    return true;
   }
-  result->insert(result->end(), std::make_move_iterator(current_result.begin()),
-                 std::make_move_iterator(current_result.end()));
-  return true;
+
+ private:
+  const KeyList& data_keys_;
+  const KeyList& walk_keys_;
+  const SourceDir& rebase_dir_;
+  std::vector<Value>* result_;
+  TargetSet& targets_walked_;
+  Err& err_;
+};
+
+}  // namespace
+
+bool Target::GetMetadata(const std::vector<std::string>& data_keys,
+                         const std::vector<std::string>& walk_keys,
+                         const SourceDir& rebase_dir,
+                         bool deps_only,
+                         std::vector<Value>* result,
+                         TargetSet* targets_walked,
+                         Err* err) const {
+  MetadataWalker walker(data_keys, walk_keys, rebase_dir, result,
+                        *targets_walked, *err);
+  return walker.Walk(*this, deps_only);
 }
 
 void Target::set_module_type(ModuleType type) {
