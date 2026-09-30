@@ -5,6 +5,7 @@
 #ifndef TOOLS_GN_SETUP_H_
 #define TOOLS_GN_SETUP_H_
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -66,6 +67,16 @@ class Setup {
   // Setup just enough data for editing and commands that don't require
   // a build directory.
   bool DoSetupForEditing();
+
+  // A callback that will be invoked by Run() once all items in the graph
+  // have been resolved (and no bad graph items were found). This can be
+  // used to schedule more work and then call |scheduler.Run()|.
+  using PostResolutionCallback = std::function<bool(Scheduler&)>;
+
+  // Set a PostResolutionCallback, which will be invoked by Run()
+  void SetPostResolutionCallback(PostResolutionCallback&& callback) {
+    post_resolution_callback_ = std::move(callback);
+  }
 
   // Runs the load, returning true on success. On failure, prints the error
   // and returns false. This includes both RunPreMessageLoop() and
@@ -220,6 +231,8 @@ class Setup {
   std::unique_ptr<ParseNode> args_root_;
 
   std::vector<LabelPattern> export_compile_commands_;
+
+  PostResolutionCallback post_resolution_callback_;
 
   Setup(const Setup&) = delete;
   Setup& operator=(const Setup&) = delete;

@@ -9,16 +9,24 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "gn/builder_record.h"
+#include "gn/commands.h"
 #include "gn/filesystem_utils.h"
 #include "gn/switches.h"
 #include "gn/test_with_scheduler.h"
 #include "util/build_config.h"
+#include "util/msg_loop.h"
 
 using SetupTest = TestWithScheduler;
 
 static void WriteFile(const base::FilePath& file, const std::string& data) {
   CHECK_EQ(static_cast<int>(data.size()),  // Way smaller than INT_MAX.
            base::WriteFile(file, data.data(), data.size()));
+}
+
+static std::string ReadFile(const base::FilePath& file) {
+  std::string data;
+  CHECK(base::ReadFileToString(file, &data));
+  return data;
 }
 
 TEST_F(SetupTest, DotGNFileIsGenDep) {
@@ -615,4 +623,260 @@ if (host_os != "nonexistent_os") {
   EXPECT_TRUE(
       setup.DoSetupWithErr(FilePathToUTF8(build_dir), true, cmdline, &err));
   EXPECT_FALSE(err.has_error());
+}
+
+// Convenience class to save the current process base::CommandLine
+// on construction, modify it through the get() method, then restore
+// the saved version on scope exit. This is useful for tests that need
+// to modify the process global singleton temporarily.
+class ScopedCommandLineForTest {
+ public:
+  ScopedCommandLineForTest()
+      : command_line_ref_(*base::CommandLine::ForCurrentProcess()),
+        saved_command_line_(command_line_ref_) {}
+
+  ~ScopedCommandLineForTest() { command_line_ref_ = saved_command_line_; }
+
+  base::CommandLine& get() { return command_line_ref_; }
+
+ private:
+  base::CommandLine& command_line_ref_;
+  base::CommandLine saved_command_line_;
+};
+
+// A test that verifies that generated_file() generation doesn't crash.
+// See the commands in builder_record.h regarding metadata walks
+// requiring all items in the graph to be fully resolved to run safely.
+//
+// The test creates a graph that looks like:
+//
+//    A ---validation-->
+//       B --validation-->
+//         C --deps-->
+//           D_0 --deps-->
+//              D_1 --deps--> .. --deps--> D_19
+//
+// Where A will be finalized (written to the Ninja build plan) early while one
+// of D_0 or D_19 is still undefined during the load.
+//
+// There is a potential race condition because GN loads build files concurrently
+// and according to the state transition rules described in builder_record.h,
+// A could be finalized as soon as C is defined, even if some of its
+// dependencies (D_0 to D_19) are still undefined or being loaded in other
+// threads, thus that some of the --deps--> edges between D_n and D_n+1 would be
+// nullptr. (see https://crbug.com/gn/566346002 for more details).
+//
+// A's finalization calls NinjaGeneratedTargetWriter::Run() which delays
+// metadata walks if collect_validations_metadata is true. If it didn't do
+// that, starting a metadata walk would crash at runtime when trying to
+// traverse the nullptr edge.
+//
+// This test sets --threads=4 to ensure that all dependencies cannot be
+// defined when A is finalized. Removing the delay in
+// NinjaGeneratedTargetWriter::Run() makes it crash consistently.
+//
+// The test also verifies that the generated file exists with the right content,
+// i.e. that metadata collection was done properly, even if it was delayed.
+TEST(GenCommandTest, ValidationMetadataRace) {
+  MsgLoop msg_loop;
+  ScopedCommandLineForTest global_cmdline;
+
+  base::ScopedTempDir in_temp_dir;
+  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")),
+            "buildconfig = \"//BUILDCONFIG.gn\"\n");
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
+            "set_default_toolchain(\"//:toolchain\")\n");
+
+  std::string build_gn = R"(
+toolchain("toolchain") {
+  tool("stamp") {
+    command = "touch {{output}}"
+  }
+}
+
+generated_file("A") {
+  outputs = [ "$target_out_dir/A.json" ]
+  data_keys = [ "key" ]
+  deps = []
+  validations = [ ":B" ]
+  collect_validations_metadata = true
+}
+
+group("B") {
+  deps = []
+  validations = [ ":C" ]
+  metadata = {
+    key = [ "value_b" ]
+  }
+}
+
+group("C") {
+  deps = [ ":D_0" ]
+  metadata = {
+    key = [ "value_c" ]
+  }
+}
+)";
+
+  // Create a chain of groups:
+  //  D_0 --deps--> D_1 --deps--> D_2 --deps--> D_3 .... --deps--> D_19
+  int chain_length = 20;
+  for (int i = 0; i < chain_length; i++) {
+    build_gn += "group(\"D_" + std::to_string(i) + "\") {\n";
+    if (i < chain_length - 1) {
+      build_gn += "  deps = [ \":D_" + std::to_string(i + 1) + "\" ]\n";
+    }
+    build_gn += "}\n";
+  }
+
+  build_gn += R"(
+group("default") {
+  deps = [ ":A" ]
+}
+)";
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILD.gn")), build_gn);
+
+  base::ScopedTempDir build_temp_dir;
+  ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
+
+  global_cmdline.get().AppendSwitchPath(switches::kRoot, in_path);
+  global_cmdline.get().AppendSwitch(switches::kFailOnUnusedArgs);
+  global_cmdline.get().AppendSwitch(switches::kQuiet);
+  global_cmdline.get().AppendSwitch(switches::kThreads, "4");
+
+  std::vector<std::string> args;
+  args.push_back(FilePathToUTF8(build_temp_dir.GetPath()));
+
+  int exit_code = commands::RunGen(args);
+  EXPECT_EQ(0, exit_code);
+
+  // Now verify that the file was written with the right content
+  std::string data = ReadFile(
+      build_temp_dir.GetPath().Append(FILE_PATH_LITERAL("obj/A.json")));
+  EXPECT_EQ(data, "value_c\nvalue_b\n");
+}
+
+// A variant of the previous test above where the last
+// dependency in the chain will depend on a target that is
+// never defined.
+//
+// The test creates a graph that looks like:
+//
+//    A ---validation-->
+//       B --validation-->
+//         C --deps-->
+//           D_0 --deps-->
+//              D_1 --deps--> .. --deps--> D_19 --> //missing:target
+//
+// Where //missing:target will never be defined.
+//
+// The test checks that an error is correctly reported in this case,
+// to verify that delaying the metadata collection didn't delay
+// proper checks.
+TEST(GenCommandTest, ValidationMetadataRaceMissingTarget) {
+  MsgLoop msg_loop;
+  ScopedCommandLineForTest global_cmdline;
+
+  base::ScopedTempDir in_temp_dir;
+  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")),
+            "buildconfig = \"//BUILDCONFIG.gn\"\n");
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
+            "set_default_toolchain(\"//:toolchain\")\n");
+
+  std::string build_gn = R"(
+toolchain("toolchain") {
+  tool("stamp") {
+    command = "touch {{output}}"
+  }
+}
+
+generated_file("A") {
+  outputs = [ "$target_out_dir/A.json" ]
+  data_keys = [ "key" ]
+  deps = []
+  validations = [ ":B" ]
+  collect_validations_metadata = true
+}
+
+group("B") {
+  deps = []
+  validations = [ ":C" ]
+  metadata = {
+    key = [ "value_b" ]
+  }
+}
+
+group("C") {
+  deps = [ ":D_0" ]
+  metadata = {
+    key = [ "value_c" ]
+  }
+}
+)";
+
+  // Create a chain of groups:
+  //  D_0 --deps--> D_1 --deps--> D_2 --deps--> D_3 .... --deps--> D_19
+  //  Where D_19 depends on a missing target in an existing file.
+  int chain_length = 20;
+  for (int i = 0; i < chain_length; i++) {
+    build_gn += "group(\"D_" + std::to_string(i) + "\") {\n";
+    if (i < chain_length - 1) {
+      build_gn += "  deps = [ \":D_" + std::to_string(i + 1) + "\" ]\n";
+    } else {
+      build_gn += "  deps = [ \"//missing:target\" ]\n";
+    }
+    build_gn += "}\n";
+  }
+
+  build_gn += R"(
+group("default") {
+  deps = [ ":A" ]
+}
+)";
+
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILD.gn")), build_gn);
+
+  // Create the missing directory and empty BUILD.gn
+  ASSERT_TRUE(
+      base::CreateDirectory(in_path.Append(FILE_PATH_LITERAL("missing"))));
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("missing/BUILD.gn")), "");
+
+  base::ScopedTempDir build_temp_dir;
+  ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
+
+  global_cmdline.get().AppendSwitchPath(switches::kRoot, in_path);
+  global_cmdline.get().AppendSwitch(switches::kFailOnUnusedArgs);
+  global_cmdline.get().AppendSwitch(switches::kQuiet);
+  global_cmdline.get().AppendSwitch(switches::kThreads, "4");
+
+  std::vector<std::string> args;
+  args.push_back(FilePathToUTF8(build_temp_dir.GetPath()));
+
+  {
+    // Use a ScopedBufferedOutput class to prevent the test from printing
+    // an "ERROR unresolved dependencies." message.
+    ScopedBufferedOutput buffered_out;
+    int exit_code = commands::RunGen(args);
+    EXPECT_NE(0, exit_code);
+
+    auto output_items = buffered_out.GetItems();
+    ASSERT_EQ(3u, output_items.size());
+    EXPECT_EQ(output_items[0].output, "ERROR ");
+    EXPECT_EQ(output_items[0].decoration, DECORATION_RED);
+    EXPECT_EQ(output_items[1].output, "Unresolved dependencies.\n");
+    EXPECT_EQ(output_items[1].decoration, DECORATION_NONE);
+    EXPECT_EQ(
+        output_items[2].output,
+        "//:D_19(//:toolchain)\n  needs //missing:target(//:toolchain)\n\n");
+    EXPECT_EQ(output_items[2].decoration, DECORATION_NONE);
+  }
 }

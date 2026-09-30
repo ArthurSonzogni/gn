@@ -13,9 +13,15 @@ class NinjaGeneratedFileTargetWriter : public NinjaTargetWriter {
   NinjaGeneratedFileTargetWriter(const Target* target, std::ostream& out);
   ~NinjaGeneratedFileTargetWriter() override;
 
+  void SetDelayedGeneratedFileWritePtr(bool* flag_ptr) {
+    delayed_generated_file_write_ptr_ = flag_ptr;
+  }
+
   void Run() override;
 
  private:
+  bool* delayed_generated_file_write_ptr_ = nullptr;
+
   NinjaGeneratedFileTargetWriter(const NinjaGeneratedFileTargetWriter&) =
       delete;
   NinjaGeneratedFileTargetWriter& operator=(

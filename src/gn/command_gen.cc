@@ -18,6 +18,7 @@
 #include "gn/compile_commands_writer.h"
 #include "gn/eclipse_writer.h"
 #include "gn/filesystem_utils.h"
+#include "gn/generated_file_writer.h"
 #include "gn/json_project_writer.h"
 #include "gn/label_pattern.h"
 #include "gn/ninja_outputs_writer.h"
@@ -91,6 +92,10 @@ struct TargetWriteInfo {
 
   NinjaOutputsMap ninja_outputs_map;
 
+  // The list of generated_file() targets whose file writes have been
+  // delayed because they have collect_validations_metadata == true.
+  std::vector<const Target*> delayed_generated_file_targets;
+
   std::unique_ptr<ResolvedTargetData> resolved =
       std::make_unique<ResolvedTargetData>();
 
@@ -104,8 +109,10 @@ void BackgroundDoWrite(TargetWriteInfo* write_info, const Target* target) {
   std::vector<OutputFile>* ninja_outputs =
       write_info->want_ninja_outputs ? &target_ninja_outputs : nullptr;
 
-  std::string rule =
-      NinjaTargetWriter::RunAndWriteFile(target, resolved, ninja_outputs);
+  bool delayed_generated_file_write = false;
+
+  std::string rule = NinjaTargetWriter::RunAndWriteFile(
+      target, resolved, ninja_outputs, &delayed_generated_file_write);
 
   {
     std::lock_guard<std::mutex> lock(write_info->lock);
@@ -120,6 +127,9 @@ void BackgroundDoWrite(TargetWriteInfo* write_info, const Target* target) {
       write_info->ninja_outputs_map.emplace(target,
                                             std::move(target_ninja_outputs));
     }
+
+    if (delayed_generated_file_write)
+      write_info->delayed_generated_file_targets.push_back(target);
   }
 }
 
@@ -815,6 +825,27 @@ int RunGen(const std::vector<std::string>& args) {
       [&write_info](const BuilderRecord* record) {
         ItemResolvedAndGeneratedCallback(&write_info, record);
       });
+
+  // Set a post-resolution callback that will be used to schedule
+  // the writes of delayed generated_file() outputs which require
+  // the full resolution of all targets.
+  // See https://issuetracker.google.com/566346002
+  setup->SetPostResolutionCallback([&write_info](Scheduler& scheduler) -> bool {
+    if (write_info.delayed_generated_file_targets.empty())
+      return true;
+
+    scheduler.IncrementWorkCount();
+    for (const Target* target : write_info.delayed_generated_file_targets) {
+      scheduler.ScheduleWork([target, &scheduler]() {
+        Err err;
+        if (!WriteGeneratedFileToDisk(target, &err)) {
+          scheduler.FailWithError(err);
+        }
+      });
+    }
+    scheduler.DecrementWorkCount();
+    return scheduler.Run();
+  });
 
   // Do the actual load. This will also write out the target ninja files.
   if (!setup->Run())

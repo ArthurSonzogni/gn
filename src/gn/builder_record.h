@@ -116,9 +116,25 @@ class ParseNode;
 // bar, but computing `bar.output` can only be done when `bar` is
 // Resolved.
 //
-// Another issue is that metadata walks, performed when writing
-// the build statement for generated_file() targets, will walk over
-// validation dependencies as well. This requires these to be resolved.
+// Another issue is that metadata walks for generated_file() targets
+// that use `collect_validations_metadata = true` must be delayed
+// after *all* targets have been resolved. Consider the following
+// example, where `A` is a generated_file() target that sets
+// this flag to true:
+//
+//     A ---validations--> B --validations--> C --deps--> D
+//
+// As soon as C is defined, even if D is not loaded yet, the rules
+// described here imply that B can be resolved immediately, then
+// A finalized immediately. This will trigger a metadata walk
+// starting from A, that will try to visit the C --> D dependency
+// edge, which is still nullptr since C has not been resolved yet
+// (because D is not loaded or resolved yet). This results in a
+// runtime crash.
+//
+// To avoid this, these metadata walks MUST be delayed *after* all
+// items in the graph have been resolved, and cannot be performed
+// in the NinjaGeneratedFileTargetWriter::Run() function itself.
 //
 class BuilderRecord {
  public:

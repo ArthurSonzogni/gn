@@ -581,6 +581,20 @@ bool Setup::Run(const base::CommandLine& cmdline) {
   RunPreMessageLoop();
   if (!scheduler_.Run())
     return false;
+
+  // Check for bad items in the graph now, as the
+  // optional second Run() call requires all items
+  // to be properly resolved.
+  Err err;
+  if (!builder_.CheckForBadItems(&err)) {
+    err.PrintToStdout();
+    return false;
+  }
+
+  // Perform a second run if needed.
+  if (post_resolution_callback_ && !post_resolution_callback_(scheduler_))
+    return false;
+
   return RunPostMessageLoop(cmdline);
 }
 
@@ -598,10 +612,6 @@ void Setup::RunPreMessageLoop() {
 
 bool Setup::RunPostMessageLoop(const base::CommandLine& cmdline) {
   Err err;
-  if (!builder_.CheckForBadItems(&err)) {
-    err.PrintToStdout();
-    return false;
-  }
 
   if (!build_settings_.build_args().VerifyAllOverridesUsed(&err)) {
     if (cmdline.HasSwitch(switches::kFailOnUnusedArgs)) {
