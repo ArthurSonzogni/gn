@@ -28,7 +28,7 @@ pub struct Actions<C: EvalContextAttrExt + CtxMethods> {
 
 // Safety: This is a zero-sized type. All are equivalent.
 unsafe impl<'v, C: EvalContextAttrExt + CtxMethods> ProvidesStaticType<'v> for Actions<C> {
-    type StaticType = Actions<C>;
+    type StaticType = Self;
 }
 
 impl<C: EvalContextAttrExt + CtxMethods> Default for Actions<C> {

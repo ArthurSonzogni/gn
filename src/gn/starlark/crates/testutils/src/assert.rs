@@ -8,7 +8,7 @@ use starlark::{
     environment::{FrozenModule, GlobalsBuilder},
     values::UnpackValue,
 };
-use types::{EvalContext, EvaluatorContextExt, Label, PathResolver};
+use types::{EvalContext as _, EvaluatorContextExt as _, Label, PathResolver};
 
 use crate::{register_globals, FakeEvalContext, FakeSession};
 
@@ -42,7 +42,7 @@ impl Assert {
         // under the "always GC" configuration), ensuring state is mutated only once.
         assert.always_gc();
         let context = Box::new(context);
-        let context_ptr = &*context as *const FakeEvalContext;
+        let context_ptr = &raw const *context;
 
         assert.setup_eval(move |eval| {
             // Safety: The context is owned by Assert, which outlives the evaluator run.

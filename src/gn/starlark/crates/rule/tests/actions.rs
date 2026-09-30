@@ -8,7 +8,7 @@ use anyhow::Context as _;
 use rule::run;
 use tempfile::tempdir;
 use testutils::Assert;
-use types::{Label, PackageRef, Session};
+use types::{Label, PackageRef, Session as _};
 
 #[test]
 fn test_actions_suite() {

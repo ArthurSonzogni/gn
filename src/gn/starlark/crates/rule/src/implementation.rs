@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use attr::{traits::EvalContextAttrExt, TargetAttrExt, TargetRef};
+use attr::{traits::EvalContextAttrExt, TargetAttrExt};
 use starlark::{
     environment::Module,
     eval::Evaluator,
     values::{HeapEdge, OwnedFrozen, Value},
 };
-use types::{EvaluatorContextExt, Session};
+use types::{EvaluatorContextExt as _, Session, TargetRef as _};
 
 use crate::{Ctx, Rule};
 

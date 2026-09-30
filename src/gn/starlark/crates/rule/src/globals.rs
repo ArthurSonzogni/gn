@@ -7,7 +7,7 @@ use starlark::{
     environment::{FrozenModule, Module},
     values::FrozenHeapName,
 };
-use strum::IntoEnumIterator;
+use strum::IntoEnumIterator as _;
 
 use crate::{OutputType, Rule};
 

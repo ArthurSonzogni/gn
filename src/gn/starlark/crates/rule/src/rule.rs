@@ -17,7 +17,7 @@ use starlark::{
 };
 use starlark_derive::{starlark_value, NoSerialize};
 pub use types::OutputType;
-use types::{EvaluatorContextExt, Scope};
+use types::{EvaluatorContextExt as _, Scope as _};
 
 /// Representation of a Starlark rule object.
 ///
@@ -37,7 +37,7 @@ pub struct Rule<'v, C: EvalContextAttrExt + 'static> {
     pub(crate) once_named: OnceCell<(String, ParametersSpec<Value<'static>>)>,
     pub(crate) builtin: Option<OutputType>,
     pub(crate) implementation: Value<'v>,
-    pub(crate) parent: Option<ValueTyped<'v, Rule<'v, C>>>,
+    pub(crate) parent: Option<ValueTyped<'v, Self>>,
     pub(crate) _phantom: PhantomData<C>,
 }
 
@@ -98,7 +98,7 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
     pub fn new<'fh>(
         attrs: SmallMap<String, AttrSchema>,
         builtin: Option<OutputType>,
-        parent: Option<ValueTyped<'v, Rule<'v, C>>>,
+        parent: Option<ValueTyped<'v, Self>>,
         implementation: Value<'v>,
         frozen_heap: &FrozenHeap<'fh>,
         edge: HeapEdge<'v, 'fh>,
@@ -142,7 +142,7 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
         let name: &str = builtin.into();
         let signature = build_signature(name, &schema, true);
         let once_named = OnceCell::new();
-        let _ = once_named.set((name.to_owned(), signature));
+        drop(once_named.set((name.to_owned(), signature)));
         Self {
             schema,
             once_named,
@@ -188,7 +188,7 @@ where
         _eval: &mut Evaluator<'v, '_, '_>,
     ) -> starlark::Result<()> {
         let signature = build_signature(variable_name, &self.schema, self.builtin.is_some());
-        let _ = self.once_named.set((variable_name.to_owned(), signature));
+        drop(self.once_named.set((variable_name.to_owned(), signature)));
         Ok(())
     }
 

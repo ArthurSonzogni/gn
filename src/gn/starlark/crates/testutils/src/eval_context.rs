@@ -14,7 +14,7 @@ use starlark::{
 };
 use types::{
     CtxState, Label, LabelRef, OutputType, Package, PackageRef, PathResolver, Scope, Session,
-    TargetRef,
+    TargetRef as _,
 };
 
 use crate::{FakeSession, FakeTarget, FakeTargetRef};
@@ -163,7 +163,8 @@ impl EvalContextAttrExt for FakeEvalContext {
         targets.push(Box::new(target));
         // Safety: The Box inside the RefCell's vector is stable in memory and lasts as
         // long as the FakeSession in tests.
-        let target_ref = unsafe { &mut *(&mut **targets.last_mut().unwrap() as *mut FakeTarget) };
+        let target_ref =
+            unsafe { std::ptr::NonNull::from(targets.last_mut().unwrap().as_mut()).as_mut() };
         Ok(unsafe { std::pin::Pin::new_unchecked(target_ref) })
     }
 
@@ -173,15 +174,14 @@ impl EvalContextAttrExt for FakeEvalContext {
         rule: Value<'static>,
         attrs: Vec<Attr>,
     ) -> Result<FakeTargetRef> {
-        let target_ptr = cxx_target as *const FakeTarget;
+        let target_ptr = std::ptr::from_ref::<FakeTarget>(cxx_target);
         let mut targets = self.session.targets_under_construction.borrow_mut();
         let idx = targets
             .iter()
-            .position(|t| std::ptr::eq(&**t, target_ptr))
+            .position(|t| std::ptr::eq(&raw const **t, target_ptr))
             .expect("Registering target that was not created in this context");
         let mut target = targets.remove(idx);
-        let typed =
-            FrozenValueTyped::<'static, rule::Rule<'static, FakeEvalContext>>::new_err(rule)?;
+        let typed = FrozenValueTyped::<'static, rule::Rule<'static, Self>>::new_err(rule)?;
         target.rule = typed.has_implementation().then(|| typed.as_ref());
         target.attrs = attrs;
         Ok(self.session.insert_target(*target))

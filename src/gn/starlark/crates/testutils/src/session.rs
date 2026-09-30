@@ -5,7 +5,7 @@
 use std::{cell::RefCell, collections::HashSet};
 
 use attr::Session;
-use types::{Label, LabelRef, PackageRef, TargetRef};
+use types::{Label, LabelRef, PackageRef, TargetRef as _};
 
 use crate::{FakeTarget, FakeTargetRef};
 
@@ -91,8 +91,7 @@ impl Session for FakeSession {
             target.clone()
         } else {
             panic!(
-                "get_target failed to find label: {:?}, toolchain: {:?}. Available targets: {:?}",
-                label, current_toolchain, targets
+                "get_target failed to find label: {label:?}, toolchain: {current_toolchain:?}. Available targets: {targets:?}"
             );
         }
     }

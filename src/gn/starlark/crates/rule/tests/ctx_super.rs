@@ -5,7 +5,7 @@
 use rule::run;
 use starlark::values::list::ListRef;
 use testutils::Assert;
-use types::{Label, PackageRef, Session};
+use types::{Label, PackageRef, Session as _};
 
 #[test]
 fn test_ctx_super() {
