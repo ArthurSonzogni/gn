@@ -138,6 +138,8 @@ class SourceFile {
   StringAtom value_;
 };
 
+std::string Pretty(const SourceFile& file);
+
 namespace std {
 
 template <>

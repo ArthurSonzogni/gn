@@ -19,7 +19,7 @@ const char kLs[] = "ls";
 const char kLs_HelpShort[] = "ls: List matching targets.";
 const char kLs_Help[] =
     R"(gn ls <out_dir> [<label_pattern>] [--default-toolchain] [--as=...]
-      [--type=...] [--testonly=...]
+      [--type=...|--exclude-type=...] [--testonly=...]
 
   Lists all targets matching the given pattern for the given build directory.
   By default, only targets in the default toolchain will be matched unless a

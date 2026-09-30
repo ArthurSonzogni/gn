@@ -490,3 +490,43 @@ TEST(ResolvedTargetDataTest, PublicInputsInheritance) {
   // E has B as a private dependency, B has no public inputs, so E has none.
   EXPECT_FALSE(resolved.ExportsPublicInputs(&e));
 }
+
+TEST(ResolvedTargetDataTest, GroupPublicInputsInheritance) {
+  TestWithScope setup;
+  Err err;
+
+  // Group G has public_inputs.
+  TestTarget g(setup, "//foo:g", Target::GROUP);
+  g.public_inputs().push_back(SourceFile("//foo/g.in"));
+
+  // Action A depends on G via private deps.
+  TestTarget a(setup, "//foo:a", Target::ACTION);
+  a.private_deps().push_back(LabelTargetPair(&g));
+
+  // Group G2 depends on G via public deps.
+  TestTarget g2(setup, "//foo:g2", Target::GROUP);
+  g2.public_deps().push_back(LabelTargetPair(&g));
+
+  // Action A2 depends on G2 via private deps.
+  TestTarget a2(setup, "//foo:a2", Target::ACTION);
+  a2.private_deps().push_back(LabelTargetPair(&g2));
+
+  ASSERT_TRUE(g.OnResolved(&err));
+  ASSERT_TRUE(a.OnResolved(&err));
+  ASSERT_TRUE(g2.OnResolved(&err));
+  ASSERT_TRUE(a2.OnResolved(&err));
+
+  ResolvedTargetData resolved;
+
+  // G has public_inputs directly.
+  EXPECT_TRUE(resolved.ExportsPublicInputs(&g));
+
+  // A has G as private dep, so A does not export public_inputs.
+  EXPECT_FALSE(resolved.ExportsPublicInputs(&a));
+
+  // G2 has G as public dep, so G2 exports public_inputs.
+  EXPECT_TRUE(resolved.ExportsPublicInputs(&g2));
+
+  // A2 has G2 as private dep, so A2 does not export public_inputs.
+  EXPECT_FALSE(resolved.ExportsPublicInputs(&a2));
+}

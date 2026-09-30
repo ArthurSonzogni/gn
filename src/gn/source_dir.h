@@ -135,6 +135,8 @@ class SourceDir {
   StringAtom value_;
 };
 
+std::string Pretty(const SourceDir& dir);
+
 namespace std {
 
 template <>

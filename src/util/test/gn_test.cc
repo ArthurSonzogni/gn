@@ -44,6 +44,13 @@ std::string Pretty(const char* value) {
   return Pretty(std::string(value));
 }
 
+std::string Pretty(const Err& err) {
+  if (!err.has_error()) {
+    return "no error";
+  }
+  return err.message();
+}
+
 std::string Indent(std::string_view value) {
   std::stringstream ss;
   ss << "  ";

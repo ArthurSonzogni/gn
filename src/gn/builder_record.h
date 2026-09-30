@@ -6,6 +6,7 @@
 #define TOOLS_GN_BUILDER_RECORD_H_
 
 #include <memory>
+#include <unordered_map>
 #include <utility>
 
 #include "base/containers/flat_map.h"
@@ -327,7 +328,25 @@ class BuilderRecord {
     bool wait_validation_defined = false;
     bool wait_validation_resolved = false;
   };
-  base::flat_map<BuilderRecord*, WaitInfo> waiting_map_;
+
+  // Transparent hash and equality functors to allow heterogeneous lookup with
+  // `const BuilderRecord*` (e.g. `this` in GetSortedUnresolvedDeps()) while
+  // keeping mutable `BuilderRecord*` as the map key so dependents can be
+  // modified during notifications.
+  struct PtrHash {
+    using is_transparent = void;
+    size_t operator()(const BuilderRecord* p) const {
+      return std::hash<const BuilderRecord*>()(p);
+    }
+  };
+  struct PtrEqual {
+    using is_transparent = void;
+    bool operator()(const BuilderRecord* a, const BuilderRecord* b) const {
+      return a == b;
+    }
+  };
+
+  std::unordered_map<BuilderRecord*, WaitInfo, PtrHash, PtrEqual> waiting_map_;
 
   // Called by NotifyDependentsOfStateChange() when a dependency
   // of the current record has changed its state. Must return

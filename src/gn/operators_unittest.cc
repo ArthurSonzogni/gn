@@ -42,6 +42,11 @@ class TestParseNode : public ParseNode {
   }
   base::Value GetJSONNode() const override { return base::Value(); }
 
+ protected:
+  std::unique_ptr<ParseNode> CloneImpl() const override {
+    return std::make_unique<TestParseNode>(value_);
+  }
+
  private:
   Value value_;
 };

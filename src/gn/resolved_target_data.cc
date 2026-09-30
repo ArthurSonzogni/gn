@@ -6,26 +6,6 @@
 
 #include "gn/config_values_extractors.h"
 
-ResolvedTargetData::TargetInfo* ResolvedTargetData::GetTargetInfo(
-    const Target* target) const {
-  size_t shard_idx = GetShardIndex(target);
-  Shard& shard = shards_[shard_idx];
-  {
-    std::shared_lock<std::shared_mutex> lock(shard.mutex);
-    size_t index = shard.targets.IndexOf(target);
-    if (index != UniqueVector<const Target*>::kIndexNone) {
-      return shard.infos[index].get();
-    }
-  }
-
-  std::unique_lock<std::shared_mutex> lock(shard.mutex);
-  auto ret = shard.targets.PushBackWithIndex(target);
-  if (ret.first) {
-    shard.infos.push_back(std::make_unique<TargetInfo>(target));
-  }
-  return shard.infos[ret.second].get();
-}
-
 void ResolvedTargetData::ComputeLibInfo(TargetInfo* info) const {
   UniqueVector<SourceDir> all_lib_dirs;
   UniqueVector<LibFile> all_libs;
@@ -78,6 +58,18 @@ void ResolvedTargetData::ComputeFrameworkInfo(TargetInfo* info) const {
   info->has_framework_info = true;
 }
 
+// static
+bool ResolvedTargetData::ForwardsHardDeps(const Target* dep) {
+  // If |dep| is binary target and |dep| has no public header,
+  // a target depending on it does not need to have |dep|'s hard_deps as its
+  // hard_deps to start compiles earlier. Unless the target compiles a
+  // Swift module (since they also generate a header that can be used
+  // by the current target).
+  return !(dep->IsBinary() && !dep->all_headers_public() &&
+           dep->public_headers().empty() && !dep->builds_swift_module());
+}
+
+// Keep in sync with NinjaTargetWriter::WriteHardDepsStampOrPhony().
 void ResolvedTargetData::ComputeHardDeps(TargetInfo* info) const {
   TargetSet all_hard_deps;
   for (const Target* dep : info->deps.linked_deps()) {
@@ -86,15 +78,8 @@ void ResolvedTargetData::ComputeHardDeps(TargetInfo* info) const {
       all_hard_deps.insert(dep);
       continue;
     }
-    // If |dep| is binary target and |dep| has no public header,
-    // |this| target does not need to have |dep|'s hard_deps as its
-    // hard_deps to start compiles earlier. Unless the target compiles a
-    // Swift module (since they also generate a header that can be used
-    // by the current target).
-    if (dep->IsBinary() && !dep->all_headers_public() &&
-        dep->public_headers().empty() && !dep->builds_swift_module()) {
+    if (!ForwardsHardDeps(dep))
       continue;
-    }
 
     // Recursive hard dependencies of all dependencies.
     const TargetInfo* dep_info = GetTargetHardDeps(dep);

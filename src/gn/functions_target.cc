@@ -25,11 +25,11 @@
 #define RUST_VARS "  Rust variables: aliased_deps, crate_root, crate_name\n"
 #define RUST_SHARED_VARS \
   "  Rust variables: aliased_deps, crate_root, crate_name, crate_type\n"
-#define ACTION_VARS                                                            \
-  "  Action variables: args, bridge_header, configs, data, depfile,\n"         \
-  "                    framework_dirs, inputs, mnemonic, module_deps,\n"       \
-  "                    module_name, outputs*, pool, response_file_contents,\n" \
-  "                    script*, sources\n"
+#define ACTION_VARS                                                      \
+  "  Action variables: args, bridge_header, configs, data, depfile,\n"   \
+  "                    framework_dirs, inputs, mnemonic, module_deps,\n" \
+  "                    module_name, outputs*, pool, public_inputs,\n"    \
+  "                    response_file_contents, script*, sources\n"
 
 namespace functions {
 
@@ -555,6 +555,22 @@ File name handling
   generates the file to copy must be reachable from the deps or public_deps of
   the copy target.
 
+How the copy is performed
+
+  The actual command used to copy each file is not built in to the "copy"
+  target type. It is provided by the "copy" tool defined by the toolchain used
+  to build the target (see "gn help tool"). If the toolchain does not define a
+  "copy" tool, GN will error out.
+
+  This means projects can customize how files are copied -- for example to hard
+  link instead of byte-copying for speed -- by overriding the toolchain's
+  "copy" tool:
+
+    tool("copy") {
+      command = "cp -af --reflink=auto {{source}} {{output}}"
+      description = "COPY {{source}} {{output}}"
+    }
+
 Variables
 
 )" DEPENDENT_CONFIG_VARS DEPS_VARS GENERAL_TARGET_VARS
@@ -648,6 +664,7 @@ const char kGroup_Help[] =
 
 Variables
 
+  Group variables: public_inputs
 )" DEPS_VARS DEPENDENT_CONFIG_VARS GENERAL_TARGET_VARS
 
     R"(

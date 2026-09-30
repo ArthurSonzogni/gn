@@ -25,17 +25,18 @@ namespace {
 //    - a set of string pointers, corresponding to the known strings in the
 //      group.
 //
-//    - a mutex to ensure correct thread-safety.
+//    - sharded mutexes and sets to ensure thread-safety without global
+//      contention.
 //
-//    - a find() method that takes an std::string_view argument, and uses it
-//      to find a matching entry in the string tree. If none is available,
-//      a new std::string is allocated and its address inserted into the tree
-//      before being returned.
+//    - a find() method that takes an std::string_view argument and hash, and
+//      uses it to find a matching entry in the sharded string tree. If none is
+//      available, a new std::string is allocated and its address inserted into
+//      the tree before being returned.
 //
-// Because the mutex is a large bottleneck, each thread implements
-// its own local string pointer cache, and will only call StringAtomSet::find()
-// in case of a lookup miss. This is critical for good performance.
-//
+// Because a single global mutex is a massive bottleneck on multi-core machines,
+// the set is partitioned into 64 cache-aligned shards. Furthermore, each
+// thread implements its own local string pointer cache, and will only call
+// StringAtomSet::find() in case of a lookup miss.
 
 static const std::string kEmptyString;
 
@@ -107,46 +108,26 @@ struct KeySet : public HashTableBase<KeyNode> {
 
 class StringAtomSet {
  public:
-  StringAtomSet() {
-    // Ensure kEmptyString is in our set while not being allocated
-    // from a slab. The end result is that find("") should always
-    // return this address.
-    //
-    // This allows the StringAtom() default initializer to use the same
-    // address directly, avoiding a table lookup.
-    size_t hash = set_.Hash("");
-    auto* node = set_.Lookup(hash, "");
-    set_.Insert(node, hash, &kEmptyString);
-  }
+  static constexpr size_t kShardBits = 8;  // 256 shards
+  static constexpr size_t kShardCount = 1 << kShardBits;
 
-#ifdef ASAN_ENABLED
-  ~StringAtomSet() {
-    if (!slabs_.empty()) {
-      Slab* last_slab = slabs_.back();
-      for (Slab* slab : slabs_) {
-        slab->destroy(slab == last_slab ? slab_index_ : kStringsPerSlab);
-        delete slab;
-      }
-    }
+  StringAtomSet() {
+    // Ensure find("") always returns &kEmptyString without a slab allocation.
+    // This allows the StringAtom() default initializer to use the same address
+    // directly without an extra branch in find().
+    size_t hash = KeySet::Hash("");
+    size_t shard_idx =
+        (hash >> (sizeof(size_t) * 8 - kShardBits)) & (kShardCount - 1);
+    auto& shard = shards_[shard_idx];
+    auto* node = shard.set_.Lookup(hash, "");
+    shard.set_.Insert(node, hash, &kEmptyString);
   }
-#endif
 
   // Find the unique constant string pointer for |key|.
-  const std::string* find(std::string_view key) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    size_t hash = set_.Hash(key);
-    auto* node = set_.Lookup(hash, key);
-    if (node->key)
-      return node->key;
-
-    // Allocate new string, insert its address in the set.
-    if (slab_index_ >= kStringsPerSlab) {
-      slabs_.push_back(new Slab());
-      slab_index_ = 0;
-    }
-    std::string* result = slabs_.back()->init(slab_index_++, key);
-    set_.Insert(node, hash, result);
-    return result;
+  const std::string* find(std::string_view key, size_t hash) {
+    size_t shard_idx =
+        (hash >> (sizeof(size_t) * 8 - kShardBits)) & (kShardCount - 1);
+    return shards_[shard_idx].find(key, hash);
   }
 
  private:
@@ -189,10 +170,53 @@ class StringAtomSet {
     StringStorage items_[kStringsPerSlab];
   };
 
-  std::mutex mutex_;
-  KeySet set_;
-  std::vector<Slab*> slabs_;
-  unsigned int slab_index_ = kStringsPerSlab;
+  // Align each Shard to a 64-byte cache line boundary to prevent false sharing
+  // between adjacent shards in the std::array when multiple threads lock and
+  // modify different shards concurrently.
+  struct alignas(64) Shard {
+    std::mutex mutex_;
+    KeySet set_;
+    std::vector<Slab*> slabs_;
+    unsigned int slab_index_ = kStringsPerSlab;
+
+#ifdef ASAN_ENABLED
+    ~Shard() {
+      if (!slabs_.empty()) {
+        Slab* last_slab = slabs_.back();
+        for (Slab* slab : slabs_) {
+          slab->destroy(slab == last_slab ? slab_index_ : kStringsPerSlab);
+          delete slab;
+        }
+      }
+    }
+#endif
+
+    const std::string* find(std::string_view key, size_t hash) {
+      std::lock_guard<std::mutex> lock(mutex_);
+
+      auto* node = set_.Lookup(hash, key);
+      if (node->key)
+        return node->key;
+
+      if (slab_index_ >= kStringsPerSlab) {
+        slabs_.push_back(new Slab());
+        slab_index_ = 0;
+      }
+      std::string* result = slabs_.back()->init(slab_index_++, key);
+      set_.Insert(node, hash, result);
+      return result;
+    }
+#if defined(_MSC_VER)
+#pragma warning(push)
+// C4324: structure was padded due to alignment specifier.
+#pragma warning(disable : 4324)
+#endif
+  };
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
+  std::array<Shard, kShardCount> shards_;
 };
 
 StringAtomSet& GetStringAtomSet() {
@@ -204,6 +228,12 @@ StringAtomSet& GetStringAtomSet() {
 // without taking any mutex in most cases.
 class ThreadLocalCache {
  public:
+  ThreadLocalCache() {
+    size_t hash = local_set_.Hash("");
+    auto* node = local_set_.Lookup(hash, "");
+    local_set_.Insert(node, hash, &kEmptyString);
+  }
+
   // Find the unique constant string pointer for |key| in this cache,
   // and fallback to the global one in case of a miss.
   KeyType find(std::string_view key) {
@@ -212,7 +242,7 @@ class ThreadLocalCache {
     if (node->key)
       return node->key;
 
-    KeyType result = GetStringAtomSet().find(key);
+    KeyType result = GetStringAtomSet().find(key, hash);
     local_set_.Insert(node, hash, result);
     return result;
   }

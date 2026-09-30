@@ -7,6 +7,7 @@
 #include "base/strings/string_util.h"
 #include "gn/build_settings.h"
 #include "gn/config_values.h"
+#include "gn/err.h"
 #include "gn/filesystem_utils.h"
 #include "gn/frameworks_utils.h"
 #include "gn/scope.h"
@@ -26,9 +27,8 @@ void GetStringList(Scope* scope,
   if (!value)
     return;  // No value, empty input and succeed.
 
-  ExtractListOfStringValues(*value, &(config_values->*accessor)(), err);
-  if (err->has_error())
-    return;
+  ASSIGN_OR_RETURN_VOID((config_values->*accessor)(), err,
+                        ExtractListOfStringValues(*value));
 
   const auto& strings = (config_values->*accessor)();
   for (size_t i = 0; i < strings.size(); i++) {
@@ -69,8 +69,7 @@ void GetFrameworksList(Scope* scope,
     return;
 
   std::vector<std::string> frameworks;
-  if (!ExtractListOfStringValues(*value, &frameworks, err))
-    return;
+  ASSIGN_OR_RETURN_VOID(frameworks, err, ExtractListOfStringValues(*value));
 
   // All strings must end with ".frameworks".
   for (const std::string& framework : frameworks) {
@@ -97,8 +96,7 @@ void GetWeakLibrariesList(Scope* scope,
     return;
 
   std::vector<std::string> weak_libraries;
-  if (!ExtractListOfStringValues(*value, &weak_libraries, err))
-    return;
+  ASSIGN_OR_RETURN_VOID(weak_libraries, err, ExtractListOfStringValues(*value));
 
   // All strings must end with ".dylib".
   for (const std::string& weak_library : weak_libraries) {

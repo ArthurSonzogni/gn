@@ -790,9 +790,21 @@ bool Printer::ShouldAddBlankLineInBetween(const ParseNode* a,
 
   // If they're already separated by 1 or more lines, then we want to keep a
   // blank line.
-  return (b_range.begin().line_number() > a_end + 1) ||
-         // Always put a blank line before a block comment.
-         b->AsBlockComment();
+  // Always put a blank line before a block comment.
+  if ((b_range.begin().line_number() > a_end + 1) || b->AsBlockComment()) {
+    return true;
+  }
+
+  const FunctionCallNode* func_call = b->AsFunctionCall();
+  // We have several types of function call nodes with blocks:
+  // * Target-like builtins (eg. static_library, config, toolchain)
+  // * Template invocations
+  // * tool
+  // * declare_args
+  // * foreach
+  // All of these except foreach should enforce a blank line before them.
+  return func_call && func_call->block() &&
+         func_call->function().value() != "foreach";
 }
 
 int Printer::CurrentColumn() const {
@@ -1466,6 +1478,13 @@ bool FormatStringToString(const std::string& input,
 
   DoFormat(parse_node.get(), dump_tree, maximum_width, output, dump_output);
   return true;
+}
+
+Result<std::string> FormatNodeToString(const ParseNode* root) {
+  std::string output;
+  std::string dump;
+  DoFormat(root, TreeDumpMode::kInactive, kDefaultFormatWidth, &output, &dump);
+  return output;
 }
 
 int RunFormat(const std::vector<std::string>& args) {

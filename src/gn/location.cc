@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "gn/input_file.h"
+#include "gn/tokenizer.h"
 
 Location::Location() = default;
 
@@ -66,4 +67,30 @@ LocationRange LocationRange::Union(const LocationRange& other) const {
   DCHECK(begin_.file() == other.begin_.file());
   return LocationRange(begin_ < other.begin_ ? begin_ : other.begin_,
                        end_ < other.end_ ? other.end_ : end_);
+}
+
+std::string_view LocationRange::GetText() const {
+  if (is_null() || !begin_.file()) {
+    return {};
+  }
+  const std::string& contents = begin_.file()->contents();
+  size_t begin_line_off =
+      Tokenizer::ByteOffsetOfNthLine(contents, begin_.line_number());
+  if (begin_line_off == static_cast<size_t>(-1)) {
+    return {};
+  }
+  size_t begin_off = begin_line_off + (begin_.column_number() - 1);
+
+  size_t end_line_off =
+      Tokenizer::ByteOffsetOfNthLine(contents, end_.line_number());
+  if (end_line_off == static_cast<size_t>(-1)) {
+    return {};
+  }
+  size_t end_off = end_line_off + (end_.column_number() - 1);
+
+  if (begin_off > end_off || end_off > contents.size()) {
+    return {};
+  }
+
+  return std::string_view(contents).substr(begin_off, end_off - begin_off);
 }

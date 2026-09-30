@@ -729,8 +729,7 @@ Value RunLoad(Scope* scope,
               const FunctionCallNode* function,
               const ListNode* args_list,
               Err* err) {
-  const std::vector<std::unique_ptr<const ParseNode>>& args =
-      args_list->contents();
+  const std::vector<std::unique_ptr<ParseNode>>& args = args_list->contents();
   if (args.size() < 2) {
     *err = Err(function->function(), "Incorrect arguments.",
                "This function requires at least a file to import and a list of "

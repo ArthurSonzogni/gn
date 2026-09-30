@@ -196,11 +196,11 @@ TEST(ParseTree, ShortenTargets) {
   ASSERT_EQ(7u, contents.size());
 
   auto all_elements_are_literal_nodes =
-      [](base::span<const std::unique_ptr<const ParseNode>> container) -> bool {
-    return std::ranges::all_of(
-        container, [](const std::unique_ptr<const ParseNode>& element) {
-          return element->AsLiteral();
-        });
+      [](base::span<const std::unique_ptr<ParseNode>> container) -> bool {
+    return std::ranges::all_of(container,
+                               [](const std::unique_ptr<ParseNode>& element) {
+                                 return element->AsLiteral();
+                               });
   };
 
   auto get_literal_value = [](const ParseNode& node) {
@@ -365,4 +365,31 @@ TEST(ParseTree, Integers) {
     input.parsed()->Execute(setup.scope(), &err);
     EXPECT_TRUE(err.has_error());
   }
+}
+
+TEST(ParseTree, Clone) {
+  TestParseInput input(
+      "# Top comment\n"
+      "a = [ \"foo\", \"bar\" ]\n"
+      "if (a != []) {\n"
+      "  b = a[0]\n"
+      "  c = !false\n"
+      "}\n"
+      "print(a)\n");
+  EXPECT_SUCCESS(input);
+
+  const ParseNode* original = input.parsed();
+  std::unique_ptr<ParseNode> cloned = original->Clone();
+  ASSERT_NE(nullptr, cloned);
+  EXPECT_EQ(original->GetJSONNode(), cloned->GetJSONNode());
+
+  TestWithScope setup_orig;
+  Err err_orig;
+  original->Execute(setup_orig.scope(), &err_orig);
+  EXPECT_SUCCESS(err_orig);
+
+  TestWithScope setup_clone;
+  Err err_clone;
+  cloned->Execute(setup_clone.scope(), &err_clone);
+  EXPECT_SUCCESS(err_clone);
 }

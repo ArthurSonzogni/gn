@@ -60,11 +60,33 @@ const char kDotfile_Help[] =
 
     gn gen out/Debug --root=/home/build --dotfile=/home/my_gn_file.gn
 
-  The system variable `gn_version` is available in the dotfile, but none of
-  the other variables are, because the dotfile is processed before args.gn
-  or anything else is processed.
+  The system variables `gn_version`, `host_cpu`, and `host_os` are available
+  in the dotfile, but none of the other variables are, because the dotfile is
+  processed before args.gn or anything else is processed.
 
 Variables
+
+  allow_circular_includes_from_allowlist [optional]
+      A list of target label patterns that have permission to use the
+      allow_circular_includes_from variable. If this list is defined, usages of
+      allow_circular_includes_from will be checked against this list and GN
+      will fail if the target label isn't in the list.
+
+      This is to allow the use of allow_circular_includes_from to be restricted
+      since circular dependencies between targets are discouraged and should
+      generally be avoided.
+
+      The format of this list is identical to that of "visibility" so see "gn
+      help visibility" for examples.
+
+      If unspecified, the ability to use allow_circular_includes_from is
+      unrestricted.
+
+      Example:
+        allow_circular_includes_from_allowlist = [
+          "//foo:*",
+          "//foo:bar",
+        ]
 
   arg_file_template [optional]
       Path to a file containing the text that should be used as the default
@@ -469,6 +491,23 @@ bool Setup::DoSetup(const std::string& build_dir, bool force_create) {
                  *base::CommandLine::ForCurrentProcess());
 }
 
+bool Setup::DoSetupForEditing() {
+  Err err;
+  if (!FillSourceDir(*base::CommandLine::ForCurrentProcess(), &err)) {
+    err.PrintToStdout();
+    return false;
+  }
+  if (!RunConfigFile(&err)) {
+    err.PrintToStdout();
+    return false;
+  }
+  if (!FillOtherConfig(*base::CommandLine::ForCurrentProcess(), &err)) {
+    err.PrintToStdout();
+    return false;
+  }
+  return true;
+}
+
 bool Setup::DoSetup(const std::string& build_dir,
                     bool force_create,
                     const base::CommandLine& cmdline) {
@@ -581,8 +620,11 @@ bool Setup::RunPostMessageLoop(const base::CommandLine& cmdline) {
       to_check = all_targets;
     }
 
+    bool fix = cmdline.HasSwitch("fix");
+
     if (!commands::CheckPublicHeaders(&build_settings_, all_targets, to_check,
-                                      false, false, check_system_includes_)) {
+                                      false, false, check_system_includes_, fix,
+                                      this)) {
       return false;
     }
   }
@@ -1186,6 +1228,21 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
     // Treat unspecified as empty.
     build_settings_.set_expand_directory_allowlist(
         std::make_unique<SourceFileSet>());
+  }
+
+  // Fill allow_circular_includes_from_allowlist.
+  const Value* allow_circular_includes_from_allowlist_value =
+      dotfile_scope_.GetValue("allow_circular_includes_from_allowlist", true);
+  if (allow_circular_includes_from_allowlist_value) {
+    auto allowlist = std::make_unique<std::vector<LabelPattern>>();
+    ExtractListOfLabelPatterns(&build_settings_,
+                               *allow_circular_includes_from_allowlist_value,
+                               current_dir, allowlist.get(), err);
+    if (err->has_error()) {
+      return false;
+    }
+    build_settings_.set_allow_circular_includes_from_allowlist(
+        std::move(allowlist));
   }
 
   // Fill optional default_args.

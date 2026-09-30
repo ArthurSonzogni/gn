@@ -418,7 +418,9 @@ Target::~Target() = default;
 Location Target::user_friendly_location() const {
   if (!user_friendly_location_.is_null())
     return user_friendly_location_;
-  return defined_from()->GetRange().begin();
+  if (defined_from())
+    return defined_from()->GetRange().begin();
+  return Location();
 }
 
 // A technical note on accessors defined below: Using a static global
@@ -589,6 +591,8 @@ bool Target::OnResolvedWithoutChecks(Err* err) {
 
   ScopedTrace trace(TraceItem::TRACE_ON_RESOLVED, label());
   trace.SetToolchain(settings()->toolchain_label());
+
+  info_.emplace(this);
 
   // Copy this target's own dependent and public configs to the list of configs
   // applying to it.

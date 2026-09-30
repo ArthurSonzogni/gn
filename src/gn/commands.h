@@ -7,12 +7,18 @@
 
 #include <functional>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "base/values.h"
+#include "gn/build_file_editor.h"
+#include "gn/header_checker.h"
 #include "gn/standard_out.h"
 #include "gn/target.h"
 #include "gn/unique_vector.h"
@@ -70,6 +76,11 @@ extern const char kFormat_HelpShort[];
 extern const char kFormat_Help[];
 int RunFormat(const std::vector<std::string>& args);
 
+extern const char kEdit[];
+extern const char kEdit_HelpShort[];
+extern const char kEdit_Help[];
+int RunEdit(const std::vector<std::string>& args);
+
 extern const char kHelp[];
 extern const char kHelp_HelpShort[];
 extern const char kHelp_Help[];
@@ -107,12 +118,105 @@ int RunSuggest(const std::vector<std::string>& args);
 
 using OutputStringFunc =
     std::function<void(std::string_view, TextDecoration, HtmlEscaping)>;
-bool OutputSuggestions(const std::vector<const Target*>& all_targets,
-                       const BuildSettings* build_settings,
-                       const Label& default_toolchain,
-                       std::string_view includer_name,
-                       std::string_view included_name,
-                       OutputStringFunc output_fn);
+
+enum class SuggestResult {
+  kSuccess = 0,
+  kFailure = 1,
+  kUnapplied = 2,
+};
+
+enum class ApiScope {
+  kPublic,
+  kPrivate,
+  kOutput,
+};
+
+// Represents something that has resolved to a target.
+// May be a source file, a module name, or a target label.
+struct ResolvedTarget {
+  // Can never be null. Unfortunately can't use a reference because it's stored
+  // in a vector.
+  const Target* target;
+  ApiScope scope;
+  // If the input was a conditional source, this is a human-readable
+  // representation of the condition. eg. When looking up foo.cc in a target
+  // with: if (foo) {
+  //   if (bar) {
+  //     sources += [ "foo.cc" ]
+  //   }
+  // }
+  // Conditional could be "if (foo) and if (bar)"
+  std::optional<StringAtom> conditional = std::nullopt;
+
+  bool operator==(const ResolvedTarget&) const = default;
+};
+
+// Caches the mapping of SourceFile -> target(s) to accelerate suggestion
+// resolution.
+// May potentially be used in the future to cache other properties of the build
+// graph.
+class TargetResolutionCache {
+ public:
+  TargetResolutionCache();
+  ~TargetResolutionCache();
+
+  // Returns reference to vector of (Target*, ApiScope) for the given file.
+  // If the file is not in any target, returns an empty vector.
+  const std::vector<std::pair<const Target*, ApiScope>>& GetTargetsForFile(
+      const SourceFile& file,
+      const std::vector<const Target*>& all_targets);
+
+  // Returns vector of targets that expose the given target
+  // (e.g. forwarding groups or header-less source sets that depend on it).
+  std::vector<const Target*> GetTargetsExposing(
+      const Target& target,
+      const std::vector<const Target*>& all_targets);
+
+  // Returns reference to ReachabilityCache for the given target.
+  HeaderChecker::ReachabilityCache& GetReachabilityCache(const Target* target);
+
+  // Returns cached source-to-condition map for all targets in the given build
+  // file.
+  const TargetSourcesMap* GetSourcesForBuildFile(
+      const SourceFile& build_file,
+      const BuildSettings* build_settings);
+
+ private:
+  std::once_flag file_to_target_initialized_;
+  std::unordered_map<SourceFile,
+                     std::vector<std::pair<const Target*, ApiScope>>>
+      file_to_targets_;
+  // Never mutated. Used when a file is not in any target.
+  const std::vector<std::pair<const Target*, ApiScope>> empty_targets_;
+
+  // Maps a Target to the list of forwarding targets that directly expose it.
+  std::once_flag forwarding_parents_initialized_;
+  std::unordered_map<const Target*, std::vector<const Target*>>
+      forwarding_parents_;
+
+  // Maps a Target to its ReachabilityCache for cycle detection.
+  std::mutex reachability_cache_lock_;
+  std::unordered_map<const Target*,
+                     std::unique_ptr<HeaderChecker::ReachabilityCache>>
+      reachability_cache_;
+
+  // Maps a BUILD.gn file to the sources conditions map for targets in that
+  // file.
+  std::mutex sources_cache_lock_;
+  std::unordered_map<SourceFile, TargetSourcesMap> build_file_sources_cache_;
+};
+
+SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
+                                const BuildSettings* build_settings,
+                                const Label& default_toolchain,
+                                std::string_view includer_name,
+                                const Target* includer_target,
+                                std::string_view included_name,
+                                OutputStringFunc output_fn,
+                                TargetResolutionCache& cache,
+                                bool must_be_file = false,
+                                bool apply = false,
+                                Setup* setup = nullptr);
 
 extern const char kCleanStale[];
 extern const char kCleanStale_HelpShort[];
@@ -202,6 +306,11 @@ class CommandSwitches {
     return target_types_;
   }
 
+  // For --exclude-type=TARGET_TYPE
+  const std::vector<Target::OutputType>& target_exclude_types() const {
+    return target_exclude_types_;
+  }
+
   enum TestonlyMode {
     TESTONLY_NONE,   // no --testonly used.
     TESTONLY_FALSE,  // --testonly=false
@@ -248,6 +357,7 @@ class CommandSwitches {
 
   TargetPrintMode target_print_mode_ = TARGET_PRINT_LABEL;
   std::vector<Target::OutputType> target_types_;
+  std::vector<Target::OutputType> target_exclude_types_;
   TestonlyMode testonly_mode_ = TESTONLY_NONE;
 
   std::string meta_rebase_dir_;
@@ -275,21 +385,18 @@ const Target* ResolveTargetFromCommandLineString(
     Setup* setup,
     const std::string& label_string);
 
-enum class ApiScope {
-  kPublic,
-  kPrivate,
-  kOutput,
-};
-
 // Resolves an input to a list of targets for suggestion.
 // Specifically also decides whether it resolves to the public or private API
-// of the target.
-std::pair<std::vector<std::pair<const Target*, ApiScope>>, bool>
-ResolveSuggestionToTarget(const BuildSettings* build_settings,
-                          const std::vector<const Target*>& all_targets,
-                          const Label& current_toolchain,
-                          std::string_view input,
-                          const Target* includer = nullptr);
+// of the target, and any enclosing conditions if it resolves to a conditional
+// source.
+std::pair<std::vector<ResolvedTarget>, bool> ResolveSuggestionToTarget(
+    const BuildSettings* build_settings,
+    const std::vector<const Target*>& all_targets,
+    const Label& current_toolchain,
+    std::string_view input,
+    bool must_be_file,
+    TargetResolutionCache& cache,
+    const Target* includer = nullptr);
 
 // Resolves a vector of command line inputs and figures out the full set of
 // things they resolve to.
@@ -326,7 +433,10 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
                         const std::vector<const Target*>& to_check,
                         bool force_check,
                         bool check_generated,
-                        bool check_system);
+                        bool check_system,
+                        bool apply = false,
+                        Setup* setup = nullptr,
+                        OutputStringFunc output_fn = nullptr);
 
 // Filters the given list of targets by the given pattern list.
 void FilterTargetsByPatterns(const std::vector<const Target*>& input,
@@ -362,21 +472,32 @@ bool FilterPatternsFromString(const BuildSettings* build_settings,
   "      output\n"                                                            \
   "          Prints the first output file for the target relative to the\n"   \
   "          root build directory.\n"
-#define TARGET_TYPE_FILTER_COMMAND_LINE_HELP                              \
-  "  --type=(action|bundle_data|copy|create_bundle|executable|\n"         \
-  "          generated_file|group|loadable_module|rust_library|\n"        \
-  "          rust_proc_macro|shared_library|source_set|static_library)\n" \
-  "      Restrict outputs to targets matching the given type. If\n"       \
-  "      unspecified, no filtering will be performed. You can specify\n"  \
-  "      a comma-separated list of types to match multiple types.\n"
+#define TARGET_TYPE_FILTER_COMMAND_LINE_HELP                               \
+  "  --type=(action|bundle_data|copy|create_bundle|executable|\n"          \
+  "          generated_file|group|loadable_module|rust_library|\n"         \
+  "          rust_proc_macro|shared_library|source_set|static_library)\n"  \
+  "      Restrict outputs to targets matching the given type. If\n"        \
+  "      unspecified, no filtering will be performed. You can specify\n"   \
+  "      a comma-separated list of types to match multiple types.\n"       \
+  "      Can not be used with --exclude-type.\n"                           \
+  "\n"                                                                     \
+  "  --exclude-type=(action|bundle_data|copy|create_bundle|executable|\n"  \
+  "                  generated_file|group|loadable_module|rust_library|\n" \
+  "                  rust_proc_macro|shared_library|source_set|\n"         \
+  "                  static_library)\n"                                    \
+  "      Exclude targets matching the given type from the outputs. If\n"   \
+  "      unspecified, no filtering will be performed. You can specify\n"   \
+  "      a comma-separated list of types to match multiple types.\n"       \
+  "      Can not be used with --type.\n"
 #define TARGET_TESTONLY_FILTER_COMMAND_LINE_HELP                           \
   "  --testonly=(true|false)\n"                                            \
   "      Restrict outputs to targets with the testonly flag set\n"         \
   "      accordingly. When unspecified, the target's testonly flags are\n" \
   "      ignored.\n"
 
-// Applies any testonly and type filters specified on the command line,
-// and prints the targets as specified by the --as command line flag.
+// Applies any testonly, type, and exclude-type filters specified on the
+// command line, and prints the targets as specified by the --as command line
+// flag.
 //
 // If indent is true, the results will be indented two spaces.
 //

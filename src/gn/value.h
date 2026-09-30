@@ -54,6 +54,7 @@ class Value {
   Value(const ParseNode* origin, int64_t int_val);
   Value(const ParseNode* origin, std::string str_val);
   Value(const ParseNode* origin, const char* str_val);
+  Value(const ParseNode* origin, std::vector<Value>&& list_val);
   // Values "shouldn't" have null scopes when type == Scope, so be sure to
   // always set one. However, this is not asserted since there are some
   // use-cases for creating values and immediately setting the scope on it. So
@@ -131,6 +132,7 @@ class Value {
   // Verifies that the value is of the given type. If it isn't, returns
   // false and sets the error.
   bool VerifyTypeIs(Type t, Err* err) const;
+  Err VerifyTypeIs(Type t) const;
 
   // Compares values. Only the "value" is compared, not the origin. Scope
   // values check only the contents of the current scope, and do not go to

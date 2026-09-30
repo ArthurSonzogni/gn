@@ -36,3 +36,54 @@ TEST(DescBuilder, TargetWithValidations) {
   ASSERT_EQ(1u, validations->GetList().size());
   EXPECT_EQ("//foo:val()", validations->GetList()[0].GetString());
 }
+
+TEST(DescBuilder, TargetWithPublicInputs) {
+  TestWithScope setup;
+  Err err;
+
+  Target group_target(setup.settings(), Label(SourceDir("//foo/"), "group"));
+  group_target.set_output_type(Target::GROUP);
+  group_target.visibility().SetPublic();
+  group_target.SetToolchain(setup.toolchain());
+  group_target.public_inputs().push_back(SourceFile("//foo/bar.d.ts"));
+  ASSERT_TRUE(group_target.OnResolved(&err));
+
+  // 1. Overall description includes public_inputs.
+  {
+    std::unique_ptr<base::DictionaryValue> desc =
+        DescBuilder::DescriptionForTarget(&group_target, "", false, false,
+                                          false);
+    base::Value* public_inputs = desc->FindKey("public_inputs");
+    ASSERT_TRUE(public_inputs);
+    ASSERT_TRUE(public_inputs->is_list());
+    ASSERT_EQ(1u, public_inputs->GetList().size());
+    EXPECT_EQ("//foo/bar.d.ts", public_inputs->GetList()[0].GetString());
+  }
+
+  // 2. Specific "public_inputs" query.
+  {
+    std::unique_ptr<base::DictionaryValue> desc =
+        DescBuilder::DescriptionForTarget(&group_target, "public_inputs", false,
+                                          false, false);
+    EXPECT_EQ(1u, desc->size());
+    base::Value* public_inputs = desc->FindKey("public_inputs");
+    ASSERT_TRUE(public_inputs);
+    ASSERT_TRUE(public_inputs->is_list());
+    ASSERT_EQ(1u, public_inputs->GetList().size());
+    EXPECT_EQ("//foo/bar.d.ts", public_inputs->GetList()[0].GetString());
+  }
+
+  // 3. Target without public_inputs does not have public_inputs in description.
+  Target empty_group(setup.settings(), Label(SourceDir("//foo/"), "empty"));
+  empty_group.set_output_type(Target::GROUP);
+  empty_group.visibility().SetPublic();
+  empty_group.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(empty_group.OnResolved(&err));
+
+  {
+    std::unique_ptr<base::DictionaryValue> desc =
+        DescBuilder::DescriptionForTarget(&empty_group, "", false, false,
+                                          false);
+    EXPECT_FALSE(desc->FindKey("public_inputs"));
+  }
+}

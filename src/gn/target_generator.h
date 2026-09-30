@@ -56,6 +56,7 @@ class TargetGenerator {
 
   virtual bool FillSources();
   bool FillPublic();
+  bool FillPublicInputs();
   bool FillConfigs();
   bool FillOutputs(bool allow_substitutions);
   bool FillCheckIncludes();

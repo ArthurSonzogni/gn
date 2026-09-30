@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 
   if (retval != 0) {
     // Failed, print out log info we buffered.
-    FlushBufferedOutput();
+    FlushBufferedLogOutput();
   }
 
   exit(retval);  // Don't free memory, it can be really slow!

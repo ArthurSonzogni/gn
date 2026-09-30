@@ -5,7 +5,11 @@
 #include "gn/header_checker.h"
 
 #include <algorithm>
+#include <condition_variable>
+#include <mutex>
+#include <span>
 
+#include "base/atomic_ref_count.h"
 #include "base/containers/queue.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_util.h"
@@ -159,6 +163,47 @@ bool FriendMatches(const Target* annotation_on,
                                      is_marked_friend->label());
 }
 
+// Runs work on the items in chunks of chunk_size on the pool and waits for
+// all chunks to complete.
+template <typename T, typename Work>
+void DoWorkChunked(WorkerPool& pool,
+                   const std::vector<T>& items,
+                   size_t chunk_size,
+                   const Work& work) {
+  base::AtomicRefCount task_count;
+  std::mutex task_count_lock;
+  std::condition_variable task_count_cv;
+  auto finish_task = [&]() {
+    // Hold the lock across the decrement so the waiter cannot return and
+    // destroy the completion state before the notification is done.
+    std::unique_lock<std::mutex> lock(task_count_lock);
+    if (!task_count.Decrement()) {
+      // Signal |task_count_cv| when |task_count| becomes zero.
+      task_count_cv.notify_one();
+    }
+  };
+
+  // Hold one extra reference while posting so the count can't reach zero
+  // before all chunks are posted.
+  task_count.Increment();
+  std::span<const T> all(items);
+  for (size_t begin = 0; begin < all.size(); begin += chunk_size) {
+    std::span<const T> chunk =
+        all.subspan(begin, std::min(chunk_size, all.size() - begin));
+    task_count.Increment();
+    pool.PostTask([&work, &finish_task, chunk]() {
+      work(chunk);
+      finish_task();
+    });
+  }
+  finish_task();
+
+  // Wait for all tasks posted by this function to complete.
+  std::unique_lock<std::mutex> lock(task_count_lock);
+  while (!task_count.IsZero())
+    task_count_cv.wait(lock);
+}
+
 }  // namespace
 
 HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
@@ -168,8 +213,7 @@ HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
     : build_settings_(build_settings),
       check_generated_(check_generated),
       check_system_(check_system),
-      errors_lock_(),
-      task_count_cv_() {
+      errors_lock_() {
   for (auto* target : targets)
     AddTargetToFileMap(target, &file_map_);
 }
@@ -178,123 +222,95 @@ HeaderChecker::~HeaderChecker() = default;
 
 bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
                         bool force_check,
-                        std::vector<Err>* errors) {
-  FileMap files_to_check;
-  for (auto* check : to_check) {
-    // This function will get called with all target types, but check only
-    // applies to binary targets.
-    if (check->IsBinary())
-      AddTargetToFileMap(check, &files_to_check);
-  }
+                        std::vector<Violation>* violations) {
+  std::unordered_set<const Target*> to_check_set(to_check.begin(),
+                                                 to_check.end());
+  std::vector<FileInformation> files = FilesToCheck(to_check_set);
 
   WorkerPool pool;
   {
     ScopedTrace precompute_trace(TraceItem::TRACE_CHECK_HEADERS,
                                  "Precompute reachability");
-    std::set<const Target*> targets_to_precompute;
-    for (const auto& file : files_to_check) {
-      for (const auto& target_info : file.second) {
-        if (target_info.target->check_includes())
-          targets_to_precompute.insert(target_info.target);
+    std::vector<const Target*> targets_to_precompute;
+    std::unordered_set<const Target*> seen;
+    for (const FileInformation& file : files) {
+      for (const TargetInfo& info : file.targets) {
+        if (seen.insert(info.target).second)
+          targets_to_precompute.push_back(info.target);
       }
     }
-
-    if (!targets_to_precompute.empty()) {
-      task_count_.Increment();
-      for (const auto* target : targets_to_precompute) {
-        task_count_.Increment();
-        pool.PostTask([this, target]() {
-          ReachabilityCache& cache = GetReachabilityCacheForTarget(target);
-          cache.PerformDependencyWalk(true);
-          cache.PerformDependencyWalk(false);
-          if (!task_count_.Decrement()) {
-            std::unique_lock<std::mutex> lock(task_count_lock_);
-            task_count_cv_.notify_one();
-          }
+    // Only the permitted walk decides whether an include is allowed. The
+    // unrestricted walk over private dependencies is computed on demand by
+    // SearchForDependencyTo to describe a rejected include.
+    DoWorkChunked(
+        pool, targets_to_precompute, 32,
+        [this](std::span<const Target* const> chunk) {
+          for (const Target* target : chunk)
+            GetReachabilityCacheForTarget(target).PerformDependencyWalk(true);
         });
-      }
-
-      if (!task_count_.Decrement()) {
-        std::unique_lock<std::mutex> lock(task_count_lock_);
-        task_count_cv_.notify_one();
-      }
-
-      std::unique_lock<std::mutex> lock(task_count_lock_);
-      while (!task_count_.IsZero())
-        task_count_cv_.wait(lock);
-    }
   }
 
-  RunCheckOverFiles(files_to_check, force_check, &pool);
+  RunCheckOverFiles(files, pool);
 
-  if (errors_.empty())
+  if (violations_.empty())
     return true;
-  *errors = errors_;
+  if (violations)
+    *violations = violations_;
   return false;
 }
 
-void HeaderChecker::RunCheckOverFiles(const FileMap& files,
-                                      bool force_check,
-                                      WorkerPool* pool) {
-  task_count_.Increment();
+std::vector<HeaderChecker::FileInformation> HeaderChecker::FilesToCheck(
+    const std::unordered_set<const Target*>& to_check) const {
+  std::vector<FileInformation> files;
+  files.reserve(file_map_.size());
 
-  for (const auto& file : files) {
+  for (const auto& entry : file_map_) {
+    const FileInformation& info = entry.second;
     // Only check C-like source files (RC files also have includes).
-    const SourceFile::Type type = file.first.GetType();
+    const SourceFile::Type type = info.file.GetType();
     if (type != SourceFile::SOURCE_CPP && type != SourceFile::SOURCE_H &&
         type != SourceFile::SOURCE_C && type != SourceFile::SOURCE_M &&
         type != SourceFile::SOURCE_MM && type != SourceFile::SOURCE_RC)
       continue;
 
     if (!check_generated_) {
-      // If any target marks it as generated, don't check it. We have to check
-      // file_map_, which includes all known files; files only includes those
-      // being checked.
+      // If any target marks it as generated, don't check it.
       bool is_generated = false;
-      for (const auto& vect_i : file_map_[file.first])
+      for (const auto& vect_i : info.targets)
         is_generated |= vect_i.is_generated;
       if (is_generated)
         continue;
     }
 
     TargetVector targets_to_check;
-    for (const auto& vect_i : file.second) {
-      if (vect_i.target->check_includes()) {
+    for (const auto& vect_i : info.targets) {
+      if (vect_i.target->IsBinary() && to_check.contains(vect_i.target) &&
+          vect_i.target->check_includes()) {
         targets_to_check.push_back(vect_i);
       }
     }
     if (targets_to_check.empty())
       continue;
 
-    task_count_.Increment();
-    pool->PostTask([this, targets = std::move(targets_to_check),
-                    file = file.first]() { DoWork(targets, file); });
+    files.push_back({info.file, std::move(targets_to_check)});
   }
-
-  if (!task_count_.Decrement()) {
-    std::unique_lock<std::mutex> lock(task_count_lock_);
-    task_count_cv_.notify_one();
-  }
-
-  // Wait for all tasks posted by this method to complete.
-  std::unique_lock<std::mutex> auto_lock(task_count_lock_);
-  while (!task_count_.IsZero())
-    task_count_cv_.wait(auto_lock);
+  return files;
 }
 
-void HeaderChecker::DoWork(const TargetVector& targets,
-                           const SourceFile& file) {
-  std::vector<Err> errors;
-  if (!CheckFile(targets, file, &errors)) {
-    std::lock_guard<std::mutex> lock(errors_lock_);
-    errors_.insert(errors_.end(), errors.begin(), errors.end());
-  }
-
-  if (!task_count_.Decrement()) {
-    // Signal |task_count_cv_| when |task_count_| becomes zero.
-    std::unique_lock<std::mutex> auto_lock(task_count_lock_);
-    task_count_cv_.notify_one();
-  }
+void HeaderChecker::RunCheckOverFiles(const std::vector<FileInformation>& files,
+                                      WorkerPool& pool) {
+  DoWorkChunked(
+      pool, files, 64, [this](std::span<const FileInformation> chunk) {
+        std::vector<Violation> local_violations;
+        for (const FileInformation& file : chunk)
+          CheckFile(file.targets, file.file, &local_violations);
+        if (local_violations.empty())
+          return;
+        std::lock_guard<std::mutex> lock(errors_lock_);
+        violations_.insert(violations_.end(),
+                           std::make_move_iterator(local_violations.begin()),
+                           std::make_move_iterator(local_violations.end()));
+      });
 }
 
 // static
@@ -302,7 +318,7 @@ void HeaderChecker::AddTargetToFileMap(const Target* target, FileMap* dest) {
   // Files in the sources have this public bit by default.
   bool default_public = target->all_headers_public();
 
-  std::map<SourceFile, PublicGeneratedPair> files_to_public;
+  std::unordered_map<SourceFile, PublicGeneratedPair> files_to_public;
 
   // First collect the normal files, they get the default visibility. If you
   // depend on the compiled target, it should be enough to be able to include
@@ -352,43 +368,53 @@ void HeaderChecker::AddTargetToFileMap(const Target* target, FileMap* dest) {
 
   // Add the merged list to the master list of all files.
   for (const auto& cur : files_to_public) {
-    (*dest)[cur.first].push_back(
-        TargetInfo(target, cur.second.is_public, cur.second.is_generated));
+    dest->try_emplace(cur.first.value(), FileInformation{cur.first, {}})
+        .first->second.targets.emplace_back(target, cur.second.is_public,
+                                            cur.second.is_generated);
   }
 }
 
 bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
   const std::string& build_dir = build_settings_->build_dir().value();
-  return file.value().compare(0, build_dir.size(), build_dir) == 0;
+  return file.value().starts_with(build_dir);
 }
 
 SourceFile HeaderChecker::SourceFileForInclude(
     const IncludeStringWithLocation& include,
     const std::vector<SourceDir>& include_dirs,
-    const InputFile& source_file,
-    Err* err) const {
-  using base::FilePath;
+    const InputFile& source_file) const {
+  std::string_view inc = include.contents;
+  if (inc.empty())
+    return SourceFile();
 
-  Value relative_file_value(nullptr, std::string(include.contents));
-
-  auto find_predicate = [relative_file_value, err,
-                         this](const SourceDir& dir) -> bool {
-    SourceFile include_file = dir.ResolveRelativeFile(relative_file_value, err);
-    return file_map_.find(include_file) != file_map_.end();
+  auto find_file = [this](std::string_view path) -> const SourceFile* {
+    auto it = file_map_.find(path);
+    return it == file_map_.end() ? nullptr : &it->second.file;
   };
-  if (!include.system_style_include) {
-    const SourceDir& file_dir = source_file.dir();
-    if (find_predicate(file_dir)) {
-      return file_dir.ResolveRelativeFile(relative_file_value, err);
-    }
+
+  if (inc.starts_with("//") || IsPathAbsolute(inc)) {
+    const SourceFile* found = find_file(
+        ResolveRelative(inc, std::string(), true, std::string_view()));
+    return found ? *found : SourceFile();
   }
 
-  auto it =
-      std::find_if(include_dirs.begin(), include_dirs.end(), find_predicate);
+  std::string buffer;
+  buffer.reserve(128);
+  auto find_in_dir = [&](const SourceDir& dir) -> const SourceFile* {
+    buffer.assign(dir.value());
+    buffer.append(inc);
+    NormalizePath(&buffer);
+    return find_file(buffer);
+  };
 
-  if (it != include_dirs.end())
-    return it->ResolveRelativeFile(relative_file_value, err);
-
+  if (!include.system_style_include) {
+    if (const SourceFile* found = find_in_dir(source_file.dir()))
+      return *found;
+  }
+  for (const SourceDir& dir : include_dirs) {
+    if (const SourceFile* found = find_in_dir(dir))
+      return *found;
+  }
   return SourceFile();
 }
 
@@ -488,7 +514,7 @@ bool HeaderChecker::ReachabilityCache::SearchBreadcrumbs(
 
 bool HeaderChecker::CheckFile(const TargetVector& targets,
                               const SourceFile& file,
-                              std::vector<Err>* errors) const {
+                              std::vector<Violation>* violations) const {
   ScopedTrace trace(TraceItem::TRACE_CHECK_HEADER, file.value());
 
   // Sometimes you have generated source files included as sources in another
@@ -508,11 +534,13 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
 
     for (const TargetInfo& from_target_info : targets) {
       const Target* from_target = from_target_info.target;
-      errors->emplace_back(
-          from_target->defined_from(), "Source file not found.",
-          "The target:\n  " + from_target->label().GetUserVisibleName(false) +
-              "\nhas a source file:\n  " + file.value() +
-              "\nwhich was not found.");
+      violations->emplace_back(
+          Err(from_target->defined_from(), "Source file not found.",
+              "The target:\n  " +
+                  from_target->label().GetUserVisibleName(false) +
+                  "\nhas a source file:\n  " + file.value() +
+                  "\nwhich was not found."),
+          from_target, file, SourceFile());
     }
     return false;
   }
@@ -532,7 +560,7 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
   if (includes.empty())
     return true;
 
-  size_t error_count_before = errors->size();
+  size_t violations_count_before = violations->size();
 
   for (const TargetInfo& from_target_info : targets) {
     const Target* from_target = from_target_info.target;
@@ -549,19 +577,23 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
         GetReachabilityCacheForTarget(from_target);
 
     for (const auto& inc : includes) {
-      Err err;
       SourceFile included_file =
-          SourceFileForInclude(inc, include_dirs, input_file, &err);
+          SourceFileForInclude(inc, include_dirs, input_file);
       if (!included_file.is_null()) {
+        std::vector<Err> include_errors;
         CheckInclude(from_target_cache,
                      from_target_info.is_public &&
                          file.GetType() == SourceFile::SOURCE_H,
-                     input_file, included_file, inc.location, errors);
+                     input_file, included_file, inc.location, &include_errors);
+        for (auto& e : include_errors) {
+          violations->emplace_back(std::move(e), from_target, file,
+                                   std::move(included_file));
+        }
       }
     }
   }
 
-  return errors->size() == error_count_before;
+  return violations->size() == violations_count_before;
 }
 
 // If the file exists:
@@ -581,11 +613,11 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   // our include finder is too primitive and returns all includes, even if
   // they're in a #if not executed in the current build. In that case, it's
   // not unusual for the buildfiles to not specify that header at all.
-  FileMap::const_iterator found = file_map_.find(include_file);
+  FileMap::const_iterator found = file_map_.find(include_file.value());
   if (found == file_map_.end())
     return;
 
-  const TargetVector& targets = found->second;
+  const TargetVector& targets = found->second.targets;
   Chain chain;  // Prevent reallocating in the loop.
 
   const Target* from_target = from_target_cache.source_target();
@@ -617,105 +649,6 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   if (!present_in_current_toolchain)
     return;
 
-  // For all targets containing this file, we require that at least one be
-  // a direct or public dependency of the current target, and either (1) the
-  // header is public within the target, or (2) there is a friend definition
-  // allowlisting the includor.
-  //
-  // If there is more than one target containing this header, we may encounter
-  // some error cases before finding a good one. This error stores the previous
-  // one encountered, which we may or may not throw away.
-  Err last_error;
-
-  bool found_dependency = false;
-  for (const auto& target : targets) {
-    // We always allow source files in a target to include headers also in that
-    // target, unless strict checking is enabled and a public header includes
-    // a private header.
-    const Target* to_target = target.target;
-    if (to_target == from_target) {
-      if (from_target->check_includes_strict() && is_public_header &&
-          !target.is_public) {
-        last_error = Err(
-            CreatePersistentRange(source_file, range),
-            "Public headers cannot include private headers of the same target.",
-            "The public header:\n  " + source_file.name().value() +
-                "\nis including a private header of the same target:\n  " +
-                include_file.value() +
-                "\nEither make the included header public, make the includer "
-                "private,\n"
-                "or make a source_set containing public = [private_headers] "
-                "and add it to public_deps.");
-        errors->push_back(std::move(last_error));
-      }
-      return;
-    }
-
-    bool is_permitted_chain = false;
-    if (IsDependencyOf(to_target, from_target_cache, &chain,
-                       &is_permitted_chain)) {
-      DCHECK(chain.size() >= 2);
-      DCHECK(chain[0].target == to_target);
-      DCHECK(chain[chain.size() - 1].target == from_target);
-      found_dependency = true;
-
-      bool effectively_public =
-          target.is_public || FriendMatches(to_target, from_target);
-
-      if (effectively_public && is_permitted_chain) {
-        if (from_target->check_includes_strict() && is_public_header &&
-            !chain[chain.size() - 2].is_public) {
-          last_error = Err(
-              CreatePersistentRange(source_file, range),
-              "Public headers cannot include private dependencies.",
-              "The public header:\n  " + source_file.name().value() +
-                  "\nis including a header from private dependency:\n  " +
-                  to_target->label().GetUserVisibleName(false) +
-                  "\nEither move the dependency to public_deps, or make this "
-                  "header private.");
-          continue;
-        }
-        // This one is OK, we're done.
-        last_error = Err();
-        break;
-      }
-
-      // Diagnose the error.
-      if (!effectively_public) {
-        // Danger: must call CreatePersistentRange to put in Err.
-        last_error = Err(CreatePersistentRange(source_file, range),
-                         "Including a private header.",
-                         "This file is private to the target " +
-                             target.target->label().GetUserVisibleName(false));
-      } else if (!is_permitted_chain) {
-        last_error = Err(CreatePersistentRange(source_file, range),
-                         "Can't include this header from here.",
-                         GetDependencyChainPublicError(chain));
-      } else {
-        NOTREACHED();
-      }
-    } else if (to_target->allow_circular_includes_from().find(
-                   from_target->label()) !=
-               to_target->allow_circular_includes_from().end()) {
-      // Not a dependency, but this include is allowlisted from the destination.
-      found_dependency = true;
-      last_error = Err();
-      break;
-    }
-  }
-
-  if (!found_dependency || last_error.has_error()) {
-    if (!found_dependency) {
-      DCHECK(!last_error.has_error());
-      Err err = MakeUnreachableError(source_file, range, from_target, targets);
-      errors->push_back(std::move(err));
-    } else {
-      // Found at least one dependency chain above, but it had an error.
-      errors->push_back(std::move(last_error));
-    }
-    return;
-  }
-
   // One thing we didn't check for is targets that expose their dependents
   // headers in their own public headers.
   //
@@ -733,13 +666,110 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   //  - Save the includes found in each file and actually compute the graph of
   //    includes to detect when A implicitly includes C's header. This will not
   //    have the annoying false positive problem, but is complex to write.
+
+  // Fast path: the include is valid if any target containing this header is
+  // the includer itself, allowlists the includer, or is reachable through a
+  // permitted dependency chain.
+  for (const auto& target : targets) {
+    const Target* to_target = target.target;
+    if (to_target == from_target) {
+      if (from_target->check_includes_strict() && is_public_header &&
+          !target.is_public) {
+        break;
+      }
+      return;
+    }
+
+    if (to_target->allow_circular_includes_from().contains(
+            from_target->label())) {
+      return;
+    }
+
+    if (!target.is_public && !FriendMatches(to_target, from_target))
+      continue;
+
+    if (!from_target_cache.SearchForDependencyTo(to_target, true, &chain))
+      continue;
+    DCHECK(chain.size() >= 2);
+
+    if (from_target->check_includes_strict() && is_public_header &&
+        !chain[chain.size() - 2].is_public) {
+      continue;
+    }
+    return;
+  }
+
+  // Slow path: no target allows the include. Walk all dependencies, including
+  // private ones, to produce the most specific error. If more than one target
+  // contains this header, the error for the last one wins.
+  Err last_error;
+  for (const auto& target : targets) {
+    const Target* to_target = target.target;
+    if (to_target == from_target) {
+      // The fast path only falls through for a same-target strict violation.
+      errors->push_back(Err(
+          CreatePersistentRange(source_file, range),
+          "Public headers cannot include private headers of the same target.",
+          "The public header:\n  " + source_file.name().value() +
+              "\nis including a private header of the same target:\n  " +
+              include_file.value() +
+              "\nEither make the included header public, make the includer "
+              "private,\n"
+              "or make a source_set containing public = [private_headers] "
+              "and add it to public_deps."));
+      return;
+    }
+
+    bool is_permitted_chain = false;
+    if (!IsDependencyOf(to_target, from_target_cache, &chain,
+                        &is_permitted_chain)) {
+      continue;
+    }
+    DCHECK(chain.size() >= 2);
+    DCHECK(chain[0].target == to_target);
+    DCHECK(chain[chain.size() - 1].target == from_target);
+
+    bool effectively_public =
+        target.is_public || FriendMatches(to_target, from_target);
+    if (effectively_public && is_permitted_chain) {
+      // The fast path rejected this chain, so it is a strict violation.
+      last_error =
+          Err(CreatePersistentRange(source_file, range),
+              "Public headers cannot include private dependencies.",
+              "The public header:\n  " + source_file.name().value() +
+                  "\nis including a header from private dependency:\n  " +
+                  to_target->label().GetUserVisibleName(false) +
+                  "\nEither move the dependency to public_deps, or make this "
+                  "header private.");
+    } else if (!effectively_public) {
+      // Danger: must call CreatePersistentRange to put in Err.
+      last_error = Err(CreatePersistentRange(source_file, range),
+                       "Including a private header.",
+                       "This file is private to the target " +
+                           to_target->label().GetUserVisibleName(false));
+    } else {
+      last_error = Err(CreatePersistentRange(source_file, range),
+                       "Can't include this header from here.",
+                       GetDependencyChainPublicError(chain));
+    }
+  }
+
+  if (!last_error.has_error())
+    last_error = MakeUnreachableError(source_file, range, from_target, targets);
+  errors->push_back(std::move(last_error));
 }
 
 HeaderChecker::ReachabilityCache& HeaderChecker::GetReachabilityCacheForTarget(
     const Target* target) const {
   size_t shard_index = target->label().hash() % kNumShards;
   auto& shard = dependency_cache_[shard_index];
-  std::unique_lock<std::shared_mutex> lock(shard.lock);
+  {
+    std::shared_lock<std::shared_mutex> read_lock(shard.lock);
+    auto it = shard.cache.find(target);
+    if (it != shard.cache.end())
+      return *it->second;
+  }
+  std::unique_lock<std::shared_mutex> write_lock(shard.lock);
   auto it = shard.cache.find(target);
   if (it == shard.cache.end()) {
     it =

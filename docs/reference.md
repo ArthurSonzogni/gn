@@ -11,6 +11,7 @@
     *   [clean: Cleans the output directory.](#cmd_clean)
     *   [clean_stale: Cleans the stale output files from the output directory.](#cmd_clean_stale)
     *   [desc: Show lots of insightful information about a target or config.](#cmd_desc)
+    *   [edit: Edit BUILD.gn files from the command line.](#cmd_edit)
     *   [format: Format .gn files.](#cmd_format)
     *   [gen: Generate ninja files.](#cmd_gen)
     *   [help: Does what you think.](#cmd_help)
@@ -366,7 +367,7 @@
     given arguments set (which may affect the values of other
     arguments).
 ```
-### <a name="cmd_check"></a>**gn check &lt;out_dir&gt; [&lt;label_pattern&gt;] [\--force] [\--check-generated]**&nbsp;[Back to Top](#gn-reference)
+### <a name="cmd_check"></a>**gn check &lt;out_dir&gt; [&lt;label_pattern&gt;] [\--force] [\--check-generated] [\--fix]**&nbsp;[Back to Top](#gn-reference)
 
 ```
   GN's include header checker validates that the includes for C-like source
@@ -392,6 +393,9 @@
   --check-system
      Check system style includes (using <angle brackets>) in addition to
      "double quote" includes.
+
+  --fix
+      Automatically apply suggestions to resolve header dependency errors.
 
   --default-toolchain
       Normally wildcard targets are matched in all toolchains. This
@@ -571,6 +575,7 @@
   output_conversion
   outputs
   public_configs
+  public_inputs
   public
   rebase
   script
@@ -671,7 +676,7 @@
       tree.
 
       Tree output can not be used with the filtering or output flags: --as,
-      --type, --testonly.
+      --type, --exclude-type, --testonly.
 
   --type=(action|bundle_data|copy|create_bundle|executable|
           generated_file|group|loadable_module|rust_library|
@@ -679,6 +684,16 @@
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed. You can specify
       a comma-separated list of types to match multiple types.
+      Can not be used with --exclude-type.
+
+  --exclude-type=(action|bundle_data|copy|create_bundle|executable|
+                  generated_file|group|loadable_module|rust_library|
+                  rust_proc_macro|shared_library|source_set|
+                  static_library)
+      Exclude targets matching the given type from the outputs. If
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
+      Can not be used with --type.
 ```
 
 #### **Note**
@@ -703,6 +718,102 @@
   gn desc out/Debug //base defines --blame
       Shows defines set for the //base:base target, annotated by where
       each one was set from.
+```
+### <a name="cmd_edit"></a>**gn edit &lt;command&gt; &lt;labels/patterns...&gt;**&nbsp;[Back to Top](#gn-reference)
+
+```
+  Executes a command to modify a set of targets
+
+  Note: Because GN is an imperative language, it's not always entirely
+  clear what the "correct" thing is to do.
+
+  In cases of ambiguity (eg. conditionals), `gn edit` will leave notes
+  in your build files instructing you what to do.
+```
+
+#### **Commands**:
+```
+  add <attribute> <value(s)>
+      Adds <value(s)> to the list attribute <attribute>.
+      If the attribute does not exist, it is created.
+
+      Example:
+        gn edit "add deps //base //src/tools:utils" //src/tools:*
+
+  delete
+      Deletes the matched targets entirely.
+
+      Example:
+        gn edit "delete" //src/tools:old_target
+
+  move <from_attribute> <to_attribute> <value(s)>
+      Moves <value(s)> from the list <from_attribute> to <to_attribute>.
+      If <to_attribute> does not exist, it is created.
+
+      Example:
+        gn edit "move deps public_deps //base" //src/tools:*
+
+  new <rule_kind> [(before|after) <relative_rule_name>]
+      Adds a new rule at the end of the BUILD file (or before/after
+      <relative_rule_name>). The rule name is determined by the target label.
+
+      Examples:
+        gn edit "new source_set" //src/tools:my_target
+        gn edit "new static_library before old_target" //src/tools:helper
+
+  remove <attribute>
+      Removes <attribute> entirely.
+
+      Example:
+        gn edit "remove testonly" //src/tools:*
+
+  remove <attribute> <value(s)>
+      Removes <value(s)> from the list attribute <attribute>.
+
+      Example:
+        gn edit "remove deps //base" //src/tools:*
+
+  rename <from_attribute> <to_attribute>
+      Renames <from_attribute> to <to_attribute>.
+
+      Example:
+        gn edit "rename srcs sources" //src/tools:*
+
+  set <attribute>[:list|:expr] <value(s)>
+      Sets or overwrites the target's <attribute> to <value(s)>.
+      If multiple values are provided, or if the ":list" suffix is
+      appended to the attribute, <value(s)> is interpreted as a list.
+      If the ":expr" suffix is appended to the attribute, <value(s)>
+      is parsed as a raw GN expression (e.g. variable, list of variables,
+      or expression).
+
+      Examples:
+        gn edit "set testonly true" //src/tools:*
+          => testonly = true
+        gn edit "set output_name my_tool" //src/tools:*
+          => output_name = "my_tool"
+        gn edit "set deps:expr default_deps" //:foo
+          => deps = default_deps
+        gn edit "set srcs:list foo.cc" //:foo
+          => srcs = [ "foo.cc" ]
+        gn edit "set deps :bar :baz" //:foo
+          => deps = [ ":bar", ":baz" ]
+        gn edit "set deps:expr a + b" //:foo
+          => deps = a + b
+
+  shard [sharded_target_type] [group_type]
+      Splits the target's sources into fine-grained shard targets,
+      inheriting compilation flags, and updates the parent
+      target to depend on the newly created shards.
+      Note: Sharding strips existing deps and clones conditional blocks
+      into each shard. For conditional sources (e.g. `if (is_win)`),
+      manual cleanup is often needed, such as:
+        * Moving the condition to wrap the shard instead of the sources
+        * Stripping empty conditions
+
+      Examples:
+        gn edit "shard" //:large_target
+        gn edit "shard source_set static_library" //:large_target
 ```
 ### <a name="cmd_format"></a>**gn format [\--dump-tree] [\--format-width=WIDTH] (\--stdin | &lt;list of build_files...&gt;)**&nbsp;[Back to Top](#gn-reference)
 
@@ -1048,7 +1159,7 @@
 ```
 ### <a name="cmd_ls"></a>**gn ls &lt;out_dir&gt; [&lt;label_pattern&gt;] [\--default-toolchain] [\--as=...]**&nbsp;[Back to Top](#gn-reference)
 ```
-      [--type=...] [--testonly=...]
+      [--type=...|--exclude-type=...] [--testonly=...]
 
   Lists all targets matching the given pattern for the given build directory.
   By default, only targets in the default toolchain will be matched unless a
@@ -1093,6 +1204,16 @@
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed. You can specify
       a comma-separated list of types to match multiple types.
+      Can not be used with --exclude-type.
+
+  --exclude-type=(action|bundle_data|copy|create_bundle|executable|
+                  generated_file|group|loadable_module|rust_library|
+                  rust_proc_macro|shared_library|source_set|
+                  static_library)
+      Exclude targets matching the given type from the outputs. If
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
+      Can not be used with --type.
 ```
 
 #### **Examples**
@@ -1277,7 +1398,8 @@
 
 ```
   gn refs <out_dir> (<label_pattern>|<label>|<file>|@<response_file>)* [--all]
-          [--default-toolchain] [--as=...] [--testonly=...] [--type=...]
+          [--default-toolchain] [--as=...] [--testonly=...]
+          [--type=...|--exclude-type=...]
 
   Finds reverse dependencies (which targets reference something). The input is
   a list containing:
@@ -1349,7 +1471,7 @@
       be elided. Combine with --all to see a full dependency tree.
 
       Tree output can not be used with the filtering or output flags: --as,
-      --type, --testonly.
+      --type, --exclude-type, --testonly.
 
   --type=(action|bundle_data|copy|create_bundle|executable|
           generated_file|group|loadable_module|rust_library|
@@ -1357,6 +1479,16 @@
       Restrict outputs to targets matching the given type. If
       unspecified, no filtering will be performed. You can specify
       a comma-separated list of types to match multiple types.
+      Can not be used with --exclude-type.
+
+  --exclude-type=(action|bundle_data|copy|create_bundle|executable|
+                  generated_file|group|loadable_module|rust_library|
+                  rust_proc_macro|shared_library|source_set|
+                  static_library)
+      Exclude targets matching the given type from the outputs. If
+      unspecified, no filtering will be performed. You can specify
+      a comma-separated list of types to match multiple types.
+      Can not be used with --type.
 
   --relation=(source|public|input|data|script|output)
       Restricts output to targets which refer to input files by a specific
@@ -1411,7 +1543,7 @@
 ### <a name="cmd_suggest"></a>**suggest**: Suggest fixes to build graph based on includes.&nbsp;[Back to Top](#gn-reference)
 
 ```
-  gn suggest <out_dir> includer1=included1 includer2=included2...
+  gn suggest [--apply] <out_dir> includer1=included1 includer2=included2...
 
   Where each includer or included is either:
   * A label
@@ -1424,7 +1556,15 @@
 
   Will print a suggestion like:
   Request: path/to/target.cc wants to depend on foo/bar.h
-  Suggestion: add deps = [ "//foo:bar" ] to "//path/to:target" (defined in //path/to/BUILD.gn:1234)
+  Suggestion: Add deps = [ "//foo:bar" ] to //path/to:target (defined in //path/to/BUILD.gn:1234)
+    (`gn edit "add deps //foo:bar" //path/to:target`)
+```
+
+#### **Options**:
+```
+  --apply
+      Automatically applies the suggested edits to the respective BUILD.gn
+      files.
 ```
 ## <a name="targets"></a>Target declarations
 
@@ -1518,8 +1658,8 @@
            visibility
   Action variables: args, bridge_header, configs, data, depfile,
                     framework_dirs, inputs, mnemonic, module_deps,
-                    module_name, outputs*, pool, response_file_contents,
-                    script*, sources
+                    module_name, outputs*, pool, public_inputs,
+                    response_file_contents, script*, sources
   * = required
 ```
 
@@ -1619,8 +1759,8 @@
            visibility
   Action variables: args, bridge_header, configs, data, depfile,
                     framework_dirs, inputs, mnemonic, module_deps,
-                    module_name, outputs*, pool, response_file_contents,
-                    script*, sources
+                    module_name, outputs*, pool, public_inputs,
+                    response_file_contents, script*, sources
   * = required
 ```
 
@@ -1741,6 +1881,24 @@
   If you want to copy the output of a previous build step, the target that
   generates the file to copy must be reachable from the deps or public_deps of
   the copy target.
+```
+
+#### **How the copy is performed**
+
+```
+  The actual command used to copy each file is not built in to the "copy"
+  target type. It is provided by the "copy" tool defined by the toolchain used
+  to build the target (see "gn help tool"). If the toolchain does not define a
+  "copy" tool, GN will error out.
+
+  This means projects can customize how files are copied -- for example to hard
+  link instead of byte-copying for speed -- by overriding the toolchain's
+  "copy" tool:
+
+    tool("copy") {
+      command = "cp -af --reflink=auto {{source}} {{output}}"
+      description = "COPY {{source}} {{output}}"
+    }
 ```
 
 #### **Variables**
@@ -2128,6 +2286,7 @@
 #### **Variables**
 
 ```
+  Group variables: public_inputs
   Deps: assert_no_deps, data_deps, deps, public_deps, runtime_deps,
         write_runtime_deps
   Dependent configs: all_dependent_configs, public_configs
@@ -4340,8 +4499,10 @@
   substitutions.
 
   The copy tool allows the common compiler/linker substitutions, plus
-  {{source}} which is the source of the copy. The stamp tool allows only the
-  common tool substitutions.
+  {{source}} which is the source of the copy. It defines the command run by
+  "copy" targets (see "gn help copy"), so overriding it lets a toolchain
+  customize how those targets copy files. The stamp tool allows only the common
+  tool substitutions.
 
   The copy_bundle_data and compile_xcassets tools only allows the common tool
   substitutions. Both tools are required to create iOS/macOS bundles and need
@@ -4723,9 +4884,9 @@
 
 ```
   Corresponds to the number printed by `gn --version`. This variable is
-  only variable available in the dotfile (all the rest are missing
-  because the dotfile has to be parsed before args.gn or anything else
-  is processed).
+  one of the few variables available in the dotfile (along with `host_cpu`
+  and `host_os`, all the rest are missing because the dotfile has to be
+  parsed before args.gn or anything else is processed).
 ```
 
 #### **Example**
@@ -4737,7 +4898,7 @@
 
 ```
   This is value is exposed so that cross-compile toolchains can access the host
-  architecture when needed.
+  architecture when needed. It is also available in the dotfile.
 
   The value should generally be considered read-only, but it can be overridden
   in order to handle unusual cases where there might be multiple plausible
@@ -4755,7 +4916,7 @@
 
 ```
   This value is exposed so that cross-compiles can access the host build
-  system's settings.
+  system's settings. It is also available in the dotfile.
 
   This value should generally be treated as read-only. It, however, is not used
   internally by GN for any purpose.
@@ -5171,6 +5332,14 @@
   group("a_b_shared_deps") {
     public_deps = [ ":c" ]
   }
+```
+
+#### **Allowlist**
+
+```
+  The use of allow_circular_includes_from can be restricted to a specific list
+  of target labels by setting allow_circular_includes_from_allowlist in the .gn
+  file. See "gn help dotfile".
 ```
 ### <a name="var_arflags"></a>**arflags**: Arguments passed to static_library archiver.&nbsp;[Back to Top](#gn-reference)
 
@@ -6960,7 +7129,9 @@
   propagate to any targets depending on B.
 
   This is particularly useful for actions that generate source code which
-  contain implicit imports/includes of the files declared in public_inputs.
+  contain implicit imports/includes of the files declared in public_inputs,
+  or for groups that aggregate and export generated files as public inputs
+  to downstream consumers.
   Dependent targets will automatically inherit these dependencies and trigger
   rebuilds when the public inputs change.
 
@@ -6982,6 +7153,11 @@
       ...
       public_deps = [ ":A" ]  # C inherits "a.in", and propagates it to
                               # C's dependents.
+    }
+
+    group("my_module") {
+      public_deps = [ ":generate_dts" ]
+      public_inputs = [ "$target_gen_dir/foo.d.ts" ]
     }
 ```
 ### <a name="var_rebase"></a>**rebase**: Rebase collected metadata as files.&nbsp;[Back to Top](#gn-reference)
@@ -7419,7 +7595,8 @@
 
   Next, project-specific overrides are applied. These are specified inside
   the default_args variable of //.gn. See "gn help dotfile" for more. Note
-  that during processing of the dotfile itself, only `gn_version` is defined.
+  that during processing of the dotfile itself, only `gn_version`, `host_cpu`,
+  and `host_os` are defined.
 
   If specified, arguments from the --args command line flag are used. If that
   flag is not specified, args from previous builds in the build directory will
@@ -7479,14 +7656,36 @@
 
     gn gen out/Debug --root=/home/build --dotfile=/home/my_gn_file.gn
 
-  The system variable `gn_version` is available in the dotfile, but none of
-  the other variables are, because the dotfile is processed before args.gn
-  or anything else is processed.
+  The system variables `gn_version`, `host_cpu`, and `host_os` are available
+  in the dotfile, but none of the other variables are, because the dotfile is
+  processed before args.gn or anything else is processed.
 ```
 
 #### **Variables**
 
 ```
+  allow_circular_includes_from_allowlist [optional]
+      A list of target label patterns that have permission to use the
+      allow_circular_includes_from variable. If this list is defined, usages of
+      allow_circular_includes_from will be checked against this list and GN
+      will fail if the target label isn't in the list.
+
+      This is to allow the use of allow_circular_includes_from to be restricted
+      since circular dependencies between targets are discouraged and should
+      generally be avoided.
+
+      The format of this list is identical to that of "visibility" so see "gn
+      help visibility" for examples.
+
+      If unspecified, the ability to use allow_circular_includes_from is
+      unrestricted.
+
+      Example:
+        allow_circular_includes_from_allowlist = [
+          "//foo:*",
+          "//foo:bar",
+        ]
+
   arg_file_template [optional]
       Path to a file containing the text that should be used as the default
       args.gn content when you run `gn args`.

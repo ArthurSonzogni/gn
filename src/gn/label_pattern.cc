@@ -273,3 +273,11 @@ std::string LabelPattern::Describe() const {
   }
   return result;
 }
+
+size_t LabelPattern::hash() const {
+  size_t h0 = static_cast<size_t>(type_);
+  size_t h1 = dir_.hash();
+  size_t h2 = std::hash<std::string>()(name_);
+  size_t h3 = toolchain_.hash();
+  return ((h3 * 131 + h2) * 131 + h1) * 131 + h0;
+}

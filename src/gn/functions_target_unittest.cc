@@ -204,3 +204,25 @@ TEST_F(FunctionsTarget, MixedSourceError) {
   ASSERT_TRUE(err.has_error());
   ASSERT_EQ(err.message(), "More than one language used in target sources.");
 }
+
+TEST_F(FunctionsTarget, GroupPublicInputs) {
+  TestWithScope setup;
+
+  Scope::ItemVector item_collector;
+  setup.scope()->set_item_collector(&item_collector);
+
+  TestParseInput input(
+      R"(group("foo") {
+           public_inputs = [ "//bar.in" ]
+         })");
+  ASSERT_FALSE(input.has_error());
+  Err err;
+  input.parsed()->Execute(setup.scope(), &err);
+  ASSERT_SUCCESS(err);
+
+  ASSERT_EQ(1u, item_collector.size());
+  const Target* target = item_collector[0]->AsTarget();
+  ASSERT_TRUE(target);
+  ASSERT_EQ(1u, target->public_inputs().size());
+  EXPECT_EQ("//bar.in", target->public_inputs()[0].value());
+}

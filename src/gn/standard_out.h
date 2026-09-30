@@ -6,6 +6,7 @@
 #define TOOLS_GN_STANDARD_OUT_H_
 
 #include <string>
+#include <vector>
 
 enum TextDecoration {
   DECORATION_NONE = 0,
@@ -42,7 +43,7 @@ void OutputLogString(std::string_view output,
 // BufferLogOutput() is not threadsafe and is expected to be called from early
 // process init before we've created any worker thread.
 void BufferLogOutput();
-void FlushBufferedOutput();
+void FlushBufferedLogOutput();
 
 // If printing markdown, this generates table-of-contents entries with
 // links to the actual help; otherwise, prints a one-line description.
@@ -75,5 +76,33 @@ void PrintShortHelp(const std::string& line,
 void PrintLongHelp(const std::string& text, const std::string& tag = "");
 
 bool IsColorEnabled();
+
+// Helper class used to redirect OutputString() and OutputLogString() calls
+// to an internal buffer. Useful for tests.
+//
+// Only one instance per process of that class can be used though. Usage is
+//
+//  1) Create instance, this automatically sets up the redirection.
+//  2) Call GetItems() to get a snapshot of the currently buffered items.
+//  3) On destruction, buffered output is dropped.
+//
+struct ScopedBufferedOutput {
+  // Constructor sets up the redirection, only one instance per process can
+  // exist at a given time, since this manages global state.
+  ScopedBufferedOutput();
+
+  // Destructor drops all buffered output items.
+  ~ScopedBufferedOutput();
+
+  // The input of a single buffered OutputString() or OutputLogString() call.
+  struct Item {
+    std::string output;
+    TextDecoration decoration;
+    HtmlEscaping escaping;
+  };
+
+  // Retrieve a snapshot (copy) of buffered items so far.
+  std::vector<Item> GetItems();
+};
 
 #endif  // TOOLS_GN_STANDARD_OUT_H_

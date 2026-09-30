@@ -801,8 +801,10 @@ Tool variables
   substitutions.
 
   The copy tool allows the common compiler/linker substitutions, plus
-  {{source}} which is the source of the copy. The stamp tool allows only the
-  common tool substitutions.
+  {{source}} which is the source of the copy. It defines the command run by
+  "copy" targets (see "gn help copy"), so overriding it lets a toolchain
+  customize how those targets copy files. The stamp tool allows only the common
+  tool substitutions.
 
   The copy_bundle_data and compile_xcassets tools only allows the common tool
   substitutions. Both tools are required to create iOS/macOS bundles and need

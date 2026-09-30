@@ -237,7 +237,8 @@ const char kRefs_Help[] =
     R"(gn refs
 
   gn refs <out_dir> (<label_pattern>|<label>|<file>|@<response_file>)* [--all]
-          [--default-toolchain] [--as=...] [--testonly=...] [--type=...]
+          [--default-toolchain] [--as=...] [--testonly=...]
+          [--type=...|--exclude-type=...]
 
   Finds reverse dependencies (which targets reference something). The input is
   a list containing:
@@ -292,7 +293,7 @@ Options
       be elided. Combine with --all to see a full dependency tree.
 
       Tree output can not be used with the filtering or output flags: --as,
-      --type, --testonly.
+      --type, --exclude-type, --testonly.
 
 )"
 

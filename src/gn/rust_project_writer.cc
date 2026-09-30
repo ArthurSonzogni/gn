@@ -280,9 +280,14 @@ void AddTarget(const BuildSettings* build_settings,
   }
 
   // Add the rest of the crate dependencies.
+  const auto& aliased_deps = target->rust_values().aliased_deps();
   for (const auto& dep : crate_deps) {
     auto idx = lookup[dep];
-    crate.AddDependency(idx, dep->rust_values().crate_name());
+    std::string_view crate_name = dep->rust_values().crate_name();
+    if (auto it = aliased_deps.find(dep->label()); it != aliased_deps.end()) {
+      crate_name = it->second;
+    }
+    crate.AddDependency(idx, std::string(crate_name));
   }
 
   crate_list.push_back(crate);

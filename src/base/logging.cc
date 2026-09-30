@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <stdint.h>
 
+#include <cstdlib>
 #include <iterator>
 #include <thread>
 
@@ -184,6 +185,26 @@ LogMessage::~LogMessage() {
   if (severity_ == LOG_FATAL) {
     abort();
   }
+}
+
+NotReachedLogMessage::NotReachedLogMessage(const char* file, int line)
+    : log_message_(std::in_place, file, line, LOG_FATAL) {}
+
+// Suppress MSVC warning "destructor never returns, potential memory leak".
+#if defined(COMPILER_MSVC)
+#pragma warning(push)
+#pragma warning(disable : 4722)
+#endif
+NotReachedLogMessage::~NotReachedLogMessage() {
+  log_message_.reset();
+  IMMEDIATE_CRASH();
+}
+#if defined(COMPILER_MSVC)
+#pragma warning(pop)
+#endif
+
+std::ostream& NotReachedLogMessage::stream() {
+  return log_message_->stream();
 }
 
 // writes the common header info to the stream

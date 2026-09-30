@@ -7,6 +7,9 @@
 
 #include <string>
 
+#include "gn/err.h"
+
+class ParseNode;
 class Setup;
 class SourceFile;
 
@@ -36,6 +39,8 @@ bool FormatStringToString(const std::string& input,
                           size_t format_width,
                           std::string* output,
                           std::string* dump_output);
+
+Result<std::string> FormatNodeToString(const ParseNode* root);
 
 }  // namespace commands
 

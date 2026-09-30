@@ -162,6 +162,27 @@ TEST(Tokenizer, ByteOffsetOfNthLine) {
   EXPECT_EQ(2u, Tokenizer::ByteOffsetOfNthLine(input2, 2));
 }
 
+TEST(Tokenizer, LocationRangeGetText) {
+  InputFile file(SourceFile("//test"));
+  file.SetContents("first line\nsecond line\nthird line");
+
+  // Entire first line
+  LocationRange first_line(Location(&file, 1, 1), Location(&file, 1, 11));
+  EXPECT_EQ(first_line.GetText(), "first line");
+
+  // Part of second line
+  LocationRange second_part(Location(&file, 2, 8), Location(&file, 2, 12));
+  EXPECT_EQ(second_part.GetText(), "line");
+
+  // Multi-line range
+  LocationRange multi_line(Location(&file, 1, 7), Location(&file, 2, 7));
+  EXPECT_EQ(multi_line.GetText(), "line\nsecond");
+
+  // Null range
+  LocationRange null_range;
+  EXPECT_TRUE(null_range.GetText().empty());
+}
+
 TEST(Tokenizer, Comments) {
   TokenExpectation fn[] = {
       {Token::LINE_COMMENT, "# Stuff"},

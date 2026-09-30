@@ -6,6 +6,7 @@
 #define TOOLS_GN_LOCATION_H_
 
 #include <string>
+#include <string_view>
 
 class InputFile;
 
@@ -52,6 +53,10 @@ class LocationRange {
   }
 
   LocationRange Union(const LocationRange& other) const;
+
+  // Returns the text covered by this range in the source file, or an empty
+  // string_view if the range is null or invalid.
+  std::string_view GetText() const;
 
  private:
   Location begin_;
