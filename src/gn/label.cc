@@ -302,6 +302,29 @@ Label Label::GetWithNoToolchain() const {
   return Label(dir_, name_);
 }
 
+bool Label::Matches(const Label& other, const Label& default_toolchain) const {
+  // First, the dir and name must match.
+  if (dir_ != other.dir_ || name_ != other.name_)
+    return false;
+
+  // If this instance has no toolchain
+  if (toolchain_dir_.is_null()) {
+    return other.toolchain_dir_.is_null() ||
+           (other.toolchain_dir_ == default_toolchain.dir_ &&
+            other.toolchain_name_ == default_toolchain.name_);
+  }
+
+  // If other has no toolchain
+  if (other.toolchain_dir_.is_null()) {
+    return toolchain_dir_ == default_toolchain.dir_ &&
+           toolchain_name_ == default_toolchain.name_;
+  }
+
+  // Otherwise, both explicit toolchains must match
+  return toolchain_dir_ == other.toolchain_dir_ &&
+         toolchain_name_ == other.toolchain_name_;
+}
+
 std::string Label::GetUserVisibleName(bool include_toolchain) const {
   std::string ret;
   ret.reserve(dir_.value().size() + name_.str().size() + 1);

@@ -1354,20 +1354,21 @@ struct MetadataWalker {
 
       // Otherwise, look through the target's deps for the specified one.
       // Canonicalize the label if possible.
+      const Settings* settings = target.settings();
+      const Label& toolchain_label = settings->toolchain_label();
       Label next_label = Label::Resolve(
-          current_dir, target.settings()->build_settings()->root_path_utf8(),
-          target.settings()->toolchain_label(), next, &err_);
+          current_dir, settings->build_settings()->root_path_utf8(),
+          toolchain_label, next, &err_);
       if (next_label.is_null()) {
         err_ = Err(next.origin(), std::string("Failed to canonicalize ") +
                                       next.string_value() + std::string("."));
         return false;
       }
-      std::string canonicalize_next_label = next_label.GetUserVisibleName(true);
 
       bool found_next = false;
       for (const auto& dep : all_deps) {
         // Match against the label with the toolchain.
-        if (dep.label.GetUserVisibleName(true) == canonicalize_next_label) {
+        if (dep.label.Matches(next_label, toolchain_label)) {
           // If we haven't walked this dep yet, go down into it.
           if (targets_walked_.add(dep.ptr)) {
             if (!Walk(*dep.ptr, false))
@@ -1381,7 +1382,7 @@ struct MetadataWalker {
       if (!found_next) {
         for (const auto& dep : target.validations()) {
           // Match against the label with the toolchain.
-          if (dep.label.GetUserVisibleName(true) == canonicalize_next_label) {
+          if (dep.label.Matches(next_label, toolchain_label)) {
             // If we haven't walked this dep yet, go down into it.
             if (targets_walked_.add(dep.ptr)) {
               if (!Walk(*dep.ptr, false))
@@ -1398,7 +1399,8 @@ struct MetadataWalker {
       if (!found_next) {
         err_ =
             Err(next.origin(),
-                std::string("I was expecting ") + canonicalize_next_label +
+                std::string("I was expecting ") +
+                    next_label.GetUserVisibleName(true) +
                     std::string(" to be a dependency of ") +
                     target.label().GetUserVisibleName(true) +
                     ". Make sure it's included in the deps or data_deps, and "

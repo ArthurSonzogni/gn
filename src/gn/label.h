@@ -69,6 +69,11 @@ class Label {
   // non-default ones, so this can make certain output more clear.
   std::string GetUserVisibleName(const Label& default_toolchain) const;
 
+  // Return true if this instance matches |other|. |default_toolchain| is
+  // used when either label doesn't have a toolchain suffix to ensure
+  // canonical and non-canonical labels are compared correctly.
+  bool Matches(const Label& other, const Label& default_toolchain) const;
+
   bool operator==(const Label& other) const {
     return hash_ == other.hash_ && name_.SameAs(other.name_) &&
            dir_ == other.dir_ && toolchain_dir_ == other.toolchain_dir_ &&
