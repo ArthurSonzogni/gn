@@ -14,8 +14,7 @@ use crate::opaque::{NonOpaque, OpaqueSized};
 ///
 /// Use this for one of two reasons:
 /// * C++ returns a slice of an opaque type, for which &[T] does not work.
-/// * C++ returns a std::vector<T>, in which case you should use
-///   `OwnedSlice<T>`.
+/// * C++ returns a std::vector<T>, in which case you should use `OwnedSlice<T>`.
 ///
 /// Note that either as_slice or iter is implemented, but not both, depending
 /// on whether T is opaque.

@@ -3,6 +3,9 @@
 # Automatically wrap comments and documentation at the line limit
 wrap_comments = true
 
+# Match the default line width
+comment_width = 100
+
 # Ensure match blocks have trailing commas for cleaner git diffs
 match_block_trailing_comma = true
 

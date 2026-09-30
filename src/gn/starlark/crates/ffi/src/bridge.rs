@@ -10,11 +10,9 @@ use types::EvaluatorContextExt as _;
 ///
 /// This file does several things:
 /// * It generates types usable by rust.
-/// * The `cxxbridge --header` command can be ran to re-generate the C++
-///   headers.
+/// * The `cxxbridge --header` command can be ran to re-generate the C++ headers.
 ///   * This allows for C++ code to #include rust types
-/// * The `cxxbridge` command generates shims to allow us to use C++ types in
-///   rust.
+/// * The `cxxbridge` command generates shims to allow us to use C++ types in rust.
 use crate::{session::Session, target::Target};
 
 pub struct OwnedFrozenValue(pub starlark::values::OwnedFrozenValue);
