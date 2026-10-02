@@ -259,9 +259,6 @@ def main(argv):
                     action='store_true',
                     help=('Generate compile_commands.json with ' +
                           '`ninja -t compdb`.'))
-  # TODO: Remove flag once this is no longer referenced by CI.
-  args_list.add('--starlark', action='store_true', default=True,
-                    help='Enable (experimental) starlark integration')
   args_list.add('--gen', default=None,
                     metavar='SRC_DIR=OUT_DIR', dest='gen_target',
                     help=('Generate ninja targets that invoke `gn gen` on an ' +
