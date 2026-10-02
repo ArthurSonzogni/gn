@@ -179,12 +179,12 @@ def RunSteps(api, repository):
   configs = [
       {
           'name': 'debug',
-          'args': ['-d', '--use-asan', '--use-ubsan', '--starlark'],
+          'args': ['-d', '--use-asan', '--use-ubsan'],
           'targets': [api.target.host],
       },
       {
           'name': 'release',
-          'args': ['--use-lto', '--use-icf', '--starlark'],
+          'args': ['--use-lto', '--use-icf'],
           'targets': release_targets(),
           # TODO: Enable this for OS X and Windows.
           'use_jemalloc': api.platform.is_linux,
