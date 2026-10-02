@@ -5,8 +5,10 @@
 #ifndef BASE_WIN_REGISTRY_H_
 #define BASE_WIN_REGISTRY_H_
 
-#include <stdint.h>
 #include <windows.h>
+
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 

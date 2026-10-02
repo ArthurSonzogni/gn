@@ -12,7 +12,6 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/strings/utf_string_conversions.h"
-
 #include "gn/builder.h"
 #include "gn/config_values_extractors.h"
 #include "gn/deps_iterator.h"

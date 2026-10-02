@@ -14,7 +14,6 @@
 #include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
-
 #include "gn/string_atom.h"
 
 class SourceDir;

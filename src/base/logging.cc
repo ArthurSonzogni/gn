@@ -14,8 +14,9 @@
 #include "util/build_config.h"
 
 #if defined(OS_WIN)
-#include <io.h>
 #include <windows.h>
+
+#include <io.h>
 // Windows warns on using write().  It prefers _write().
 #define write(fd, buf, count) _write(fd, buf, static_cast<unsigned int>(count))
 // Windows doesn't define STDERR_FILENO.  Define it here.

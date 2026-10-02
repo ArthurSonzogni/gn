@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "gn/functions.h"
-
 #include "gn/parse_tree.h"
 #include "gn/scope.h"
 #include "gn/template.h"

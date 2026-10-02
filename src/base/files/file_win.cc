@@ -4,13 +4,13 @@
 
 #include "base/files/file.h"
 
+#include <windows.h>
+
 #include <io.h>
 #include <stdint.h>
 
 #include "base/logging.h"
 #include "base/win/win_util.h"
-
-#include <windows.h>
 
 namespace base {
 

@@ -5,10 +5,10 @@
 #ifndef TOOLS_GN_RESOLVED_TARGET_DEPS_H_
 #define TOOLS_GN_RESOLVED_TARGET_DEPS_H_
 
+#include <memory>
+
 #include "base/containers/span.h"
 #include "gn/label_ptr.h"
-
-#include <memory>
 
 // A class used to record the dependencies of a given Target in
 // a way that is much more efficient to iterate over than having three

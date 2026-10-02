@@ -5,10 +5,10 @@
 #ifndef TOOLS_GN_LABEL_H_
 #define TOOLS_GN_LABEL_H_
 
+#include <stddef.h>
+
 #include <string_view>
 #include <tuple>
-
-#include <stddef.h>
 
 #include "gn/source_dir.h"
 #include "gn/string_atom.h"

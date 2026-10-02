@@ -13,7 +13,6 @@
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
-
 #include "gn/string_atom.h"
 
 class Err;

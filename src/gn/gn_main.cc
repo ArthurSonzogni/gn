@@ -12,11 +12,10 @@
 #include "gn/location.h"
 #include "gn/standard_out.h"
 #include "gn/switches.h"
+#include "last_commit_position.h"
 #include "util/build_config.h"
 #include "util/msg_loop.h"
 #include "util/sys_info.h"
-
-#include "last_commit_position.h"
 
 namespace {
 

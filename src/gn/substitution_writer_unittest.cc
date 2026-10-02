@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/substitution_writer.h"
+
 #include <sstream>
 
 #include "gn/c_substitution_type.h"
@@ -9,7 +11,6 @@
 #include "gn/escape.h"
 #include "gn/substitution_list.h"
 #include "gn/substitution_pattern.h"
-#include "gn/substitution_writer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/build_config.h"

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/path_output.h"
+
 #include <sstream>
 
 #include "base/files/file_path.h"
 #include "gn/output_file.h"
-#include "gn/path_output.h"
 #include "gn/source_dir.h"
 #include "gn/source_file.h"
 #include "util/build_config.h"

@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "gn/functions.h"
-
 #include "gn/config_values_generator.h"
 #include "gn/err.h"
+#include "gn/functions.h"
 #include "gn/parse_tree.h"
 #include "gn/scope.h"
 #include "gn/target_generator.h"

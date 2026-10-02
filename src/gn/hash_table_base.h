@@ -5,11 +5,12 @@
 #ifndef TOOLS_GN_HASH_TABLE_BASE_H_
 #define TOOLS_GN_HASH_TABLE_BASE_H_
 
-#include "base/compiler_specific.h"
-
 #include <stdlib.h>
+
 #include <type_traits>
 #include <utility>
+
+#include "base/compiler_specific.h"
 
 // IMPORTANT DISCLAIMER:
 //

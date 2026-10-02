@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/escape.h"
+
 #include "gn/string_output_buffer.h"
 #include "util/test/test.h"
 

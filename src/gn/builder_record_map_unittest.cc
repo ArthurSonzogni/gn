@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 
 #include "gn/builder_record_map.h"
+
 #include "gn/builder_record.h"
 #include "gn/label.h"
 #include "gn/source_dir.h"

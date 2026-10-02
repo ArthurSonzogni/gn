@@ -17,8 +17,9 @@
 #include "util/build_config.h"
 
 #if defined(OS_WIN)
-#include <direct.h>
 #include <windows.h>
+
+#include <direct.h>
 #endif
 
 namespace {

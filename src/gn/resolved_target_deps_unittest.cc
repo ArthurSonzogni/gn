@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/resolved_target_deps.h"
+
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
 

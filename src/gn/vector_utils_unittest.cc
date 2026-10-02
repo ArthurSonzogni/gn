@@ -4,9 +4,9 @@
 
 #include "gn/vector_utils.h"
 
-#include "util/test/test.h"
-
 #include <string>
+
+#include "util/test/test.h"
 
 TEST(VectorSetSorter, AsVectorWithStrings) {
   VectorSetSorter<std::string> sorter;

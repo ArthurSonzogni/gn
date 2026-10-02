@@ -10,11 +10,13 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+
 #include "base/strings/utf_string_conversions.h"
 #include "util/sys_info.h"
 #else
 #include <fcntl.h>
 #include <unistd.h>
+
 #include "base/posix/eintr_wrapper.h"
 #endif
 

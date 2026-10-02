@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/general_tool.h"
+
 #include "gn/target.h"
 
 const char* GeneralTool::kGeneralToolStamp = "stamp";

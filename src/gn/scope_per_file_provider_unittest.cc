@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/scope_per_file_provider.h"
+
 #include "gn/args.h"
 #include "gn/build_settings.h"
 #include "gn/settings.h"

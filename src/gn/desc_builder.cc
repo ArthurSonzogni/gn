@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/desc_builder.h"
+
 #include <memory>
 #include <set>
 
@@ -11,7 +13,6 @@
 #include "gn/config.h"
 #include "gn/config_values_extractors.h"
 #include "gn/deps_iterator.h"
-#include "gn/desc_builder.h"
 #include "gn/input_file.h"
 #include "gn/parse_tree.h"
 #include "gn/resolved_target_data.h"

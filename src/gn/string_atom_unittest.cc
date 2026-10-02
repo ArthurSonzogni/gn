@@ -4,13 +4,13 @@
 
 #include "gn/string_atom.h"
 
-#include "util/test/test.h"
-
 #include <algorithm>
 #include <array>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "util/test/test.h"
 
 TEST(StringAtomTest, EmptyString) {
   StringAtom key1;

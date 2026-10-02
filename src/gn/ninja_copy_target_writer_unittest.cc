@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/ninja_copy_target_writer.h"
+
 #include <algorithm>
 #include <sstream>
 
-#include "gn/ninja_copy_target_writer.h"
 #include "gn/substitution_list.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"

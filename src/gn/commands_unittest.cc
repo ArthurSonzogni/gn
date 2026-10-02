@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/commands.h"
+
 #include <stddef.h>
 
 #include "base/command_line.h"
 #include "base/values.h"
-#include "gn/commands.h"
 #include "gn/label_pattern.h"
 #include "gn/standard_out.h"
 #include "gn/target.h"

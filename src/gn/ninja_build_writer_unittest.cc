@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/ninja_build_writer.h"
+
 #include <fstream>
 #include <sstream>
 
 #include "base/command_line.h"
 #include "base/files/file_util.h"
-#include "gn/ninja_build_writer.h"
 #include "gn/pool.h"
 #include "gn/scheduler.h"
 #include "gn/switches.h"

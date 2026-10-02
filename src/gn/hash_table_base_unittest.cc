@@ -4,10 +4,10 @@
 
 #include "hash_table_base.h"
 
-#include "util/test/test.h"
-
 #include <algorithm>
 #include <vector>
+
+#include "util/test/test.h"
 
 // This unit-test is also used to illustrate how to use HashTableBase<>
 // in a concrete way. Here, each node is a simple pointer to a Int class

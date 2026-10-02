@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string.h>
-
-#include "gn/input_file.h"
-#include "gn/parse_tree.h"
 #include "gn/source_file.h"
+
+#include <string.h>
 
 #include "base/logging.h"
 #include "gn/filesystem_utils.h"
+#include "gn/input_file.h"
+#include "gn/parse_tree.h"
 #include "gn/source_dir.h"
 #include "util/build_config.h"
 

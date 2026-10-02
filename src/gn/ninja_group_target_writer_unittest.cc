@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/ninja_group_target_writer.h"
+
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"

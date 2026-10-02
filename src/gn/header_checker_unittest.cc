@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/header_checker.h"
+
 #include <ostream>
 #include <vector>
 
-#include "gn/header_checker.h"
 #include "gn/scheduler.h"
 #include "gn/target.h"
 #include "gn/test_with_scheduler.h"

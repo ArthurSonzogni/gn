@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/json_project_writer.h"
+
 #include "base/strings/string_util.h"
 #include "gn/substitution_list.h"
 #include "gn/target.h"

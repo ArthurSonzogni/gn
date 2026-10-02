@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/label_pattern.h"
+
 #include <stddef.h>
 
 #include <iterator>
 
 #include "gn/err.h"
-#include "gn/label_pattern.h"
 #include "gn/value.h"
 #include "util/test/test.h"
 
