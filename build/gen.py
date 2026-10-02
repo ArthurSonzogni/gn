@@ -259,7 +259,8 @@ def main(argv):
                     action='store_true',
                     help=('Generate compile_commands.json with ' +
                           '`ninja -t compdb`.'))
-  args_list.add('--starlark', action='store_true', default=False,
+  # TODO: Remove flag once this is no longer referenced by CI.
+  args_list.add('--starlark', action='store_true', default=True,
                     help='Enable (experimental) starlark integration')
   args_list.add('--gen', default=None,
                     metavar='SRC_DIR=OUT_DIR', dest='gen_target',
@@ -475,28 +476,27 @@ def WriteGenericNinja(path, static_libraries, executables,
 
   ninja_lines.append('')  # Make sure the file ends with a newline.
 
-  if options.starlark:
-    starlark_common_args = {
-        'crate_dir': ninja.source_file('src/gn/starlark'),
-        'target_dir': 'starlark',
-        'cxxflags': ' '.join(cflags),
-        'ldflags': ' '.join(ldflags),
-    }
-    ninja.CargoLibTarget(
-        library_to_a('gn_starlark'),
-        cargo_flags='--features ninja',
-        **starlark_common_args,
-    )
-    rust_tests = ninja.CargoTestTarget(
-        'rust_unittests',
-        cargo_flags='--workspace --features ninja',
-        implicit_inputs=[
-            library_to_a('base'),
-            library_to_a('gn_lib'),
-            library_to_a('string_atom'),
-        ],
-        **starlark_common_args,
-    )
+  starlark_common_args = {
+      'crate_dir': ninja.source_file('src/gn/starlark'),
+      'target_dir': 'starlark',
+      'cxxflags': ' '.join(cflags),
+      'ldflags': ' '.join(ldflags),
+  }
+  ninja.CargoLibTarget(
+      library_to_a('gn_starlark'),
+      cargo_flags='--features ninja',
+      **starlark_common_args,
+  )
+  rust_tests = ninja.CargoTestTarget(
+      'rust_unittests',
+      cargo_flags='--workspace --features ninja',
+      implicit_inputs=[
+          library_to_a('base'),
+          library_to_a('gn_lib'),
+          library_to_a('string_atom'),
+      ],
+      **starlark_common_args,
+  )
 
   ninja.Phony(
       'run_tests',
@@ -508,17 +508,17 @@ def WriteGenericNinja(path, static_libraries, executables,
           ),
           ninja.Phony(
               'run_integration_tests',
-              inputs=[ninja.IntegrationTest('simple')]
-              + ([ninja.IntegrationTest('starlark')]
-                 if options.starlark else []),
+              inputs=[
+                ninja.IntegrationTest('simple'),
+                ninja.IntegrationTest('starlark')
+              ],
           ),
-      ] + ([
           ninja.RunBinary(
               'run_rust_unittests',
               inputs=[rust_tests],
               args='--quiet',
           )
-      ] if options.starlark else []),
+      ],
   )
 
   ninja.Phony(
@@ -540,14 +540,13 @@ def WriteGenericNinja(path, static_libraries, executables,
               args='--diff',
               env=f'NOBUILD=1 NINJA_OUT_DIR={os.path.relpath(build_dir, REPO_ROOT)}',
           ),
-      ] + ([
           ninja.CargoClippyTarget(
               'check_linter',
               cargo_flags='--workspace --all-targets',
               clippy_flags='-D warnings',
               **starlark_common_args,
           ),
-      ] if options.starlark else []),
+      ],
   )
 
   if options.gen_target:
@@ -1057,6 +1056,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/edit_command_unittest.cc',
         'src/gn/escape_unittest.cc',
         'src/gn/exec_process_unittest.cc',
+        'src/gn/ffi/session_unittest.cc',
         'src/gn/filesystem_utils_unittest.cc',
         'src/gn/file_writer_unittest.cc',
         'src/gn/frameworks_utils_unittest.cc',
@@ -1209,12 +1209,8 @@ def WriteGNNinja(path, platform, host, options, args_list):
   executables['gn']['libs'].extend(static_libraries.keys())
   executables['gn_unittests']['libs'].extend(static_libraries.keys())
 
-  if options.starlark:
-    executables['gn_unittests']['sources'].extend([
-        'src/gn/ffi/session_unittest.cc',
-    ])
-    executables['gn_unittests']['libs'].append('gn_starlark')
-    executables['gn']['libs'].append('gn_starlark')
+  executables['gn_unittests']['libs'].append('gn_starlark')
+  executables['gn']['libs'].append('gn_starlark')
 
   # Write the absolute path of the source root to a file in the output directory
   # so that tests can locate the source tree robustly.
