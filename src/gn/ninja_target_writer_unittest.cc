@@ -894,4 +894,28 @@ TEST(NinjaTargetWriter, HardDeps) {
       "build phony/foo/action4.harddeps: phony phony/foo/action3 "
       "phony/foo/mid\n",
       hard_deps_rule(&action4));
+
+  // Targets with check_includes_strict = true only include public_deps in
+  // their hard deps, while still including private deps in their own input
+  // deps.
+  Target strict(setup.settings(), Label(SourceDir("//foo/"), "strict"));
+  make_source_set(&strict);
+  strict.set_check_includes_strict(true);
+  strict.public_deps().push_back(LabelTargetPair(&single));
+  strict.private_deps().push_back(LabelTargetPair(&mid));
+  strict.private_deps().push_back(LabelTargetPair(&action3));
+  ASSERT_TRUE(strict.OnResolved(&err));
+  EXPECT_EQ("", hard_deps_rule(&strict));
+  EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&strict));
+  {
+    std::ostringstream stream;
+    TestingNinjaTargetWriter writer(&strict, setup.toolchain(), stream);
+    auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 1u);
+    EXPECT_EQ("", stream.str());
+    EXPECT_TRUE(deps.implicit.empty());
+    ASSERT_EQ(3u, deps.order_only.size());
+    EXPECT_EQ("phony/foo/action1", deps.order_only[0].value());
+    EXPECT_EQ("phony/foo/action3", deps.order_only[1].value());
+    EXPECT_EQ("phony/foo/mid.harddeps", deps.order_only[2].value());
+  }
 }

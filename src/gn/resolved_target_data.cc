@@ -72,7 +72,21 @@ bool ResolvedTargetData::ForwardsHardDeps(const Target* dep) {
 // Keep in sync with NinjaTargetWriter::WriteHardDepsStampOrPhony().
 void ResolvedTargetData::ComputeHardDeps(TargetInfo* info) const {
   TargetSet all_hard_deps;
-  for (const Target* dep : info->deps.linked_deps()) {
+  // Normally, both public_deps and private_deps (i.e. linked_deps()) must be
+  // traversed because standard `gn check` allows a target's public headers to
+  // #include headers from its private deps, meaning dependents might
+  // transitively include generated headers from private deps.
+  //
+  // However, when `check_includes_strict` is enabled, `gn check` guarantees
+  // that public headers do not #include anything from private deps. Thus,
+  // dependents only need hard deps from `public_deps()`. The target's own
+  // compilation still needs hard deps from its `private_deps()`, which are
+  // added directly in NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep().
+  base::span<const Target*> deps =
+      info->target->check_includes_strict() && !info->target->hard_dep()
+          ? info->deps.public_deps()
+          : info->deps.linked_deps();
+  for (const Target* dep : deps) {
     // Direct hard dependencies
     if (info->target->hard_dep() || dep->hard_dep()) {
       all_hard_deps.insert(dep);

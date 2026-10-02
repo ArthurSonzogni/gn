@@ -5776,7 +5776,8 @@
     compile this target's public headers), but they are not transitively
     forwarded to dependents.
   * "deps" act as private implementation dependencies (dependencies required to
-    compile this target's sources).
+    compile this target's sources). This also allows dependent targets to
+    compile without waiting for this target's private "deps".
 
   When false (the default), the default loose include checking rules apply.
 ```

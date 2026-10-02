@@ -290,6 +290,31 @@ void NinjaTargetWriter::AppendHardDepsOutputs(
     outputs->push_back(single_hard_dep->dependency_output());
 }
 
+namespace {
+
+// Appends the ninja outputs representing hard dependencies for the given list
+// of direct |deps| of |target|, deduplicating the resulting |outputs|.
+// For each dep, if it (or |target|) is a direct hard_dep, its dependency output
+// is added directly; otherwise, if it forwards hard deps, its aggregated hard
+// deps output (at most one file/phony per dep) is appended.
+void AppendHardDepsOutputsForDeps(const Target* target,
+                                  base::span<const Target*> deps,
+                                  const ResolvedTargetData& resolved,
+                                  std::vector<OutputFile>* outputs) {
+  for (const Target* dep : deps) {
+    if (target->hard_dep() || dep->hard_dep()) {
+      if (IsListedHardDep(dep))
+        outputs->push_back(dep->dependency_output());
+    } else if (ResolvedTargetData::ForwardsHardDeps(dep)) {
+      NinjaTargetWriter::AppendHardDepsOutputs(dep, resolved, outputs);
+    }
+  }
+  std::sort(outputs->begin(), outputs->end());
+  outputs->erase(std::unique(outputs->begin(), outputs->end()), outputs->end());
+}
+
+}  // namespace
+
 // static
 void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
                                                   ResolvedTargetData* resolved,
@@ -309,18 +334,16 @@ void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
 
   // Keep in sync with ResolvedTargetData::ComputeHardDeps(). This produces
   // the same set of targets, but refers to the hard deps rules of deps
-  // instead of flattening them.
+  // instead of flattening them. Because dependents refer to this rule, only
+  // public_deps are included when check_includes_strict is set.
+  const ResolvedTargetDeps& target_deps = resolved->GetTargetDeps(target);
   std::vector<OutputFile> deps;
-  for (const Target* dep : resolved->GetTargetDeps(target).linked_deps()) {
-    if (target->hard_dep() || dep->hard_dep()) {
-      if (IsListedHardDep(dep))
-        deps.push_back(dep->dependency_output());
-    } else if (ResolvedTargetData::ForwardsHardDeps(dep)) {
-      AppendHardDepsOutputs(dep, *resolved, &deps);
-    }
-  }
-  std::sort(deps.begin(), deps.end());
-  deps.erase(std::unique(deps.begin(), deps.end()), deps.end());
+  AppendHardDepsOutputsForDeps(
+      target,
+      target->check_includes_strict() && !target->hard_dep()
+          ? target_deps.public_deps()
+          : target_deps.linked_deps(),
+      *resolved, &deps);
 
   PathOutput path_output(build_settings->build_dir(),
                          build_settings->root_path_utf8(), ESCAPE_NINJA);
@@ -639,6 +662,17 @@ NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
     // depends on all hard deps that aren't BUNDLE_DATA, to not write
     // thousands of hard deps for every target.
     AppendHardDepsOutputs(target_, resolved(), &hard_deps_outputs);
+    if (target_->check_includes_strict() && !target_->hard_dep()) {
+      // When check_includes_strict is enabled, GetHardDeps(target_) and
+      // <target>.harddeps only include hard deps from public_deps so that
+      // private hard deps are not forwarded to dependents. However, compiling
+      // this target's own sources may still #include generated headers from
+      // its private_deps, so include their hard deps in this target's own
+      // input deps.
+      AppendHardDepsOutputsForDeps(
+          target_, resolved().GetTargetDeps(target_).private_deps(), resolved(),
+          &hard_deps_outputs);
+    }
   }
 
   // Additional hard dependencies passed in. These are usually empty or small,

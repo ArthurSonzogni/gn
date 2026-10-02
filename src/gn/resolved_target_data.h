@@ -106,9 +106,11 @@ class ResolvedTargetData {
     return GetTargetFrameworkInfo(target)->weak_libraries;
   }
 
-  // Retrieves a set of hard dependencies for this target.
-  // All hard deps from this target and all dependencies, but not the
-  // target itself.
+  // Retrieves a set of hard dependencies for this target that are propagated
+  // to dependents (and used to construct this target's .harddeps rule).
+  // Includes all hard deps from this target's dependencies, but not the target
+  // itself. When check_includes_strict is set on a non-hard_dep target, only
+  // hard deps from public_deps are included here.
   const TargetSet& GetHardDeps(const Target* target) const {
     return GetTargetHardDeps(target)->hard_deps;
   }

@@ -530,3 +530,27 @@ TEST(ResolvedTargetDataTest, GroupPublicInputsInheritance) {
   // A2 has G2 as private dep, so A2 does not export public_inputs.
   EXPECT_FALSE(resolved.ExportsPublicInputs(&a2));
 }
+
+TEST(ResolvedTargetDataTest, HardDepsStrictIncludes) {
+  TestWithScope setup;
+  Err err;
+
+  TestTarget pub_action(setup, "//foo:pub_action", Target::ACTION);
+  TestTarget priv_action(setup, "//foo:priv_action", Target::ACTION);
+
+  TestTarget strict(setup, "//foo:strict", Target::SOURCE_SET);
+  strict.set_check_includes_strict(true);
+  strict.public_deps().push_back(LabelTargetPair(&pub_action));
+  strict.private_deps().push_back(LabelTargetPair(&priv_action));
+
+  ASSERT_TRUE(pub_action.OnResolved(&err));
+  ASSERT_TRUE(priv_action.OnResolved(&err));
+  ASSERT_TRUE(strict.OnResolved(&err));
+
+  ResolvedTargetData resolved;
+
+  const TargetSet& strict_hard_deps = resolved.GetHardDeps(&strict);
+  EXPECT_EQ(1u, strict_hard_deps.size());
+  EXPECT_TRUE(strict_hard_deps.contains(&pub_action));
+  EXPECT_FALSE(strict_hard_deps.contains(&priv_action));
+}
