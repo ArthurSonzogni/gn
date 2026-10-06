@@ -69,9 +69,6 @@ void TargetGenerator::Run() {
   if (!FillAssertNoDeps())
     return;
 
-  if (!FillCheckIncludesStrict())
-    return;
-
   if (!Visibility::FillItemVisibility(target_, scope_, err_))
     return;
 
@@ -80,6 +77,14 @@ void TargetGenerator::Run() {
 
   // Do type-specific generation.
   DoRun();
+
+  if (err_->has_error())
+    return;
+
+  // FillCheckIncludesStrict requires public and sources to be set.
+  // This only occurs during DoRun, so it needs to go after it
+  if (!FillCheckIncludesStrict())
+    return;
 }
 
 // static
@@ -399,8 +404,17 @@ bool TargetGenerator::FillCheckIncludes() {
 
 bool TargetGenerator::FillCheckIncludesStrict() {
   const Value* value = scope_->GetValue(variables::kCheckIncludesStrict, true);
-  if (!value)
+  if (!value) {
+    // We want to enable check_includes_strict by default *where it makes
+    // sense*. If there were no header files used, there was no `public`, and
+    // thus `public_deps` doesn't make any sense except to intentionally
+    // re-export dependencies.
+    target_->set_check_includes_strict(
+        target_->all_headers_public()
+            ? target_->source_types_used().Get(SourceFile::SOURCE_H)
+            : !target_->public_headers().empty());
     return true;
+  }
   if (!value->VerifyTypeIs(Value::BOOLEAN, err_))
     return false;
   target_->set_check_includes_strict(value->boolean_value());
