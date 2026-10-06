@@ -24,18 +24,3 @@ if [ -z "${CLANG_FORMAT:-}" ]; then
 fi
 
 git ls-files | grep -E '\.(h|cc)$' | xargs "$CLANG_FORMAT" "${clang_format_opts[@]}"
-
-if command -v cargo >/dev/null 2>&1; then
-  cargo_cmd=(cargo)
-  if "${cargo_cmd[@]}" +nightly --version >/dev/null 2>&1; then
-    cargo_cmd+=(+nightly)
-    fmt_opts+=(-- --config-path rustfmt-nightly.toml)
-  fi
-  # rustfmt is not always installed, so check for it first.
-  cargo_fmt_cmd+=("${cargo_cmd[@]}" fmt)
-  if "${cargo_fmt_cmd[@]}" --version >/dev/null 2>&1; then
-    (cd src/gn/starlark && "${cargo_fmt_cmd[@]}" --all "${fmt_opts[@]}")
-  else
-    echo >&2 "WARNING: rustfmt not installed, reformatting Rust sources skipped."
-  fi
-fi
