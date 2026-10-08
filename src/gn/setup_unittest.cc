@@ -206,6 +206,45 @@ export_compile_commands = [ "//base/*" ]
   EXPECT_EQ("//src/gn:*", export_cc[2].Describe());
 }
 
+TEST_F(SetupTest, NoCheckGeneratedTargets) {
+  base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+
+  // no_check_generated_targets can be combined with no_check_targets.
+  const char kDotfileContents[] = R"(
+buildconfig = "//BUILDCONFIG.gn"
+no_check_targets = [ "//third_party/*" ]
+no_check_generated_targets = [
+  "//base:base",
+  "//foo/*",
+]
+)";
+
+  // Create a temp directory containing the build.
+  base::ScopedTempDir in_temp_dir;
+  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")), kDotfileContents);
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  cmdline.AppendSwitch(switches::kRoot, FilePathToUTF8(in_path));
+
+  // Create another temp dir for writing the generated files to.
+  base::ScopedTempDir build_temp_dir;
+  ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
+
+  Setup setup;
+  Err err;
+  EXPECT_TRUE(setup.DoSetupWithErr(FilePathToUTF8(build_temp_dir.GetPath()),
+                                   true, cmdline, &err));
+
+  ASSERT_TRUE(setup.no_check_patterns());
+  EXPECT_EQ(1u, setup.no_check_patterns()->size());
+  const std::vector<LabelPattern>& patterns =
+      setup.no_check_generated_patterns();
+  ASSERT_EQ(2u, patterns.size());
+  EXPECT_EQ("//base:base", patterns[0].Describe());
+  EXPECT_EQ("//foo/*", patterns[1].Describe());
+}
+
 TEST_F(SetupTest, RootPatternsInGnConfig) {
   base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
 

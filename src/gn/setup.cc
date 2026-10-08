@@ -117,6 +117,18 @@ Variables
       The format of this list is identical to that of "visibility" so see "gn
       help visibility" for examples.
 
+  no_check_generated_targets [optional]
+      A list of labels and label patterns whose generated files should *not*
+      be checked when running "gn check --check-generated". Unlike
+      no_check_targets, the other files of these targets are still checked.
+      Generated files are the target's files in the output directory, such as
+      action outputs listed in its sources. This list can be combined with
+      check_targets or no_check_targets. To bypass it, request an explicit
+      check of targets, like "//*".
+
+      The format of this list is identical to that of "visibility" so see "gn
+      help visibility" for examples.
+
   check_system_includes [optional]
       Boolean to control whether system style includes are checked by default
       when running "gn check" or "gn gen --check".  System style includes are
@@ -641,8 +653,8 @@ bool Setup::RunPostMessageLoop(const base::CommandLine& cmdline) {
     bool fix = cmdline.HasSwitch("fix");
 
     if (!commands::CheckPublicHeaders(&build_settings_, all_targets, to_check,
-                                      false, false, check_system_includes_, fix,
-                                      this)) {
+                                      {}, false, false, check_system_includes_,
+                                      fix, this)) {
       return false;
     }
   }
@@ -1202,6 +1214,18 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
     no_check_patterns_ = std::make_unique<std::vector<LabelPattern>>();
     ExtractListOfLabelPatterns(&build_settings_, *no_check_targets_value,
                                current_dir, no_check_patterns_.get(), err);
+    if (err->has_error()) {
+      return false;
+    }
+  }
+
+  // Targets whose generated files are not checked.
+  const Value* no_check_generated_targets_value =
+      dotfile_scope_.GetValue("no_check_generated_targets", true);
+  if (no_check_generated_targets_value) {
+    ExtractListOfLabelPatterns(&build_settings_,
+                               *no_check_generated_targets_value, current_dir,
+                               &no_check_generated_patterns_, err);
     if (err->has_error()) {
       return false;
     }

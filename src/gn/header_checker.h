@@ -218,9 +218,13 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // error, fills the given vector with the violations and returns false.
   // Returns true on success.
   //
+  // The generated files of the targets in no_check_generated are not checked
+  // even if check_generated is set. Their other files are still checked.
+  //
   // force_check, if true, will override targets opting out of header checking
   // with "check_includes = false" and will check them anyway.
   bool Run(const std::vector<const Target*>& to_check,
+           const std::vector<const Target*>& no_check_generated,
            bool force_check,
            std::vector<Violation>* violations);
 
@@ -242,6 +246,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
                            CheckIncludesStrictPrivateInPublicHeader);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest,
                            CheckIncludesStrictSameTargetPrivateHeader);
+  FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, NoCheckGenerated);
 
   ~HeaderChecker();
 
@@ -280,9 +285,11 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   using PathExistsCallback = std::function<bool(const base::FilePath& path)>;
 
   // Collects the files of the given targets that need checking, each with the
-  // targets it is checked against.
+  // targets it is checked against. Generated files are not checked against
+  // the targets in no_check_generated.
   std::vector<FileInformation> FilesToCheck(
-      const std::unordered_set<const Target*>& to_check) const;
+      const std::unordered_set<const Target*>& to_check,
+      const std::unordered_set<const Target*>& no_check_generated) const;
 
   // Backend for Run() that checks the given files. The errors_ list will be
   // populated on failure.

@@ -129,6 +129,13 @@ class Setup {
     return no_check_patterns_.get();
   }
 
+  // Read from the .gn file, these are the targets whose generated files are
+  // *not* checked by "gn check --check-generated". Empty if the .gn file does
+  // not specify anything.
+  const std::vector<LabelPattern>& no_check_generated_patterns() const {
+    return no_check_generated_patterns_;
+  }
+
   // This is a combination of the export_compile_commands list in the dotfile,
   // and any additions specified on the command-line.
   const std::vector<LabelPattern>& export_compile_commands() const {
@@ -197,6 +204,7 @@ class Setup {
   // See getter for info.
   std::unique_ptr<std::vector<LabelPattern>> check_patterns_;
   std::unique_ptr<std::vector<LabelPattern>> no_check_patterns_;
+  std::vector<LabelPattern> no_check_generated_patterns_;
 
   Scheduler scheduler_;
 

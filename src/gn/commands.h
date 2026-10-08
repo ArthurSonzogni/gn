@@ -424,13 +424,15 @@ bool ResolveFromCommandLineInput(
 //
 // Generated files are normally not checked since they do not exist
 // unless a build has been run, but passing true for |check_generated|
-// will attempt to check them anyway, assuming they exist.
+// will attempt to check them anyway, assuming they exist. The generated
+// files of the targets in |no_check_generated| are not checked even then.
 //
 // On success, returns true. If the check fails, the error(s) will be printed
 // to stdout and false will be returned.
 bool CheckPublicHeaders(const BuildSettings* build_settings,
                         const std::vector<const Target*>& all_targets,
                         const std::vector<const Target*>& to_check,
+                        const std::vector<const Target*>& no_check_generated,
                         bool force_check,
                         bool check_generated,
                         bool check_system,
