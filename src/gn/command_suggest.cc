@@ -1022,8 +1022,11 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
       std::string_view includer_dir = includer->label().dir().value();
       std::string_view included_dir = included->label().dir().value();
       // SourceDir always ends with "/", so string starts_with is ok.
-      if (includer_dir.starts_with(cand_dir)) {
-        // Prefer the more specific option.
+      if (includer_dir.starts_with(cand_dir) &&
+          !included_dir.starts_with(cand_dir)) {
+        // Our highest priority match is a local alias for something defined
+        // elsewhere. We specifically exclude things in the common ancestors
+        // because we're not sure if that is an alias or not.
         return {2, cand_dir.size()};
       } else if (included_dir.starts_with(cand_dir)) {
         // If no option is more specific, we should prefer the "canonical" one.
@@ -1033,7 +1036,10 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
         // We intentionally make no decision on whether //absl:exporter or
         // //absl/subdir:exporter would be "more canonical" - we can change this
         // later if we'd like, but for now we'd treat this as ambiguous.
-        return {1, 0};
+        //
+        // We do, however, assume that //:foo is less canonical, mainly because
+        // we're quite likely to see //:all re-export everything.
+        return {1, cand_dir == "//" ? 0 : 1};
       }
       return {0, 0};
     };
