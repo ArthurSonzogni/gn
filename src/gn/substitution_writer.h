@@ -82,7 +82,7 @@ class SubstitutionWriter {
   // as either a string, a SourceFile or an OutputFile. If the result is
   // expected to be a SourceFile or an OutputFile, this will CHECK if the
   // result isn't in the correct directory. The caller should validate this
-  // first (see for example IsFileInOuputDir).
+  // first (see for example IsFileInOutputDir).
   //
   // The target can be null (see class comment above).
   static SourceFile ApplyPatternToSource(const Target* target,

@@ -300,7 +300,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   static void AddTargetToFileMap(const Target* target, FileMap* dest);
 
   // Returns true if the given file is in the output directory.
-  bool IsFileInOuputDir(const SourceFile& file) const;
+  bool IsFileInOutputDir(const SourceFile& file) const;
 
   // Resolves the contents of an include to a SourceFile.
   SourceFile SourceFileForInclude(const IncludeStringWithLocation& include,

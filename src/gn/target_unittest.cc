@@ -606,7 +606,7 @@ TEST_F(TargetTest, RustLinkAndDepOutputs) {
 // solink tools.
 //
 // Also tests GetOutputsAsSourceFiles() for binaries (the setup is the same).
-TEST_F(TargetTest, RuntimeOuputs) {
+TEST_F(TargetTest, RuntimeOutputs) {
   TestWithScope setup;
   Err err;
 
@@ -659,7 +659,7 @@ TEST_F(TargetTest, RuntimeOuputs) {
   EXPECT_EQ("//out/Debug/a.pdb", computed_outputs[2].value());
 }
 
-TEST_F(TargetTest, RustRuntimeOuputs) {
+TEST_F(TargetTest, RustRuntimeOutputs) {
   TestWithScope setup;
   Err err;
 
