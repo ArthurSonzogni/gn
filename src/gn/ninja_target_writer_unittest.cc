@@ -919,4 +919,33 @@ TEST(NinjaTargetWriter, HardDeps) {
     EXPECT_EQ("phony/foo/action3", deps.order_only[1].value());
     EXPECT_EQ("phony/foo/mid.harddeps", deps.order_only[2].value());
   }
+
+  // Rust targets also only include public_deps in their hard deps, while still
+  // including private deps in their own input deps.
+  Target rust_lib(setup.settings(), Label(SourceDir("//foo/"), "rust_lib"));
+  rust_lib.set_output_type(Target::RUST_LIBRARY);
+  rust_lib.visibility().SetPublic();
+  SourceFile lib_rs("//foo/lib.rs");
+  rust_lib.sources().push_back(lib_rs);
+  rust_lib.source_types_used().Set(SourceFile::SOURCE_RS);
+  rust_lib.rust_values().set_crate_root(lib_rs);
+  rust_lib.rust_values().crate_name() = "rust_lib";
+  rust_lib.SetToolchain(setup.toolchain());
+  rust_lib.public_deps().push_back(LabelTargetPair(&single));
+  rust_lib.private_deps().push_back(LabelTargetPair(&mid));
+  rust_lib.private_deps().push_back(LabelTargetPair(&action3));
+  ASSERT_TRUE(rust_lib.OnResolved(&err));
+  EXPECT_EQ("", hard_deps_rule(&rust_lib));
+  EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&rust_lib));
+  {
+    std::ostringstream stream;
+    TestingNinjaTargetWriter writer(&rust_lib, setup.toolchain(), stream);
+    auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 1u);
+    EXPECT_EQ("", stream.str());
+    EXPECT_TRUE(deps.implicit.empty());
+    ASSERT_EQ(3u, deps.order_only.size());
+    EXPECT_EQ("phony/foo/action1", deps.order_only[0].value());
+    EXPECT_EQ("phony/foo/action3", deps.order_only[1].value());
+    EXPECT_EQ("phony/foo/mid.harddeps", deps.order_only[2].value());
+  }
 }

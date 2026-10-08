@@ -340,12 +340,12 @@ void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
   // Keep in sync with ResolvedTargetData::ComputeHardDeps(). This produces
   // the same set of targets, but refers to the hard deps rules of deps
   // instead of flattening them. Because dependents refer to this rule, only
-  // public_deps are included when check_includes_strict is set.
+  // public_deps are included when OnlyForwardsPublicHardDeps() is true.
   const ResolvedTargetDeps& target_deps = resolved->GetTargetDeps(target);
   std::vector<OutputFile> deps;
   AppendHardDepsOutputsForDeps(
       target,
-      target->check_includes_strict() && !target->hard_dep()
+      ResolvedTargetData::OnlyForwardsPublicHardDeps(target)
           ? target_deps.public_deps()
           : target_deps.linked_deps(),
       *resolved, &deps);
@@ -667,13 +667,13 @@ NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
     // depends on all hard deps that aren't BUNDLE_DATA, to not write
     // thousands of hard deps for every target.
     AppendHardDepsOutputs(target_, resolved(), &hard_deps_outputs);
-    if (target_->check_includes_strict() && !target_->hard_dep()) {
-      // When check_includes_strict is enabled, GetHardDeps(target_) and
+    if (ResolvedTargetData::OnlyForwardsPublicHardDeps(target_)) {
+      // When OnlyForwardsPublicHardDeps() is true, GetHardDeps(target_) and
       // <target>.harddeps only include hard deps from public_deps so that
       // private hard deps are not forwarded to dependents. However, compiling
-      // this target's own sources may still #include generated headers from
-      // its private_deps, so include their hard deps in this target's own
-      // input deps.
+      // this target's own sources may still depend on generated files from its
+      // private_deps, so include their hard deps in this target's own input
+      // deps.
       AppendHardDepsOutputsForDeps(
           target_, resolved().GetTargetDeps(target_).private_deps(), resolved(),
           &hard_deps_outputs);

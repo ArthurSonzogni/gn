@@ -69,23 +69,29 @@ bool ResolvedTargetData::ForwardsHardDeps(const Target* dep) {
            dep->public_headers().empty() && !dep->builds_swift_module());
 }
 
-// Keep in sync with NinjaTargetWriter::WriteHardDepsStampOrPhony().
-void ResolvedTargetData::ComputeHardDeps(TargetInfo* info) const {
-  TargetSet all_hard_deps;
+// static
+bool ResolvedTargetData::OnlyForwardsPublicHardDeps(const Target* target) {
   // Normally, both public_deps and private_deps (i.e. linked_deps()) must be
   // traversed because standard `gn check` allows a target's public headers to
   // #include headers from its private deps, meaning dependents might
   // transitively include generated headers from private deps.
   //
-  // However, when `check_includes_strict` is enabled, `gn check` guarantees
-  // that public headers do not #include anything from private deps. Thus,
-  // dependents only need hard deps from `public_deps()`. The target's own
-  // compilation still needs hard deps from its `private_deps()`, which are
-  // added directly in NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep().
-  base::span<const Target*> deps =
-      info->target->check_includes_strict() && !info->target->hard_dep()
-          ? info->deps.public_deps()
-          : info->deps.linked_deps();
+  // However, when `check_includes_strict` is enabled (`gn check` guarantees
+  // public headers do not #include anything from private deps) or for Rust
+  // targets (which have no C/C++ public headers and expose any generated C++
+  // binding headers via `public_deps`), dependents only need hard deps from
+  // `public_deps()`. The target's own compilation still gets hard deps from its
+  // `private_deps()` in NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep.
+  return !target->hard_dep() && (target->check_includes_strict() ||
+                                 target->source_types_used().RustSourceUsed());
+}
+
+// Keep in sync with NinjaTargetWriter::WriteHardDepsStampOrPhony().
+void ResolvedTargetData::ComputeHardDeps(TargetInfo* info) const {
+  TargetSet all_hard_deps;
+  base::span<const Target*> deps = OnlyForwardsPublicHardDeps(info->target)
+                                       ? info->deps.public_deps()
+                                       : info->deps.linked_deps();
   for (const Target* dep : deps) {
     // Direct hard dependencies
     if (info->target->hard_dep() || dep->hard_dep()) {
