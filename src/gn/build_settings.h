@@ -13,6 +13,7 @@
 
 #include "base/files/file_path.h"
 #include "gn/args.h"
+#include "gn/check_includes_strict_exceptions.h"
 #include "gn/label.h"
 #include "gn/label_pattern.h"
 #include "gn/scope.h"
@@ -165,6 +166,15 @@ class BuildSettings {
     allow_circular_includes_from_allowlist_ = std::move(list);
   }
 
+  const CheckIncludesStrictExceptions& check_includes_strict_exceptions()
+      const {
+    return check_includes_strict_exceptions_;
+  }
+  void set_check_includes_strict_exceptions(
+      CheckIncludesStrictExceptions exceptions) {
+    check_includes_strict_exceptions_ = std::move(exceptions);
+  }
+
   // If true, all generated_file() metadata walks include metadata from
   // validations targets.
   bool experimental_collect_validations_metadata() const {
@@ -191,6 +201,7 @@ class BuildSettings {
 
   SourceFile build_config_file_;
   SourceFile arg_file_template_path_;
+  CheckIncludesStrictExceptions check_includes_strict_exceptions_;
   SourceDir build_dir_;
   Args build_args_;
 

@@ -824,7 +824,9 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
       Label label = target->label();
       HeaderChecker::Chain cycle;
       if (cache.GetReachabilityCache(target).SearchForDependencyTo(
-              includer, /*permitted=*/false, &cycle)) {
+              includer,
+              HeaderChecker::ReachabilityCache::DependencyType::kNonPublic,
+              &cycle)) {
         std::reverse(cycle.begin(), cycle.end());
         StartWarning();
         OutputTarget(target);

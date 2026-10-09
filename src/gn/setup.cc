@@ -19,6 +19,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "gn/check_includes_strict_exceptions.h"
 #include "gn/command_format.h"
 #include "gn/commands.h"
 #include "gn/exec_process.h"
@@ -136,6 +137,15 @@ Variables
       setting is omitted or set to false, these includes will be ignored by
       default. They can be checked explicitly by running
       "gn check --check-system" or "gn gen --check=system"
+
+  check_includes_strict_exceptions [optional]
+      A list of scopes containing exceptions for strict dependencies checking.
+      Each scope in this list specifies an exception rule:
+          includer = <from_pattern>
+          included = <to_label> [optional]
+      which waives check_includes_strict violations from targets matching
+      <from_pattern> trying to include headers from <to_label>
+      (or to headers from any target if included is omitted).
 
   exec_script_allowlist [optional]
       A list of .gn/.gni files (not labels) that have permission to call the
@@ -1238,6 +1248,20 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
       return false;
     }
     check_system_includes_ = check_system_includes_value->boolean_value();
+  }
+
+  const Value* check_includes_strict_exceptions_value =
+      dotfile_scope_.GetValue("check_includes_strict_exceptions", true);
+  if (check_includes_strict_exceptions_value) {
+    auto result = CheckIncludesStrictExceptions::FromValue(
+        *check_includes_strict_exceptions_value, current_dir,
+        build_settings_.root_path_utf8());
+    if (!result.has_value()) {
+      *err = result.error();
+      return false;
+    }
+    build_settings_.set_check_includes_strict_exceptions(
+        std::move(result.value()));
   }
 
   // Fill exec_script_allowlist.

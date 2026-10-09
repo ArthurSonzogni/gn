@@ -72,9 +72,6 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
   // Store the shortest-dependency-path information for all BFS walks starting
   // from a given `search_from` target.
   //
-  // `permitted_breadcrumbs` corresponds to public dependencies only.
-  // `any_breadcrumbs` corresponds to all dependencies.
-  //
   // Each walk type needs only to be performed once, which is recorded by the
   // corresponding completion flag.
   class ReachabilityCache {
@@ -83,6 +80,17 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
     ReachabilityCache(const ReachabilityCache&) = delete;
     ReachabilityCache& operator=(const ReachabilityCache&) = delete;
 
+    enum class DependencyType : size_t {
+      // Searches across public_deps, stopping at targets for which
+      // check_includes_strict is true.
+      kPermitted,
+      // Searches across public deps.
+      kPermittedIgnoringStrict,
+      // Searches across deps as well as public_deps.
+      kNonPublic,
+    };
+    static constexpr size_t kNumDependencyTypes = 3;
+
     const Target* source_target() const { return source_target_; }
 
     // Returns true if the given `search_for` target is reachable from
@@ -90,16 +98,13 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
     //
     // If found, the vector given in `chain` will be filled with the reverse
     // dependency chain from the destination target to the source target.
-    //
-    // If `permitted` is true, only permitted (public) dependency paths are
-    // searched.
     bool SearchForDependencyTo(const Target* search_for,
-                               bool permitted,
+                               DependencyType type,
                                Chain* chain);
 
     // Conducts a breadth-first search through the dependency graph to find a
     // shortest chain from source_target_.
-    void PerformDependencyWalk(bool permitted);
+    void PerformDependencyWalk(DependencyType type);
 
    private:
     // Header checking structures ----------------------------------------------
@@ -189,19 +194,19 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
     // Reconstructs the shortest dependency chain to the given target if it was
     // found during a previous walk of the given type. Returns true on success.
     bool SearchBreadcrumbs(const Target* search_for,
-                           bool permitted,
+                           DependencyType type,
                            Chain* chain) const;
 
     const Target* source_target_;
 
     mutable std::shared_mutex lock_;
-    // Breadcrumbs for the shortest permitted path.
-    BreadcrumbTable permitted_breadcrumbs_;
-    // Breadcrumbs for the shortest path of any type.
-    BreadcrumbTable any_breadcrumbs_;
 
-    std::atomic<bool> permitted_complete_ = false;
-    std::atomic<bool> any_complete_ = false;
+    struct WalkData {
+      BreadcrumbTable breadcrumbs;
+      std::atomic<bool> complete = false;
+    };
+    // Indexed by DependencyType.
+    std::array<WalkData, kNumDependencyTypes> walks_;
   };
 
   // check_generated, if true, will also check generated
@@ -246,6 +251,7 @@ class HeaderChecker : public base::RefCountedThreadSafe<HeaderChecker> {
                            CheckIncludesStrictPrivateInPublicHeader);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest,
                            CheckIncludesStrictSameTargetPrivateHeader);
+  FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, CheckIncludesStrictExceptions);
   FRIEND_TEST_ALL_PREFIXES(HeaderCheckerTest, NoCheckGenerated);
 
   ~HeaderChecker();

@@ -7731,6 +7731,15 @@
       default. They can be checked explicitly by running
       "gn check --check-system" or "gn gen --check=system"
 
+  check_includes_strict_exceptions [optional]
+      A list of scopes containing exceptions for strict dependencies checking.
+      Each scope in this list specifies an exception rule:
+          includer = <from_pattern>
+          included = <to_label> [optional]
+      which waives check_includes_strict violations from targets matching
+      <from_pattern> trying to include headers from <to_label>
+      (or to headers from any target if included is omitted).
+
   exec_script_allowlist [optional]
       A list of .gn/.gni files (not labels) that have permission to call the
       exec_script function. If this list is defined, calls to exec_script will
