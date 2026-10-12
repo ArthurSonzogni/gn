@@ -21,8 +21,14 @@ pub(crate) enum Error {
     DuplicateProvider(String),
     #[error("DefaultInfo.files must be a depset of files, got {0}")]
     DefaultInfoFilesMustBeFileDepset(String),
-    #[error("GnInputsInfo.files must be a depset of files, got {0}")]
-    GnInputsInfoFilesMustBeFileDepset(String),
+    #[error("GnInputsInfo.files must be a dict, got {0}")]
+    GnInputsInfoFilesMustBeDict(String),
+    #[error(
+        "GnInputsInfo.files keys must be a pattern starting '*' and containing no other '*' (e.g. '*.o'), got {0}"
+    )]
+    InvalidGnInputsInfoKey(String),
+    #[error("GnInputsInfo.files values must be a depset of files, got {0}")]
+    GnInputsInfoValuesMustBeFileDepset(String),
     #[error("GnSubstitutionsInfo.substitutions must be a struct, got {0}")]
     GnSubstitutionsInfoSubstitutionsMustBeStruct(String),
 }

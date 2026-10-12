@@ -27,9 +27,9 @@ pub(crate) const SUBSTITUTIONS_INFO_ID: ProviderId = ProviderId::builtin(3);
 /// * DefaultInfo(files=depset(...)) (https://bazel.build/rules/lib/providers/DefaultInfo)
 ///   * The "outputs" of a rule. Building the alias for the target builds all files in DefaultInfo.
 ///   * Unlike all other providers, available globally without calling
-/// * GnInputsInfo(files=depset(...))
+/// * GnInputsInfo(files={"*.o": depset(...)})
 ///   * When the target is a mixed C++/starlark target, this adds the specified inputs as implicit
-///     inputs to all ninja actions C++ generates for this target.
+///     inputs to ninja actions C++ generates for this target matching the given path suffix.
 /// * GnSubstitutionsInfo:
 ///
 ///   ```rust
