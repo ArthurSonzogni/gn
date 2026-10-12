@@ -11,6 +11,7 @@
 #include "gn/builtin_tool.h"
 #include "gn/config_values_extractors.h"
 #include "gn/deps_iterator.h"
+#include "gn/ffi/bridge.h"
 #include "gn/filesystem_utils.h"
 #include "gn/general_tool.h"
 #include "gn/ninja_c_binary_target_writer.h"
@@ -383,7 +384,9 @@ void NinjaBinaryTargetWriter::WriteCompilerBuildLine(
   out_ << ": " << rule_prefix_ << tool->name();
   path_output_.WriteFiles(out_, sources);
 
+  bool has_implicit_inputs = false;
   if (!extra_deps.empty() || !tool->inputs().empty()) {
+    has_implicit_inputs = true;
     out_ << " |";
     path_output_.WriteFiles(out_, extra_deps);
     if (auto phony = tool->inputs_phony_or_file(rule_prefix_,
@@ -391,6 +394,10 @@ void NinjaBinaryTargetWriter::WriteCompilerBuildLine(
       out_ << " ";
       path_output_.WriteFile(out_, *phony);
     }
+  }
+
+  if (const auto* rust = target_->rust_target()) {
+    rust->write_inputs(outputs, has_implicit_inputs, out_);
   }
 
   if (!order_only_deps.empty()) {

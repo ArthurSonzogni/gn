@@ -1163,6 +1163,7 @@ struct RustTarget final : public ::rust::Opaque {
   ::rust::Str execute_rule_impl(::Session const &session, ::Err &err) const noexcept;
   void write_phonies(::StringOutputBuffer &buffer) const noexcept;
   void write_substitutions(::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) const noexcept;
+  bool write_inputs(::std::vector<::OutputFile> const &outputs, bool has_inputs, ::StringOutputBuffer &buffer) const noexcept;
   ~RustTarget() = delete;
 
 private:
@@ -1524,6 +1525,8 @@ void cxxbridge1$196$Value$starlark_value(::Value const &self, ::OwnedFrozenValue
 void cxxbridge1$196$RustTarget$write_phonies(::RustTarget const &self, ::StringOutputBuffer &buffer) noexcept;
 
 void cxxbridge1$196$RustTarget$write_substitutions(::RustTarget const &self, ::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) noexcept;
+
+bool cxxbridge1$196$RustTarget$write_inputs(::RustTarget const &self, ::std::vector<::OutputFile> const &outputs, bool has_inputs, ::StringOutputBuffer &buffer) noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$sizeof() noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$alignof() noexcept;
 
@@ -1567,6 +1570,11 @@ void RustTarget::write_phonies(::StringOutputBuffer &buffer) const noexcept {
 void RustTarget::write_substitutions(::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) const noexcept {
   cxxbridge1$196$RustTarget$write_substitutions(*this, buffer, platform, err);
 }
+
+bool RustTarget::write_inputs(::std::vector<::OutputFile> const &outputs, bool has_inputs, ::StringOutputBuffer &buffer) const noexcept {
+  return cxxbridge1$196$RustTarget$write_inputs(*this, outputs, has_inputs, buffer);
+}
+
 ::std::size_t Session::layout::size() noexcept {
   return cxxbridge1$196$Session$operator$sizeof();
 }

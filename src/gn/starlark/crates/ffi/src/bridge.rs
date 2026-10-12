@@ -360,6 +360,12 @@ mod dummy {
             platform: EscapingPlatform,
             err: Pin<&mut Err>,
         );
+        fn write_inputs(
+            self: &Target,
+            outputs: &CxxVector<OutputFile>,
+            has_inputs: bool,
+            buffer: Pin<&mut StringOutputBuffer>,
+        ) -> bool;
 
         type Session;
 

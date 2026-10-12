@@ -5,6 +5,7 @@
 use std::cell::OnceCell;
 
 use providers::Providers;
+use starlark::collections::SmallSet;
 use types::Phony;
 
 use crate::{StringOutputBuffer, TargetRef, escape::Ninja, eval_context::EvalContext};
@@ -93,6 +94,34 @@ impl Target {
             }
             Ok(())
         })());
+    }
+
+    /// Writes the inputs for `outputs` declared by GnInputsInfo to the ninja
+    /// file.
+    pub fn write_inputs(
+        &self,
+        outputs: &cxx::CxxVector<crate::bridge::OutputFile>,
+        mut has_inputs: bool,
+        buffer: std::pin::Pin<&mut crate::bridge::StringOutputBuffer>,
+    ) -> bool {
+        if let Some(evaluated) = self.evaluated.get() {
+            let mut buf = StringOutputBuffer::new(buffer);
+            let mut seen = SmallSet::new();
+            for (suffix, phony) in &evaluated.providers.inputs_phony {
+                if outputs
+                    .iter()
+                    .any(|out| out.value().ends_with(suffix.as_str()))
+                    && seen.insert(phony.as_str())
+                {
+                    if !has_inputs {
+                        buf.append(" |");
+                        has_inputs = true;
+                    }
+                    buf.append((b' ', Ninja(phony.as_str())));
+                }
+            }
+        }
+        has_inputs
     }
 
     pub fn providers(&self) -> &Providers {

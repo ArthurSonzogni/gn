@@ -6,11 +6,11 @@ target_output_name = libcustom_shared
 starlark_cflags = -DFOO=bar
 starlark_ldflags = -Wl,-rpath=foo
 
-build obj/libcustom_shared.shared.o: cxx ../shared.cc
+build obj/libcustom_shared.shared.o: cxx ../shared.cc | ../first.txt
   source_file_part = shared.cc
   source_name_part = shared
 
-build ./libcustom_shared.so: solink obj/libcustom_shared.shared.o
+build ./libcustom_shared.so: solink obj/libcustom_shared.shared.o | ../second.txt
   ldflags =
   libs =
   frameworks =
