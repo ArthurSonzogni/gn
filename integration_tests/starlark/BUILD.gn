@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 load(":filegroup.scl", "filegroup", "filegroups")
+load(":inputs.scl", "custom_shared_library")
 
 filegroup("filegroup") {
   srcs = [ "first.txt" ]
@@ -20,4 +21,10 @@ filegroups("filegroups") {
     ":filegroup",
     ":multiple",
   ]
+}
+
+custom_shared_library("custom_shared") {
+  sources = [ "shared.cc" ]
+  compile_input = "first.txt"
+  link_input = "second.txt"
 }

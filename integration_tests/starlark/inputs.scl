@@ -1,0 +1,23 @@
+# Copyright 2026 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+load("//builtins:providers.scl", "GnInputsInfo")
+load("//builtins:rules.scl", "shared_library")
+
+def _custom_shared_library_impl(ctx):
+  return [
+    GnInputsInfo(files = {
+      "*.o": depset([ctx.file.compile_input]),
+      "*.so": depset([ctx.file.link_input]),
+    }),
+  ]
+
+custom_shared_library = rule(
+  implementation = _custom_shared_library_impl,
+  parent = shared_library,
+  attrs = {
+    "compile_input": attr.label(allow_single_file = True),
+    "link_input": attr.label(allow_single_file = True),
+  }
+)

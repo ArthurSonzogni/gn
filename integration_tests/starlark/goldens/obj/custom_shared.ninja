@@ -1,0 +1,17 @@
+defines =
+include_dirs =
+cflags =
+target_out_dir = obj
+target_output_name = libcustom_shared
+
+build obj/libcustom_shared.shared.o: cxx ../shared.cc
+  source_file_part = shared.cc
+  source_name_part = shared
+
+build ./libcustom_shared.so: solink obj/libcustom_shared.shared.o
+  ldflags =
+  libs =
+  frameworks =
+  swiftmodules =
+  output_extension = .so
+  output_dir = .
