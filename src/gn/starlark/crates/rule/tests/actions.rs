@@ -123,7 +123,7 @@ undeclared_output(name = "undeclared_output", src = "foo/file.cc")
 
         match expected {
             Ok((defaultinfo_phony, files)) => {
-                let rooted = res.expect(target_name);
+                let (_phonies, rooted) = res.expect(target_name);
                 let providers = providers::Providers::try_from(rooted).expect(target_name);
 
                 if defaultinfo_phony.is_empty() {

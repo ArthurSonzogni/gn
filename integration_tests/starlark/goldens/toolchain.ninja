@@ -28,3 +28,5 @@ rule stamp
   command = stamp ${out}
   description = STAMP ${out}
 
+build phony/$:filegroups_0: phony ../first.txt phony/$:multiple_0
+build phony/$:multiple_0: phony ../second.txt ../third.txt

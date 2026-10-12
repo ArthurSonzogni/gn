@@ -5,9 +5,19 @@
 load(":filegroup.scl", "filegroup", "filegroups")
 
 filegroup("filegroup") {
-  srcs = ["first.txt"]
+  srcs = [ "first.txt" ]
+}
+
+filegroup("multiple") {
+  srcs = [
+    "second.txt",
+    "third.txt",
+  ]
 }
 
 filegroups("filegroups") {
-  filegroups = [":filegroup"]
+  filegroups = [
+    ":filegroup",
+    ":multiple",
+  ]
 }

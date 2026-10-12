@@ -12,6 +12,7 @@
 #include "gn/config_values_extractors.h"
 #include "gn/err.h"
 #include "gn/escape.h"
+#include "gn/ffi/bridge.h"
 #include "gn/filesystem_utils.h"
 #include "gn/general_tool.h"
 #include "gn/ninja_action_target_writer.h"
@@ -107,7 +108,7 @@ std::string NinjaTargetWriter::RunAndWriteFile(
                     target->label().GetUserVisibleName(false));
   trace.SetToolchain(settings->toolchain_label());
 
-  if (g_scheduler->verbose_logging())
+  if (g_scheduler && g_scheduler->verbose_logging())
     g_scheduler->Log("Computing", target->label().GetUserVisibleName(true));
 
   if (delayed_generated_file_write)
@@ -195,6 +196,10 @@ std::string NinjaTargetWriter::RunAndWriteFile(
 
   WritePublicInputsStampOrPhony(target, resolved, storage);
   WriteHardDepsStampOrPhony(target, resolved, storage);
+
+  if (const auto* rust = target->rust_target()) {
+    rust->write_phonies(storage);
+  }
 
   if (needs_file_write) {
     // Write the ninja file.

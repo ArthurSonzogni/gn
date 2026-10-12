@@ -353,6 +353,7 @@ mod dummy {
             session: &'static Session,
             err: Pin<&mut Err>,
         ) -> &'static str;
+        fn write_phonies(self: &Target, buffer: Pin<&mut StringOutputBuffer>);
 
         type Session;
 

@@ -376,6 +376,9 @@ class Target : public Item {
   bool has_rust_values() const { return rust_values_.get(); }
 
   const RustTarget& rust_target(const Session& session) const;
+  const RustTarget* rust_target() const {
+    return rust_target_.load(std::memory_order_acquire);
+  }
   void set_rust_target(const RustTarget& rust_target) const {
     rust_target_.store(&rust_target, std::memory_order_release);
   }

@@ -1079,6 +1079,7 @@ static_assert(static_cast<::std::uint8_t>(EscapingPlatform::ESCAPE_PLATFORM_WIN)
 #define CXXBRIDGE1_STRUCT_RustTarget
 struct RustTarget final : public ::rust::Opaque {
   ::rust::Str execute_rule_impl(::Session const &session, ::Err &err) const noexcept;
+  void write_phonies(::StringOutputBuffer &buffer) const noexcept;
   ~RustTarget() = delete;
 
 private:

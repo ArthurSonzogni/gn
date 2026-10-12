@@ -1161,6 +1161,7 @@ static_assert(static_cast<::std::uint8_t>(EscapingPlatform::ESCAPE_PLATFORM_WIN)
 #define CXXBRIDGE1_STRUCT_RustTarget
 struct RustTarget final : public ::rust::Opaque {
   ::rust::Str execute_rule_impl(::Session const &session, ::Err &err) const noexcept;
+  void write_phonies(::StringOutputBuffer &buffer) const noexcept;
   ~RustTarget() = delete;
 
 private:
@@ -1518,6 +1519,8 @@ void cxxbridge1$196$Value$starlark_value(::Value const &self, ::OwnedFrozenValue
 ::std::size_t cxxbridge1$196$RustTarget$operator$alignof() noexcept;
 
 ::rust::repr::Fat cxxbridge1$196$RustTarget$execute_rule_impl(::RustTarget const &self, ::Session const &session, ::Err &err) noexcept;
+
+void cxxbridge1$196$RustTarget$write_phonies(::RustTarget const &self, ::StringOutputBuffer &buffer) noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$sizeof() noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$alignof() noexcept;
 
@@ -1552,6 +1555,10 @@ void cxxbridge1$196$OwnedFrozenValue$invoke(::OwnedFrozenValue const &self, ::Se
 
 ::rust::Str RustTarget::execute_rule_impl(::Session const &session, ::Err &err) const noexcept {
   return ::rust::impl<::rust::Str>::new_unchecked(cxxbridge1$196$RustTarget$execute_rule_impl(*this, session, err));
+}
+
+void RustTarget::write_phonies(::StringOutputBuffer &buffer) const noexcept {
+  cxxbridge1$196$RustTarget$write_phonies(*this, buffer);
 }
 
 ::std::size_t Session::layout::size() noexcept {

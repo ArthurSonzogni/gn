@@ -108,13 +108,13 @@ impl<T: TargetRef> CtxState<T> {
         Ok(())
     }
 
-    /// Verifies that all declared outputs were generated.
-    pub fn rule_impl_complete(&self) -> starlark::Result<()> {
+    /// Verifies that all declared outputs were generated, and returns the generated phonies.
+    pub fn rule_impl_complete(&mut self) -> starlark::Result<Vec<Phony>> {
         match self.unused_declared_outputs.first() {
             Some(unused) => {
                 Err(crate::errors::Error::DeclaredOutputNeverGenerated(unused.clone()).into())
             },
-            None => Ok(()),
+            None => Ok(std::mem::take(&mut self.phonies)),
         }
     }
 }

@@ -35,7 +35,7 @@ child_rule(
         .get_target(label.as_ref(), context.session.default_toolchain.as_ref());
 
     let session = assert.session();
-    let res = run(&target, move |t: &testutils::FakeTargetRef| {
+    let (_phonies, res) = run(&target, move |t: &testutils::FakeTargetRef| {
         testutils::FakeEvalContext::rule_impl(session.clone(), t.clone())
     })
     .unwrap();

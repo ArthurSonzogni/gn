@@ -5,13 +5,15 @@
 use std::cell::OnceCell;
 
 use providers::Providers;
+use types::Phony;
 
-use crate::{TargetRef, eval_context::EvalContext};
+use crate::{StringOutputBuffer, TargetRef, escape::Ninja, eval_context::EvalContext};
 
 /// The results of running the rule implementation on a target.
 #[derive(Debug)]
 pub(crate) struct EvaluatedTarget {
     pub(crate) providers: Providers,
+    pub(crate) phonies: Vec<Phony>,
 }
 
 pub struct Target {
@@ -38,19 +40,35 @@ impl Target {
         let res = rule::run(&target_ref, |t| {
             crate::eval_context::EvalContext::new_rule_impl(session, *t)
         })
-        .and_then(providers::Providers::try_from);
-        if let Some(providers) = err.handle(res) {
+        .and_then(|(phonies, frozen)| {
+            providers::Providers::try_from(frozen).map(|providers| (phonies, providers))
+        });
+        if let Some((phonies, providers)) = err.handle(res) {
             let phony = providers
                 .outputs_phony
                 .as_ref()
                 .map(|f| f.as_str())
                 .unwrap_or_default();
             self.evaluated
-                .set(EvaluatedTarget { providers })
+                .set(EvaluatedTarget { providers, phonies })
                 .expect("Rules can only be executed once");
             phony
         } else {
             ""
+        }
+    }
+
+    /// Writes out Ninja phony rules declared by this target into the provided buffer.
+    pub fn write_phonies(&self, buffer: std::pin::Pin<&mut crate::bridge::StringOutputBuffer>) {
+        if let Some(evaluated) = self.evaluated.get() {
+            let mut buf = StringOutputBuffer::new(buffer);
+            for phony in &evaluated.phonies {
+                buf.append(("build ", Ninja(phony.phony.as_str()), ": phony"));
+                for dep in &phony.expansion {
+                    buf.append((b' ', Ninja(dep.as_str())));
+                }
+                buf.append(b'\n');
+            }
         }
     }
 
