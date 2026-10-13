@@ -122,12 +122,12 @@ class SourceDir {
   }
 
   bool operator==(const SourceDir& other) const {
-    return value_.SameAs(other.value_);
+    return value_ == other.value_;
   }
   bool operator!=(const SourceDir& other) const { return !operator==(other); }
   bool operator<(const SourceDir& other) const { return value_ < other.value_; }
 
-  size_t hash() const { return value_.ptr_hash(); }
+  size_t hash() const { return value_.hash(); }
 
  private:
   friend class SourceFile;

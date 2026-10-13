@@ -97,7 +97,7 @@ class SourceFile {
   }
 
   bool operator==(const SourceFile& other) const {
-    return value_.SameAs(other.value_);
+    return value_ == other.value_;
   }
   bool operator!=(const SourceFile& other) const { return !operator==(other); }
   bool operator<(const SourceFile& other) const {
@@ -111,20 +111,11 @@ class SourceFile {
                          : std::strong_ordering::greater;
   }
 
+  size_t hash() const { return value_.hash(); }
+
   struct PtrCompare {
     bool operator()(const SourceFile& a, const SourceFile& b) const noexcept {
       return StringAtom::PtrCompare()(a.value_, b.value_);
-    }
-  };
-  struct PtrHash {
-    size_t operator()(const SourceFile& s) const noexcept {
-      return StringAtom::PtrHash()(s.value_);
-    }
-  };
-
-  struct PtrEqual {
-    bool operator()(const SourceFile& a, const SourceFile& b) const noexcept {
-      return StringAtom::PtrEqual()(a.value_, b.value_);
     }
   };
 
@@ -142,9 +133,7 @@ namespace std {
 
 template <>
 struct hash<SourceFile> {
-  std::size_t operator()(const SourceFile& v) const {
-    return SourceFile::PtrHash()(v);
-  }
+  std::size_t operator()(const SourceFile& v) const { return v.hash(); }
 };
 
 }  // namespace std

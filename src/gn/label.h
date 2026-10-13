@@ -75,19 +75,19 @@ class Label {
   bool Matches(const Label& other, const Label& default_toolchain) const;
 
   bool operator==(const Label& other) const {
-    return hash_ == other.hash_ && name_.SameAs(other.name_) &&
-           dir_ == other.dir_ && toolchain_dir_ == other.toolchain_dir_ &&
-           toolchain_name_.SameAs(other.toolchain_name_);
+    return hash_ == other.hash_ && name_ == other.name_ && dir_ == other.dir_ &&
+           toolchain_dir_ == other.toolchain_dir_ &&
+           toolchain_name_ == other.toolchain_name_;
   }
   bool operator!=(const Label& other) const { return !operator==(other); }
   bool operator<(const Label& other) const {
     // This custom comparison function uses the fact that SourceDir and
     // StringAtom values have very fast equality comparison to avoid
-    // un-necessary string comparisons when components are equal.
+    // unnecessary string comparisons when components are equal.
     if (dir_ != other.dir_)
       return dir_ < other.dir_;
 
-    if (!name_.SameAs(other.name_))
+    if (name_ != other.name_)
       return name_ < other.name_;
 
     if (toolchain_dir_ != other.toolchain_dir_)
@@ -100,7 +100,7 @@ class Label {
   // other object.
   bool ToolchainsEqual(const Label& other) const {
     return toolchain_dir_ == other.toolchain_dir_ &&
-           toolchain_name_.SameAs(other.toolchain_name_);
+           toolchain_name_ == other.toolchain_name_;
   }
 
   size_t hash() const { return hash_; }
@@ -121,9 +121,9 @@ class Label {
 
   size_t ComputeHash() const {
     size_t h0 = dir_.hash();
-    size_t h1 = name_.ptr_hash();
+    size_t h1 = name_.hash();
     size_t h2 = toolchain_dir_.hash();
-    size_t h3 = toolchain_name_.ptr_hash();
+    size_t h3 = toolchain_name_.hash();
     return ((h3 * 131 + h2) * 131 + h1) * 131 + h0;
   }
 
