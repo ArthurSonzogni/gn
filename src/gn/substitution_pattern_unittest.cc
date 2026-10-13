@@ -71,3 +71,69 @@ TEST(SubstitutionPattern, ParseRust) {
   EXPECT_EQ("CC", pattern.ranges()[6].literal);
   EXPECT_EQ(&kRustSubstitutionExterns, pattern.ranges()[7].type);
 }
+
+TEST(SubstitutionPattern, ParseStarlark) {
+  SubstitutionPattern pattern;
+  Err err;
+  EXPECT_TRUE(pattern.Parse("AA{{starlark:custom_flag}}BB{{starlark:other}}",
+                            nullptr, &err));
+  EXPECT_SUCCESS(err);
+  ASSERT_EQ(4u, pattern.ranges().size());
+
+  EXPECT_EQ(&SubstitutionLiteral, pattern.ranges()[0].type);
+  EXPECT_EQ("AA", pattern.ranges()[0].literal);
+
+  const Substitution* custom_flag = pattern.ranges()[1].type;
+  EXPECT_TRUE(IsValidToolSubstitution(custom_flag));
+  EXPECT_STREQ("{{starlark:custom_flag}}", custom_flag->name);
+  EXPECT_STREQ("starlark_custom_flag", custom_flag->ninja_name);
+
+  EXPECT_EQ(&SubstitutionLiteral, pattern.ranges()[2].type);
+  EXPECT_EQ("BB", pattern.ranges()[2].literal);
+
+  const Substitution* other = pattern.ranges()[3].type;
+  EXPECT_TRUE(IsValidToolSubstitution(other));
+  EXPECT_STREQ("{{starlark:other}}", other->name);
+  EXPECT_STREQ("starlark_other", other->ninja_name);
+
+  // Parsing the same starlark substitution again should return the identical
+  // pointer.
+  SubstitutionPattern pattern_repeat;
+  EXPECT_TRUE(pattern_repeat.Parse("{{starlark:custom_flag}}", nullptr, &err));
+  EXPECT_SUCCESS(err);
+  ASSERT_EQ(1u, pattern_repeat.ranges().size());
+  EXPECT_EQ(custom_flag, pattern_repeat.ranges()[0].type);
+}
+
+TEST(SubstitutionPattern, ParseStarlarkErrors) {
+  SubstitutionPattern pattern;
+  Err err;
+
+  // Empty starlark substitution name.
+  EXPECT_FALSE(pattern.Parse("{{starlark:}}", nullptr, &err));
+  EXPECT_TRUE(err.has_error());
+
+  // Starlark substitution name with invalid characters (hyphen).
+  err = Err();
+  EXPECT_FALSE(pattern.Parse("{{starlark:bad-flag}}", nullptr, &err));
+  EXPECT_TRUE(err.has_error());
+
+  // Starlark substitution name with invalid characters (dot).
+  err = Err();
+  EXPECT_FALSE(pattern.Parse("{{starlark:bad.flag}}", nullptr, &err));
+  EXPECT_TRUE(err.has_error());
+
+  // Starlark substitution name with uppercase characters.
+  err = Err();
+  EXPECT_FALSE(pattern.Parse("{{starlark:badFlag}}", nullptr, &err));
+  EXPECT_TRUE(err.has_error());
+  EXPECT_EQ(
+      "The starlark substitution name \"badFlag\" must contain only lowercase "
+      "letters and _.",
+      err.help_text());
+
+  // Unclosed starlark substitution.
+  err = Err();
+  EXPECT_FALSE(pattern.Parse("{{starlark:unclosed", nullptr, &err));
+  EXPECT_TRUE(err.has_error());
+}

@@ -6,11 +6,41 @@
 
 #include <stddef.h>
 
+#include <mutex>
+#include <string_view>
+#include <unordered_map>
+
 #include "base/strings/string_number_conversions.h"
 #include "gn/build_settings.h"
 #include "gn/err.h"
 #include "gn/filesystem_utils.h"
+#include "gn/string_atom.h"
 #include "gn/value.h"
+
+namespace {
+
+std::mutex g_starlark_substitutions_lock;
+std::unordered_map<std::string, std::unique_ptr<Substitution>>
+    g_starlark_substitutions;
+
+const Substitution* GetStarlarkSubstitution(const std::string& name) {
+  std::lock_guard<std::mutex> lock(g_starlark_substitutions_lock);
+  auto it = g_starlark_substitutions.find(name);
+  if (it != g_starlark_substitutions.end()) {
+    return it->second.get();
+  }
+
+  // We use StringAtom to ensure the pointers remain valid forever.
+  auto substitution = std::make_unique<Substitution>(
+      StringAtom("{{starlark:" + name + "}}").str().c_str(),
+      StringAtom("starlark_" + name).str().c_str());
+
+  const Substitution* result = substitution.get();
+  g_starlark_substitutions.emplace(name, std::move(substitution));
+  return result;
+}
+
+}  // namespace
 
 SubstitutionPattern::Subrange::Subrange() : type(&SubstitutionLiteral) {}
 
@@ -69,6 +99,33 @@ bool SubstitutionPattern::Parse(const std::string& str,
 
     // Expect all occurrences of {{ to resolve to a pattern.
     if (!found_match) {
+      // It still might be of the form {{starlark:my_var}}
+      constexpr std::string_view kPrefix = "{{starlark:";
+      std::string_view remaining = std::string_view(str).substr(next);
+      if (remaining.starts_with(kPrefix)) {
+        size_t end = remaining.find("}}");
+        // The latter check ensures we don't match "{{starlark:}}"
+        if (end != std::string_view::npos && end > kPrefix.size()) {
+          std::string_view name =
+              remaining.substr(kPrefix.size(), end - kPrefix.size());
+          for (char c : name) {
+            if ((c < 'a' || c > 'z') && c != '_') {
+              *err =
+                  Err(origin, "Invalid starlark substitution pattern",
+                      "The starlark substitution name \"" + std::string(name) +
+                          "\" must contain only lowercase letters and _.");
+              ranges_.clear();
+              return false;
+            }
+          }
+
+          ranges_.push_back(
+              Subrange(GetStarlarkSubstitution(std::string(name))));
+          cur = next + end + 2;
+          continue;
+        }
+      }
+
       // Could make this error message more friendly if it comes up a lot. But
       // most people will not be writing substitution patterns and the code
       // to exactly indicate the error location is tricky.

@@ -185,7 +185,8 @@ bool IsValidToolSubstitution(const Substitution* type) {
          type == &SubstitutionRootGenDir || type == &SubstitutionRootOutDir ||
          type == &SubstitutionTargetGenDir ||
          type == &SubstitutionTargetOutDir ||
-         type == &SubstitutionTargetOutputName;
+         type == &SubstitutionTargetOutputName ||
+         (type && std::string_view(type->name).starts_with("{{starlark:"));
 }
 
 bool IsValidCopySubstitution(const Substitution* type) {
