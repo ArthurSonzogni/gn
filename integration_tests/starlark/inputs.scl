@@ -2,15 +2,23 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//builtins:providers.scl", "GnInputsInfo")
+load("//builtins:providers.scl", "GnInputsInfo", "GnSubstitutionsInfo")
 load("//builtins:rules.scl", "shared_library")
 
 def _custom_shared_library_impl(ctx):
+  cflags = ctx.actions.args()
+  cflags.add("-DFOO=bar")
+  ldflags = ctx.actions.args()
+  ldflags.add("-Wl,-rpath=foo")
   return [
     GnInputsInfo(files = {
       "*.o": depset([ctx.file.compile_input]),
       "*.so": depset([ctx.file.link_input]),
     }),
+    GnSubstitutionsInfo(substitutions = struct(
+      cflags = [cflags],
+      ldflags = [ldflags],
+    )),
   ]
 
 custom_shared_library = rule(

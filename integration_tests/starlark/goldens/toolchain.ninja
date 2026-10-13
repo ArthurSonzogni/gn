@@ -1,5 +1,5 @@
 rule alink
-  command = alink ${out} INPUTS ${in}
+  command = alink ${out} INPUTS ${in} ${starlark_ldflags}
   description = AR ${target_output_name}${output_extension}
 rule cc
   command = cc --depfile=${out}.d DEFINES ${defines} INCLUDE_DIRS ${include_dirs} CFLAGS ${cflags} CFLAGS_CC ${cflags_c} SOURCE ${in} OUTPUT ${out}
@@ -10,7 +10,7 @@ rule copy
   command = copy ${in} ${out}
   description = COPY ${in} ${out}
 rule cxx
-  command = cxx --depfile=${out}.d DEFINES ${defines} INCLUDE_DIRS ${include_dirs} CFLAGS ${cflags} CFLAGS_CC ${cflags_c} SOURCE ${in} OUTPUT ${out}
+  command = cxx --depfile=${out}.d DEFINES ${defines} INCLUDE_DIRS ${include_dirs} CFLAGS ${cflags} CFLAGS_CC ${cflags_c} ${starlark_cflags} SOURCE ${in} OUTPUT ${out}
   description = CXX ${out}
   depfile = ${out}.d
   deps = gcc
@@ -23,7 +23,7 @@ rule solink
   command = solink ${output_dir}/${target_output_name}${output_extension} @${target_output_name}${output_extension}.rsp
   description = SOLINK ${target_output_name}${output_extension}
   rspfile = ${target_output_name}${output_extension}.rsp
-  rspfile_content = ${in} ${solibs} ${libs}
+  rspfile_content = ${in} ${solibs} ${libs} ${starlark_ldflags}
 rule stamp
   command = stamp ${out}
   description = STAMP ${out}

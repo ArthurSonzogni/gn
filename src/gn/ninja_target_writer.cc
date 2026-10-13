@@ -381,59 +381,59 @@ void NinjaTargetWriter::WriteEscapedSubstitution(const Substitution* type) {
 }
 
 void NinjaTargetWriter::WriteSharedVars(const SubstitutionBits& bits) {
-  bool written_anything = false;
+  size_t initial_size = out_.size();
 
   // Target label.
   if (bits.used.count(&SubstitutionLabel)) {
     WriteEscapedSubstitution(&SubstitutionLabel);
-    written_anything = true;
   }
 
   // Target label name.
   if (bits.used.count(&SubstitutionLabelName)) {
     WriteEscapedSubstitution(&SubstitutionLabelName);
-    written_anything = true;
   }
 
   // Target label name without toolchain.
   if (bits.used.count(&SubstitutionLabelNoToolchain)) {
     WriteEscapedSubstitution(&SubstitutionLabelNoToolchain);
-    written_anything = true;
   }
 
   // Root gen dir.
   if (bits.used.count(&SubstitutionRootGenDir)) {
     WriteEscapedSubstitution(&SubstitutionRootGenDir);
-    written_anything = true;
   }
 
   // Root out dir.
   if (bits.used.count(&SubstitutionRootOutDir)) {
     WriteEscapedSubstitution(&SubstitutionRootOutDir);
-    written_anything = true;
   }
 
   // Target gen dir.
   if (bits.used.count(&SubstitutionTargetGenDir)) {
     WriteEscapedSubstitution(&SubstitutionTargetGenDir);
-    written_anything = true;
   }
 
   // Target out dir.
   if (bits.used.count(&SubstitutionTargetOutDir)) {
     WriteEscapedSubstitution(&SubstitutionTargetOutDir);
-    written_anything = true;
   }
 
   // Target output name.
   if (bits.used.count(&SubstitutionTargetOutputName)) {
     WriteEscapedSubstitution(&SubstitutionTargetOutputName);
-    written_anything = true;
+  }
+
+  if (const auto* rust = target_->rust_target()) {
+    Err err;
+    rust->write_substitutions(out_, ESCAPE_PLATFORM_CURRENT, err);
+    if (err.has_error()) {
+      g_scheduler->FailWithError(err);
+    }
   }
 
   // If we wrote any vars, separate them from the rest of the file that follows
   // with a blank line.
-  if (written_anything)
+  if (out_.size() > initial_size)
     out_ << '\n';
 }
 

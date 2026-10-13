@@ -16,7 +16,7 @@ toolchain("gcc") {
 
   tool("cxx") {
     depfile = "{{output}}.d"
-    command = "cxx --depfile=$depfile DEFINES {{defines}} INCLUDE_DIRS {{include_dirs}} CFLAGS {{cflags}} CFLAGS_CC {{cflags_c}} SOURCE {{source}} OUTPUT {{output}}"
+    command = "cxx --depfile=$depfile DEFINES {{defines}} INCLUDE_DIRS {{include_dirs}} CFLAGS {{cflags}} CFLAGS_CC {{cflags_c}} {{starlark:cflags}} SOURCE {{source}} OUTPUT {{output}}"
     depsformat = "gcc"
     description = "CXX {{output}}"
     outputs =
@@ -24,7 +24,7 @@ toolchain("gcc") {
   }
 
   tool("alink") {
-    command = "alink {{output}} INPUTS {{inputs}}"
+    command = "alink {{output}} INPUTS {{inputs}} {{starlark:ldflags}}"
     description = "AR {{target_output_name}}{{output_extension}}"
 
     outputs =
@@ -37,7 +37,7 @@ toolchain("gcc") {
     soname = "{{target_output_name}}{{output_extension}}"  # e.g. "libfoo.so".
     sofile = "{{output_dir}}/$soname"
     rspfile = soname + ".rsp"
-    rspfile_content = "{{inputs}} {{solibs}} {{libs}}"
+    rspfile_content = "{{inputs}} {{solibs}} {{libs}} {{starlark:ldflags}}"
 
     command = "solink $sofile @$rspfile"
 
