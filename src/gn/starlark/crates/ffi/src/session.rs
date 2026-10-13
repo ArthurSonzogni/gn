@@ -48,7 +48,9 @@ fn make_attr_schema<'v>(
 impl Session {
     /// Creates a new `Session`.
     pub fn from_resolver(path_resolver: PathResolver) -> Self {
-        let mut builder = starlark::environment::GlobalsBuilder::standard();
+        let mut builder = starlark::environment::GlobalsBuilder::extended_by(&[
+            starlark::environment::LibraryExtension::StructType,
+        ]);
         builder.set("attr", attr::AttrModule { make_attr_schema });
         providers::globals::register_providers(&mut builder);
         depset::depset_globals!(&mut builder, crate::eval_context::EvalContext);

@@ -37,8 +37,8 @@ pub(crate) const SUBSTITUTIONS_INFO_ID: ProviderId = ProviderId::builtin(3);
 ///      foo = [ctx.actions.args().add("--foo", ctx.file.foo)]
 ///   ))
 ///   ```
-///   * Adds "foo = --foo path/to/foo" to the ninja file
-///   * Adding command = "... {{foo}}" to your GN tool will allow you to use this in GN.
+///   * Adds "starlark_foo = --foo path/to/foo" to the ninja file
+///   * Adding command = "... {{starlark:foo}}" to your GN tool will allow you to use this in GN.
 pub struct BuiltinProviders(OwnedFrozen<BuiltinProvidersInternal<'static>>);
 
 #[derive(ProvidesStaticType)]
