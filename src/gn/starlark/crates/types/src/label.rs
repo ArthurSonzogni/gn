@@ -9,7 +9,7 @@ use starlark::{
     starlark_simple_value,
     values::{ProvidesStaticType, StarlarkValue},
 };
-use starlark_derive::{starlark_module, starlark_value, Freeze, NoSerialize, Trace};
+use starlark_derive::{Freeze, NoSerialize, Trace, starlark_module, starlark_value};
 
 use crate::{LabelRef, Package, PackageRef};
 

@@ -5,7 +5,7 @@
 use std::{cell::OnceCell, fmt, marker::PhantomData};
 
 use allocative::Allocative;
-use attr::{traits::EvalContextAttrExt, Attr, AttrSchema, CtxAttrSchema};
+use attr::{Attr, AttrSchema, CtxAttrSchema, traits::EvalContextAttrExt};
 use starlark::{
     any::ProvidesStaticType,
     collections::SmallMap,
@@ -15,7 +15,7 @@ use starlark::{
         StarlarkValue, Trace, Value, ValueTyped,
     },
 };
-use starlark_derive::{starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_value};
 pub use types::OutputType;
 use types::{EvaluatorContextExt as _, Scope as _};
 

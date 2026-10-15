@@ -11,9 +11,9 @@ use starlark::{
     starlark_complex_value,
     values::{Freeze, FreezeResult, Freezer, ProvidesStaticType, StarlarkValue, Trace, Value},
 };
-use starlark_derive::{starlark_module, starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_module, starlark_value};
 
-use crate::{formatter::Formatter, Error};
+use crate::{Error, formatter::Formatter};
 
 /// Internal representation of individual arguments stored in `Args`.
 #[derive(Allocative, Clone, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]

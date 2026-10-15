@@ -11,7 +11,7 @@ use starlark::{
     starlark_complex_value,
     values::{Freeze, Heap, StarlarkValue, StringValue, Value, ValueTyped},
 };
-use starlark_derive::{starlark_value, NoSerialize, Trace};
+use starlark_derive::{NoSerialize, Trace, starlark_value};
 
 use crate::provider_type::ProviderType;
 
@@ -152,7 +152,7 @@ impl<'v> StarlarkValue<'v> for ProviderInstance<'v> {
 mod tests {
     use starlark::values::UnpackValue as _;
 
-    use crate::{register_providers, ProviderInstance};
+    use crate::{ProviderInstance, register_providers};
 
     fn new_assert() -> testutils::Assert {
         let mut a = testutils::Assert::default();

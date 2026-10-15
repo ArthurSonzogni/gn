@@ -4,13 +4,12 @@
 
 use std::pin::Pin;
 
-use starlark::values::{list::ListRef, structs::StructRef, OwnedFrozen};
+use starlark::values::{OwnedFrozen, list::ListRef, structs::StructRef};
 
 use crate::{
-    bridge,
+    Immutable, Scope, Settings, Slice, bridge,
     bridge::{SliceAny, Value, ValueType},
     errors::Error,
-    Immutable, Scope, Settings, Slice,
 };
 
 impl Value {

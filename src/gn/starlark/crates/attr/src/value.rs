@@ -5,11 +5,11 @@
 use allocative::Allocative;
 use starlark::{
     collections::{SmallMap, SmallSet},
-    values::{dict::Dict, Heap, Value},
+    values::{Heap, Value, dict::Dict},
 };
 use types::{File, LabelRef, TargetRef as _};
 
-use crate::{schema::AttrSchema, Attr, Session};
+use crate::{Attr, Session, schema::AttrSchema};
 
 /// AttrValue is the value that will appear in ctx.(attr|file|files).foo
 #[derive(Clone, Debug, Allocative)]
@@ -202,17 +202,16 @@ impl Attr {
         match lf {
             crate::LabelOrFile::Label(lbl) => {
                 let target = session.get_target(lbl.as_ref(), *current_toolchain);
-                if let Some(matcher) = schema.file_matcher() {
-                    if let crate::allow_files::AllowFiles::Some(exts) = matcher {
-                        if !target.outputs().iter().any(|f| matcher.matches(f.as_str())) {
-                            return Err(starlark::Error::new_other(
-                                crate::Error::NoMatchingOutputs {
-                                    target: lbl.clone(),
-                                    allowed: exts.clone(),
-                                },
-                            ));
-                        }
-                    }
+                if let Some(matcher) = schema.file_matcher()
+                    && let crate::allow_files::AllowFiles::Some(exts) = matcher
+                    && !target.outputs().iter().any(|f| matcher.matches(f.as_str()))
+                {
+                    return Err(starlark::Error::new_other(
+                        crate::Error::NoMatchingOutputs {
+                            target: lbl.clone(),
+                            allowed: exts.clone(),
+                        },
+                    ));
                 }
                 for f in target.outputs() {
                     files.insert(f.clone());
@@ -234,7 +233,7 @@ impl Attr {
 mod tests {
     use starlark::{
         environment::Module,
-        values::{list::UnpackList, UnpackValue as _},
+        values::{UnpackValue as _, list::UnpackList},
     };
     use testutils::{FakeSession, FakeTarget, FakeTargetRef};
     use types::PackageRef;

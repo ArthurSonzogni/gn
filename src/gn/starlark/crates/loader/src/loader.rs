@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
     fs,
     pin::Pin,
     sync::{Arc, Condvar, Mutex, RwLock},
@@ -204,7 +204,7 @@ impl FileLoader {
         // other after the fact.
         {
             let mut status = current.lock().unwrap();
-            let FileStatus::Loading { ref mut needs, .. } = &mut *status else {
+            let FileStatus::Loading { needs, .. } = &mut *status else {
                 // find_cycle_path should only be called from the thing you're
                 // currently trying to load.
                 unreachable!();

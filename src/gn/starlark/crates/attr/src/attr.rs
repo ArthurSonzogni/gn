@@ -7,7 +7,7 @@ use std::fmt;
 use allocative::Allocative;
 use starlark::{
     collections::{SmallMap, SmallSet},
-    values::{list::UnpackList, none::NoneOr, Freeze, Heap, UnpackValue as _, Value},
+    values::{Freeze, Heap, UnpackValue as _, Value, list::UnpackList, none::NoneOr},
 };
 use types::{File, Label, LabelRef, PackageRef, PathResolver};
 
@@ -427,22 +427,26 @@ mod tests {
             };
 
             // Test same string label duplicate
-            assert!(Attr::create(
-                &schema_list,
-                Some(heap.alloc(vec![":bar", ":bar"])),
-                pkg,
-                &path_resolver,
-            )
-            .is_err());
+            assert!(
+                Attr::create(
+                    &schema_list,
+                    Some(heap.alloc(vec![":bar", ":bar"])),
+                    pkg,
+                    &path_resolver,
+                )
+                .is_err()
+            );
 
             // Test different string representations resolving to same Label
-            assert!(Attr::create(
-                &schema_list,
-                Some(heap.alloc(vec![":bar", "//foo:bar"])),
-                pkg,
-                &path_resolver,
-            )
-            .is_err());
+            assert!(
+                Attr::create(
+                    &schema_list,
+                    Some(heap.alloc(vec![":bar", "//foo:bar"])),
+                    pkg,
+                    &path_resolver,
+                )
+                .is_err()
+            );
         });
     }
 
@@ -474,13 +478,15 @@ mod tests {
                 heap.alloc("//foo:bar").get_hashed().unwrap(),
                 heap.alloc("val2"),
             );
-            assert!(Attr::create(
-                &schema_dict,
-                Some(heap.alloc(Dict::new(map))),
-                pkg,
-                &path_resolver,
-            )
-            .is_err());
+            assert!(
+                Attr::create(
+                    &schema_dict,
+                    Some(heap.alloc(Dict::new(map))),
+                    pkg,
+                    &path_resolver,
+                )
+                .is_err()
+            );
         });
     }
 }

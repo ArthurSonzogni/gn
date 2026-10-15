@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use attr::{traits::EvalContextAttrExt, TargetAttrExt};
+use attr::{TargetAttrExt, traits::EvalContextAttrExt};
 use starlark::{
     environment::Module,
     eval::Evaluator,

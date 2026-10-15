@@ -4,7 +4,7 @@
 
 use starlark::{
     typing::Ty,
-    values::{type_repr::StarlarkTypeRepr, UnpackValue, Value},
+    values::{UnpackValue, Value, type_repr::StarlarkTypeRepr},
 };
 use types::File;
 

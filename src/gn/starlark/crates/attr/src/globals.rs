@@ -8,11 +8,11 @@ use allocative::Allocative;
 use starlark::{
     environment::{Methods, MethodsBuilder},
     eval::Evaluator,
-    values::{list::UnpackList, none::NoneOr, ProvidesStaticType, StarlarkValue, Value},
+    values::{ProvidesStaticType, StarlarkValue, Value, list::UnpackList, none::NoneOr},
 };
-use starlark_derive::{starlark_module, starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_module, starlark_value};
 
-use crate::{allow_files::AllowFiles, cfg::AttrCfg, AttrKind};
+use crate::{AttrKind, allow_files::AllowFiles, cfg::AttrCfg};
 
 /// The type that all parameters of attr.* get converted to.
 /// Mostly used because rust doesn't have default parameters,

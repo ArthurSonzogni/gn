@@ -7,7 +7,7 @@ use std::cell::OnceCell;
 use providers::Providers;
 use starlark::values::FrozenValueTyped;
 
-use crate::{eval_context::EvalContext, TargetRef};
+use crate::{TargetRef, eval_context::EvalContext};
 
 pub(crate) struct StarlarkTarget {
     pub(crate) rule: FrozenValueTyped<'static, rule::Rule<'static, EvalContext>>,

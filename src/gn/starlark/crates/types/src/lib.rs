@@ -20,7 +20,7 @@ pub mod util;
 pub use ctx_state::CtxState;
 pub(crate) use errors::Error;
 pub use eval_context::{CtxMethods, EvalContext, EvaluatorContextExt};
-pub use file::{intern_string, File};
+pub use file::{File, intern_string};
 pub use label::Label;
 pub use label_ref::LabelRef;
 pub use output_type::OutputType;

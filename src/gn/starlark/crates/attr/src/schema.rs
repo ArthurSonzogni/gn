@@ -11,12 +11,12 @@ use allocative::Allocative;
 use starlark::{
     eval::ParametersSpecParam,
     starlark_simple_value,
-    values::{none::NoneOr, Freeze, Heap, ProvidesStaticType, StarlarkValue, Trace, Value},
+    values::{Freeze, Heap, ProvidesStaticType, StarlarkValue, Trace, Value, none::NoneOr},
 };
-use starlark_derive::{starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_value};
 use types::{PackageRef, PathResolver};
 
-use crate::{allow_files::AllowFiles, cfg::AttrCfg, globals::AttrSpecArgs, Attr};
+use crate::{Attr, allow_files::AllowFiles, cfg::AttrCfg, globals::AttrSpecArgs};
 
 /// The underlying data type of a target attribute (e.g. Bool, String,
 /// LabelList).
@@ -215,7 +215,7 @@ mod tests {
     use types::Label;
 
     use super::*;
-    use crate::{globals::tests::new_attr_assert, LabelOrFile};
+    use crate::{LabelOrFile, globals::tests::new_attr_assert};
 
     #[track_caller]
     fn assert_eq_schema(

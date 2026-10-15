@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
     pin::Pin,
     sync::RwLock,
 };
@@ -11,7 +11,7 @@ use std::{
 use loader::FileLoader;
 use starlark::environment::{FrozenModule, Globals};
 use types::{
-    util::extend_lifetime, Label, LabelRef, PackageRef, PathResolver, Session as TypesSession,
+    Label, LabelRef, PackageRef, PathResolver, Session as TypesSession, util::extend_lifetime,
 };
 
 use crate::{errors::Error, target::Target};

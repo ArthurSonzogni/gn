@@ -8,13 +8,13 @@ use std::{
 };
 
 use allocative::Allocative;
-use attr::{traits::EvalContextAttrExt, TargetAttrExt};
+use attr::{TargetAttrExt, traits::EvalContextAttrExt};
 use starlark::{
     any::ProvidesStaticType,
     environment::Methods,
     values::{AllocValue, Freeze, FreezeResult, Freezer, Heap, StarlarkValue, Trace, Value},
 };
-use starlark_derive::{starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_value};
 use types::{CtxMethods, Session};
 
 /// The `ctx.actions` object which provides APIs to declare output files and

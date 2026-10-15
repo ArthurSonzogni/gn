@@ -5,9 +5,9 @@
 use std::pin::Pin;
 
 use starlark::values::{Heap, Value as StarlarkValue};
-use types::{intern_string, PackageRef};
+use types::{PackageRef, intern_string};
 
-use crate::{bridge::Value, Immutable, OwnedSlice, Scope};
+use crate::{Immutable, OwnedSlice, Scope, bridge::Value};
 
 impl Scope {
     fn new<'b>(

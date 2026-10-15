@@ -5,7 +5,7 @@
 use allocative::Allocative;
 use starlark::{
     typing::Ty,
-    values::{list::UnpackList, type_repr::StarlarkTypeRepr, Freeze, UnpackValue, Value},
+    values::{Freeze, UnpackValue, Value, list::UnpackList, type_repr::StarlarkTypeRepr},
 };
 use types::{Label, PackageRef, PathResolver};
 
@@ -100,9 +100,9 @@ pub(crate) fn parse_label_like(
 mod tests {
     use super::*;
     use crate::{
+        Attr,
         cfg::AttrCfg,
         schema::{AllowFilesSchema, AttrKind, AttrSchema},
-        Attr,
     };
 
     #[test]

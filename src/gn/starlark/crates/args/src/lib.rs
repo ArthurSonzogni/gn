@@ -9,7 +9,7 @@ pub mod formatter;
 #[cfg(test)]
 mod tests;
 pub mod unpack;
-pub use args::{args_methods, Args, FrozenArgs};
+pub use args::{Args, FrozenArgs, args_methods};
 pub(crate) use errors::Error;
 pub use formatter::Formatter;
 pub use unpack::FrozenArgsSequence;

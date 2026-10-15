@@ -9,9 +9,9 @@ use starlark::{
     any::ProvidesStaticType,
     collections::SmallMap,
     values::{
+        Freeze, FrozenHeap, FrozenValueTyped, Heap, Trace, Value,
         record::{Field, FrozenRecordType, Record},
         typing::{TypeIdDomain, TypeInstanceId},
-        Freeze, FrozenHeap, FrozenValueTyped, Heap, Trace, Value,
     },
 };
 use types::{LabelRef, OutputType};
@@ -26,9 +26,9 @@ impl TypeIdDomain for GnCtxDomain {
 }
 
 use crate::{
+    Attr, Session,
     schema::{AllowFilesSchema, AttrKind, AttrSchema},
     value::AttrValue,
-    Attr, Session,
 };
 
 /// Contains ctx.attr, ctx.files, and ctx.file.

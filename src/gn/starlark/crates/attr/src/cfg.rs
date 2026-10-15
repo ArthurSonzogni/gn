@@ -5,7 +5,7 @@
 use allocative::Allocative;
 use starlark::{
     typing::Ty,
-    values::{type_repr::StarlarkTypeRepr, Freeze, UnpackValue, Value},
+    values::{Freeze, UnpackValue, Value, type_repr::StarlarkTypeRepr},
 };
 
 /// The rust type for the starlark value passed to attr.label(cfg = ...)

@@ -13,11 +13,11 @@ use starlark::{
     starlark_complex_value,
     typing::Ty,
     values::{
-        type_repr::StarlarkTypeRepr, Heap, ProvidesStaticType, StarlarkValue, Trace, UnpackValue,
-        Value,
+        Heap, ProvidesStaticType, StarlarkValue, Trace, UnpackValue, Value,
+        type_repr::StarlarkTypeRepr,
     },
 };
-use starlark_derive::{starlark_module, starlark_value, Freeze, NoSerialize};
+use starlark_derive::{Freeze, NoSerialize, starlark_module, starlark_value};
 use types::File;
 
 /// All orderings are guaranteed to be deterministic.
@@ -227,7 +227,7 @@ mod tests {
     use testutils::Assert;
 
     use super::*;
-    use crate::{globals::tests::new_assert, UnpackFileDepset};
+    use crate::{UnpackFileDepset, globals::tests::new_assert};
 
     #[test]
     fn test_depset_deduplication() {

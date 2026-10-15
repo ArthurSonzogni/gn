@@ -5,13 +5,13 @@
 use depset::Depset;
 use starlark::{
     eval::Evaluator,
-    values::{list::ListRef, tuple::TupleRef, Value},
+    values::{Value, list::ListRef, tuple::TupleRef},
 };
 
 use crate::{
+    Error,
     args::{ArgValue, FrozenArgs},
     formatter::Formatter,
-    Error,
 };
 
 /// Helper to process and append a specific `FrozenArgs` object to the action's

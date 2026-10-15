@@ -11,7 +11,7 @@ use starlark::{
     starlark_simple_value,
     values::{ProvidesStaticType, StarlarkValue},
 };
-use starlark_derive::{starlark_module, starlark_value, Freeze, NoSerialize, Trace};
+use starlark_derive::{Freeze, NoSerialize, Trace, starlark_module, starlark_value};
 
 /// File is equivalent to GN's OutputFile. Like OutputFile, its path is relative
 /// to the root_build_dir (which is also the execution directory).
@@ -40,7 +40,7 @@ starlark_simple_value!(File);
 
 /// Interns a string for the duration of the program.
 pub fn intern_string(s: &str) -> &'static str {
-    extern "C" {
+    unsafe extern "C" {
         fn intern_string(s: &str) -> &'static str;
     }
     // Safety: Just an ffi function

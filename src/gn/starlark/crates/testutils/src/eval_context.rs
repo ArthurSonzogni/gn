@@ -9,8 +9,8 @@ use std::{
 
 use attr::{Attr, EvalContext as AttrEvalContext, EvalContextAttrExt};
 use starlark::{
-    values::{FrozenValueTyped, Heap, ProvidesStaticType, Value},
     Result,
+    values::{FrozenValueTyped, Heap, ProvidesStaticType, Value},
 };
 use types::{
     CtxState, Label, LabelRef, OutputType, Package, PackageRef, PathResolver, Scope, Session,

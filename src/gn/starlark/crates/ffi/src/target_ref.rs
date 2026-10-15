@@ -4,7 +4,7 @@
 
 use allocative::Allocative;
 use starlark::values::{AllocValue, Heap, ProvidesStaticType, StarlarkValue, Value};
-use starlark_derive::{starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_value};
 use types::{LabelRef, TargetRef as _};
 
 use crate::target::Target;

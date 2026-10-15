@@ -8,7 +8,7 @@ use allocative::Allocative;
 use starlark::values::ProvidesStaticType;
 use types::{CtxState, LabelRef, PackageRef, PathResolver};
 
-use crate::{errors::Error, target::Target, Scope, TargetRef};
+use crate::{Scope, TargetRef, errors::Error, target::Target};
 
 enum EvalContextKind {
     BzlFile,
@@ -116,7 +116,7 @@ impl types::EvalContext for EvalContext {
     #[allow(clippy::mut_from_ref)]
     fn require_macro(&self) -> starlark::Result<std::pin::Pin<&mut Self::Scope>> {
         match &self.kind {
-            EvalContextKind::Macro { mut scope, .. } => {
+            &EvalContextKind::Macro { mut scope, .. } => {
                 // Safety: The eval context is single-threaded, so we cannot have multiple
                 // references at the same time.
                 Ok(unsafe { std::pin::Pin::new_unchecked(scope.as_mut()) })

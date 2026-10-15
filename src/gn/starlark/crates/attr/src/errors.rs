@@ -26,7 +26,9 @@ pub(crate) enum Error {
     StringNotAllowed(String),
     #[error("allow_files and allow_single_file are mutually exclusive")]
     AllowFilesMutuallyExclusive,
-    #[error("allow_empty = False requires the attribute to be mandatory or have a non-empty default value")]
+    #[error(
+        "allow_empty = False requires the attribute to be mandatory or have a non-empty default value"
+    )]
     AllowEmptyRequiresMandatoryOrDefault,
     #[error("value `{0}` is not a label")]
     NotALabel(String),

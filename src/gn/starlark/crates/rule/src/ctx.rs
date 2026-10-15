@@ -5,13 +5,13 @@
 use std::{cell::RefCell, fmt};
 
 use allocative::Allocative;
-use attr::{traits::EvalContextAttrExt, CtxAttr, TargetAttrExt};
+use attr::{CtxAttr, TargetAttrExt, traits::EvalContextAttrExt};
 use starlark::{
     any::ProvidesStaticType,
     environment::Methods,
     values::{AllocValue, Freeze, FreezeResult, Freezer, Heap, StarlarkValue, Value},
 };
-use starlark_derive::{starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_value};
 use types::{CtxMethods, Session};
 
 use crate::Rule;

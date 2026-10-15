@@ -14,7 +14,7 @@ use starlark::{
     starlark_simple_value,
     values::{Heap, ProvidesStaticType, StarlarkValue, Value},
 };
-use starlark_derive::{starlark_value, NoSerialize};
+use starlark_derive::{NoSerialize, starlark_value};
 use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, TargetRef};
 
 use crate::FakeEvalContext;

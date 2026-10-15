@@ -1,5 +1,7 @@
 # LINT.IfChange
 
+edition = "2024"
+
 # Automatically wrap comments and documentation at the line limit
 wrap_comments = true
 

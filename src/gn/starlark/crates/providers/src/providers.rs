@@ -8,8 +8,8 @@ use starlark::{
     collections::SmallMap,
     typing::Ty,
     values::{
-        list::ListRef, structs::StructRef, type_repr::StarlarkTypeRepr, Heap, OwnedFrozen,
-        ProvidesStaticType, StarlarkValue, UnpackValue as _, Value,
+        Heap, OwnedFrozen, ProvidesStaticType, StarlarkValue, UnpackValue as _, Value,
+        list::ListRef, structs::StructRef, type_repr::StarlarkTypeRepr,
     },
 };
 use types::File;

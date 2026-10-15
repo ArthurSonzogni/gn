@@ -2,10 +2,10 @@ use either::Either;
 use starlark::{
     eval::Evaluator,
     typing::Ty,
-    values::{list::ListRef, type_repr::StarlarkTypeRepr, UnpackValue, Value, ValueTyped},
+    values::{UnpackValue, Value, ValueTyped, list::ListRef, type_repr::StarlarkTypeRepr},
 };
 
-use crate::{formatter::Formatter, FrozenArgs};
+use crate::{FrozenArgs, formatter::Formatter};
 
 impl<'v> UnpackValue<'v> for Formatter {
     type Error = starlark::Error;

@@ -6,8 +6,8 @@ use std::{
     fmt,
     fmt::{Debug, Display},
     sync::{
-        atomic::{AtomicU64, Ordering},
         OnceLock,
+        atomic::{AtomicU64, Ordering},
     },
 };
 
@@ -22,7 +22,7 @@ use starlark::{
         StringValue, Value, ValueTyped,
     },
 };
-use starlark_derive::{starlark_value, NoSerialize, Trace};
+use starlark_derive::{NoSerialize, Trace, starlark_value};
 
 use crate::{Error, ProviderInstance};
 

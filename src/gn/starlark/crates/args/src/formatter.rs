@@ -5,7 +5,7 @@
 use allocative::Allocative;
 use starlark::{
     typing::Ty,
-    values::{type_repr::StarlarkTypeRepr, Freeze},
+    values::{Freeze, type_repr::StarlarkTypeRepr},
 };
 
 use crate::errors::Error;
