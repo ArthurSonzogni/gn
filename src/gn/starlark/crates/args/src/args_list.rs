@@ -119,4 +119,21 @@ impl<'v> ArgsList<'v> {
         }
         Ok(())
     }
+
+    /// Asserts that expanding this argument list produces the expected strings.
+    #[track_caller]
+    pub fn assert_eq(
+        &self,
+        reconstructor: &starlark::values::OwnedFrozenReconstructor<'v>,
+        values: &[&str],
+    ) {
+        let expanded = starlark::environment::Module::with_temp_heap(|module| {
+            let mut eval = Evaluator::new(&module);
+            let edge = reconstructor.edge(eval.heap());
+            let args = edge.rebrand_ref(self);
+            let mut visitor = crate::TestArgVisitor::default();
+            args.expand(&mut eval, &mut visitor).map(|_| visitor.args)
+        });
+        assert_eq!(expanded.unwrap(), values);
+    }
 }

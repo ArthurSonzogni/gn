@@ -13,5 +13,5 @@ mod tests;
 pub use args::{ArgValue, Args, FrozenArgs, args_methods};
 pub use args_list::ArgsList;
 pub(crate) use errors::Error;
-pub use expand::ArgVisitor;
+pub use expand::{ArgVisitor, TestArgVisitor};
 pub use formatter::Formatter;

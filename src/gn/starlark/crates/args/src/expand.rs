@@ -51,6 +51,24 @@ pub trait ArgVisitor {
     }
 }
 
+/// Helper visitor for testing argument expansion.
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct TestArgVisitor {
+    /// Collected arguments.
+    pub args: Vec<String>,
+    current: String,
+}
+
+impl ArgVisitor for TestArgVisitor {
+    fn add_arg_chunk(&mut self, part: &str) {
+        self.current.push_str(part);
+    }
+
+    fn finish_arg(&mut self) {
+        self.args.push(std::mem::take(&mut self.current));
+    }
+}
+
 /// Helper to process a slice of [`ArgValue`]s, invoking `visitor.add_arg_chunk` for each string
 /// component of an argument and `visitor.finish_arg` at each argument boundary.
 pub(crate) fn expand_args<'v>(

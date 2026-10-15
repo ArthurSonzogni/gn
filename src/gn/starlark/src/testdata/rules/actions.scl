@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""Rules for testing ctx.actions.run."""
+
 ActionInfo = provider(fields = ["out_file"])
 
 def _write_impl(ctx):
@@ -80,5 +82,66 @@ undeclared_output = rule(
   implementation = _undeclared_output_impl,
   attrs = {
     "src": attr.label(allow_files = True),
+  },
+)
+
+def _run_action_impl(ctx):
+  out = ctx.actions.declare_file(ctx.label.name + ".o")
+  tool = ctx.actions.declare_file(ctx.label.name + "_tool")
+  ctx.actions.write(output = tool, content = "", is_executable = True)
+  in_file = ctx.file.src
+  args = ctx.actions.args()
+  args.add("-c")
+  args.add(in_file)
+  ctx.actions.run(
+    outputs = [out],
+    inputs = depset([in_file]),
+    executable = "my_compiler",
+    tools = [depset([tool])],
+    arguments = ["--flag", args],
+    mnemonic = "MYCOMPILE",
+  )
+
+  # The action should contain a snapshot of the state of args *before* this was added.
+  args.add("--after-registration")
+
+  exec_out = ctx.actions.declare_file(ctx.label.name + "_exec.o")
+  ctx.actions.run(
+    outputs = [exec_out],
+    inputs = [in_file],
+    executable = in_file,
+    tools = depset([tool]),
+    arguments = ["--test"],
+  )
+
+  return [DefaultInfo(files = depset([out]))]
+
+run_action = rule(
+  implementation = _run_action_impl,
+  attrs = {
+    "src": attr.label(allow_single_file = True),
+  },
+)
+
+def _invalid_action_impl(ctx):
+  out = ctx.actions.declare_file(ctx.label.name + ".txt")
+  name = ctx.label.name
+  if name == "empty_outputs":
+    ctx.actions.run(outputs = [], executable = "tool")
+  elif name == "undeclared_output":
+    ctx.actions.run(outputs = [ctx.file.src], executable = "tool")
+  elif name == "duplicate_output":
+    ctx.actions.run(outputs = [out], executable = "tool")
+    ctx.actions.run(outputs = [out], executable = "tool")
+  elif name == "invalid_mnemonic":
+    ctx.actions.run(outputs = [out], executable = "tool", mnemonic = "invalid")
+  else:
+    fail("Unsupported test")
+  return []
+
+invalid_action = rule(
+  implementation = _invalid_action_impl,
+  attrs = {
+    "src": attr.label(allow_single_file = True),
   },
 )

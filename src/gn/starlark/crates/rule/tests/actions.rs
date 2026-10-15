@@ -5,10 +5,11 @@
 use std::path::Path;
 
 use anyhow::Context as _;
+use either::Either;
 use rule::run;
 use tempfile::tempdir;
 use testutils::Assert;
-use types::{Label, PackageRef, Session as _};
+use types::{File, Label, PackageRef, Session as _};
 
 #[test]
 fn test_actions_suite() {
@@ -154,5 +155,137 @@ undeclared_output(name = "undeclared_output", src = "foo/file.cc")
                 );
             },
         }
+    }
+}
+
+#[test]
+fn test_actions_run() {
+    let _temp_dir = tempdir().unwrap();
+    let mut assert = Assert::new_rule_assert();
+    assert.modify_globals(|builder| {
+        depset::depset_globals!(builder, testutils::FakeEvalContext);
+    });
+    assert.load_module("//rules:actions.scl");
+    assert.pass(
+        r#"
+load("//rules:actions.scl", "run_action")
+
+run_action(name = "run_action", src = "foo/file.cc")
+"#,
+    );
+
+    let context = assert.context();
+    let session = assert.session();
+    let evaluated = run(
+        &context.session.get_target(
+            Label::new(PackageRef::root().to_owned(), "run_action".to_owned()).as_ref(),
+            context.session.default_toolchain.as_ref(),
+        ),
+        move |t: &testutils::FakeTargetRef| {
+            testutils::FakeEvalContext::rule_impl(session.clone(), t.clone())
+        },
+    )
+    .unwrap();
+
+    evaluated.by_ref_with_reconstructor(|evaluated, reconstructor| {
+        assert_eq!(
+            evaluated.providers.outputs_phony.unwrap().as_path(),
+            Path::new("obj/run_action/run_action.o")
+        );
+
+        assert_eq!(evaluated.actions.len(), 2);
+
+        let action = &evaluated.actions[0];
+        assert_eq!(
+            action.outputs,
+            &[File::intern("obj/run_action/run_action.o")]
+        );
+        assert_eq!(
+            action.inputs,
+            &[
+                File::intern("../../foo/file.cc"),
+                File::intern("obj/run_action/run_action_tool"),
+            ]
+        );
+        assert_eq!(
+            action.executable.as_ref().map_right(|s| s.as_str()),
+            Either::Right("my_compiler")
+        );
+        assert_eq!(
+            action.mnemonic.as_ref().map(|s| s.as_str()),
+            Some("MYCOMPILE")
+        );
+        action
+            .arguments
+            .assert_eq(&reconstructor, &["--flag", "-c", "../../foo/file.cc"]);
+
+        let action = &evaluated.actions[1];
+        assert_eq!(
+            action.outputs,
+            &[File::intern("obj/run_action/run_action_exec.o")]
+        );
+        assert_eq!(
+            action.inputs,
+            &[
+                File::intern("../../foo/file.cc"),
+                File::intern("obj/run_action/run_action_tool"),
+            ]
+        );
+        assert_eq!(
+            action.executable,
+            Either::Left(File::intern("../../foo/file.cc"))
+        );
+        assert_eq!(action.mnemonic, None);
+        action.arguments.assert_eq(&reconstructor, &["--test"]);
+    });
+}
+
+#[test]
+fn test_actions_run_errors() {
+    let _temp_dir = tempdir().unwrap();
+    let mut assert = Assert::new_rule_assert();
+    assert.modify_globals(|builder| {
+        depset::depset_globals!(builder, testutils::FakeEvalContext);
+    });
+    assert.load_module("//rules:actions.scl");
+    assert.pass(
+        r#"
+load("//rules:actions.scl", "invalid_action")
+
+invalid_action(name = "empty_outputs")
+invalid_action(name = "undeclared_output", src = "foo/file.cc")
+invalid_action(name = "duplicate_output")
+invalid_action(name = "invalid_mnemonic")
+"#,
+    );
+
+    let context = assert.context();
+
+    let error_cases: &[(&str, &str)] = &[
+        ("empty_outputs", "outputs cannot be empty"),
+        ("undeclared_output", "was not declared by this target"),
+        ("duplicate_output", "has already been generated"),
+        (
+            "invalid_mnemonic",
+            "mnemonic must be an uppercase letter followed by uppercase letters or digits",
+        ),
+    ];
+
+    for &(target_name, expected_err) in error_cases {
+        let session = assert.session();
+        let res = run(
+            &context.session.get_target(
+                Label::new(PackageRef::root().to_owned(), target_name.to_owned()).as_ref(),
+                context.session.default_toolchain.as_ref(),
+            ),
+            move |t: &testutils::FakeTargetRef| {
+                testutils::FakeEvalContext::rule_impl(session.clone(), t.clone())
+            },
+        );
+        let err = res.expect_err(target_name);
+        assert!(
+            err.to_string().contains(expected_err),
+            "Target '{target_name}' error '{err}' did not contain expected substring '{expected_err}'"
+        );
     }
 }

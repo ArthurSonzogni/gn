@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 use std::{
+    cell::RefCell,
     fmt::{self, Display, Formatter},
     marker::PhantomData,
 };
@@ -21,38 +22,52 @@ use types::{CtxMethods, Session};
 /// register build actions.
 #[derive(Allocative, NoSerialize, Trace)]
 #[trace(bound = "C: EvalContextAttrExt + CtxMethods")]
-pub struct Actions<C: EvalContextAttrExt + CtxMethods> {
+pub struct Actions<'v, C: EvalContextAttrExt + CtxMethods> {
+    actions: RefCell<Vec<crate::action::Action<'v>>>,
     // We don't need to store ctx because it's stored already in the EvalContext.
     _marker: PhantomData<fn() -> C>,
 }
 
-// Safety: This is a zero-sized type. All are equivalent.
-unsafe impl<'v, C: EvalContextAttrExt + CtxMethods> ProvidesStaticType<'v> for Actions<C> {
-    type StaticType = Self;
+impl<'v, C: EvalContextAttrExt + CtxMethods> Actions<'v, C> {
+    /// Pushes an action to the list of registered actions.
+    pub fn push_action(&self, action: crate::action::Action<'v>) {
+        self.actions.borrow_mut().push(action);
+    }
+
+    /// Takes all registered actions, leaving the internal list empty.
+    pub(crate) fn take_actions(&self) -> Vec<crate::action::Action<'v>> {
+        self.actions.take()
+    }
 }
 
-impl<C: EvalContextAttrExt + CtxMethods> Default for Actions<C> {
+// Safety: All instances of Actions with the same C have the same static type.
+unsafe impl<'v, C: EvalContextAttrExt + CtxMethods> ProvidesStaticType<'v> for Actions<'v, C> {
+    type StaticType = Actions<'static, C>;
+}
+
+impl<'v, C: EvalContextAttrExt + CtxMethods> Default for Actions<'v, C> {
     fn default() -> Self {
         Self {
+            actions: RefCell::new(Vec::new()),
             _marker: PhantomData,
         }
     }
 }
 
-impl<C: EvalContextAttrExt + CtxMethods> std::fmt::Debug for Actions<C> {
+impl<'v, C: EvalContextAttrExt + CtxMethods> std::fmt::Debug for Actions<'v, C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "ctx.actions")
     }
 }
 
-impl<C: EvalContextAttrExt + CtxMethods> Display for Actions<C> {
+impl<'v, C: EvalContextAttrExt + CtxMethods> Display for Actions<'v, C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "ctx.actions")
     }
 }
 
 #[starlark_value(type = "ctx.actions")]
-impl<'v, C: EvalContextAttrExt + CtxMethods> StarlarkValue<'v> for Actions<C>
+impl<'v, C: EvalContextAttrExt + CtxMethods> StarlarkValue<'v> for Actions<'v, C>
 where
     <C::Session as Session>::TargetRef: TargetAttrExt,
 {
@@ -63,7 +78,7 @@ where
     }
 }
 
-impl<'v, C: EvalContextAttrExt + CtxMethods> AllocValue<'v> for Actions<C>
+impl<'v, C: EvalContextAttrExt + CtxMethods> AllocValue<'v> for Actions<'v, C>
 where
     <C::Session as Session>::TargetRef: TargetAttrExt,
 {
@@ -72,7 +87,7 @@ where
     }
 }
 
-impl<'v, C: EvalContextAttrExt + CtxMethods> Freeze<'v> for Actions<C>
+impl<'v, C: EvalContextAttrExt + CtxMethods> Freeze<'v> for Actions<'v, C>
 where
     <C::Session as Session>::TargetRef: TargetAttrExt,
 {
@@ -94,7 +109,7 @@ macro_rules! impl_actions_methods {
                 eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
             ) -> starlark::Result<starlark::values::Value<'v>> {
                 let _ = this;
-                use types::{EvalContext as _, EvaluatorContextExt as _};
+                use $crate::types::{EvalContext as _, EvaluatorContextExt as _};
                 let file = eval
                     .context::<$ctx_type>()
                     .require_rule_impl()?
@@ -111,15 +126,109 @@ macro_rules! impl_actions_methods {
                 Ok(eval.heap().alloc($crate::args::Args::default()))
             }
 
+            fn run<'v>(
+                this: starlark::values::Value<'v>,
+                #[starlark(require = named)] outputs: starlark::values::list::UnpackList<
+                    $crate::types::File,
+                >,
+                #[starlark(require = named)] inputs: Option<
+                    $crate::either::Either<
+                        starlark::values::list::UnpackList<$crate::types::File>,
+                        $crate::depset::UnpackFileDepset,
+                    >,
+                >,
+                #[starlark(require = named)] executable: $crate::either::Either<
+                    $crate::types::File,
+                    starlark::values::StringValue<'v>,
+                >,
+                #[starlark(require = named)] tools: Option<
+                    $crate::either::Either<
+                        starlark::values::list::UnpackList<
+                            $crate::either::Either<
+                                $crate::types::File,
+                                $crate::depset::UnpackFileDepset,
+                            >,
+                        >,
+                        $crate::depset::UnpackFileDepset,
+                    >,
+                >,
+                #[starlark(require = named, default = Default::default())]
+                // Despite the bazel documentation saying list[str] | list[Args], the
+                // implementation takes list[str | Args].
+                arguments: $crate::args::ArgsList<'v>,
+                #[starlark(require = named, default = starlark::values::none::NoneOr::None)]
+                mnemonic: starlark::values::none::NoneOr<starlark::values::StringValue<'v>>,
+                eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
+            ) -> starlark::Result<starlark::values::none::NoneType> {
+                use $crate::either::Either;
+                use $crate::types::{EvalContext as _, EvaluatorContextExt as _, File};
+
+                if outputs.items.is_empty() {
+                    return Err($crate::Error::OutputsCannotBeEmpty.into());
+                }
+
+                // Collect executable, inputs, and tools into inputs.
+                let mut inputs: Vec<File> = executable
+                    .left()
+                    .into_iter()
+                    .chain(inputs.into_iter().flat_map(|either| match either {
+                        Either::Left(list) => Either::Left(list.items.into_iter()),
+                        Either::Right(depset) => Either::Right(depset.0.into_iter()),
+                    }))
+                    .chain(tools.into_iter().flat_map(|either| match either {
+                        Either::Left(list) => {
+                            Either::Left(list.items.into_iter().filter_map(|item| match item {
+                                Either::Left(file) => Some(file),
+                                Either::Right(depset) => depset.0,
+                            }))
+                        },
+                        Either::Right(depset) => Either::Right(depset.0.into_iter()),
+                    }))
+                    .collect();
+
+                $crate::types::uniquify_small_vec(&mut inputs);
+
+                // Bazel only allows [a-zA-Z0-9]+ as mnemonics. We filter this further to [A-Z][A-Z0-9]* for consistency with GN builtin actions.
+                let mnemonic = mnemonic.into_option();
+                if let Some(s) = mnemonic {
+                    let bytes = s.as_bytes();
+                    let is_valid = matches!(bytes.first(), Some(b'A'..=b'Z'))
+                        && bytes[1..].iter().all(|b| matches!(b, b'A'..=b'Z' | b'0'..=b'9'));
+                    if !is_valid {
+                        return Err($crate::Error::InvalidMnemonic(s.as_str().to_owned()).into());
+                    }
+                }
+
+                let ctx = eval.context::<$ctx_type>();
+                {
+                    let mut state = ctx.require_rule_impl()?.borrow_mut();
+                    for file in &outputs.items {
+                        state.generates_file(file)?;
+                    }
+                }
+
+                this.downcast_ref::<$crate::actions::Actions<'v, $ctx_type>>()
+                    .unwrap()
+                    .push_action($crate::action::Action {
+                        outputs: outputs.items,
+                        inputs,
+                        executable,
+                        arguments,
+                        mnemonic,
+                    });
+
+                Ok(starlark::values::none::NoneType)
+            }
+
             fn write<'v>(
                 this: starlark::values::Value<'v>,
-                output: &types::File,
+                output: &$crate::types::File,
                 content: &str,
                 #[starlark(default = false)] is_executable: bool,
                 eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
             ) -> starlark::Result<starlark::values::none::NoneType> {
                 let _ = this;
-                use types::{EvalContext as _, EvaluatorContextExt as _};
+                use $crate::types::{EvalContext as _, EvaluatorContextExt as _};
                 let ctx = eval.context::<$ctx_type>();
                 ctx.require_rule_impl()?
                     .borrow_mut()

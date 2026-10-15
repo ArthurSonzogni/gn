@@ -1,3 +1,4 @@
+pub mod action;
 pub mod actions;
 pub mod ctx;
 pub mod errors;
@@ -5,12 +6,15 @@ pub mod globals;
 pub mod implementation;
 pub mod rule;
 
+pub use action::Action;
 pub use actions::Actions;
 pub use args;
 pub use attr::AttrSchema;
 pub use ctx::Ctx;
+pub use depset;
+pub use either;
 pub use errors::Error;
 pub use globals::{extract_builtin_rules, register_builtin_rules};
 pub use implementation::{EvaluatedTarget, run};
 pub use rule::{OutputType, Rule};
-pub use types::CtxMethods;
+pub use types::{self, CtxMethods};

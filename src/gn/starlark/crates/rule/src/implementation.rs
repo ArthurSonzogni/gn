@@ -23,6 +23,8 @@ use crate::{Ctx, Rule};
 pub struct EvaluatedTarget<'v> {
     /// The phony outputs declared by this target.
     pub phonies: Vec<Phony>,
+    /// The actions registered by ctx.actions.run.
+    pub actions: Vec<crate::action::Action<'v>>,
     /// The providers returned by the target's rule implementation.
     pub providers: Providers<'v>,
 }
@@ -53,22 +55,28 @@ where
     let rule_context = create_context(target);
 
     Module::with_temp_heap(|module| {
-        let res = if rule.is_builtin() {
+        let (res, actions) = if rule.is_builtin() {
             // The other branch would also work, but this allows us to skip several
             // allocations (eg. ctx.attr.*) and spinning up a starlark
             // interpreter.
             let eval = Evaluator::new(&module);
             let heap = eval.heap();
             let mut state = rule_context.require_rule_impl()?.borrow_mut();
-            rule_context
-                .session()
-                .run_builtin_rule(&heap, target, &mut state)
+            (
+                rule_context
+                    .session()
+                    .run_builtin_rule(&heap, target, &mut state),
+                Vec::new(),
+            )
         } else {
             // When the module is frozen, only things transitively required by extra_value
             // are kept.
             let mut eval = Evaluator::new(&module);
             eval.set_context(&rule_context);
             let rule = HeapEdge::immortal().rebrand_ref(rule);
+            let actions = eval
+                .heap()
+                .alloc_typed(crate::actions::Actions::<C>::default());
             let ctx = eval.heap().alloc(Ctx::<C>::new(
                 rule.schema.create_ctx_fields(
                     target.attrs(),
@@ -80,9 +88,12 @@ where
                 )?,
                 rule,
                 eval.heap().alloc(target.label().to_owned()),
-                eval.heap().alloc(crate::actions::Actions::<C>::default()),
+                actions.to_value(),
             ));
-            eval.eval_function(rule.implementation, &[ctx], &[])?
+            (
+                eval.eval_function(rule.implementation, &[ctx], &[])?,
+                actions.take_actions(),
+            )
         };
 
         module.set_extra_value(
@@ -91,6 +102,7 @@ where
                     .require_rule_impl()?
                     .borrow_mut()
                     .rule_impl_complete()?,
+                actions,
                 providers: providers::Providers::unpack_value_err(res)?,
             }),
         );

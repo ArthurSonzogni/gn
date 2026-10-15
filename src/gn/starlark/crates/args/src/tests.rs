@@ -9,7 +9,7 @@ use starlark::{
 };
 use starlark_derive::starlark_module;
 
-use crate::{ArgVisitor, ArgsList, args::Args};
+use crate::{ArgsList, TestArgVisitor, args::Args};
 
 #[starlark_module]
 pub(crate) fn register_args_test_globals(builder: &mut GlobalsBuilder) {
@@ -19,22 +19,6 @@ pub(crate) fn register_args_test_globals(builder: &mut GlobalsBuilder) {
 
     fn identity<'v>(x: Value<'v>) -> starlark::Result<Value<'v>> {
         Ok(x)
-    }
-}
-
-#[derive(Default)]
-struct VecCollector {
-    command: Vec<String>,
-    current: String,
-}
-
-impl ArgVisitor for VecCollector {
-    fn add_arg_chunk(&mut self, part: &str) {
-        self.current.push_str(part);
-    }
-
-    fn finish_arg(&mut self) {
-        self.command.push(std::mem::take(&mut self.current));
     }
 }
 
@@ -60,9 +44,9 @@ impl ArgsAssert {
             let mut eval = starlark::eval::Evaluator::new(&module);
             let val_ref = val.as_ref().add_to_heap(module.heap());
             let seq = <ArgsList>::unpack_value_err(val_ref)?;
-            let mut collector = VecCollector::default();
+            let mut collector = TestArgVisitor::default();
             seq.expand(&mut eval, &mut collector)?;
-            Ok(collector.command)
+            Ok(collector.args)
         });
 
         match expected {

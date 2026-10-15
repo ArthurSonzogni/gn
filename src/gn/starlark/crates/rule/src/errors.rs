@@ -18,6 +18,12 @@ pub enum Error {
          structures."
     )]
     ObjectUnfreezable(&'static str),
+    #[error("ctx.actions.run: outputs cannot be empty")]
+    OutputsCannotBeEmpty,
+    #[error(
+        "mnemonic must be an uppercase letter followed by uppercase letters or digits. Got '{0}'"
+    )]
+    InvalidMnemonic(String),
 }
 
 impl From<Error> for starlark::Error {
