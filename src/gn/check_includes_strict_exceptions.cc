@@ -9,16 +9,25 @@
 #include "gn/scope.h"
 #include "gn/value.h"
 
-bool CheckIncludesStrictExceptions::CanInclude(const Label& from,
-                                               const Label& to) const {
-  if (LabelPattern::VectorMatches(global_, from))
-    return true;
+bool CheckIncludesStrictExceptions::HasGlobalException(
+    const Label& from) const {
+  return LabelPattern::VectorMatches(global_, from);
+}
 
+bool CheckIncludesStrictExceptions::HasLocalException(const Label& from,
+                                                      const Label& to) const {
+  if (specific_targets_.empty())
+    return false;
   auto it = specific_targets_.find(to.GetWithNoToolchain());
   if (it != specific_targets_.end())
     return LabelPattern::VectorMatches(it->second, from);
 
   return false;
+}
+
+bool CheckIncludesStrictExceptions::HasException(const Label& from,
+                                                 const Label& to) const {
+  return HasGlobalException(from) || HasLocalException(from, to);
 }
 
 Result<CheckIncludesStrictExceptions> CheckIncludesStrictExceptions::FromValue(
@@ -63,7 +72,7 @@ Result<CheckIncludesStrictExceptions> CheckIncludesStrictExceptions::FromValue(
       if (!included->string_value().starts_with("//"))
         return Err(*included,
                    "Target label must be absolute (starting with '//').");
-      exceptions.AddException(from, to);
+      exceptions.AddLocalException(from, to);
     } else {
       exceptions.AddGlobalException(from);
     }

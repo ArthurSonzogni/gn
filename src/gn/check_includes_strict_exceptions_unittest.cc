@@ -44,9 +44,9 @@ TEST(CheckIncludesStrictExceptionsTest, FromValue) {
   specific_list.list_value().push_back(make_rule("//:includer", "//:included"));
   auto specific_exceptions = parse(specific_list);
   ASSERT_SUCCESS(specific_exceptions);
-  EXPECT_TRUE(specific_exceptions->CanInclude(
+  EXPECT_TRUE(specific_exceptions->HasException(
       Label(SourceDir("//"), "includer"), Label(SourceDir("//"), "included")));
-  EXPECT_FALSE(specific_exceptions->CanInclude(
+  EXPECT_FALSE(specific_exceptions->HasException(
       Label(SourceDir("//"), "includer"), Label(SourceDir("//"), "other")));
 
   // Global exception (included omitted).
@@ -55,28 +55,28 @@ TEST(CheckIncludesStrictExceptionsTest, FromValue) {
   auto global_exceptions = parse(global_list);
   ASSERT_SUCCESS(global_exceptions);
   EXPECT_TRUE(
-      global_exceptions->CanInclude(Label(SourceDir("//"), "includer"),
-                                    Label(SourceDir("//any/"), "target")));
+      global_exceptions->HasException(Label(SourceDir("//"), "includer"),
+                                      Label(SourceDir("//any/"), "target")));
   EXPECT_FALSE(
-      global_exceptions->CanInclude(Label(SourceDir("//other/"), "target"),
-                                    Label(SourceDir("//any/"), "target")));
+      global_exceptions->HasException(Label(SourceDir("//other/"), "target"),
+                                      Label(SourceDir("//any/"), "target")));
 }
 
-TEST(CheckIncludesStrictExceptionsTest, CanInclude) {
+TEST(CheckIncludesStrictExceptionsTest, HasException) {
   CheckIncludesStrictExceptions exceptions;
 
-  exceptions.AddException(
+  exceptions.AddLocalException(
       LabelPattern(LabelPattern::RECURSIVE_DIRECTORY,
                    SourceDir("//includer_recursive/"), "", Label()),
       Label(SourceDir("//included/"), "target"));
 
-  EXPECT_TRUE(exceptions.CanInclude(
+  EXPECT_TRUE(exceptions.HasException(
       Label(SourceDir("//includer_recursive/sub/"), "target"),
       Label(SourceDir("//included/"), "target")));
   EXPECT_FALSE(
-      exceptions.CanInclude(Label(SourceDir("//other_dir/"), "target"),
-                            Label(SourceDir("//included/"), "target")));
-  EXPECT_FALSE(exceptions.CanInclude(
+      exceptions.HasException(Label(SourceDir("//other_dir/"), "target"),
+                              Label(SourceDir("//included/"), "target")));
+  EXPECT_FALSE(exceptions.HasException(
       Label(SourceDir("//includer_recursive/sub/"), "target"),
       Label(SourceDir("//included/"), "other_target")));
 
@@ -84,9 +84,9 @@ TEST(CheckIncludesStrictExceptionsTest, CanInclude) {
       LabelPattern::DIRECTORY, SourceDir("//includer_global/"), "", Label()));
 
   EXPECT_TRUE(
-      exceptions.CanInclude(Label(SourceDir("//includer_global/"), "foo"),
-                            Label(SourceDir("//any_dir/"), "any_target")));
+      exceptions.HasException(Label(SourceDir("//includer_global/"), "foo"),
+                              Label(SourceDir("//any_dir/"), "any_target")));
   EXPECT_FALSE(
-      exceptions.CanInclude(Label(SourceDir("//other_dir/"), "foo"),
-                            Label(SourceDir("//any_dir/"), "any_target")));
+      exceptions.HasException(Label(SourceDir("//other_dir/"), "foo"),
+                              Label(SourceDir("//any_dir/"), "any_target")));
 }

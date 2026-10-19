@@ -681,7 +681,7 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   // simpler this way, and it's pretty rare anyway.
   bool strict_exempt = false;
   for (const auto& target : targets) {
-    if (build_settings_->check_includes_strict_exceptions().CanInclude(
+    if (build_settings_->check_includes_strict_exceptions().HasException(
             from_target->label(), target.target->label())) {
       strict_exempt = true;
       break;

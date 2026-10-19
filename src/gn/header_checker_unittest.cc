@@ -718,9 +718,9 @@ TEST_F(HeaderCheckerTest, CheckIncludesStrictExceptions) {
   // Set exceptions on build_settings:
   CheckIncludesStrictExceptions exceptions;
   LabelPattern a_dir(LabelPattern::DIRECTORY, SourceDir("//a/"), "", Label());
-  exceptions.AddException(a_dir, b_.label());
-  exceptions.AddException(a_dir, a_.label());
-  exceptions.AddException(a_dir, c_.label());
+  exceptions.AddLocalException(a_dir, b_.label());
+  exceptions.AddLocalException(a_dir, a_.label());
+  exceptions.AddLocalException(a_dir, c_.label());
   setup_.build_settings()->set_check_includes_strict_exceptions(
       std::move(exceptions));
 
