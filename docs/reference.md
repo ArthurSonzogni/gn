@@ -5771,8 +5771,9 @@
   3. Dependents of this target cannot transitively include headers from this
      target's "public_deps" (they must depend on those targets directly).
 
-  Note that targets listed in "allow_circular_includes_from" act as an escape
-  hatch and bypass these strict checks.
+  Note that targets listed in "allow_circular_includes_from" and
+  "check_includes_strict_exceptions" act as an escape hatch and bypass these
+  strict checks.
 
   This enforces strict API boundary separation. Under this strict model:
   * "public_deps" act as interface dependencies (dependencies required to
@@ -5780,7 +5781,8 @@
     forwarded to dependents.
   * "deps" act as private implementation dependencies (dependencies required to
     compile this target's sources). This also allows dependent targets to
-    compile without waiting for this target's private "deps".
+    compile without waiting for this target's private "deps" (unless
+    check_includes_strict_exceptions is non-empty).
 
   When false (the default), the default loose include checking rules apply.
 ```

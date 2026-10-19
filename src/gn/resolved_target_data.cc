@@ -82,7 +82,17 @@ bool ResolvedTargetData::OnlyForwardsPublicHardDeps(const Target* target) {
   // binding headers via `public_deps`), dependents only need hard deps from
   // `public_deps()`. The target's own compilation still gets hard deps from its
   // `private_deps()` in NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep.
-  return !target->hard_dep() && (target->check_includes_strict() ||
+  //
+  // However, a target marked as check_includes_strict doesn't truly have the
+  // properties of check_includes_strict until there are no exemptions with
+  // target as the includer. Since we don't have an efficient way to check this,
+  // and exemptions are designed to be temporary anyway, we just disable them if
+  // exemptions exist.
+  return !target->hard_dep() && ((target->check_includes_strict() &&
+                                  target->settings()
+                                      ->build_settings()
+                                      ->check_includes_strict_exceptions()
+                                      .empty()) ||
                                  target->source_types_used().RustSourceUsed());
 }
 
