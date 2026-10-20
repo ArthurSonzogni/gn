@@ -463,7 +463,7 @@ bool VisualStudioWriter::WriteProjectFileContents(
                          build_settings_->root_path_utf8(),
                          EscapingMode::ESCAPE_NONE);
 
-  out << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << std::endl;
+  out << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
   XmlElementWriter project(
       out, "Project",
       XmlAttributes("DefaultTargets", "Build")
@@ -688,7 +688,7 @@ void VisualStudioWriter::WriteFiltersFileContents(
     std::ostream& out,
     const Target* target,
     const SourceFileCompileTypePairs& source_types) {
-  out << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << std::endl;
+  out << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
   XmlElementWriter project(
       out, "Project",
       XmlAttributes("ToolsVersion", "4.0")
@@ -768,64 +768,61 @@ bool VisualStudioWriter::WriteSolutionFile(const std::string& sln_name,
 void VisualStudioWriter::WriteSolutionFileContents(
     std::ostream& out,
     const base::FilePath& solution_dir_path) {
-  out << "Microsoft Visual Studio Solution File, Format Version 12.00"
-      << std::endl;
-  out << "# " << version_string_ << std::endl;
+  out << "Microsoft Visual Studio Solution File, Format Version 12.00\n";
+  out << "# " << version_string_ << '\n';
 
   SourceDir solution_dir(FilePathToUTF8(solution_dir_path));
   for (const std::unique_ptr<SolutionEntry>& folder : folders_) {
     out << "Project(\"" << kGuidTypeFolder << "\") = \"(" << folder->name
         << ")\", \"" << RebasePath(folder->path, solution_dir) << "\", \""
-        << folder->guid << "\"" << std::endl;
-    out << "EndProject" << std::endl;
+        << folder->guid << "\"\n";
+    out << "EndProject\n";
   }
 
   for (const std::unique_ptr<SolutionProject>& project : projects_) {
     out << "Project(\"" << kGuidTypeProject << "\") = \"" << project->name
         << "\", \"" << RebasePath(project->path, solution_dir) << "\", \""
-        << project->guid << "\"" << std::endl;
-    out << "EndProject" << std::endl;
+        << project->guid << "\"\n";
+    out << "EndProject\n";
   }
 
-  out << "Global" << std::endl;
+  out << "Global\n";
 
-  out << "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution"
-      << std::endl;
+  out << "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n";
   const std::string config_mode_prefix = std::string(kConfigurationName) + '|';
   const std::string config_mode = config_mode_prefix + config_platform_;
-  out << "\t\t" << config_mode << " = " << config_mode << std::endl;
-  out << "\tEndGlobalSection" << std::endl;
+  out << "\t\t" << config_mode << " = " << config_mode << '\n';
+  out << "\tEndGlobalSection\n";
 
-  out << "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution"
-      << std::endl;
+  out << "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n";
   for (const std::unique_ptr<SolutionProject>& project : projects_) {
     const std::string project_config_mode =
         config_mode_prefix + project->config_platform;
     out << "\t\t" << project->guid << '.' << config_mode
-        << ".ActiveCfg = " << project_config_mode << std::endl;
+        << ".ActiveCfg = " << project_config_mode << '\n';
     out << "\t\t" << project->guid << '.' << config_mode
-        << ".Build.0 = " << project_config_mode << std::endl;
+        << ".Build.0 = " << project_config_mode << '\n';
   }
-  out << "\tEndGlobalSection" << std::endl;
+  out << "\tEndGlobalSection\n";
 
-  out << "\tGlobalSection(SolutionProperties) = preSolution" << std::endl;
-  out << "\t\tHideSolutionNode = FALSE" << std::endl;
-  out << "\tEndGlobalSection" << std::endl;
+  out << "\tGlobalSection(SolutionProperties) = preSolution\n";
+  out << "\t\tHideSolutionNode = FALSE\n";
+  out << "\tEndGlobalSection\n";
 
-  out << "\tGlobalSection(NestedProjects) = preSolution" << std::endl;
+  out << "\tGlobalSection(NestedProjects) = preSolution\n";
   for (const std::unique_ptr<SolutionEntry>& folder : folders_) {
     if (folder->parent_folder) {
       out << "\t\t" << folder->guid << " = " << folder->parent_folder->guid
-          << std::endl;
+          << '\n';
     }
   }
   for (const std::unique_ptr<SolutionProject>& project : projects_) {
     out << "\t\t" << project->guid << " = " << project->parent_folder->guid
-        << std::endl;
+        << '\n';
   }
-  out << "\tEndGlobalSection" << std::endl;
+  out << "\tEndGlobalSection\n";
 
-  out << "EndGlobal" << std::endl;
+  out << "EndGlobal\n";
 }
 
 void VisualStudioWriter::ResolveSolutionFolders() {

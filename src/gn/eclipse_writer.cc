@@ -119,7 +119,7 @@ bool EclipseWriter::UsesDefaultToolchain(const Target* target) const {
 }
 
 void EclipseWriter::WriteCDTSettings() {
-  out_ << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+  out_ << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
   XmlElementWriter cdt_properties_element(out_, "cdtprojectproperties",
                                           XmlAttributes());
 

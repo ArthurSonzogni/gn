@@ -33,7 +33,7 @@ void WriteVar(const char* name,
               std::ostream& out) {
   out << name << " = ";
   EscapeStringToStream(out, value, opts);
-  out << std::endl;
+  out << '\n';
 }
 
 void WriteCrateVars(const Target* target,
@@ -346,7 +346,7 @@ void NinjaRustBinaryTargetWriter::WriteSourcesAndInputs() {
     out_ << " ";
     path_output_.WriteFile(out_, OutputFile(settings_->build_settings(), data));
   }
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
@@ -434,7 +434,7 @@ void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
     }
   }
 
-  out_ << std::endl;
+  out_ << '\n';
   out_ << "  rustdeps =";
 
   for (const SourceDir& dir : private_extern_dirs) {
@@ -466,11 +466,11 @@ void NinjaRustBinaryTargetWriter::WriteExternsAndDeps(
   WriteFrameworks(out_, tool_);
   WriteSwiftModules(out_, tool_, swiftmodules);
 
-  out_ << std::endl;
+  out_ << '\n';
   out_ << "  ldflags =";
   // If rustc will invoke a linker, linker flags need to be forwarded through to
   // the linker.
   WriteCustomLinkerFlags(out_, tool_);
 
-  out_ << std::endl;
+  out_ << '\n';
 }

@@ -217,7 +217,7 @@ NinjaBinaryTargetWriter::WriteInputsStampOrPhonyAndGetDep(
     path_output_.WriteFile(out_, *input);
   }
 
-  out_ << std::endl;
+  out_ << '\n';
   return {stamp_or_phony};
 }
 
@@ -399,18 +399,18 @@ void NinjaBinaryTargetWriter::WriteCompilerBuildLine(
     path_output_.WriteFiles(out_, order_only_deps);
   }
   WriteValidations();
-  out_ << std::endl;
+  out_ << '\n';
 
   if (!sources.empty() && can_write_source_info) {
     out_ << "  " << "source_file_part = " << sources[0].GetName();
-    out_ << std::endl;
+    out_ << '\n';
     out_ << "  " << "source_name_part = "
          << FindFilenameNoExtension(&sources[0].value());
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   if (restat_output_allowed) {
-    out_ << "  restat = 1" << std::endl;
+    out_ << "  restat = 1\n";
   }
 }
 
@@ -540,7 +540,7 @@ void NinjaBinaryTargetWriter::WritePool(std::ostream& out) {
     out << "  pool = ";
     out << target_->pool().ptr->GetNinjaName(
         settings_->default_toolchain_label());
-    out << std::endl;
+    out << '\n';
   }
 }
 

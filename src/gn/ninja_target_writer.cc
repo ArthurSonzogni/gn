@@ -259,7 +259,7 @@ void NinjaTargetWriter::WritePublicInputsStampOrPhony(
   }
 
   path_output.WriteFiles(out, deps);
-  out << std::endl << std::endl;
+  out << "\n\n";
 }
 
 namespace {
@@ -366,7 +366,7 @@ void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
         << GeneralTool::kGeneralToolStamp;
   }
   path_output.WriteFiles(out, deps);
-  out << std::endl;
+  out << '\n';
 }
 
 void NinjaTargetWriter::WriteEscapedSubstitution(const Substitution* type) {
@@ -376,7 +376,7 @@ void NinjaTargetWriter::WriteEscapedSubstitution(const Substitution* type) {
   out_ << type->ninja_name << " = ";
   EscapeStringToStream(
       out_, SubstitutionWriter::GetTargetSubstitution(target_, type), opts);
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaTargetWriter::WriteSharedVars(const SubstitutionBits& bits) {
@@ -433,7 +433,7 @@ void NinjaTargetWriter::WriteSharedVars(const SubstitutionBits& bits) {
   // If we wrote any vars, separate them from the rest of the file that follows
   // with a blank line.
   if (written_anything)
-    out_ << std::endl;
+    out_ << '\n';
 }
 
 void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
@@ -447,7 +447,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
     RecursiveTargetConfigToStream<std::string>(kRecursiveWriterSkipDuplicates,
                                                target_, &ConfigValues::defines,
                                                DefineWriter(), out_);
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   // Framework search path.
@@ -465,7 +465,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
         FrameworkDirsWriter(framework_dirs_output,
                             tool->framework_dir_switch()),
         out_);
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   // Include directories.
@@ -479,7 +479,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
     RecursiveTargetConfigToStream<SourceDir>(
         kRecursiveWriterSkipDuplicates, target_, &ConfigValues::include_dirs,
         IncludeWriter(include_path_output), out_);
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   bool has_precompiled_headers =
@@ -545,7 +545,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
         out_ << "  ";
       out_ << CSubstitutionSwiftModuleName.ninja_name << " = ";
       EscapeStringToStream(out_, target_->swift_values().module_name(), opts);
-      out_ << std::endl;
+      out_ << '\n';
     }
 
     if (bits.used.count(&CSubstitutionSwiftBridgeHeader)) {
@@ -557,7 +557,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
       } else {
         out_ << R"("")";
       }
-      out_ << std::endl;
+      out_ << '\n';
     }
 
     if (bits.used.count(&CSubstitutionSwiftModuleDirs)) {
@@ -577,7 +577,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
       for (const SourceDir& swiftmodule_dir : swiftmodule_dirs) {
         swiftmodule_path_writer(swiftmodule_dir, out_);
       }
-      out_ << std::endl;
+      out_ << '\n';
     }
 
     WriteOneFlag(kRecursiveWriterKeepDuplicates, target_,
@@ -875,7 +875,7 @@ void NinjaTargetWriter::WriteStampOrPhonyForTarget(
     path_output_.WriteFiles(out_, order_only_deps);
   }
   WriteValidations();
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaTargetWriter::WriteValidations() {

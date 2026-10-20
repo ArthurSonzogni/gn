@@ -273,7 +273,7 @@ void QtCreatorWriter::GenerateFile(const base::FilePath::CharType* suffix,
   StringOutputBuffer storage;
   std::ostream output(&storage);
   for (const std::string& item : items)
-    output << item << std::endl;
+    output << item << '\n';
   storage.WriteToFileIfChanged(file_path, &err_);
 }
 

@@ -172,9 +172,9 @@ LogMessage::LogMessage(const char* file,
 
 LogMessage::~LogMessage() {
   if (severity_ == LOG_FATAL) {
-    stream_ << std::endl;  // Newline to separate from log message.
+    stream_ << '\n';  // Newline to separate from log message.
   }
-  stream_ << std::endl;
+  stream_ << '\n';
   std::string str_newline(stream_.str());
 
 #if defined(OS_WIN)

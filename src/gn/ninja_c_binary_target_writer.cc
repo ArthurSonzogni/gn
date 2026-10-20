@@ -202,7 +202,7 @@ void NinjaCBinaryTargetWriter::WriteModuleNameSubstitution() {
     EscapeOptions options;
     options.mode = ESCAPE_NINJA;
     EscapeStringToStream(out_, target_->module_name(), options);
-    out_ << std::endl;
+    out_ << '\n';
   }
 }
 
@@ -219,7 +219,7 @@ void NinjaCBinaryTargetWriter::WriteModuleDepsSubstitution(
       module_dep.Write(out_, path_output_, include_self);
     }
 
-    out_ << std::endl;
+    out_ << '\n';
   }
 }
 
@@ -341,7 +341,7 @@ void NinjaCBinaryTargetWriter::WriteGCCPCHCommand(
 
   // Write two blank lines to help separate the PCH build lines from the
   // regular source build lines.
-  out_ << std::endl << std::endl;
+  out_ << "\n\n";
 }
 
 void NinjaCBinaryTargetWriter::WriteWindowsPCHCommand(
@@ -377,7 +377,7 @@ void NinjaCBinaryTargetWriter::WriteWindowsPCHCommand(
 
   // Write two blank lines to help separate the PCH build lines from the
   // regular source build lines.
-  out_ << std::endl << std::endl;
+  out_ << "\n\n";
 }
 
 void NinjaCBinaryTargetWriter::WriteSources(
@@ -493,7 +493,7 @@ void NinjaCBinaryTargetWriter::WriteSources(
     }
   }
 
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaCBinaryTargetWriter::WriteSwiftSources(
@@ -530,7 +530,7 @@ void NinjaCBinaryTargetWriter::WriteSwiftSources(
                          /*can_write_source_info=*/false,
                          /*restat_output_allowed=*/true);
 
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaCBinaryTargetWriter::WriteSourceSetStamp(
@@ -577,7 +577,7 @@ void NinjaCBinaryTargetWriter::WriteSourceSetStamp(
     out_ << " ||";
     path_output_.WriteFiles(out_, order_only_deps);
   }
-  out_ << std::endl;
+  out_ << '\n';
 
   // 2. Default phony target containing all files (including additional
   // outputs). Depend on the .link target to avoid duplicating object files.
@@ -595,7 +595,7 @@ void NinjaCBinaryTargetWriter::WriteSourceSetStamp(
     }
   }
   path_output_.WriteFiles(out_, non_object_files);
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaCBinaryTargetWriter::WriteLinkerStuff(
@@ -736,7 +736,7 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
   WriteValidations();
 
   // End of the link "build" line.
-  out_ << std::endl;
+  out_ << '\n';
 
   // The remaining things go in the inner scope of the link line.
   if (target_->output_type() == Target::EXECUTABLE ||
@@ -744,22 +744,22 @@ void NinjaCBinaryTargetWriter::WriteLinkerStuff(
       target_->output_type() == Target::LOADABLE_MODULE) {
     out_ << "  ldflags =";
     WriteLinkerFlags(out_, tool_, optional_def_file);
-    out_ << std::endl;
+    out_ << '\n';
     out_ << "  libs =";
     WriteLibs(out_, tool_);
-    out_ << std::endl;
+    out_ << '\n';
     out_ << "  frameworks =";
     WriteFrameworks(out_, tool_);
-    out_ << std::endl;
+    out_ << '\n';
     out_ << "  swiftmodules =";
     WriteSwiftModules(out_, tool_, swiftmodules);
-    out_ << std::endl;
+    out_ << '\n';
   } else if (target_->output_type() == Target::STATIC_LIBRARY) {
     out_ << "  arflags =";
     RecursiveTargetConfigStringsToStream(kRecursiveWriterKeepDuplicates,
                                          target_, &ConfigValues::arflags,
                                          GetFlagOptions(), out_);
-    out_ << std::endl;
+    out_ << '\n';
   }
   WriteOutputSubstitutions();
   WriteLibsList("solibs", solibs);
@@ -775,7 +775,7 @@ void NinjaCBinaryTargetWriter::WriteOutputSubstitutions() {
   if (!output_extension.empty()) {
     out_ << " " << output_extension;
   }
-  out_ << std::endl;
+  out_ << '\n';
 
   const std::string output_dir = SubstitutionWriter::GetLinkerSubstitution(
       target_, tool_, &SubstitutionOutputDir);
@@ -783,7 +783,7 @@ void NinjaCBinaryTargetWriter::WriteOutputSubstitutions() {
   if (!output_dir.empty()) {
     out_ << " " << output_dir;
   }
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaCBinaryTargetWriter::WriteLibsList(
@@ -797,7 +797,7 @@ void NinjaCBinaryTargetWriter::WriteLibsList(
                     settings_->build_settings()->root_path_utf8(),
                     ESCAPE_NINJA_COMMAND);
   output.WriteFiles(out_, libs);
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaCBinaryTargetWriter::WriteOrderOnlyDependencies(

@@ -55,7 +55,7 @@ void NinjaCopyTargetWriter::Run() {
 
   std::vector<OutputFile> output_files;
   WriteCopyRules(&output_files);
-  out_ << std::endl;
+  out_ << '\n';
   WriteStampOrPhonyForTarget(output_files, std::vector<OutputFile>());
 }
 
@@ -129,6 +129,6 @@ void NinjaCopyTargetWriter::WriteCopyRules(
       path_output_.WriteFiles(out_, order_only_deps);
     }
     WriteValidations();
-    out_ << std::endl;
+    out_ << '\n';
   }
 }

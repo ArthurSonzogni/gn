@@ -335,7 +335,7 @@ void SubstitutionWriter::WriteNinjaVariablesForSource(
           GetSourceSubstitution(target, settings, source, type, OUTPUT_RELATIVE,
                                 settings->build_settings()->build_dir()),
           escape_options);
-      out << std::endl;
+      out << '\n';
     }
   }
 }

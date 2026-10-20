@@ -904,15 +904,15 @@ void RenderToText(const base::Value& node,
   if (node_type == "ACCESSOR") {
     // AccessorNode is a bit special, in that it holds a Token, not a ParseNode
     // for the base.
-    os << IndentFor(indent_level) << node_type << std::endl;
+    os << IndentFor(indent_level) << node_type << '\n';
     os << IndentFor(indent_level + 1) << node.FindKey("value")->GetString()
-       << std::endl;
+       << '\n';
   } else {
     os << IndentFor(indent_level) << node_type;
     if (node.FindKey("value")) {
       os << "(" << node.FindKey("value")->GetString() << ")";
     }
-    os << std::endl;
+    os << '\n';
   }
   if (node.FindKey(kJsonBeforeComment)) {
     for (auto& v : node.FindKey(kJsonBeforeComment)->GetList()) {

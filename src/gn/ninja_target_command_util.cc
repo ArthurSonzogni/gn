@@ -97,7 +97,7 @@ void WriteOneFlag(RecursiveWriterConfig config,
   }
 
   if (write_substitution)
-    out << std::endl;
+    out << '\n';
 }
 
 void GetPCHOutputFiles(const Target* target,
