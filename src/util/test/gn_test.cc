@@ -23,6 +23,7 @@
 #include "base/strings/stringprintf.h"
 #include "gn/exec_process.h"
 #include "gn/standard_out.h"
+#include "gn/string_output_buffer.h"
 #include "util/test/test.h"
 
 #if defined(OS_WIN)
@@ -277,4 +278,8 @@ int main(int argc, char** argv) {
   }
   fflush(stdout);
   return passed ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+bool operator==(std::string_view expected, const StringOutputBuffer& actual) {
+  return expected == actual.str();
 }

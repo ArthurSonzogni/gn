@@ -122,3 +122,7 @@ bool StringOutputBuffer::WriteToFileIfChanged(const base::FilePath& file_path,
 
   return WriteToFile(file_path, err);
 }
+
+std::string Pretty(const StringOutputBuffer& buffer) {
+  return buffer.str();
+}

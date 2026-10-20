@@ -5,8 +5,10 @@
 #ifndef TOOLS_GN_STRING_OUTPUT_BUFFER_H_
 #define TOOLS_GN_STRING_OUTPUT_BUFFER_H_
 
+#include <charconv>
 #include <concepts>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <streambuf>
 #include <string>
@@ -35,10 +37,30 @@ inline void WriteToBuf(char c, char buf[], size_t& upto) {
 }
 
 template <typename T>
-concept Writable = requires(const T& val, char buf[], size_t& upto) {
-  { MaximumSize(val) } -> std::convertible_to<size_t>;
-  WriteToBuf(val, buf, upto);
-};
+  requires(std::integral<T> && !std::same_as<T, char> && !std::same_as<T, bool>)
+inline size_t MaximumSize(T) {
+  // digits10 is the number of digits such that *every* number of this length
+  // can be represented. For int32 for example, this returns the number of
+  // digits required to store 999M (since we can store every number < 1B).
+  // +1 because although we can't represent *every* number in the billions, we
+  // can represent *some* numbers in the billions.
+  // +1 for negative sign.
+  return std::numeric_limits<T>::digits10 + 2;
+}
+
+template <typename T>
+  requires(std::integral<T> && !std::same_as<T, char> && !std::same_as<T, bool>)
+inline void WriteToBuf(T val, char buf[], size_t& upto) {
+  upto =
+      std::to_chars(&buf[upto], &buf[upto + MaximumSize(val)], val).ptr - buf;
+}
+
+template <typename T>
+concept Writable = !std::same_as<std::remove_cvref_t<T>, bool> &&
+                   requires(const T& val, char buf[], size_t& upto) {
+                     { MaximumSize(val) } -> std::convertible_to<size_t>;
+                     WriteToBuf(val, buf, upto);
+                   };
 
 // An append-only very large storage area for string data. Useful for the parts
 // of GN that need to generate huge output files (e.g. --ide=json will create
@@ -137,5 +159,7 @@ class StringOutputBuffer : public std::streambuf {
   // Contains sum([page.size for page in ro_])
   size_t ro_size_ = 0;
 };
+
+std::string Pretty(const StringOutputBuffer& buffer);
 
 #endif  // TOOLS_GN_STRING_OUTPUT_BUFFER_H_
