@@ -63,24 +63,19 @@ TEST(StringOutputBuffer, AppendWithPageSizeMultiples) {
   ASSERT_STREQ(data.c_str(), buffer.str().c_str());
 }
 
-TEST(StringOutput, WrappedByStdOstream) {
-  const size_t data_size = 100000;
-  std::string data = CreateTestString(data_size);
-
-  const size_t num_spans = 50;
-  const size_t span_size = data_size / num_spans;
-
+TEST(StringOutputBuffer, Clear) {
   StringOutputBuffer buffer;
-  std::ostream out(&buffer);
+  buffer << "first string";
+  EXPECT_EQ("first string", buffer.str());
+  EXPECT_EQ(12u, buffer.size());
 
-  for (size_t n = 0; n < num_spans; ++n) {
-    size_t start_offset = n * span_size;
-    size_t end_offset = std::min(start_offset + span_size, data.size());
-    out << std::string_view(&data[start_offset], end_offset - start_offset);
-  }
+  buffer.Clear();
+  EXPECT_EQ("", buffer.str());
+  EXPECT_EQ(0u, buffer.size());
 
-  EXPECT_EQ(data.size(), buffer.size());
-  ASSERT_STREQ(data.c_str(), buffer.str().c_str());
+  buffer << "second string";
+  EXPECT_EQ("second string", buffer.str());
+  EXPECT_EQ(13u, buffer.size());
 }
 
 TEST(StringOutputBuffer, ContentsEqual) {

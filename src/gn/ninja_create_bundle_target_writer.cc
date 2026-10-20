@@ -69,7 +69,7 @@ bool EnsureAllToolsAvailable(const Target* target) {
 
 NinjaCreateBundleTargetWriter::NinjaCreateBundleTargetWriter(
     const Target* target,
-    std::ostream& out)
+    StringOutputBuffer& out)
     : NinjaTargetWriter(target, out) {}
 
 NinjaCreateBundleTargetWriter::~NinjaCreateBundleTargetWriter() = default;
@@ -162,8 +162,7 @@ void NinjaCreateBundleTargetWriter::WritePostProcessingManifestFile() {
   const base::FilePath bundle_root_dir = build_settings->GetFullPath(
       bundle_data.GetBundleRootDirOutputAsDir(settings_));
 
-  StringOutputBuffer storage;
-  std::ostream manifest(&storage);
+  StringOutputBuffer manifest;
 
   std::vector<SourceFile> outputs;
   bundle_data.GetOutputsAsSourceFiles(settings_, target_, &outputs, nullptr);
@@ -176,8 +175,8 @@ void NinjaCreateBundleTargetWriter::WritePostProcessingManifestFile() {
     }
   }
 
-  storage.WriteToFileIfChanged(build_settings->GetFullPath(manifest_path),
-                               nullptr);
+  manifest.WriteToFileIfChanged(build_settings->GetFullPath(manifest_path),
+                                nullptr);
 }
 
 void NinjaCreateBundleTargetWriter::WriteCopyBundleDataSteps(

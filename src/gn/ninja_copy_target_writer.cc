@@ -16,7 +16,7 @@
 #include "gn/toolchain.h"
 
 NinjaCopyTargetWriter::NinjaCopyTargetWriter(const Target* target,
-                                             std::ostream& out)
+                                             StringOutputBuffer& out)
     : NinjaTargetWriter(target, out) {}
 
 NinjaCopyTargetWriter::~NinjaCopyTargetWriter() = default;

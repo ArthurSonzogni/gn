@@ -17,12 +17,12 @@ struct EscapeOptions;
 // library, or a static library).
 class NinjaBinaryTargetWriter : public NinjaTargetWriter {
  public:
-  NinjaBinaryTargetWriter(const Target* target, std::ostream& out);
+  NinjaBinaryTargetWriter(const Target* target, StringOutputBuffer& out);
   ~NinjaBinaryTargetWriter() override;
 
   void Run() override;
-  void WritePublicModuleMap(std::ostream& out, const SourceDir& out_dir);
-  void WritePrivateModuleMap(std::ostream& out, const SourceDir& out_dir);
+  void WritePublicModuleMap(StringOutputBuffer& out, const SourceDir& out_dir);
+  void WritePrivateModuleMap(StringOutputBuffer& out, const SourceDir& out_dir);
 
  protected:
   // Structure used to return the classified deps from |GetDeps| method.
@@ -67,17 +67,17 @@ class NinjaBinaryTargetWriter : public NinjaTargetWriter {
                               bool can_write_source_info = true,
                               bool restat_output_allowed = false);
 
-  void WriteLinkerFlags(std::ostream& out,
+  void WriteLinkerFlags(StringOutputBuffer& out,
                         const Tool* tool,
                         const SourceFile* optional_def_file);
-  void WriteCustomLinkerFlags(std::ostream& out, const Tool* tool);
-  void WriteLibrarySearchPath(std::ostream& out, const Tool* tool);
-  void WriteLibs(std::ostream& out, const Tool* tool);
-  void WriteFrameworks(std::ostream& out, const Tool* tool);
-  void WriteSwiftModules(std::ostream& out,
+  void WriteCustomLinkerFlags(StringOutputBuffer& out, const Tool* tool);
+  void WriteLibrarySearchPath(StringOutputBuffer& out, const Tool* tool);
+  void WriteLibs(StringOutputBuffer& out, const Tool* tool);
+  void WriteFrameworks(StringOutputBuffer& out, const Tool* tool);
+  void WriteSwiftModules(StringOutputBuffer& out,
                          const Tool* tool,
                          const std::vector<OutputFile>& swiftmodules);
-  void WritePool(std::ostream& out);
+  void WritePool(StringOutputBuffer& out);
 
   void AddSourceSetFiles(const Target* source_set,
                          UniqueVector<OutputFile>* obj_files) const;

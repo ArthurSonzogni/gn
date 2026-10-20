@@ -4,10 +4,9 @@
 
 #include "gn/config_values_extractors.h"
 
-#include <sstream>
-
 #include "gn/config.h"
 #include "gn/config_values_generator.h"
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
@@ -15,13 +14,13 @@
 namespace {
 
 struct FlagWriter {
-  void operator()(const std::string& dir, std::ostream& out) const {
+  void operator()(const std::string& dir, StringOutputBuffer& out) const {
     out << dir << " ";
   }
 };
 
 struct IncludeWriter {
-  void operator()(const SourceDir& dir, std::ostream& out) const {
+  void operator()(const SourceDir& dir, StringOutputBuffer& out) const {
     out << dir.value() << " ";
   }
 };
@@ -130,7 +129,7 @@ TEST(ConfigValuesExtractors, IncludeOrdering) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   // Verify cflags by serializing.
-  std::ostringstream flag_out;
+  StringOutputBuffer flag_out;
   FlagWriter flag_writer;
   RecursiveTargetConfigToStream<std::string, FlagWriter>(
       kRecursiveWriterKeepDuplicates, &target, &ConfigValues::cflags,
@@ -140,7 +139,7 @@ TEST(ConfigValuesExtractors, IncludeOrdering) {
             "--dep1-all --dep1-all-sub --dep2-all --dep2-all --dep1-direct ");
 
   // Verify include dirs by serializing.
-  std::ostringstream include_out;
+  StringOutputBuffer include_out;
   IncludeWriter include_writer;
   RecursiveTargetConfigToStream<SourceDir, IncludeWriter>(
       kRecursiveWriterSkipDuplicates, &target, &ConfigValues::include_dirs,

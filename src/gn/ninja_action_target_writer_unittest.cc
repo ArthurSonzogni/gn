@@ -5,10 +5,10 @@
 #include "gn/ninja_action_target_writer.h"
 
 #include <algorithm>
-#include <sstream>
 
 #include "gn/config.h"
 #include "gn/pool.h"
+#include "gn/string_output_buffer.h"
 #include "gn/substitution_list.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
@@ -28,14 +28,14 @@ TEST(NinjaActionTargetWriter, WriteOutputFilesForBuildLine) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
 
   SourceFile source("//foo/bar.in");
   std::vector<OutputFile> output_files;
   writer.WriteOutputFilesForBuildLine(source, &output_files);
 
-  EXPECT_EQ(" gen/a$ bbar.h gen/bar.cc", out.str());
+  EXPECT_EQ(" gen/a$ bbar.h gen/bar.cc", out);
 }
 
 // Tests an action with no sources.
@@ -58,7 +58,7 @@ TEST(NinjaActionTargetWriter, ActionNoSources) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -100,7 +100,7 @@ TEST(NinjaActionTargetWriter, ActionNoSourcesConsole) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -116,7 +116,7 @@ build foo.out: __foo_bar___rule | ../../foo/script.py ../../foo/included.txt
 
 build phony/foo/bar: phony foo.out
 )";
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }
 
 // Makes sure that we write sources as input dependencies for actions with
@@ -142,7 +142,7 @@ TEST(NinjaActionTargetWriter, ActionWithSources) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -156,7 +156,7 @@ TEST(NinjaActionTargetWriter, ActionWithSources) {
       "../../foo/included.txt ../../foo/source.txt\n"
       "\n"
       "build phony/foo/bar: phony foo.out\n";
-  EXPECT_EQ(expected_linux, out.str());
+  EXPECT_EQ(expected_linux, out);
 }
 
 TEST(NinjaActionTargetWriter, ActionWithOrderOnlyDeps) {
@@ -199,7 +199,7 @@ TEST(NinjaActionTargetWriter, ActionWithOrderOnlyDeps) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -215,7 +215,7 @@ TEST(NinjaActionTargetWriter, ActionWithOrderOnlyDeps) {
       "\n"
       "build phony/foo/bar: phony foo.out\n";
 
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }
 
 TEST(NinjaActionTargetWriter, ForEach) {
@@ -270,7 +270,7 @@ TEST(NinjaActionTargetWriter, ForEach) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -338,7 +338,7 @@ TEST(NinjaActionTargetWriter, ForEachWithDepfile) {
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
   setup.build_settings()->set_ninja_required_version(Version{1, 9, 0});
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -367,7 +367,7 @@ TEST(NinjaActionTargetWriter, ForEachWithDepfile) {
       "  deps = gcc\n"
       "\n"
       "build phony/foo/bar: phony input1.out input2.out\n";
-  EXPECT_EQ(expected_linux, out.str());
+  EXPECT_EQ(expected_linux, out);
 }
 
 TEST(NinjaActionTargetWriter, ForEachWithResponseFile) {
@@ -395,7 +395,7 @@ TEST(NinjaActionTargetWriter, ForEachWithResponseFile) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -421,7 +421,7 @@ TEST(NinjaActionTargetWriter, ForEachWithResponseFile) {
       "  source_name_part = input1\n"
       "\n"
       "build phony/foo/bar: phony input1.out\n";
-  EXPECT_EQ(expected_linux, out.str());
+  EXPECT_EQ(expected_linux, out);
 }
 
 TEST(NinjaActionTargetWriter, ForEachWithPool) {
@@ -453,7 +453,7 @@ TEST(NinjaActionTargetWriter, ForEachWithPool) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -472,7 +472,7 @@ TEST(NinjaActionTargetWriter, ForEachWithPool) {
       "  pool = foo_pool\n"
       "\n"
       "build phony/foo/bar: phony input1.out\n";
-  EXPECT_EQ(expected_linux, out.str());
+  EXPECT_EQ(expected_linux, out);
 }
 
 TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
@@ -500,7 +500,7 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
   ASSERT_TRUE(foo.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaActionTargetWriter writer(&foo, out);
     writer.Run();
 
@@ -515,7 +515,7 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
         " ../../foo/input1.txt phony/foo/dep\n"
         "\n"
         "build phony/foo/foo: phony foo.out\n";
-    EXPECT_EQ(expected_linux, out.str());
+    EXPECT_EQ(expected_linux, out);
   }
 
   Target bar(setup.settings(), Label(SourceDir("//bar/"), "bar"));
@@ -529,7 +529,7 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
   ASSERT_TRUE(bar.OnResolved(&err)) << err.message();
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaActionTargetWriter writer(&bar, out);
     writer.Run();
 
@@ -545,7 +545,7 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
         " ../../bar/input1.txt phony/foo/foo\n"
         "\n"
         "build phony/bar/bar: phony bar.out\n";
-    EXPECT_EQ(expected_linux, out.str());
+    EXPECT_EQ(expected_linux, out);
   }
 }
 
@@ -584,7 +584,7 @@ TEST(NinjaActionTargetWriter, SeesConfig) {
   ASSERT_TRUE(foo.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaActionTargetWriter writer(&foo, out);
     writer.Run();
 
@@ -604,8 +604,7 @@ TEST(NinjaActionTargetWriter, SeesConfig) {
         "  cflags = -isysroot=baz\n"
         "\n"
         "build phony/foo/foo: phony foo.out\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -630,7 +629,7 @@ TEST(NinjaActionTargetWriter, ActionWithSpaces) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/Program Files/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -682,7 +681,7 @@ TEST(NinjaActionTargetWriter, ActionWithValidations) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaActionTargetWriter writer(&target, out);
   writer.Run();
 
@@ -696,5 +695,5 @@ TEST(NinjaActionTargetWriter, ActionWithValidations) {
       "\n"
       "build phony/foo/bar: phony foo.out |@ phony/foo/val\n";
 
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }

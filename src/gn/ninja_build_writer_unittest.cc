@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "gn/pool.h"
 #include "gn/scheduler.h"
+#include "gn/string_output_buffer.h"
 #include "gn/switches.h"
 #include "gn/target.h"
 #include "gn/test_with_scheduler.h"
@@ -136,8 +137,8 @@ TEST_F(NinjaBuildWriterTest, TwoTargets) {
 
   std::vector<const Target*> targets = {&target_foo, &target_bar, &target_baz};
 
-  std::ostringstream ninja_out;
-  std::ostringstream depfile_out;
+  StringOutputBuffer ninja_out;
+  StringOutputBuffer depfile_out;
 
   NinjaBuildWriter writer(setup.build_settings(), used_toolchains, targets,
                           setup.toolchain(), targets, ninja_out, depfile_out);
@@ -212,8 +213,8 @@ TEST_F(NinjaBuildWriterTest, ExtractRegenerationCommands) {
 
   std::vector<const Target*> targets = {&target_foo};
 
-  std::stringstream ninja_out;
-  std::ostringstream depfile_out;
+  StringOutputBuffer ninja_out;
+  StringOutputBuffer depfile_out;
 
   NinjaBuildWriter writer(setup.build_settings(), used_toolchains, targets,
                           setup.toolchain(), targets, ninja_out, depfile_out);
@@ -242,8 +243,9 @@ TEST_F(NinjaBuildWriterTest, ExtractRegenerationCommands) {
   EXPECT_SNIPPET(ninja_out_str, expected_root_target);
   EXPECT_SNIPPET(ninja_out_str, expected_default);
 
+  std::istringstream ninja_in(ninja_out_str);
   std::string commands =
-      NinjaBuildWriter::ExtractRegenerationCommands(ninja_out);
+      NinjaBuildWriter::ExtractRegenerationCommands(ninja_in);
   EXPECT_SNIPPET(commands, expected_rule_gn);
   EXPECT_SNIPPET(commands, expected_build_ninja_stamp);
   EXPECT_SNIPPET(commands, expected_build_ninja);
@@ -288,8 +290,8 @@ TEST_F(NinjaBuildWriterTest, SpaceInDepfile) {
   std::unordered_map<const Settings*, const Toolchain*> used_toolchains;
   used_toolchains[setup.settings()] = setup.toolchain();
   std::vector<const Target*> targets;
-  std::ostringstream ninja_out;
-  std::ostringstream depfile_out;
+  StringOutputBuffer ninja_out;
+  StringOutputBuffer depfile_out;
   NinjaBuildWriter writer(setup.build_settings(), used_toolchains, targets,
                           setup.toolchain(), targets, ninja_out, depfile_out);
   ASSERT_TRUE(writer.Run(&err));
@@ -321,8 +323,8 @@ TEST_F(NinjaBuildWriterTest, DuplicateOutputs) {
   std::unordered_map<const Settings*, const Toolchain*> used_toolchains;
   used_toolchains[setup.settings()] = setup.toolchain();
   std::vector<const Target*> targets = {&target_foo, &target_bar};
-  std::ostringstream ninja_out;
-  std::ostringstream depfile_out;
+  StringOutputBuffer ninja_out;
+  StringOutputBuffer depfile_out;
   NinjaBuildWriter writer(setup.build_settings(), used_toolchains, targets,
                           setup.toolchain(), targets, ninja_out, depfile_out);
   ASSERT_FALSE(writer.Run(&err));

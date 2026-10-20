@@ -4,6 +4,7 @@
 
 #include "gn/ninja_group_target_writer.h"
 
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
@@ -50,12 +51,12 @@ TEST(NinjaGroupTargetWriter, Run) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaGroupTargetWriter writer(&target, out);
   writer.Run();
 
   const char expected[] =
       "build phony/foo/bar: phony phony/foo/dep phony/foo/dep2 || "
       "phony/foo/bundle_data_dep phony/foo/datadep\n";
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }

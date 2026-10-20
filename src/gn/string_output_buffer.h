@@ -10,7 +10,6 @@
 #include <cstring>
 #include <limits>
 #include <memory>
-#include <streambuf>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -72,21 +71,17 @@ concept Writable = !std::same_as<std::remove_cvref_t<T>, bool> &&
 //
 //   2) Use operator<<, or Append() to append data to the instance.
 //
-//   3) Alternatively, create an std::ostream that takes its address as
-//      argument, then use the output stream as usual to append data to it.
-//
-//      StringOutputBuffer storage;
-//      std::ostream out(&storage);
-//      out << "Hello world!";
-//
-//   4) Use ContentsEqual() to compare the instance's content with that of a
+//   3) Use ContentsEqual() to compare the instance's content with that of a
 //      given file.
 //
-//   5) Use WriteToFile() to write the content to a given file.
+//   4) Use WriteToFile() to write the content to a given file.
 //
-class StringOutputBuffer : public std::streambuf {
+class StringOutputBuffer {
  public:
   StringOutputBuffer() = default;
+
+  // Reset the buffer contents to empty, while retaining allocated capacity.
+  void Clear();
 
   // Convert content to single std::string instance. Useful for unit-testing.
   std::string str() const;
@@ -119,19 +114,6 @@ class StringOutputBuffer : public std::streambuf {
   bool WriteToFileIfChanged(const base::FilePath& file_path, Err* err) const;
 
   static size_t GetPageSizeForTesting() { return kPageSize; }
-
- protected:
-  // Called by std::ostream to write |n| chars from |s|.
-  std::streamsize xsputn(const char* s, std::streamsize n) override {
-    Append(s, static_cast<size_t>(n));
-    return n;
-  }
-
-  // Called by std::ostream to write a single character.
-  int_type overflow(int_type ch) override {
-    Append(static_cast<char>(ch));
-    return 1;
-  }
 
  private:
   // Return the number of free bytes in the current page.

@@ -5,8 +5,8 @@
 #include "gn/ninja_copy_target_writer.h"
 
 #include <algorithm>
-#include <sstream>
 
+#include "gn/string_output_buffer.h"
 #include "gn/substitution_list.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
@@ -29,7 +29,7 @@ TEST(NinjaCopyTargetWriter, Run) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCopyTargetWriter writer(&target, out);
   writer.Run();
 
@@ -38,8 +38,7 @@ TEST(NinjaCopyTargetWriter, Run) {
       "build input2.out: copy ../../foo/input2.txt\n"
       "\n"
       "build phony/foo/bar: phony input1.out input2.out\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected_linux, out_str);
+  EXPECT_EQ(expected_linux, out);
 }
 
 // Tests a single file with no output pattern.
@@ -58,7 +57,7 @@ TEST(NinjaCopyTargetWriter, ToolchainDeps) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCopyTargetWriter writer(&target, out);
   writer.Run();
 
@@ -66,8 +65,7 @@ TEST(NinjaCopyTargetWriter, ToolchainDeps) {
       "build output.out: copy ../../foo/input1.txt\n"
       "\n"
       "build phony/foo/bar: phony output.out\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected_linux, out_str);
+  EXPECT_EQ(expected_linux, out);
 }
 
 TEST(NinjaCopyTargetWriter, OrderOnlyDeps) {
@@ -83,7 +81,7 @@ TEST(NinjaCopyTargetWriter, OrderOnlyDeps) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCopyTargetWriter writer(&target, out);
   writer.Run();
 
@@ -91,8 +89,7 @@ TEST(NinjaCopyTargetWriter, OrderOnlyDeps) {
       "build input1.out: copy ../../foo/input1.txt || ../../foo/script.py\n"
       "\n"
       "build phony/foo/bar: phony input1.out\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected_linux, out_str);
+  EXPECT_EQ(expected_linux, out);
 }
 
 TEST(NinjaCopyTargetWriter, DataDeps) {
@@ -115,7 +112,7 @@ TEST(NinjaCopyTargetWriter, DataDeps) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCopyTargetWriter writer(&target, out);
   writer.Run();
 
@@ -123,8 +120,7 @@ TEST(NinjaCopyTargetWriter, DataDeps) {
       "build input1.out: copy ../../foo/input1.txt || phony/foo/datadep\n"
       "\n"
       "build phony/foo/bar: phony input1.out\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected_linux, out_str);
+  EXPECT_EQ(expected_linux, out);
 }
 
 TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
@@ -152,7 +148,7 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
         SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.copy");
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     std::vector<OutputFile> ninja_outputs;
     NinjaCopyTargetWriter writer(&target, out);
     writer.SetNinjaOutputs(&ninja_outputs);
@@ -162,8 +158,7 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
         "build action1.copy: copy action1.out || phony/foo/action1\n"
         "\n"
         "build phony/foo/bar: phony action1.copy\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected_linux, out_str);
+    EXPECT_EQ(expected_linux, out);
 
     EXPECT_EQ(2u, ninja_outputs.size());
     EXPECT_EQ(ninja_outputs[0].value(), "action1.copy");
@@ -202,7 +197,7 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
         SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.copy");
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     std::vector<OutputFile> ninja_outputs;
     NinjaCopyTargetWriter writer(&target, out);
     writer.SetNinjaOutputs(&ninja_outputs);
@@ -213,8 +208,7 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
         "build action2.copy: copy action2.out || phony/foo/bar.harddeps\n"
         "\n"
         "build phony/foo/bar: phony action1.copy action2.copy\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected_linux, out_str);
+    EXPECT_EQ(expected_linux, out);
 
     EXPECT_EQ(3u, ninja_outputs.size());
     EXPECT_EQ(ninja_outputs[0].value(), "action1.copy");
@@ -246,7 +240,7 @@ TEST(NinjaCopyTargetWriter, CopyWithValidations) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCopyTargetWriter writer(&target, out);
   writer.Run();
 
@@ -254,6 +248,5 @@ TEST(NinjaCopyTargetWriter, CopyWithValidations) {
       "build input1.out: copy ../../foo/input1.txt |@ phony/foo/val\n"
       "\n"
       "build phony/foo/bar: phony input1.out |@ phony/foo/val\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected_linux, out_str);
+  EXPECT_EQ(expected_linux, out);
 }

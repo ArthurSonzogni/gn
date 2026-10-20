@@ -4,7 +4,6 @@
 
 #include "gn/eclipse_writer.h"
 
-#include <fstream>
 #include <memory>
 
 #include "base/files/file_path.h"
@@ -12,6 +11,7 @@
 #include "gn/config_values_extractors.h"
 #include "gn/filesystem_utils.h"
 #include "gn/loader.h"
+#include "gn/string_output_buffer.h"
 #include "gn/xml_element_writer.h"
 
 namespace {
@@ -37,7 +37,7 @@ std::string EscapeForXML(const std::string& unescaped) {
 
 EclipseWriter::EclipseWriter(const BuildSettings* build_settings,
                              const Builder& builder,
-                             std::ostream& out)
+                             StringOutputBuffer& out)
     : build_settings_(build_settings), builder_(builder), out_(out) {
   languages_.push_back("C++ Source File");
   languages_.push_back("C Source File");
@@ -55,18 +55,10 @@ bool EclipseWriter::RunAndWriteFile(const BuildSettings* build_settings,
                                     Err* err) {
   base::FilePath file = build_settings->GetFullPath(build_settings->build_dir())
                             .AppendASCII("eclipse-cdt-settings.xml");
-  std::ofstream file_out;
-  file_out.open(FilePathToUTF8(file).c_str(),
-                std::ios_base::out | std::ios_base::binary);
-  if (file_out.fail()) {
-    *err =
-        Err(Location(), "Couldn't open eclipse-cdt-settings.xml for writing");
-    return false;
-  }
-
+  StringOutputBuffer file_out;
   EclipseWriter gen(build_settings, builder, file_out);
   gen.Run();
-  return true;
+  return file_out.WriteToFileIfChanged(file, err);
 }
 
 void EclipseWriter::Run() {

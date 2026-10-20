@@ -17,7 +17,7 @@ struct ClangModuleDep;
 // library, or a static library).
 class NinjaCBinaryTargetWriter : public NinjaBinaryTargetWriter {
  public:
-  NinjaCBinaryTargetWriter(const Target* target, std::ostream& out);
+  NinjaCBinaryTargetWriter(const Target* target, StringOutputBuffer& out);
   ~NinjaCBinaryTargetWriter() override;
 
   void Run() override;

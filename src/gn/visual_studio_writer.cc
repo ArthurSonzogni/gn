@@ -38,7 +38,7 @@
 namespace {
 
 struct SemicolonSeparatedWriter {
-  void operator()(const std::string& value, std::ostream& out) const {
+  void operator()(const std::string& value, StringOutputBuffer& out) const {
     out << XmlEscape(value) + ';';
   }
 };
@@ -48,7 +48,7 @@ struct IncludeDirWriter {
       : path_output_(path_output) {}
   ~IncludeDirWriter() = default;
 
-  void operator()(const SourceDir& dir, std::ostream& out) const {
+  void operator()(const SourceDir& dir, StringOutputBuffer& out) const {
     path_output_.WriteDir(out, dir, PathOutput::DIR_NO_LAST_SLASH);
     out << ";";
   }
@@ -61,7 +61,7 @@ struct SourceFileWriter {
       : path_output_(path_output), source_file_(source_file) {}
   ~SourceFileWriter() = default;
 
-  void operator()(std::ostream& out) const {
+  void operator()(StringOutputBuffer& out) const {
     path_output_.WriteFile(out, source_file_);
   }
 
@@ -428,9 +428,8 @@ bool VisualStudioWriter::WriteProjectFiles(const Target* target,
       project_config_platform));
 
   StringOutputBuffer vcxproj_storage;
-  std::ostream vcxproj_string_out(&vcxproj_storage);
   SourceFileCompileTypePairs source_types;
-  if (!WriteProjectFileContents(vcxproj_string_out, *projects_.back(), target,
+  if (!WriteProjectFileContents(vcxproj_storage, *projects_.back(), target,
                                 ninja_extra_args, ninja_executable,
                                 &source_types, err)) {
     projects_.pop_back();
@@ -446,13 +445,12 @@ bool VisualStudioWriter::WriteProjectFiles(const Target* target,
   base::FilePath filters_path = UTF8ToFilePath(vcxproj_path_str + ".filters");
 
   StringOutputBuffer filters_storage;
-  std::ostream filters_string_out(&filters_storage);
-  WriteFiltersFileContents(filters_string_out, target, source_types);
+  WriteFiltersFileContents(filters_storage, target, source_types);
   return filters_storage.WriteToFileIfChanged(filters_path, err);
 }
 
 bool VisualStudioWriter::WriteProjectFileContents(
-    std::ostream& out,
+    StringOutputBuffer& out,
     const SolutionProject& solution_project,
     const Target* target,
     const std::string& ninja_extra_args,
@@ -685,7 +683,7 @@ bool VisualStudioWriter::WriteProjectFileContents(
 }
 
 void VisualStudioWriter::WriteFiltersFileContents(
-    std::ostream& out,
+    StringOutputBuffer& out,
     const Target* target,
     const SourceFileCompileTypePairs& source_types) {
   out << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
@@ -694,7 +692,7 @@ void VisualStudioWriter::WriteFiltersFileContents(
       XmlAttributes("ToolsVersion", "4.0")
           .add("xmlns", "http://schemas.microsoft.com/developer/msbuild/2003"));
 
-  std::ostringstream files_out;
+  StringOutputBuffer files_out;
 
   {
     std::unique_ptr<XmlElementWriter> filters_group =
@@ -712,13 +710,14 @@ void VisualStudioWriter::WriteFiltersFileContents(
                                   EscapingMode::ESCAPE_NONE);
 
     std::set<std::string> processed_filters;
+    StringOutputBuffer target_relative_out;
 
     for (const auto& file_and_type : source_types) {
       std::unique_ptr<XmlElementWriter> cl_item = files_group.SubElement(
           file_and_type.compile_type, "Include",
           SourceFileWriter(file_path_output, *file_and_type.file));
 
-      std::ostringstream target_relative_out;
+      target_relative_out.Clear();
       filter_path_output.WriteFile(target_relative_out, *file_and_type.file);
       std::string target_relative_path = target_relative_out.str();
       ConvertPathToSystem(&target_relative_path);
@@ -756,8 +755,7 @@ bool VisualStudioWriter::WriteSolutionFile(const std::string& sln_name,
   base::FilePath sln_path = build_settings_->GetFullPath(sln_file);
 
   StringOutputBuffer storage;
-  std::ostream string_out(&storage);
-  WriteSolutionFileContents(string_out, sln_path.DirName());
+  WriteSolutionFileContents(storage, sln_path.DirName());
 
   // Only write the content to the file if it's different. That is
   // both a performance optimization and more importantly, prevents
@@ -766,7 +764,7 @@ bool VisualStudioWriter::WriteSolutionFile(const std::string& sln_name,
 }
 
 void VisualStudioWriter::WriteSolutionFileContents(
-    std::ostream& out,
+    StringOutputBuffer& out,
     const base::FilePath& solution_dir_path) {
   out << "Microsoft Visual Studio Solution File, Format Version 12.00\n";
   out << "# " << version_string_ << '\n';
@@ -926,7 +924,7 @@ void VisualStudioWriter::ResolveSolutionFolders() {
 
 std::pair<std::string, bool> VisualStudioWriter::GetNinjaTarget(
     const Target* target) {
-  std::ostringstream ninja_target_out;
+  StringOutputBuffer ninja_target_out;
   bool is_phony = false;
   OutputFile output_file;
   if (target->has_dependency_output_file()) {

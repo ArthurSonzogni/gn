@@ -17,7 +17,7 @@
 #include "gn/target.h"
 
 NinjaActionTargetWriter::NinjaActionTargetWriter(const Target* target,
-                                                 std::ostream& out)
+                                                 StringOutputBuffer& out)
     : NinjaTargetWriter(target, out),
       path_output_no_escaping_(
           target->settings()->build_settings()->build_dir(),

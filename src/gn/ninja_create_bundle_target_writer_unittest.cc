@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <memory>
-#include <sstream>
 
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
@@ -70,7 +70,7 @@ TEST(NinjaCreateBundleTargetWriter, Run) {
   create_bundle.SetToolchain(setup.toolchain());
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
@@ -85,8 +85,7 @@ TEST(NinjaCreateBundleTargetWriter, Run) {
       "bar.bundle/Contents/Resources/input1.txt "
       "bar.bundle/Contents/Resources/input2.txt\n"
       "build bar.bundle: phony phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests creating a bundle in a sub-directory of $root_out_dir.
@@ -118,7 +117,7 @@ TEST(NinjaCreateBundleTargetWriter, InSubDirectory) {
   create_bundle.SetToolchain(setup.toolchain());
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
@@ -133,8 +132,7 @@ TEST(NinjaCreateBundleTargetWriter, InSubDirectory) {
       "gen/bar.bundle/Contents/Resources/input1.txt "
       "gen/bar.bundle/Contents/Resources/input2.txt\n"
       "build gen/bar.bundle: phony phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests empty asset catalog with partial_info_plist property defined.
@@ -158,7 +156,7 @@ TEST(NinjaCreateBundleTargetWriter, JustPartialInfoPlist) {
   create_bundle.SetToolchain(setup.toolchain());
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
@@ -167,8 +165,7 @@ TEST(NinjaCreateBundleTargetWriter, JustPartialInfoPlist) {
       "build phony/baz/bar: phony "
       "baz/bar/bar_partial_info.plist || phony/foo/bar\n"
       "build bar.bundle: phony phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests multiple files from asset catalog.
@@ -222,7 +219,7 @@ TEST(NinjaCreateBundleTargetWriter, AssetCatalog) {
   create_bundle.SetToolchain(setup.toolchain());
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
@@ -236,8 +233,7 @@ TEST(NinjaCreateBundleTargetWriter, AssetCatalog) {
       "build phony/baz/bar: phony "
       "bar.bundle/Contents/Resources/Assets.car\n"
       "build bar.bundle: phony phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests that the phony target for the top-level bundle directory is generated
@@ -264,15 +260,14 @@ TEST(NinjaCreateBundleTargetWriter, PhonyTarget) {
 
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
   const char expected[] =
       "build phony/baz/bar: phony || phony/foo/action\n"
       "build bar.bundle: phony phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests complex target with multiple bundle_data sources, including
@@ -384,7 +379,7 @@ TEST(NinjaCreateBundleTargetWriter, Complex) {
   create_bundle.SetToolchain(setup.toolchain());
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
@@ -415,8 +410,7 @@ TEST(NinjaCreateBundleTargetWriter, Complex) {
       "bar.bundle/Contents/Resources/Assets.car "
       "baz/bar/bar_partial_info.plist\n"
       "build bar.bundle: phony phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests post-processing step.
@@ -466,7 +460,7 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessing) {
   create_bundle.SetToolchain(setup.toolchain());
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
@@ -495,8 +489,7 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessing) {
       "bar.bundle/Contents/quz "
       "bar.bundle/_CodeSignature/CodeResources ./quz\n"
       "build bar.bundle: phony phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST(NinjaCreateBundleTargetWriter, PostProcessingNoStampFilesCustomToolchain) {
@@ -549,7 +542,7 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessingNoStampFilesCustomToolchain) {
   create_bundle.SetToolchain(setup.toolchain());
   ASSERT_TRUE(create_bundle.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCreateBundleTargetWriter writer(&create_bundle, out);
   writer.Run();
 
@@ -581,6 +574,5 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessingNoStampFilesCustomToolchain) {
       "bar.bundle/Contents/quz "
       "bar.bundle/_CodeSignature/CodeResources ./quz\n"
       "build bar.bundle: phony toolchain/phony/baz/bar\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }

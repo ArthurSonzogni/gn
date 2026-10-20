@@ -5,8 +5,8 @@
 #include "gn/ninja_bundle_data_target_writer.h"
 
 #include <algorithm>
-#include <sstream>
 
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
@@ -41,7 +41,7 @@ TEST(NinjaBundleDataTargetWriter, Run) {
   bundle_data.visibility().SetPublic();
   ASSERT_TRUE(bundle_data.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBundleDataTargetWriter writer(&bundle_data, out);
   writer.Run();
 
@@ -57,6 +57,5 @@ TEST(NinjaBundleDataTargetWriter, Run) {
       "../../foo/Foo.xcassets/foo.imageset/FooIcon-29@3x.png "
       "../../foo/Foo.xcassets/file/with/no/known/pattern "
       "../../foo/Foo.xcassets/nested/bar.xcassets/my/file\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }

@@ -4,7 +4,6 @@
 
 #include "gn/ninja_rust_binary_target_writer.h"
 
-#include <sstream>
 #include <unordered_set>
 
 #include "base/strings/string_util.h"
@@ -15,6 +14,7 @@
 #include "gn/ninja_utils.h"
 #include "gn/rust_substitution_type.h"
 #include "gn/rust_values.h"
+#include "gn/string_output_buffer.h"
 #include "gn/substitution_writer.h"
 #include "gn/target.h"
 
@@ -30,7 +30,7 @@ EscapeOptions GetFlagOptions() {
 void WriteVar(const char* name,
               const std::string& value,
               EscapeOptions opts,
-              std::ostream& out) {
+              StringOutputBuffer& out) {
   out << name << " = ";
   EscapeStringToStream(out, value, opts);
   out << '\n';
@@ -39,7 +39,7 @@ void WriteVar(const char* name,
 void WriteCrateVars(const Target* target,
                     const Tool* tool,
                     EscapeOptions opts,
-                    std::ostream& out) {
+                    StringOutputBuffer& out) {
   WriteVar(kRustSubstitutionCrateName.ninja_name,
            target->rust_values().crate_name(), opts, out);
 
@@ -100,8 +100,9 @@ void WriteCrateVars(const Target* target,
 
 }  // namespace
 
-NinjaRustBinaryTargetWriter::NinjaRustBinaryTargetWriter(const Target* target,
-                                                         std::ostream& out)
+NinjaRustBinaryTargetWriter::NinjaRustBinaryTargetWriter(
+    const Target* target,
+    StringOutputBuffer& out)
     : NinjaBinaryTargetWriter(target, out),
       tool_(target->toolchain()->GetToolForTargetFinalOutputAsRust(target)) {}
 

@@ -8,8 +8,9 @@
 #include "gn/settings.h"
 #include "gn/target.h"
 
-NinjaBundleDataTargetWriter::NinjaBundleDataTargetWriter(const Target* target,
-                                                         std::ostream& out)
+NinjaBundleDataTargetWriter::NinjaBundleDataTargetWriter(
+    const Target* target,
+    StringOutputBuffer& out)
     : NinjaTargetWriter(target, out) {}
 
 NinjaBundleDataTargetWriter::~NinjaBundleDataTargetWriter() = default;

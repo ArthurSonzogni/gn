@@ -16,7 +16,7 @@
 
 NinjaGeneratedFileTargetWriter::NinjaGeneratedFileTargetWriter(
     const Target* target,
-    std::ostream& out)
+    StringOutputBuffer& out)
     : NinjaTargetWriter(target, out) {}
 
 NinjaGeneratedFileTargetWriter::~NinjaGeneratedFileTargetWriter() = default;

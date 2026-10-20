@@ -9,7 +9,6 @@
 
 #include <cstring>
 #include <set>
-#include <sstream>
 
 #include "base/strings/string_util.h"
 #include "gn/builtin_tool.h"
@@ -57,7 +56,7 @@ const char* GetPCHLangForToolType(const char* name) {
 }  // namespace
 
 NinjaCBinaryTargetWriter::NinjaCBinaryTargetWriter(const Target* target,
-                                                   std::ostream& out)
+                                                   StringOutputBuffer& out)
     : NinjaBinaryTargetWriter(target, out),
       tool_(target->toolchain()->GetToolForTargetFinalOutputAsC(target)) {}
 

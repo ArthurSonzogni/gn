@@ -15,6 +15,7 @@
 
 class ResolvedTargetData;
 class SourceFile;
+class StringOutputBuffer;
 class Target;
 
 struct ClangModuleDep {
@@ -25,7 +26,7 @@ struct ClangModuleDep {
 
   std::strong_ordering operator<=>(const ClangModuleDep& other) const;
   bool operator==(const ClangModuleDep& other) const = default;
-  void Write(std::ostream& out,
+  void Write(StringOutputBuffer& out,
              const PathOutput& path_output,
              bool include_self) const;
 

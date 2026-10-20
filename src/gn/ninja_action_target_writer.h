@@ -15,7 +15,7 @@ class OutputFile;
 // Writes a .ninja file for a action target type.
 class NinjaActionTargetWriter : public NinjaTargetWriter {
  public:
-  NinjaActionTargetWriter(const Target* target, std::ostream& out);
+  NinjaActionTargetWriter(const Target* target, StringOutputBuffer& out);
   ~NinjaActionTargetWriter() override;
 
   void Run() override;

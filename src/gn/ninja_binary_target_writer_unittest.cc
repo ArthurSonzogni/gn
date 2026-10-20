@@ -4,6 +4,7 @@
 
 #include "gn/ninja_binary_target_writer.h"
 
+#include "gn/string_output_buffer.h"
 #include "gn/test_with_scheduler.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
@@ -28,7 +29,7 @@ TEST_F(NinjaBinaryTargetWriterTest, CSources) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -52,8 +53,7 @@ TEST_F(NinjaBinaryTargetWriterTest, CSources) {
       "build phony/foo/bar.linkdeps: phony obj/foo/bar.input1.o "
       "obj/foo/bar.input2.o ../../foo/input3.o ../../foo/input4.obj\n"
       "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaBinaryTargetWriterTest, NoSourcesSourceSet) {
@@ -66,7 +66,7 @@ TEST_F(NinjaBinaryTargetWriterTest, NoSourcesSourceSet) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -79,8 +79,7 @@ TEST_F(NinjaBinaryTargetWriterTest, NoSourcesSourceSet) {
       "target_output_name = bar\n"
       "\n"
       "\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaBinaryTargetWriterTest, NoSourcesStaticLib) {
@@ -93,7 +92,7 @@ TEST_F(NinjaBinaryTargetWriterTest, NoSourcesStaticLib) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -110,8 +109,7 @@ TEST_F(NinjaBinaryTargetWriterTest, NoSourcesStaticLib) {
       "  arflags =\n"
       "  output_extension =\n"
       "  output_dir =\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
@@ -129,7 +127,7 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
     target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -150,8 +148,7 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
         "\n"
         "build phony/foo/bar.linkdeps: phony obj/foo/bar.source1.o\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   {
@@ -166,7 +163,7 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
     target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -194,8 +191,7 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
         "build phony/foo/bar.linkdeps: phony obj/foo/bar.source1.o "
         "obj/foo/bar.source2.o\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -223,7 +219,7 @@ TEST_F(NinjaBinaryTargetWriterTest, PublicInputs) {
   ASSERT_TRUE(a.OnResolved(&err));
   ASSERT_TRUE(b.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBinaryTargetWriter writer(&b, out);
   writer.Run();
 
@@ -247,6 +243,5 @@ TEST_F(NinjaBinaryTargetWriterTest, PublicInputs) {
       "\n"
       "build phony/foo/b.linkdeps: phony obj/foo/b.source1.o || phony/foo/a\n"
       "build phony/foo/b: phony phony/foo/b.linkdeps\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }

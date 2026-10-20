@@ -6,7 +6,6 @@
 
 #include <optional>
 #include <set>
-#include <sstream>
 #include <string>
 
 #include "base/files/file_path.h"
@@ -271,9 +270,8 @@ void QtCreatorWriter::GenerateFile(const base::FilePath::CharType* suffix,
                                    const std::set<std::string>& items) {
   const base::FilePath file_path = project_prefix_.AddExtension(suffix);
   StringOutputBuffer storage;
-  std::ostream output(&storage);
   for (const std::string& item : items)
-    output << item << '\n';
+    storage << item << '\n';
   storage.WriteToFileIfChanged(file_path, &err_);
 }
 

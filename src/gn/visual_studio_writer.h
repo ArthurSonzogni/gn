@@ -5,7 +5,6 @@
 #ifndef TOOLS_GN_VISUAL_STUDIO_WRITER_H_
 #define TOOLS_GN_VISUAL_STUDIO_WRITER_H_
 
-#include <iosfwd>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +20,7 @@ class Builder;
 class BuildSettings;
 class Err;
 class SourceFile;
+class StringOutputBuffer;
 class Target;
 
 class VisualStudioWriter {
@@ -113,18 +113,18 @@ class VisualStudioWriter {
                          const std::string& ninja_extra_args,
                          const std::string& ninja_executable,
                          Err* err);
-  bool WriteProjectFileContents(std::ostream& out,
+  bool WriteProjectFileContents(StringOutputBuffer& out,
                                 const SolutionProject& solution_project,
                                 const Target* target,
                                 const std::string& ninja_extra_args,
                                 const std::string& ninja_executable,
                                 SourceFileCompileTypePairs* source_types,
                                 Err* err);
-  void WriteFiltersFileContents(std::ostream& out,
+  void WriteFiltersFileContents(StringOutputBuffer& out,
                                 const Target* target,
                                 const SourceFileCompileTypePairs& source_types);
   bool WriteSolutionFile(const std::string& sln_name, Err* err);
-  void WriteSolutionFileContents(std::ostream& out,
+  void WriteSolutionFileContents(StringOutputBuffer& out,
                                  const base::FilePath& solution_dir_path);
 
   // Resolves all solution folders (parent folders for projects) into |folders_|

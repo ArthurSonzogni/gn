@@ -5,9 +5,7 @@
 #include "gn/ninja_target_writer.h"
 
 #include <algorithm>
-#include <sstream>
 
-#include "base/files/file_util.h"
 #include "base/strings/string_util.h"
 #include "gn/builtin_tool.h"
 #include "gn/c_substitution_type.h"
@@ -34,7 +32,8 @@
 #include "gn/target.h"
 #include "gn/trace.h"
 
-NinjaTargetWriter::NinjaTargetWriter(const Target* target, std::ostream& out)
+NinjaTargetWriter::NinjaTargetWriter(const Target* target,
+                                     StringOutputBuffer& out)
     : settings_(target->settings()),
       target_(target),
       out_(out),
@@ -117,7 +116,6 @@ std::string NinjaTargetWriter::RunAndWriteFile(
   // It's ridiculously faster to write to a string and then write that to
   // disk in one operation than to use an fstream here.
   StringOutputBuffer storage;
-  std::ostream rules(&storage);
 
   // Call out to the correct sub-type of writer. Binary targets need to be
   // written to separate files for compiler flag scoping, but other target
@@ -136,40 +134,40 @@ std::string NinjaTargetWriter::RunAndWriteFile(
   // need the separate files.
   bool needs_file_write = false;
   if (target->output_type() == Target::BUNDLE_DATA) {
-    NinjaBundleDataTargetWriter writer(target, rules);
+    NinjaBundleDataTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
     writer.Run();
   } else if (target->output_type() == Target::CREATE_BUNDLE) {
-    NinjaCreateBundleTargetWriter writer(target, rules);
+    NinjaCreateBundleTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
     writer.Run();
   } else if (target->output_type() == Target::COPY_FILES) {
-    NinjaCopyTargetWriter writer(target, rules);
+    NinjaCopyTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
     writer.Run();
   } else if (target->output_type() == Target::ACTION ||
              target->output_type() == Target::ACTION_FOREACH) {
-    NinjaActionTargetWriter writer(target, rules);
+    NinjaActionTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
     writer.Run();
   } else if (target->output_type() == Target::GROUP) {
-    NinjaGroupTargetWriter writer(target, rules);
+    NinjaGroupTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
     writer.Run();
   } else if (target->output_type() == Target::GENERATED_FILE) {
-    NinjaGeneratedFileTargetWriter writer(target, rules);
+    NinjaGeneratedFileTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
     writer.SetDelayedGeneratedFileWritePtr(delayed_generated_file_write);
     writer.Run();
   } else if (target->IsBinary()) {
     needs_file_write = true;
-    NinjaBinaryTargetWriter writer(target, rules);
+    NinjaBinaryTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
     if (target->module_type().test(Target::MODULEMAP_IS_GENERATED)) {
@@ -178,16 +176,14 @@ std::string NinjaTargetWriter::RunAndWriteFile(
 
       // Write public module map
       StringOutputBuffer public_storage;
-      std::ostream public_os(&public_storage);
-      writer.WritePublicModuleMap(public_os, modulemap->GetDir());
+      writer.WritePublicModuleMap(public_storage, modulemap->GetDir());
       base::FilePath public_path =
           settings->build_settings()->GetFullPath(*modulemap);
       public_storage.WriteToFileIfChanged(public_path, nullptr);
 
       // Write private module map adjacent to the public one
       StringOutputBuffer private_storage;
-      std::ostream private_os(&private_storage);
-      writer.WritePrivateModuleMap(private_os, modulemap->GetDir());
+      writer.WritePrivateModuleMap(private_storage, modulemap->GetDir());
       base::FilePath private_path = settings->build_settings()->GetFullPath(
           *target->private_modulemap_file());
       private_storage.WriteToFileIfChanged(private_path, nullptr);
@@ -197,8 +193,8 @@ std::string NinjaTargetWriter::RunAndWriteFile(
     CHECK(0) << "Output type of target not handled.";
   }
 
-  WritePublicInputsStampOrPhony(target, resolved, rules);
-  WriteHardDepsStampOrPhony(target, resolved, rules);
+  WritePublicInputsStampOrPhony(target, resolved, storage);
+  WriteHardDepsStampOrPhony(target, resolved, storage);
 
   if (needs_file_write) {
     // Write the ninja file.
@@ -227,7 +223,7 @@ std::string NinjaTargetWriter::RunAndWriteFile(
 void NinjaTargetWriter::WritePublicInputsStampOrPhony(
     const Target* target,
     ResolvedTargetData* resolved,
-    std::ostream& out) {
+    StringOutputBuffer& out) {
   DCHECK(resolved);
   if (!resolved->ExportsPublicInputs(target))
     return;
@@ -323,7 +319,7 @@ void AppendHardDepsOutputsForDeps(const Target* target,
 // static
 void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
                                                   ResolvedTargetData* resolved,
-                                                  std::ostream& out) {
+                                                  StringOutputBuffer& out) {
   std::unique_ptr<ResolvedTargetData> resolved_owned;
   if (!resolved) {
     resolved_owned = std::make_unique<ResolvedTargetData>();

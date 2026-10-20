@@ -13,6 +13,12 @@
 #include "gn/file_writer.h"
 #include "gn/filesystem_utils.h"
 
+void StringOutputBuffer::Clear() {
+  ro_.clear();
+  ro_size_ = 0;
+  rw_.size = 0;
+}
+
 void StringOutputBuffer::Reserve(size_t n) {
   if (UNLIKELY(page_free_size() < n)) {
     if (rw_.size > 0) {
@@ -26,7 +32,7 @@ void StringOutputBuffer::Reserve(size_t n) {
     // this should never happen in practice.
     rw_capacity_ = (n + kPageSize - 1) & ~(kPageSize - 1);
     rw_ = Page{
-        .buf = std::make_unique<char[]>(rw_capacity_),
+        .buf = std::make_unique_for_overwrite<char[]>(rw_capacity_),
         .size = 0,
     };
   }

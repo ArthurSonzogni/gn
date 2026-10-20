@@ -13,6 +13,7 @@
 #include "gn/rust_tool.h"
 #include "gn/settings.h"
 #include "gn/source_file.h"
+#include "gn/string_output_buffer.h"
 #include "gn/string_utils.h"
 #include "gn/substitution_list.h"
 #include "gn/substitution_pattern.h"
@@ -150,7 +151,7 @@ Examples
 void SubstitutionWriter::WriteWithNinjaVariables(
     const SubstitutionPattern& pattern,
     const EscapeOptions& escape_options,
-    std::ostream& out) {
+    StringOutputBuffer& out) {
   // The result needs to be quoted as if it was one string, but the $ for
   // the inserted Ninja variables can't be escaped. So write to a buffer with
   // no quoting, and then quote the whole thing if necessary.
@@ -322,7 +323,7 @@ void SubstitutionWriter::WriteNinjaVariablesForSource(
     const SourceFile& source,
     const std::vector<const Substitution*>& types,
     const EscapeOptions& escape_options,
-    std::ostream& out) {
+    StringOutputBuffer& out) {
   for (const auto& type : types) {
     // Don't write SOURCE since that just maps to Ninja's $in variable, which
     // is implicit in the rule. RESPONSE_FILE_NAME is written separately

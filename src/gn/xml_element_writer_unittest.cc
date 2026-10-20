@@ -4,8 +4,7 @@
 
 #include "gn/xml_element_writer.h"
 
-#include <sstream>
-
+#include "gn/string_output_buffer.h"
 #include "util/test/test.h"
 
 namespace {
@@ -13,7 +12,7 @@ namespace {
 class MockValueWriter {
  public:
   explicit MockValueWriter(const std::string& value) : value_(value) {}
-  void operator()(std::ostream& out) const { out << value_; }
+  void operator()(StringOutputBuffer& out) const { out << value_; }
 
  private:
   std::string value_;
@@ -22,44 +21,44 @@ class MockValueWriter {
 }  // namespace
 
 TEST(XmlElementWriter, EmptyElement) {
-  std::ostringstream out;
+  StringOutputBuffer out;
   {
     XmlElementWriter writer(out, "foo", XmlAttributes());
   }
-  EXPECT_EQ("<foo />\n", out.str());
+  EXPECT_EQ("<foo />\n", out);
 
-  std::ostringstream out_attr;
+  StringOutputBuffer out_attr;
   {
     XmlElementWriter writer(out_attr, "foo",
                             XmlAttributes("bar", "abc").add("baz", "123"));
   }
-  EXPECT_EQ("<foo bar=\"abc\" baz=\"123\" />\n", out_attr.str());
+  EXPECT_EQ("<foo bar=\"abc\" baz=\"123\" />\n", out_attr);
 
-  std::ostringstream out_indent;
+  StringOutputBuffer out_indent;
   {
     XmlElementWriter writer(out_indent, "foo", XmlAttributes("bar", "baz"), 2);
   }
-  EXPECT_EQ("  <foo bar=\"baz\" />\n", out_indent.str());
+  EXPECT_EQ("  <foo bar=\"baz\" />\n", out_indent);
 
-  std::ostringstream out_writer;
+  StringOutputBuffer out_writer;
   {
     XmlElementWriter writer(out_writer, "foo", "bar", MockValueWriter("baz"),
                             2);
   }
-  EXPECT_EQ("  <foo bar=\"baz\" />\n", out_writer.str());
+  EXPECT_EQ("  <foo bar=\"baz\" />\n", out_writer);
 }
 
 TEST(XmlElementWriter, ElementWithText) {
-  std::ostringstream out;
+  StringOutputBuffer out;
   {
     XmlElementWriter writer(out, "foo", XmlAttributes("bar", "baz"));
     writer.Text("Hello world!");
   }
-  EXPECT_EQ("<foo bar=\"baz\">Hello world!</foo>\n", out.str());
+  EXPECT_EQ("<foo bar=\"baz\">Hello world!</foo>\n", out);
 }
 
 TEST(XmlElementWriter, SubElements) {
-  std::ostringstream out;
+  StringOutputBuffer out;
   {
     XmlElementWriter writer(out, "root", XmlAttributes("aaa", "000"));
     writer.SubElement("foo", XmlAttributes());
@@ -75,16 +74,16 @@ TEST(XmlElementWriter, SubElements) {
       "    <grandchild />\n"
       "  </baz>\n"
       "</root>\n";
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }
 
 TEST(XmlElementWriter, StartContent) {
-  std::ostringstream out;
+  StringOutputBuffer out;
   {
     XmlElementWriter writer(out, "foo", XmlAttributes("bar", "baz"));
     writer.StartContent(false) << "Hello world!";
   }
-  EXPECT_EQ("<foo bar=\"baz\">Hello world!</foo>\n", out.str());
+  EXPECT_EQ("<foo bar=\"baz\">Hello world!</foo>\n", out);
 }
 
 TEST(XmlElementWriter, TestXmlEscape) {

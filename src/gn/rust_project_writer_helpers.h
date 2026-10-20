@@ -15,6 +15,8 @@
 #include "gn/source_file.h"
 #include "gn/target.h"
 
+class StringOutputBuffer;
+
 // These are internal types and helper functions for RustProjectWriter that have
 // been extracted for easier testability.
 
@@ -126,7 +128,7 @@ using CrateList = std::vector<Crate>;
 void WriteCrates(const BuildSettings* build_settings,
                  CrateList& crate_list,
                  std::optional<std::string>& sysroot,
-                 std::ostream& rust_project);
+                 StringOutputBuffer& rust_project);
 
 // Assemble the compiler arguments for the given GN Target.
 std::vector<std::string> ExtractCompilerArgs(const Target* target);
