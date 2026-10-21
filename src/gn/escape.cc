@@ -6,8 +6,6 @@
 
 #include <stddef.h>
 
-#include <memory>
-
 #include "base/compiler_specific.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
@@ -16,7 +14,6 @@
 
 namespace {
 
-constexpr size_t kStackStringBufferSize = 1024;
 #if defined(OS_WIN)
 constexpr size_t kMaxEscapedCharsPerChar = 2;
 #else
@@ -43,10 +40,7 @@ const char kShellValid[0x80] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0};
 // clang-format on
 
-size_t EscapeStringToString_Space(std::string_view str,
-                                  const EscapeOptions& options,
-                                  char* dest,
-                                  bool* needed_quoting) {
+size_t EscapeStringToString_Space(std::string_view str, char* dest) {
   size_t i = 0;
   for (const auto& elem : str) {
     if (elem == ' ')
@@ -56,20 +50,6 @@ size_t EscapeStringToString_Space(std::string_view str,
   return i;
 }
 
-// Uses the stack if the space needed is small and the heap otherwise.
-class StackOrHeapBuffer {
- public:
-  explicit StackOrHeapBuffer(size_t buf_size) {
-    if (UNLIKELY(buf_size > kStackStringBufferSize))
-      heap_buf.reset(new char[buf_size]);
-  }
-  operator char*() { return heap_buf ? heap_buf.get() : stack_buf; }
-
- private:
-  char stack_buf[kStackStringBufferSize];
-  std::unique_ptr<char[]> heap_buf;
-};
-
 // Ninja's escaping rules are very simple. We always escape colons even
 // though they're OK in many places, in case the resulting string is used on
 // the left-hand-side of a rule.
@@ -77,10 +57,7 @@ inline bool ShouldEscapeCharForNinja(char ch) {
   return ch == '$' || ch == ' ' || ch == ':';
 }
 
-size_t EscapeStringToString_Ninja(std::string_view str,
-                                  const EscapeOptions& options,
-                                  char* dest,
-                                  bool* needed_quoting) {
+size_t EscapeStringToString_Ninja(std::string_view str, char* dest) {
   size_t i = 0;
   for (const auto& elem : str) {
     if (ShouldEscapeCharForNinja(elem))
@@ -95,9 +72,7 @@ inline bool ShouldEscapeCharForCompilationDatabase(char ch) {
 }
 
 size_t EscapeStringToString_CompilationDatabase(std::string_view str,
-                                                const EscapeOptions& options,
-                                                char* dest,
-                                                bool* needed_quoting) {
+                                                char* dest) {
   size_t i = 0;
   bool quote = false;
   for (const auto& elem : str) {
@@ -120,10 +95,7 @@ size_t EscapeStringToString_CompilationDatabase(std::string_view str,
   return i;
 }
 
-size_t EscapeStringToString_Depfile(std::string_view str,
-                                    const EscapeOptions& options,
-                                    char* dest,
-                                    bool* needed_quoting) {
+size_t EscapeStringToString_Depfile(std::string_view str, char* dest) {
   size_t i = 0;
   for (const auto& elem : str) {
     // Escape all characters that ninja depfile parser can recognize as escaped,
@@ -159,7 +131,7 @@ size_t EscapeStringToString_NinjaPreformatted(std::string_view str,
 //   http://blogs.msdn.com/b/twistylittlepassagesallalike/archive/2011/04/23/everyone-quotes-arguments-the-wrong-way.aspx
 //   http://blogs.msdn.com/b/oldnewthing/archive/2010/09/17/10063629.aspx
 size_t EscapeStringToString_WindowsNinjaFork(std::string_view str,
-                                             const EscapeOptions& options,
+                                             bool inhibit_quoting,
                                              char* dest,
                                              bool* needed_quoting) {
   // We assume we don't have any whitespace chars that aren't spaces.
@@ -168,9 +140,9 @@ size_t EscapeStringToString_WindowsNinjaFork(std::string_view str,
   size_t i = 0;
   if (str.find_first_of(" \"") == std::string::npos) {
     // Simple case, don't quote.
-    return EscapeStringToString_Ninja(str, options, dest, needed_quoting);
+    return EscapeStringToString_Ninja(str, dest);
   } else {
-    if (!options.inhibit_quoting)
+    if (!inhibit_quoting)
       dest[i++] = '"';
 
     for (size_t j = 0; j < str.size(); j++) {
@@ -202,7 +174,7 @@ size_t EscapeStringToString_WindowsNinjaFork(std::string_view str,
       }
     }
 
-    if (!options.inhibit_quoting)
+    if (!inhibit_quoting)
       dest[i++] = '"';
     if (needed_quoting)
       *needed_quoting = true;
@@ -210,10 +182,7 @@ size_t EscapeStringToString_WindowsNinjaFork(std::string_view str,
   return i;
 }
 
-size_t EscapeStringToString_PosixNinjaFork(std::string_view str,
-                                           const EscapeOptions& options,
-                                           char* dest,
-                                           bool* needed_quoting) {
+size_t EscapeStringToString_PosixNinjaFork(std::string_view str, char* dest) {
   size_t i = 0;
   for (const auto& elem : str) {
     if (elem == '$' || elem == ' ') {
@@ -250,30 +219,27 @@ size_t EscapeStringToString(std::string_view str,
       strncpy(dest, str.data(), str.size());
       return str.size();
     case ESCAPE_SPACE:
-      return EscapeStringToString_Space(str, options, dest, needed_quoting);
+      return EscapeStringToString_Space(str, dest);
     case ESCAPE_NINJA:
-      return EscapeStringToString_Ninja(str, options, dest, needed_quoting);
+      return EscapeStringToString_Ninja(str, dest);
     case ESCAPE_DEPFILE:
-      return EscapeStringToString_Depfile(str, options, dest, needed_quoting);
+      return EscapeStringToString_Depfile(str, dest);
     case ESCAPE_COMPILATION_DATABASE:
-      return EscapeStringToString_CompilationDatabase(str, options, dest,
-                                                      needed_quoting);
+      return EscapeStringToString_CompilationDatabase(str, dest);
     case ESCAPE_NINJA_COMMAND:
       switch (options.platform) {
         case ESCAPE_PLATFORM_CURRENT:
 #if defined(OS_WIN)
-          return EscapeStringToString_WindowsNinjaFork(str, options, dest,
-                                                       needed_quoting);
+          return EscapeStringToString_WindowsNinjaFork(
+              str, options.inhibit_quoting, dest, needed_quoting);
 #else
-          return EscapeStringToString_PosixNinjaFork(str, options, dest,
-                                                     needed_quoting);
+          return EscapeStringToString_PosixNinjaFork(str, dest);
 #endif
         case ESCAPE_PLATFORM_WIN:
-          return EscapeStringToString_WindowsNinjaFork(str, options, dest,
-                                                       needed_quoting);
+          return EscapeStringToString_WindowsNinjaFork(
+              str, options.inhibit_quoting, dest, needed_quoting);
         case ESCAPE_PLATFORM_POSIX:
-          return EscapeStringToString_PosixNinjaFork(str, options, dest,
-                                                     needed_quoting);
+          return EscapeStringToString_PosixNinjaFork(str, dest);
         default:
           NOTREACHED();
       }
@@ -287,19 +253,85 @@ size_t EscapeStringToString(std::string_view str,
 
 }  // namespace
 
+void Escaped::Space::WriteToBuf(char buf[], size_t& upto) const {
+  upto += EscapeStringToString_Space(str, &buf[upto]);
+}
+
+void Escaped::Ninja::WriteToBuf(char buf[], size_t& upto) const {
+  upto += EscapeStringToString_Ninja(str, &buf[upto]);
+}
+
+void Escaped::Depfile::WriteToBuf(char buf[], size_t& upto) const {
+  upto += EscapeStringToString_Depfile(str, &buf[upto]);
+}
+
+void Escaped::CompilationDatabase::WriteToBuf(char buf[], size_t& upto) const {
+  upto += EscapeStringToString_CompilationDatabase(str, &buf[upto]);
+}
+
+void Escaped::NinjaPreformatted::WriteToBuf(char buf[], size_t& upto) const {
+  upto += EscapeStringToString_NinjaPreformatted(str, &buf[upto]);
+}
+
+void Escaped::Command::WriteToBuf(char buf[], size_t& upto) const {
+  switch (platform) {
+    case ESCAPE_PLATFORM_CURRENT:
+#if defined(OS_WIN)
+      upto += EscapeStringToString_WindowsNinjaFork(str, inhibit_quoting,
+                                                    &buf[upto], nullptr);
+#else
+      upto += EscapeStringToString_PosixNinjaFork(str, &buf[upto]);
+#endif
+      break;
+    case ESCAPE_PLATFORM_WIN:
+      upto += EscapeStringToString_WindowsNinjaFork(str, inhibit_quoting,
+                                                    &buf[upto], nullptr);
+      break;
+    case ESCAPE_PLATFORM_POSIX:
+      upto += EscapeStringToString_PosixNinjaFork(str, &buf[upto]);
+      break;
+  }
+}
+
 std::string EscapeString(std::string_view str,
                          const EscapeOptions& options,
                          bool* needed_quoting) {
-  StackOrHeapBuffer dest(str.size() * kMaxEscapedCharsPerChar);
-  return std::string(dest,
-                     EscapeStringToString(str, options, dest, needed_quoting));
+  std::string result;
+  result.resize(str.size() * kMaxEscapedCharsPerChar + 2);
+  size_t len =
+      EscapeStringToString(str, options, result.data(), needed_quoting);
+  result.resize(len);
+  return result;
 }
 
 void EscapeStringToStream(StringOutputBuffer& out,
                           std::string_view str,
                           const EscapeOptions& options) {
-  StackOrHeapBuffer dest(str.size() * kMaxEscapedCharsPerChar);
-  out.Append(dest, EscapeStringToString(str, options, dest, nullptr));
+  switch (options.mode) {
+    case ESCAPE_NONE:
+      out << str;
+      break;
+    case ESCAPE_SPACE:
+      out << Escaped::Space(str);
+      break;
+    case ESCAPE_NINJA:
+      out << Escaped::Ninja(str);
+      break;
+    case ESCAPE_DEPFILE:
+      out << Escaped::Depfile(str);
+      break;
+    case ESCAPE_COMPILATION_DATABASE:
+      out << Escaped::CompilationDatabase(str);
+      break;
+    case ESCAPE_NINJA_COMMAND:
+      out << Escaped::Command(str, options.platform, options.inhibit_quoting);
+      break;
+    case ESCAPE_NINJA_PREFORMATTED_COMMAND:
+      out << Escaped::NinjaPreformatted(str);
+      break;
+    default:
+      NOTREACHED();
+  }
 }
 
 void EscapeJSONStringToStream(StringOutputBuffer& out,

@@ -18,6 +18,22 @@ namespace base {
 class FilePath;
 }  // namespace base
 
+template <typename T>
+  requires requires(const T& val) {
+    { val.MaximumSize() } -> std::convertible_to<size_t>;
+  }
+inline size_t MaximumSize(const T& val) {
+  return val.MaximumSize();
+}
+
+template <typename T>
+  requires requires(const T& val, char buf[], size_t& upto) {
+    val.WriteToBuf(buf, upto);
+  }
+inline void WriteToBuf(const T& val, char buf[], size_t& upto) {
+  val.WriteToBuf(buf, upto);
+}
+
 class Err;
 
 inline size_t MaximumSize(std::string_view s) {

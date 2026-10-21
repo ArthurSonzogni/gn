@@ -107,3 +107,17 @@ TEST(Escape, CompilationDatabase) {
   std::string result = EscapeString("asdf:$ \\#*[|]bar", opts, nullptr);
   EXPECT_EQ("\"asdf:$ \\\\#*[|]bar\"", result);
 }
+
+TEST(Escape, EscapeStringToStream) {
+  EscapeOptions opts;
+  opts.mode = ESCAPE_NINJA;
+  StringOutputBuffer buffer;
+  EscapeStringToStream(buffer, "asdf: \"$\\bar", opts);
+  EXPECT_EQ("asdf$:$ \"$$\\bar", buffer.str());
+}
+
+TEST(Escape, EscapeDirect) {
+  StringOutputBuffer out;
+  out << Escaped::Ninja("asdf: \"$\\bar");
+  EXPECT_EQ("asdf$:$ \"$$\\bar", out.str());
+}
