@@ -8,6 +8,8 @@
 #include <string>
 #include <string_view>
 
+#include "util/build_config.h"
+
 class StringOutputBuffer;
 
 enum EscapingMode {
@@ -41,12 +43,16 @@ enum EscapingMode {
 };
 
 enum EscapingPlatform {
-  // Do escaping for the current platform.
-  ESCAPE_PLATFORM_CURRENT,
-
   // Force escaping for the given platform.
   ESCAPE_PLATFORM_POSIX,
   ESCAPE_PLATFORM_WIN,
+
+// Do escaping for the current platform.
+#if defined(OS_WIN)
+  ESCAPE_PLATFORM_CURRENT = ESCAPE_PLATFORM_WIN,
+#else
+  ESCAPE_PLATFORM_CURRENT = ESCAPE_PLATFORM_POSIX,
+#endif
 };
 
 struct EscapeOptions {

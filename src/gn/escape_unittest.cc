@@ -29,6 +29,10 @@ TEST(Escape, WindowsCommand) {
   // Regular string is passed, even if it has backslashes.
   EXPECT_EQ("foo\\bar", EscapeString("foo\\bar", opts, nullptr));
 
+  // Colon and dollar sign get escaped for Ninja, but not quoted for Windows.
+  EXPECT_EQ("C$:\\foo\\bar", EscapeString("C:\\foo\\bar", opts, nullptr));
+  EXPECT_EQ("foo$$bar", EscapeString("foo$bar", opts, nullptr));
+
   // Spaces means the string is quoted, normal backslahes untouched.
   bool needs_quoting = false;
   EXPECT_EQ("\"foo\\$ bar\"", EscapeString("foo\\ bar", opts, &needs_quoting));
