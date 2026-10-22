@@ -50,20 +50,15 @@ def _get_libcxx_include_path(api):
   return None  # pragma: no cover
 
 
-def _get_compilation_environment(api, target, cipd_dir):
+def _get_compilation_environment(api, target, toolchains):
+  toolchain = toolchains[target.platform]
+  # Call dict to create a local copy instead of mutating a shared object.
+  env = dict(toolchain.get('env', {}))
   if target.is_linux:
     triple = '--target=%s' % target.triple
-    if target.triple == 'riscv64-linux-gnu':
-      sysroot = '--sysroot=%s' % cipd_dir.join('sysroot-focal')
-    else:
-      sysroot = '--sysroot=%s' % cipd_dir.join('sysroot')
-    env = {
-        'CC': cipd_dir.join('bin', 'clang'),
-        'CXX': cipd_dir.join('bin', 'clang++'),
-        'AR': cipd_dir.join('bin', 'llvm-ar'),
-        'CFLAGS': '%s %s' % (triple, sysroot),
-        'LDFLAGS': '%s %s -static-libstdc++' % (triple, sysroot),
-    }
+    sysroot = ('--sysroot=%s' % toolchain['sysroot'])
+    env['CFLAGS'] = ('%s %s' % (triple, sysroot)).strip()
+    env['LDFLAGS'] = ('%s %s -static-libstdc++' % (triple, sysroot)).strip()
   elif target.is_mac:
     triple = '--target=%s' % target.triple
     sysroot = '--sysroot=%s' % api.step(
@@ -71,15 +66,8 @@ def _get_compilation_environment(api, target, cipd_dir):
         stdout=api.raw_io.output_text(name='sdk-path', add_output_log=True),
         step_test_data=lambda: api.raw_io.test_api.stream_output_text(
             '/some/xcode/path')).stdout.strip()
-    stdlib = cipd_dir.join('lib', 'libc++.a')
     cxx_include = _get_libcxx_include_path(api)
-    env = {
-        'CC':
-            cipd_dir.join('bin', 'clang'),
-        'CXX':
-            cipd_dir.join('bin', 'clang++'),
-        'AR':
-            cipd_dir.join('bin', 'llvm-ar'),
+    env.update({
         'CFLAGS':
             '%s %s -nostdinc++ -cxx-isystem %s' %
             (triple, sysroot, cxx_include),
@@ -88,7 +76,7 @@ def _get_compilation_environment(api, target, cipd_dir):
         # and arm64.
         'LDFLAGS':
             '%s %s' % (triple, sysroot),
-    }
+    })
   else:
     env = {}
 
@@ -126,22 +114,6 @@ def RunSteps(api, repository):
         api.step('checkout %s/%s' % (change.change, change.patchset),
                  ['git', 'checkout', 'FETCH_HEAD'])
 
-  with api.context(infra_steps=True):
-    cipd_dir = api.path['start_dir'].join('cipd')
-    pkgs = api.cipd.EnsureFile()
-    pkgs.add_package('infra/ninja/${platform}', 'version:1.8.2')
-    if api.platform.is_linux or api.platform.is_mac:
-      pkgs.add_package('fuchsia/third_party/clang/${platform}', 'integration')
-    if api.platform.is_linux:
-      pkgs.add_package('fuchsia/third_party/sysroot/linux',
-                       'git_revision:c912d089c3d46d8982fdef76a50514cca79b6132',
-                       'sysroot')
-      # RISCV64 support starts in focal.
-      pkgs.add_package('fuchsia/third_party/sysroot/focal',
-                       'git_revision:fa7a5a9710540f30ff98ae48b62f2cdf72ed2acd',
-                       'sysroot-focal')
-    api.cipd.ensure(cipd_dir, pkgs)
-
   def release_targets():
     if api.platform.is_linux:
       return [
@@ -153,6 +125,60 @@ def RunSteps(api, repository):
       return [api.target('mac-amd64'), api.target('mac-arm64')]
     else:
       return [api.target.host]
+
+  with api.context(infra_steps=True):
+    cipd_dir = api.path['start_dir'].join('cipd')
+    def test_data():
+      data = {}
+      for t in release_targets():
+        if t.is_linux:
+          sysroot_name = 'sysroot-focal' if t.arch == 'riscv64' else 'sysroot'
+          sysroot = str(cipd_dir.join(sysroot_name))
+        else:
+          sysroot = None
+
+        data[t.platform] = {
+            'packages': [{
+                'name': 'fuchsia/third_party/clang/${platform}',
+                'version': 'integration',
+                'path': '',
+            }],
+            'sysroot': sysroot,
+            'env': {
+                'CC': str(cipd_dir.join('bin', 'clang')),
+                'CXX': str(cipd_dir.join('bin', 'clang++')),
+                'AR': str(cipd_dir.join('bin', 'llvm-ar')),
+                'LD': str(cipd_dir.join('bin', 'clang++')),
+            },
+        }
+      return api.json.test_api.output_stream(data)
+
+    res = api.step(
+        'calculate required packages',
+        [
+            'python3',
+            src_dir.join('build', 'pinned.py'),
+            '--host',
+            api.target.host.platform,
+            '--target',
+            *[t.platform for t in release_targets()],
+            '--ci',
+            cipd_dir,
+        ],
+        stdout=api.json.output(),
+        step_test_data=test_data,
+    )
+    toolchains = res.stdout
+
+    pkgs = api.cipd.EnsureFile()
+    pkgs.add_package('infra/ninja/${platform}', 'version:1.8.2')
+    packages = set()
+    for tc in toolchains.values():
+      for pkg in tc.get('packages', []):
+        packages.add((pkg['name'], pkg['version'], pkg.get('path', '')))
+    for pkg in sorted(packages):
+        pkgs.add_package(*pkg)
+    api.cipd.ensure(cipd_dir, pkgs)
 
   # The order is important since release build will get uploaded to CIPD.
   configs = [
@@ -211,7 +237,7 @@ def RunSteps(api, repository):
 
           target = all_config_platforms[platform]
           host_target = api.target.host
-          env = _get_compilation_environment(api, target, cipd_dir)
+          env = _get_compilation_environment(api, target, toolchains)
 
           # Prepare environment for configuring and building jemalloc
           #
@@ -257,7 +283,7 @@ def RunSteps(api, repository):
     for config in configs:
       with api.step.nest(config['name']):
         for target in config['targets']:
-          env = _get_compilation_environment(api, target, cipd_dir)
+          env = _get_compilation_environment(api, target, toolchains)
           with api.step.nest(target.platform), api.context(
               env=env, cwd=src_dir):
             args = config['args'] + ['--out-path', out_dir]
