@@ -15,6 +15,7 @@
 #include "base/files/file_path.h"
 #include "cxx.h"
 #include "gn/args.h"
+#include "gn/check_includes_strict_exceptions.h"
 #include "gn/label.h"
 #include "gn/label_pattern.h"
 #include "gn/scope.h"
@@ -171,6 +172,24 @@ class BuildSettings {
     allow_circular_includes_from_allowlist_ = std::move(list);
   }
 
+  const CheckIncludesStrictExceptions& check_includes_strict_exceptions()
+      const {
+    return check_includes_strict_exceptions_;
+  }
+  void set_check_includes_strict_exceptions(
+      CheckIncludesStrictExceptions exceptions) {
+    check_includes_strict_exceptions_ = std::move(exceptions);
+  }
+
+  // If true, all generated_file() metadata walks include metadata from
+  // validations targets.
+  bool experimental_collect_validations_metadata() const {
+    return experimental_collect_validations_metadata_;
+  }
+  void set_experimental_collect_validations_metadata(bool value) {
+    experimental_collect_validations_metadata_ = value;
+  }
+
  private:
   Label root_target_label_;
   std::vector<LabelPattern> root_patterns_;
@@ -184,9 +203,11 @@ class BuildSettings {
   // See 40045b9 for the reason behind using 1.7.2 as the default version.
   Version ninja_required_version_{1, 7, 2};
   bool no_stamp_files_ = true;
+  bool experimental_collect_validations_metadata_ = false;
 
   SourceFile build_config_file_;
   SourceFile arg_file_template_path_;
+  CheckIncludesStrictExceptions check_includes_strict_exceptions_;
   SourceDir build_dir_;
   Args build_args_;
 

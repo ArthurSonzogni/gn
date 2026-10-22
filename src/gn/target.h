@@ -215,8 +215,8 @@ class Target : public Item {
 
   // Get metadata from this target and its dependencies. This is intended to
   // be called after the target is resolved.
-  bool GetMetadata(const std::vector<std::string>& keys_to_extract,
-                   const std::vector<std::string>& keys_to_walk,
+  bool GetMetadata(const std::vector<std::string>& data_keys,
+                   const std::vector<std::string>& walk_keys,
                    const SourceDir& rebase_dir,
                    bool deps_only,
                    std::vector<Value>* result,
@@ -487,6 +487,13 @@ class Target : public Item {
     user_friendly_location_ = location;
   }
 
+  bool collect_validations_metadata() const {
+    return collect_validations_metadata_;
+  }
+  void set_collect_validations_metadata(bool value) {
+    collect_validations_metadata_ = value;
+  }
+
   // Computes and returns the outputs of this target expressed as SourceFiles.
   //
   // For binary target this depends on the tool for this target so the toolchain
@@ -592,6 +599,7 @@ class Target : public Item {
   bool check_includes_ = true;
   bool check_includes_strict_ = false;
   bool complete_static_lib_ = false;
+  bool collect_validations_metadata_ = false;
   std::vector<std::string> data_;
   std::unique_ptr<BundleData> bundle_data_;
   OutputFile write_runtime_deps_output_;

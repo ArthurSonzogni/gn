@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/bundle_data.h"
+
 #include "util/test/test.h"
 
 TEST(BundleDataTest, GetAssetsCatalogDirectory) {

@@ -106,9 +106,11 @@ class ResolvedTargetData {
     return GetTargetFrameworkInfo(target)->weak_libraries;
   }
 
-  // Retrieves a set of hard dependencies for this target.
-  // All hard deps from this target and all dependencies, but not the
-  // target itself.
+  // Retrieves a set of hard dependencies for this target that are propagated
+  // to dependents (and used to construct this target's .harddeps rule).
+  // Includes all hard deps from this target's dependencies, but not the target
+  // itself. When OnlyForwardsPublicHardDeps() is true, only hard deps from
+  // public_deps are included here.
   const TargetSet& GetHardDeps(const Target* target) const {
     return GetTargetHardDeps(target)->hard_deps;
   }
@@ -151,6 +153,10 @@ class ResolvedTargetData {
   // |dep|. Used to compute GetHardDeps(), and by code that needs to mirror
   // that computation.
   static bool ForwardsHardDeps(const Target* dep);
+
+  // Returns true if |target| only forwards hard deps from its public_deps
+  // (rather than both public_deps and private_deps) to dependents.
+  static bool OnlyForwardsPublicHardDeps(const Target* target);
 
   const std::vector<OutputFile>& GetOrderOnlyDeps(const Target* target) const {
     return GetTargetOrderOnlyDeps(target)->order_only_deps;

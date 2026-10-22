@@ -16,6 +16,7 @@
 #define BASE_COMMAND_LINE_H_
 
 #include <stddef.h>
+
 #include <map>
 #include <string>
 #include <string_view>

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/config.h"
+
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
 

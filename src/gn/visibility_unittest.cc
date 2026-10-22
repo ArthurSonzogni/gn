@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/visibility.h"
+
 #include "gn/err.h"
 #include "gn/label.h"
 #include "gn/scope.h"

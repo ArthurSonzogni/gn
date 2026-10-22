@@ -4,13 +4,13 @@
 
 #include "gn/string_atom.h"
 
-#include "util/test/test.h"
-
 #include <algorithm>
 #include <array>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "util/test/test.h"
 
 TEST(StringAtomTest, EmptyString) {
   StringAtom key1;
@@ -37,10 +37,16 @@ TEST(StringAtomTest, DefaultCompare) {
   auto foo = StringAtom("foo");
   auto bar = StringAtom("bar");
   auto zoo = StringAtom("zoo");
+  auto foo2 = StringAtom("foo");
 
   EXPECT_TRUE(bar < foo);
   EXPECT_TRUE(foo < zoo);
   EXPECT_TRUE(bar < zoo);
+
+  EXPECT_EQ(foo, foo2);
+  EXPECT_NE(foo, bar);
+
+  EXPECT_EQ(std::hash<StringAtom>()(foo), std::hash<StringAtom>()(foo2));
 }
 
 TEST(StringAtomTest, NormalSet) {

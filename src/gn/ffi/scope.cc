@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/ffi/scope.h"
+
 #include <ranges>
 #include <vector>
 
 #include "gn/ffi/bridge.h"
-#include "gn/ffi/scope.h"
 #include "gn/ffi/slice.h"
 #include "gn/range_utils.h"
 #include "gn/scope.h"

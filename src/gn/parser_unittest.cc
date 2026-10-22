@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/parser.h"
+
 #include <sstream>
 
 #include "gn/input_file.h"
-#include "gn/parser.h"
 #include "gn/tokenizer.h"
 #include "util/test/test.h"
 

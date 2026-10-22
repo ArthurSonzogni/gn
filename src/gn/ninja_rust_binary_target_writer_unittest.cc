@@ -1005,6 +1005,104 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
     std::string out_str = out.str();
     EXPECT_EQ(expected, out_str);
   }
+
+  // An rlib is not linked by rustc, so its non-Rust dependencies are neither
+  // passed to rustc nor implicit dependencies of the rlib. This avoids
+  // compiling the rlib having to wait for C/C++ code to be compiled/linked.
+  Target rlib_with_nonrust(setup.settings(), Label(SourceDir("//qux/"), "qux"));
+  rlib_with_nonrust.set_output_type(Target::RUST_LIBRARY);
+  rlib_with_nonrust.visibility().SetPublic();
+  SourceFile quxlib("//qux/lib.rs");
+  rlib_with_nonrust.sources().push_back(quxlib);
+  rlib_with_nonrust.source_types_used().Set(SourceFile::SOURCE_RS);
+  rlib_with_nonrust.rust_values().set_crate_root(quxlib);
+  rlib_with_nonrust.rust_values().crate_name() = "qux";
+  rlib_with_nonrust.private_deps().push_back(LabelTargetPair(&rlib));
+  rlib_with_nonrust.private_deps().push_back(LabelTargetPair(&staticlib));
+  rlib_with_nonrust.private_deps().push_back(LabelTargetPair(&sharedlib));
+  rlib_with_nonrust.private_deps().push_back(LabelTargetPair(&csourceset));
+  rlib_with_nonrust.private_deps().push_back(
+      LabelTargetPair(&sharedlib_with_toc));
+  rlib_with_nonrust.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(rlib_with_nonrust.OnResolved(&err));
+
+  {
+    std::ostringstream out;
+    NinjaRustBinaryTargetWriter writer(&rlib_with_nonrust, out);
+    writer.Run();
+
+    const char expected[] =
+        "crate_name = qux\n"
+        "crate_type = rlib\n"
+        "output_extension = .rlib\n"
+        "output_dir = \n"
+        "rustflags =\n"
+        "rustenv =\n"
+        "root_out_dir = .\n"
+        "target_gen_dir = gen/qux\n"
+        "target_out_dir = obj/qux\n"
+        "target_output_name = libqux\n"
+        "\n"
+        "build obj/qux/libqux.rlib: rust_rlib ../../qux/lib.rs | "
+        "../../qux/lib.rs obj/bar/libmylib.rlib "
+        "|| phony/baz/sourceset.linkdeps\n"
+        "  source_file_part = lib.rs\n"
+        "  source_name_part = lib\n"
+        "  externs = --extern mylib=obj/bar/libmylib.rlib\n"
+        "  rustdeps = -Ldependency=obj/bar\n"
+        "  ldflags =\n"
+        "  sources = ../../qux/lib.rs\n";
+    std::string out_str = out.str();
+    EXPECT_EQ(expected, out_str);
+  }
+
+  // The non-Rust dependencies of the rlib are instead linked into the final
+  // target which depends on the rlib.
+  Target bin_with_rlib(setup.settings(), Label(SourceDir("//qux/"), "bin"));
+  bin_with_rlib.set_output_type(Target::EXECUTABLE);
+  bin_with_rlib.visibility().SetPublic();
+  SourceFile quxmain("//qux/main.rs");
+  bin_with_rlib.sources().push_back(quxmain);
+  bin_with_rlib.source_types_used().Set(SourceFile::SOURCE_RS);
+  bin_with_rlib.rust_values().set_crate_root(quxmain);
+  bin_with_rlib.rust_values().crate_name() = "bin";
+  bin_with_rlib.private_deps().push_back(LabelTargetPair(&rlib_with_nonrust));
+  bin_with_rlib.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(bin_with_rlib.OnResolved(&err));
+
+  {
+    std::ostringstream out;
+    NinjaRustBinaryTargetWriter writer(&bin_with_rlib, out);
+    writer.Run();
+
+    const char expected[] =
+        "crate_name = bin\n"
+        "crate_type = bin\n"
+        "output_extension = \n"
+        "output_dir = \n"
+        "rustflags =\n"
+        "rustenv =\n"
+        "root_out_dir = .\n"
+        "target_gen_dir = gen/qux\n"
+        "target_out_dir = obj/qux\n"
+        "target_output_name = bin\n"
+        "\n"
+        "build ./bin: rust_bin ../../qux/main.rs | ../../qux/main.rs "
+        "obj/baz/sourceset.csourceset.o obj/qux/libqux.rlib "
+        "obj/bar/libmylib.rlib obj/foo/libstatic.a ./libshared.so "
+        "./libshared_with_toc.so.TOC || phony/baz/sourceset.linkdeps\n"
+        "  source_file_part = main.rs\n"
+        "  source_name_part = main\n"
+        "  externs = --extern qux=obj/qux/libqux.rlib\n"
+        "  rustdeps = -Ldependency=obj/qux -Ldependency=obj/bar "
+        "-Clink-arg=-Bdynamic -Clink-arg=obj/baz/sourceset.csourceset.o "
+        "-Clink-arg=obj/foo/libstatic.a -Clink-arg=./libshared.so "
+        "-Clink-arg=./libshared_with_toc.so\n"
+        "  ldflags =\n"
+        "  sources = ../../qux/main.rs\n";
+    std::string out_str = out.str();
+    EXPECT_EQ(expected, out_str);
+  }
 }
 
 TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
@@ -1374,9 +1472,9 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibWithLibDeps) {
   //    compilation
   rlib.config_values().framework_dirs().push_back(SourceDir("//fwdir/"));
   // 5. A dependency on a C library through a `deps` rule, which points to a
-  //    `static_library` target. GN guarantees that Rust can refer to that
-  //    library through #[link] without having to specify the path in ldflags
-  //    as well.
+  //    `static_library` target. rustc does not link an rlib, so the library
+  //    is neither passed to rustc nor an implicit dependency of the rlib; it
+  //    is instead inherited by, and linked into, the final target.
   rlib.private_deps().push_back(LabelTargetPair(&staticlib));
 
   ASSERT_TRUE(rlib.OnResolved(&err));
@@ -1399,12 +1497,11 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibWithLibDeps) {
         "target_output_name = librlibcrate\n"
         "\n"
         "build obj/foo/librlibcrate.rlib: rust_rlib ../../foo/input.rs | "
-        "../../foo/input.rs obj/bar/libpubliclib.rlib obj/clib/libstatic.a\n"
+        "../../foo/input.rs obj/bar/libpubliclib.rlib\n"
         "  source_file_part = input.rs\n"
         "  source_name_part = input\n"
         "  externs = --extern publiccrate=obj/bar/libpubliclib.rlib\n"
-        "  rustdeps = -Ldependency=obj/bar -Clink-arg=-Bdynamic "
-        "-Clink-arg=obj/clib/libstatic.a "
+        "  rustdeps = -Ldependency=obj/bar "
         "-Lnative=../../baz -Lframework=../../fwdir -Clink-arg=../../dir1/ar.a "
         "-lquux\n"
         "  ldflags =\n"

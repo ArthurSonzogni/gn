@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 #include "gn/pointer_set.h"
-#include "util/test/test.h"
 
 #include <algorithm>
+
+#include "util/test/test.h"
 
 struct Foo {
   int x;

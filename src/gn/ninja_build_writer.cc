@@ -380,7 +380,7 @@ void NinjaBuildWriter::WriteNinjaRules() {
   }
   dep_out_ << "\n";
 
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaBuildWriter::WriteAllPools() {
@@ -415,9 +415,9 @@ void NinjaBuildWriter::WriteAllPools() {
     std::string name = pool_name(pool);
     if (name == "console")
       continue;
-    out_ << "pool " << name << std::endl
-         << "  depth = " << pool->depth() << std::endl
-         << std::endl;
+    out_ << "pool " << name << '\n'
+         << "  depth = " << pool->depth() << '\n'
+         << '\n';
   }
 }
 
@@ -453,11 +453,11 @@ bool NinjaBuildWriter::WriteSubninjas(Err* err) {
 
     out_ << "subninja ";
     path_output_.WriteFile(out_, subninja);
-    out_ << std::endl;
+    out_ << '\n';
     previous_subninja = subninja;
     previous_toolchain = pair.second;
   }
-  out_ << std::endl;
+  out_ << '\n';
   return true;
 }
 
@@ -677,22 +677,22 @@ bool NinjaBuildWriter::WritePhonyAndAllRules(Err* err) {
       }
     }
   }
-  out_ << std::endl;
+  out_ << '\n';
 
   if (default_target) {
     // Use the short name when available
     if (written_rules.find(StringAtom("default")) != written_rules.end()) {
-      out_ << "\ndefault default" << std::endl;
+      out_ << "\ndefault default\n";
     } else if (default_target->has_dependency_output()) {
       // If the default target does not have a dependency output file or phony,
       // then the target specified as default is a no-op. We omit the default
       // statement entirely to avoid ninja runtime failure.
       out_ << "\ndefault ";
       path_output_.WriteFile(out_, default_target->dependency_output());
-      out_ << std::endl;
+      out_ << '\n';
     }
   } else if (!default_toolchain_targets_.empty()) {
-    out_ << "\ndefault all" << std::endl;
+    out_ << "\ndefault all\n";
   }
 
   return true;
@@ -713,5 +713,5 @@ void NinjaBuildWriter::WritePhonyRule(const Target* target,
   if (target->has_dependency_output()) {
     path_output_.WriteFile(out_, target->dependency_output());
   }
-  out_ << std::endl;
+  out_ << '\n';
 }

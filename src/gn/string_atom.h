@@ -15,44 +15,29 @@
 // when a program uses multiple instances that tend to use the same strings
 // (as happen very frequently in GN).
 //
-// Note that default equality and comparison functions will compare the
-// string content, not the pointers, ensuring that the behaviour of
-// standard containers using StringAtom key types is the same as if
-// std::string was used.
+// Note that default equality and hashing functions compare and hash the
+// underlying string pointers, ensuring fast O(1) operations since every
+// unique string is interned.
+//
+// By contrast, default ordering functions (operator< and std::less) compare
+// the string content lexicographically, ensuring that standard ordered
+// containers have deterministic, predictable ordering.
 //
 // In addition, _ordered_ containers support heterogeneous lookups (i.e.
 // using an std::string_view, and by automatic conversion, a const char*
 // of const char[] literal) as a key type.
 //
-// Additionally, it is also possible to implement very fast _unordered_
-// containers by using the StringAtom::Fast{Hash,Equal,Compare} structs,
-// which will force containers to hash/compare pointer values instead,
-// for example:
+// Additionally, it is also possible to implement very fast pointer-ordered
+// containers using the StringAtom::PtrCompare struct on ordered containers,
+// forcing containers to compare pointer values instead, for example:
 //
-//     // A fast unordered set of unique strings.
-//     //
-//     // Implementation uses a hash table so performance will be bounded
-//     // by the string hash function. Does not support heterogeneous lookups.
-//     //
-//     using FastStringSet = std::unordered_set<StringAtom,
-//                                              StringAtom::PtrHash,
-//                                              StringAtom::PtrEqual>;
+//     // A fast set of unique strings, ordered by pointer.
+//     using FastStringSet = std::set<StringAtom, StringAtom::PtrCompare>;
 //
-//     // A fast unordered set of unique strings.
-//     //
-//     // Implementation uses a balanced binary tree so performance will
-//     // be bounded by string comparisons. Does support heterogeneous lookups,
-//     // but not that this does not extend to the [] operator, only to the
-//     // find() method.
-//     //
-//     using FastStringSet = std::set<StringAtom, StringAtom::PtrCompare>
-//
-//     // A fast unordered { string -> VALUE } map.
-//     //
-//     // Implementation uses a balanced binary tree. Supports heterogeneous
-//     // lookups.
+//     // A fast { string -> VALUE } map, ordered by pointer.
 //     template <typename VALUE>
-//     using FastStringMap = std::map<StringAtom, VALUE, StringAtom::PtrCompare>
+//     using FastStringMap = std::map<StringAtom, VALUE,
+//     StringAtom::PtrCompare>;
 //
 class StringAtom {
  public:
@@ -92,58 +77,37 @@ class StringAtom {
   // Implicit conversions.
   operator std::string_view() const { return {value_}; }
 
-  // Returns true iff this is the same key.
-  // Note that the default comparison functions compare the value instead
-  // in order to use them in standard containers without surprises by
-  // default.
-  bool SameAs(const StringAtom& other) const {
+  // Default comparison functions.
+  // Returns true iff string_view(*this) == string_view(other)
+  bool operator==(const StringAtom& other) const {
+    // The string contents are equal iff they point to the same underlying
+    // string.
     return &value_ == &other.value_;
   }
 
-  // Default comparison functions.
-  bool operator==(const StringAtom& other) const {
-    return value_ == other.value_;
-  }
-
-  bool operator!=(const StringAtom& other) const {
-    return value_ != other.value_;
-  }
+  bool operator!=(const StringAtom& other) const { return !(*this == other); }
 
   bool operator<(const StringAtom& other) const {
-    // Avoid one un-necessary string comparison if values are equal.
-    if (SameAs(other))
+    // Avoid one unnecessary string comparison if values are equal.
+    if (*this == other)
       return false;
 
     return value_ < other.value_;
   }
 
-  size_t hash() const { return std::hash<std::string>()(value_); }
+  // Pointer-based hash for fast O(1) hashing in unordered containers.
+  size_t hash() const { return std::hash<const std::string*>()(&value_); }
 
-  // Use the following method and structs to implement containers that
-  // use StringAtom values as keys, but only compare/hash the pointer
-  // values for speed.
+  // Use the following struct to implement containers that order based on
+  // the StringAtom pointer value for speed.
   //
   // E.g.:
-  //    using FastSet = std::unordered_set<StringAtom, PtrHash, PtrEqual>;
+  //    using FastSet = std::set<StringAtom, PtrCompare>;
   //    using FastMap = std::map<StringAtom, Value, PtrCompare>;
   //
-  // IMPORTANT: Note that FastMap above is ordered based in the StringAtom
-  //            pointer value, not the string content.
+  // IMPORTANT: Note that containers using PtrCompare are ordered based on the
+  //            StringAtom pointer value, not the string content.
   //
-  size_t ptr_hash() const { return std::hash<const std::string*>()(&value_); }
-
-  struct PtrHash {
-    size_t operator()(const StringAtom& key) const noexcept {
-      return key.ptr_hash();
-    }
-  };
-
-  struct PtrEqual {
-    bool operator()(const StringAtom& a, const StringAtom& b) const noexcept {
-      return &a.value_ == &b.value_;
-    }
-  };
-
   struct PtrCompare {
     bool operator()(const StringAtom& a, const StringAtom& b) const noexcept {
       return &a.value_ < &b.value_;

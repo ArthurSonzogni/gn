@@ -19,6 +19,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "gn/check_includes_strict_exceptions.h"
 #include "gn/command_format.h"
 #include "gn/commands.h"
 #include "gn/exec_process.h"
@@ -117,6 +118,18 @@ Variables
       The format of this list is identical to that of "visibility" so see "gn
       help visibility" for examples.
 
+  no_check_generated_targets [optional]
+      A list of labels and label patterns whose generated files should *not*
+      be checked when running "gn check --check-generated". Unlike
+      no_check_targets, the other files of these targets are still checked.
+      Generated files are the target's files in the output directory, such as
+      action outputs listed in its sources. This list can be combined with
+      check_targets or no_check_targets. To bypass it, request an explicit
+      check of targets, like "//*".
+
+      The format of this list is identical to that of "visibility" so see "gn
+      help visibility" for examples.
+
   check_system_includes [optional]
       Boolean to control whether system style includes are checked by default
       when running "gn check" or "gn gen --check".  System style includes are
@@ -124,6 +137,15 @@ Variables
       setting is omitted or set to false, these includes will be ignored by
       default. They can be checked explicitly by running
       "gn check --check-system" or "gn gen --check=system"
+
+  check_includes_strict_exceptions [optional]
+      A list of scopes containing exceptions for strict dependencies checking.
+      Each scope in this list specifies an exception rule:
+          includer = <from_pattern>
+          included = <to_label> [optional]
+      which waives check_includes_strict violations from targets matching
+      <from_pattern> trying to include headers from <to_label>
+      (or to headers from any target if included is omitted).
 
   exec_script_allowlist [optional]
       A list of .gn/.gni files (not labels) that have permission to call the
@@ -259,6 +281,14 @@ Variables
       A boolean flag that can be set to generate Ninja files that use phony
       rules instead of stamp files whenever possible. This results in smaller
       Ninja build plans, but requires at least Ninja 1.11.
+
+  experimental_collect_validations_metadata [optional]
+      NOTE: This flag is experimental and will be removed in the future.
+
+      A boolean flag that determines whether generated_file() metadata walks
+      should include validations targets's metadata. This is false by default
+      but may be required temporarily by the Fuchsia build. See
+      https://gn.g-issues.chromium.org/issues/566346002 for details.
 
 Example .gn file contents
 
@@ -573,6 +603,20 @@ bool Setup::Run(const base::CommandLine& cmdline) {
   RunPreMessageLoop();
   if (!scheduler_.Run())
     return false;
+
+  // Check for bad items in the graph now, as the
+  // optional second Run() call requires all items
+  // to be properly resolved.
+  Err err;
+  if (!builder_.CheckForBadItems(&err)) {
+    err.PrintToStdout();
+    return false;
+  }
+
+  // Perform a second run if needed.
+  if (post_resolution_callback_ && !post_resolution_callback_(scheduler_))
+    return false;
+
   return RunPostMessageLoop(cmdline);
 }
 
@@ -590,10 +634,6 @@ void Setup::RunPreMessageLoop() {
 
 bool Setup::RunPostMessageLoop(const base::CommandLine& cmdline) {
   Err err;
-  if (!builder_.CheckForBadItems(&err)) {
-    err.PrintToStdout();
-    return false;
-  }
 
   if (!build_settings_.build_args().VerifyAllOverridesUsed(&err)) {
     if (cmdline.HasSwitch(switches::kFailOnUnusedArgs)) {
@@ -623,8 +663,8 @@ bool Setup::RunPostMessageLoop(const base::CommandLine& cmdline) {
     bool fix = cmdline.HasSwitch("fix");
 
     if (!commands::CheckPublicHeaders(&build_settings_, all_targets, to_check,
-                                      false, false, check_system_includes_, fix,
-                                      this)) {
+                                      {}, false, false, check_system_includes_,
+                                      fix, this)) {
       return false;
     }
   }
@@ -1189,6 +1229,18 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
     }
   }
 
+  // Targets whose generated files are not checked.
+  const Value* no_check_generated_targets_value =
+      dotfile_scope_.GetValue("no_check_generated_targets", true);
+  if (no_check_generated_targets_value) {
+    ExtractListOfLabelPatterns(&build_settings_,
+                               *no_check_generated_targets_value, current_dir,
+                               &no_check_generated_patterns_, err);
+    if (err->has_error()) {
+      return false;
+    }
+  }
+
   const Value* check_system_includes_value =
       dotfile_scope_.GetValue("check_system_includes", true);
   if (check_system_includes_value) {
@@ -1196,6 +1248,20 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
       return false;
     }
     check_system_includes_ = check_system_includes_value->boolean_value();
+  }
+
+  const Value* check_includes_strict_exceptions_value =
+      dotfile_scope_.GetValue("check_includes_strict_exceptions", true);
+  if (check_includes_strict_exceptions_value) {
+    auto result = CheckIncludesStrictExceptions::FromValue(
+        *check_includes_strict_exceptions_value, current_dir,
+        build_settings_.root_path_utf8());
+    if (!result.has_value()) {
+      *err = result.error();
+      return false;
+    }
+    build_settings_.set_check_includes_strict_exceptions(
+        std::move(result.value()));
   }
 
   // Fill exec_script_allowlist.
@@ -1300,6 +1366,24 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
       return false;
     }
     export_compile_commands_.push_back(std::move(pat));
+  }
+
+  // Collect validations metadata during generate_file() walks.
+  // See https://gn.g-issues.chromium.org/issues/566346002
+  if (cmdline.HasSwitch(switches::kExperimentalCollectValidationsMetadata)) {
+    build_settings_.set_experimental_collect_validations_metadata(true);
+  } else {
+    const Value* experimental_collect_validations_metadata_value =
+        dotfile_scope_.GetValue("experimental_collect_validations_metadata",
+                                true);
+    if (experimental_collect_validations_metadata_value) {
+      if (!experimental_collect_validations_metadata_value->VerifyTypeIs(
+              Value::BOOLEAN, err)) {
+        return false;
+      }
+      build_settings_.set_experimental_collect_validations_metadata(
+          experimental_collect_validations_metadata_value->boolean_value());
+    }
   }
 
   return true;

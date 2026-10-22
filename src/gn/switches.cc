@@ -88,6 +88,20 @@ const char kErrorLimit_Help[] =
   and warnings without any limit.
 )";
 
+const char kExperimentalCollectValidationsMetadata[] =
+    "experimental-collect-validations-metadata";
+const char kExperimentalCollectValidationsMetadata_HelpShort[] =
+    "--experimental-collect-validations-metadata: Collect metadata from "
+    "validations.";
+const char kExperimentalCollectValidationsMetadata_Help[] =
+    R"(--experimental-collect-validations-metadata: Collect metadata from validations.
+
+  Sets the default value of generated_file() collect_validations_metadata
+  argument to true (default is false).
+
+  This switch is experimental and will be removed in the future.
+  See https://issuetracker.google.com/566346002.
+)";
 const char kFailOnUnusedArgs[] = "fail-on-unused-args";
 const char kFailOnUnusedArgs_HelpShort[] =
     "--fail-on-unused-args: Treat unused build args as fatal errors.";
@@ -373,6 +387,7 @@ const SwitchInfoMap& GetSwitches() {
     INSERT_VARIABLE(Dotfile)
     INSERT_VARIABLE(EnumerateFilesWithGit)
     INSERT_VARIABLE(ErrorLimit)
+    INSERT_VARIABLE(ExperimentalCollectValidationsMetadata)
     INSERT_VARIABLE(FailOnUnusedArgs)
     INSERT_VARIABLE(FormatWidth)
     INSERT_VARIABLE(Markdown)

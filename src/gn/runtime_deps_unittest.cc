@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/runtime_deps.h"
+
 #include <stddef.h>
 
 #include "base/stl_util.h"
-#include "gn/runtime_deps.h"
 #include "gn/scheduler.h"
 #include "gn/target.h"
 #include "gn/test_with_scheduler.h"

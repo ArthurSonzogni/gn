@@ -5,6 +5,7 @@
 #include "gn/functions.h"
 
 #include <stddef.h>
+
 #include <cctype>
 #include <memory>
 #include <utility>

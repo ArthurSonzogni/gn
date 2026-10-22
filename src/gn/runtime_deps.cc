@@ -122,7 +122,7 @@ void StreamRuntimeDeps(const Target* target, std::ostream& out) {
   // considered data deps.
   auto on_file = [&out](std::string_view output_file,
                         const Target* target) -> void {
-    out << output_file << std::endl;
+    out << output_file << '\n';
   };
   RecursiveCollectRuntimeDeps(target, false, on_file, &seen_targets);
 }

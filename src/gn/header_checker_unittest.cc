@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/header_checker.h"
+
 #include <ostream>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
-#include "gn/header_checker.h"
+#include "gn/check_includes_strict_exceptions.h"
+#include "gn/input_file.h"
+#include "gn/label_pattern.h"
 #include "gn/scheduler.h"
+#include "gn/substitution_list.h"
 #include "gn/target.h"
 #include "gn/test_with_scheduler.h"
 #include "gn/test_with_scope.h"
@@ -53,8 +60,7 @@ class HeaderCheckerTest : public TestWithScheduler {
   }
 
  protected:
-  scoped_refptr<HeaderChecker> CreateChecker() {
-    bool check_generated = false;
+  scoped_refptr<HeaderChecker> CreateChecker(bool check_generated = false) {
     bool check_system = true;
     return base::MakeRefCounted<HeaderChecker>(
         setup_.build_settings(), targets_, check_generated, check_system);
@@ -360,7 +366,7 @@ TEST_F(HeaderCheckerTest, RunPrecomputesReachabilityOnlyForCheckedFiles) {
 
   auto checker = CreateChecker();
   std::vector<HeaderChecker::Violation> violations;
-  EXPECT_TRUE(checker->Run(targets_, false, &violations));
+  EXPECT_TRUE(checker->Run(targets_, {}, false, &violations));
 
   auto has_cache = [&checker](const Target* target) {
     for (const auto& shard : checker->dependency_cache_) {
@@ -599,4 +605,136 @@ TEST_F(HeaderCheckerTest, CheckIncludesStrictSameTargetPrivateHeader) {
   errors.clear();
   checker->CheckInclude(a_cache, false, input_file, a_private, range, &errors);
   EXPECT_TRUE(errors.empty());
+}
+
+TEST_F(HeaderCheckerTest, NoCheckGenerated) {
+  // An action G that generates a source, which A lists in its sources next to
+  // a handwritten one. This mirrors generated bindings (e.g. mojom) compiled
+  // by a source_set.
+  Err err;
+  Target g(setup_.settings(), Label(SourceDir("//g/"), "g"));
+  g.set_output_type(Target::ACTION);
+  g.SetToolchain(setup_.toolchain(), &err);
+  ASSERT_SUCCESS(err);
+  g.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/gen/a/generated.cc");
+  g.visibility().SetPublic();
+  ASSERT_TRUE(g.OnResolvedWithoutChecks(&err));
+  targets_.push_back(&g);
+
+  const SourceFile handwritten("//a/handwritten.cc");
+  const SourceFile generated("//out/Debug/gen/a/generated.cc");
+  a_.sources().push_back(handwritten);
+  a_.sources().push_back(generated);
+  a_.private_deps().push_back(LabelTargetPair(&g));
+
+  using Files = std::unordered_set<SourceFile>;
+  std::unordered_set<const Target*> to_check(targets_.begin(), targets_.end());
+  auto files_to_check =
+      [&](bool check_generated,
+          const std::unordered_set<const Target*>& no_check_generated) {
+        Files result;
+        for (const auto& info :
+             CreateChecker(check_generated)
+                 ->FilesToCheck(to_check, no_check_generated))
+          result.insert(info.file);
+        return result;
+      };
+
+  // By default, --check-generated checks both files.
+  EXPECT_EQ(files_to_check(true, {}), (Files{handwritten, generated}));
+
+  // Without --check-generated, only the handwritten file is checked.
+  EXPECT_EQ(files_to_check(false, {}), Files{handwritten});
+
+  // Listing A drops only its generated file from --check-generated. The
+  // handwritten file is still checked.
+  EXPECT_EQ(files_to_check(true, {&a_}), Files{handwritten});
+
+  // Listing another target does not affect A.
+  EXPECT_EQ(files_to_check(true, {&b_}), (Files{handwritten, generated}));
+}
+
+TEST_F(HeaderCheckerTest, CheckIncludesStrictExceptions) {
+  InputFile input_file(SourceFile("//a_public.h"));
+  input_file.SetContents(std::string());
+  LocationRange range;
+
+  // Setup: a_ is strict, has private dep on b_, and has private header.
+  a_.public_deps().clear();
+  a_.private_deps().push_back(LabelTargetPair(&b_));
+  a_.private_deps().push_back(LabelTargetPair(&d_));
+
+  SourceFile a_public("//a_public.h");
+  SourceFile a_private("//a_private.h");
+  a_.sources().push_back(a_public);
+  a_.sources().push_back(a_private);
+  a_.public_headers().push_back(a_public);
+  a_.set_all_headers_public(false);
+  a_.set_check_includes_strict(true);
+
+  SourceFile b_public("//b_public.h");
+  b_.sources().push_back(b_public);
+
+  SourceFile c_public("//c_public.h");
+  c_.sources().push_back(c_public);
+  b_.set_check_includes_strict(true);
+
+  SourceFile d_public("//d_public.h");
+  SourceFile d_private("//d_private.h");
+  d_.sources().push_back(d_public);
+  d_.sources().push_back(d_private);
+  d_.public_headers().push_back(d_public);
+  d_.set_all_headers_public(false);
+  d_.set_check_includes_strict(true);
+
+  Err err;
+  d_.OnResolved(&err);
+  ASSERT_SUCCESS(err);
+  b_.OnResolved(&err);
+  ASSERT_SUCCESS(err);
+  a_.OnResolved(&err);
+  ASSERT_SUCCESS(err);
+
+  auto checker = CreateChecker();
+  auto& a_cache = checker->GetReachabilityCacheForTarget(&a_);
+  auto& d_cache = checker->GetReachabilityCacheForTarget(&d_);
+
+  auto check_ok = [&](const scoped_refptr<HeaderChecker>& c,
+                      HeaderChecker::ReachabilityCache& cache,
+                      bool is_public_header, const SourceFile& file) {
+    std::vector<Err> errors;
+    c->CheckInclude(cache, is_public_header, input_file, file, range, &errors);
+    return errors.empty();
+  };
+
+  // Without exceptions, includes fail:
+  EXPECT_FALSE(check_ok(checker, a_cache, true, b_public));
+  EXPECT_FALSE(check_ok(checker, a_cache, true, a_private));
+  EXPECT_FALSE(check_ok(checker, a_cache, false, c_public));
+  EXPECT_FALSE(check_ok(checker, a_cache, true, d_public));
+  EXPECT_FALSE(check_ok(checker, d_cache, true, d_private));
+
+  // Set exceptions on build_settings:
+  CheckIncludesStrictExceptions exceptions;
+  LabelPattern a_dir(LabelPattern::DIRECTORY, SourceDir("//a/"), "", Label());
+  exceptions.AddLocalException(a_dir, b_.label());
+  exceptions.AddLocalException(a_dir, a_.label());
+  exceptions.AddLocalException(a_dir, c_.label());
+  setup_.build_settings()->set_check_includes_strict_exceptions(
+      std::move(exceptions));
+
+  // Exempt includes with exceptions:
+  EXPECT_TRUE(check_ok(checker, a_cache, true, b_public));
+  EXPECT_TRUE(check_ok(checker, a_cache, true, a_private));
+  EXPECT_TRUE(check_ok(checker, a_cache, false, c_public));
+
+  // Non-exempt includes with exceptions:
+  // Inter-target: a_ includes d_public, but //a:* => //d:* is not in
+  // exceptions.
+  EXPECT_FALSE(check_ok(checker, a_cache, true, d_public));
+
+  // Intra-target: d_ includes d_private, but //d:* => //d:* is not in
+  // exceptions.
+  EXPECT_FALSE(check_ok(checker, d_cache, true, d_private));
 }

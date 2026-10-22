@@ -732,7 +732,7 @@ group("all") {
   };
 
   EXPECT_TRUE(commands::CheckPublicHeaders(
-      &project.setup.build_settings(), project.targets(), project.targets(),
+      &project.setup.build_settings(), project.targets(), project.targets(), {},
       false, false, false, true, &project.setup, collect));
   EXPECT_EQ(
       "ERROR at //includer/includer.cc:1:11: Include not allowed.\n"
@@ -781,7 +781,7 @@ group("all") {
   };
 
   EXPECT_TRUE(commands::CheckPublicHeaders(
-      &project.setup.build_settings(), project.targets(), project.targets(),
+      &project.setup.build_settings(), project.targets(), project.targets(), {},
       false, false, false, true, &project.setup, collect));
   EXPECT_EQ(
       "ERROR at //includer/includer.h:1:11: Public headers cannot include "

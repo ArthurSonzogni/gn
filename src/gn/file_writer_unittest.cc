@@ -7,7 +7,6 @@
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "gn/filesystem_utils.h"
-
 #include "util/build_config.h"
 #include "util/sys_info.h"
 #include "util/test/test.h"

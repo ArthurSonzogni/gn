@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/label.h"
+
 #include <stddef.h>
 
 #include <iterator>
 
 #include "gn/err.h"
-#include "gn/label.h"
 #include "gn/value.h"
 #include "util/build_config.h"
 #include "util/test/test.h"
@@ -215,4 +216,75 @@ TEST(Label, GetUserVisibleNameDefaultToolchain) {
 
   // Also test empty label case.
   EXPECT_EQ("", Label().GetUserVisibleName(Label(SourceDir("//t/"), "tn")));
+}
+
+TEST(Label, Matches) {
+  // Convenience wrapper around Label for smaller test cases.
+  struct TestLabel : public Label {
+    TestLabel(const char* label) : Label(GetDir(label), GetName(label)) {}
+    TestLabel(const char* label, const char* toolchain)
+        : Label(GetDir(label),
+                GetName(label),
+                GetDir(toolchain),
+                GetName(toolchain)) {}
+
+   private:
+    SourceDir GetDir(const char* label) {
+      const char* colon = strchr(label, ':');
+      CHECK(colon) << "Missing colon in " << label;
+      return SourceDir(std::string(label, colon - label) + "/");
+    }
+
+    std::string_view GetName(const char* label) {
+      const char* colon = strchr(label, ':');
+      CHECK(colon) << "Missing colon in " << label;
+      return std::string_view(colon + 1);
+    }
+  };
+  const struct TestCase {
+    const TestLabel label_a;
+    const TestLabel label_b;
+    const TestLabel default_toolchain;
+    bool expected;
+  } test_cases[] = {
+      // clang-format off
+
+      // Same label, with or without toolchain suffixes
+      { {"//aa:a"}, {"//aa:a"}, {"//tc:one"}, true },
+      { {"//aa:a", "//tc:one"}, {"//aa:a"}, {"//tc:one"}, true },
+      { {"//aa:a"}, {"//aa:a", "//tc:one"}, {"//tc:one"}, true },
+      { {"//aa:a", "//tc:two"}, {"//aa:a", "//tc:two"}, {"//tc:one"}, true },
+
+      // Mistmatched labels, same toolchains
+      { {"//aa:a"}, {"//aa:b"}, {"//tc:one"}, false },
+      { {"//aa:a", "//tc:one"}, {"//aa:b"}, {"//tc:one"}, false },
+      { {"//aa:a"}, {"//aa:b", "//tc:one"}, {"//tc:one"}, false },
+      { {"//aa:a", "//tc:one"}, {"//aa:b", "//tc:one"}, {"//tc:one"}, false },
+
+      { {"//bb:a"}, {"//aa:a"}, {"//tc:one"}, false },
+      { {"//bb:a", "//tc:one"}, {"//aa:a"}, {"//tc:one"}, false },
+      { {"//bb:a"}, {"//aa:a", "//tc:one"}, {"//tc:one"}, false },
+      { {"//bb:a", "//tc:one"}, {"//aa:a", "//tc:one"}, {"//tc:one"}, false },
+
+      // Same labels, mistmatches tooclhains
+      { {"//aa:a"}, {"//aa:a", "//tc:two"}, {"//tc:one"}, false },
+      { {"//aa:a", "//tc:two"}, {"//aa:a"}, {"//tc:one"}, false },
+      { {"//aa:a", "//tc:two"}, {"//aa:a", "//tc:three"}, {"//tc:one"}, false },
+
+      { {"//aa:a"}, {"//aa:a", "//tc2:one"}, {"//tc:one"}, false },
+      { {"//aa:a", "//tc2:one"}, {"//aa:a"}, {"//tc:one"}, false },
+      { {"//aa:a", "//tc2:one"}, {"//aa:a", "//tc3:one"}, {"//tc:one"}, false },
+
+      // clang-format on
+  };
+  for (const auto& test_case : test_cases) {
+    EXPECT_EQ(test_case.label_a.Matches(test_case.label_b,
+                                        test_case.default_toolchain),
+              test_case.expected)
+        << "label_a: " << test_case.label_a.GetUserVisibleName(true) << " "
+        << "label_b: " << test_case.label_b.GetUserVisibleName(true) << " "
+        << "default toolchain: "
+        << test_case.default_toolchain.GetUserVisibleName(true) << " "
+        << "expected match: " << (test_case.expected ? "true" : "false");
+  }
 }

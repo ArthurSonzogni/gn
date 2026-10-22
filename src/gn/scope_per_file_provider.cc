@@ -12,7 +12,6 @@
 #include "gn/source_file.h"
 #include "gn/value.h"
 #include "gn/variables.h"
-
 #include "last_commit_position.h"
 
 ScopePerFileProvider::ScopePerFileProvider(Scope* scope,

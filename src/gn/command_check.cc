@@ -75,7 +75,9 @@ Command-specific switches
   --check-generated
       Generated files are normally not checked since they do not exist
       until after a build. With this flag, those generated files that
-      can be found on disk are also checked.
+      can be found on disk are also checked. The .gn file can exclude the
+      generated files of some targets with no_check_generated_targets (see
+      "gn help dotfile").
 
   --check-system
      Check system style includes (using <angle brackets>) in addition to
@@ -94,9 +96,10 @@ What gets checked
 
   The .gn file may specify a list of targets to be checked in the list
   check_targets (see "gn help dotfile"). Alternatively, the .gn file may
-  specify a list of targets not to be checked in no_check_targets. If a label
-  pattern is specified on the command line, neither check_targets or
-  no_check_targets is used.
+  specify a list of targets not to be checked in no_check_targets. It may also
+  list targets whose generated files are not checked with --check-generated in
+  no_check_generated_targets. If a label pattern is specified on the command
+  line, none of these lists is used.
 
   Targets can opt-out from checking with "check_includes = false" (see
   "gn help check_includes").
@@ -248,9 +251,19 @@ int RunCheck(const std::vector<std::string>& args) {
       setup->check_system_includes() || cmdline->HasSwitch("check-system");
   bool fix = cmdline->HasSwitch("fix");
 
+  // Like check_targets and no_check_targets, no_check_generated_targets is not
+  // used when a label pattern is given. It only matters when generated files
+  // are checked.
+  std::vector<const Target*> no_check_generated;
+  if (args.size() == 1 && check_generated) {
+    FilterTargetsByPatterns(targets_to_check,
+                            setup->no_check_generated_patterns(),
+                            &no_check_generated);
+  }
+
   if (!CheckPublicHeaders(&setup->build_settings(), all_targets,
-                          targets_to_check, force, check_generated,
-                          check_system, fix, setup))
+                          targets_to_check, no_check_generated, force,
+                          check_generated, check_system, fix, setup))
     return 1;
 
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kQuiet)) {
@@ -262,6 +275,12 @@ int RunCheck(const std::vector<std::string>& args) {
           static_cast<int>(targets_to_check.size()),
           static_cast<int>(all_targets.size())));
     }
+    if (!no_check_generated.empty()) {
+      OutputString(base::StringPrintf(
+          "Generated files of %d targets not checked based on the "
+          "no_check_generated_targets defined in \".gn\".\n",
+          static_cast<int>(no_check_generated.size())));
+    }
     OutputString("Header dependency check OK\n", DECORATION_GREEN);
   }
   return 0;
@@ -270,6 +289,7 @@ int RunCheck(const std::vector<std::string>& args) {
 bool CheckPublicHeaders(const BuildSettings* build_settings,
                         const std::vector<const Target*>& all_targets,
                         const std::vector<const Target*>& to_check,
+                        const std::vector<const Target*>& no_check_generated,
                         bool force_check,
                         bool check_generated,
                         bool check_system,
@@ -292,7 +312,7 @@ bool CheckPublicHeaders(const BuildSettings* build_settings,
       build_settings, all_targets, check_generated, check_system));
 
   std::vector<HeaderChecker::Violation> violations;
-  header_checker->Run(to_check, force_check, &violations);
+  header_checker->Run(to_check, no_check_generated, force_check, &violations);
 
   bool remaining_violations = false;
   bool needs_separator = false;

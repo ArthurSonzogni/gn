@@ -16,6 +16,7 @@
 #include "gn/build_settings.h"
 #include "gn/builder.h"
 #include "gn/c_include_iterator.h"
+#include "gn/check_includes_strict_exceptions.h"
 #include "gn/config.h"
 #include "gn/config_values_extractors.h"
 #include "gn/err.h"
@@ -83,7 +84,8 @@ LocationRange CreatePersistentRange(const InputFile& input_file,
 // Given a reverse dependency chain where the target chain[0]'s includes are
 // being used by chain[end] and not all deps are public, returns the string
 // describing the error.
-std::string GetDependencyChainPublicError(const HeaderChecker::Chain& chain) {
+std::string GetDependencyChainPublicError(const HeaderChecker::Chain& chain,
+                                          bool strict_exempt) {
   std::string ret =
       "The target:\n  " +
       chain[chain.size() - 1].target->label().GetUserVisibleName(false) +
@@ -99,10 +101,13 @@ std::string GetDependencyChainPublicError(const HeaderChecker::Chain& chain) {
   } else {
     // Indirect dependency chain, print the chain.
     const Target* strict_target = nullptr;
-    for (size_t i = 1; i < chain.size() - 1; i++) {
-      if (chain[i].target->check_includes_strict()) {
-        strict_target = chain[i].target;
-        break;
+    if (!strict_exempt) {
+      for (size_t i = 1; i < chain.size() - 1; i++) {
+        if (chain[i - 1].is_public &&
+            chain[i].target->check_includes_strict()) {
+          strict_target = chain[i].target;
+          break;
+        }
       }
     }
 
@@ -221,11 +226,15 @@ HeaderChecker::HeaderChecker(const BuildSettings* build_settings,
 HeaderChecker::~HeaderChecker() = default;
 
 bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
+                        const std::vector<const Target*>& no_check_generated,
                         bool force_check,
                         std::vector<Violation>* violations) {
   std::unordered_set<const Target*> to_check_set(to_check.begin(),
                                                  to_check.end());
-  std::vector<FileInformation> files = FilesToCheck(to_check_set);
+  std::unordered_set<const Target*> no_check_generated_set(
+      no_check_generated.begin(), no_check_generated.end());
+  std::vector<FileInformation> files =
+      FilesToCheck(to_check_set, no_check_generated_set);
 
   WorkerPool pool;
   {
@@ -245,8 +254,10 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
     DoWorkChunked(
         pool, targets_to_precompute, 32,
         [this](std::span<const Target* const> chunk) {
-          for (const Target* target : chunk)
-            GetReachabilityCacheForTarget(target).PerformDependencyWalk(true);
+          for (const Target* target : chunk) {
+            GetReachabilityCacheForTarget(target).PerformDependencyWalk(
+                ReachabilityCache::DependencyType::kPermitted);
+          }
         });
   }
 
@@ -260,7 +271,8 @@ bool HeaderChecker::Run(const std::vector<const Target*>& to_check,
 }
 
 std::vector<HeaderChecker::FileInformation> HeaderChecker::FilesToCheck(
-    const std::unordered_set<const Target*>& to_check) const {
+    const std::unordered_set<const Target*>& to_check,
+    const std::unordered_set<const Target*>& no_check_generated) const {
   std::vector<FileInformation> files;
   files.reserve(file_map_.size());
 
@@ -282,10 +294,14 @@ std::vector<HeaderChecker::FileInformation> HeaderChecker::FilesToCheck(
         continue;
     }
 
+    // All generated files, including action outputs, are in the output dir.
+    const bool in_output_dir = IsFileInOutputDir(info.file);
+
     TargetVector targets_to_check;
     for (const auto& vect_i : info.targets) {
       if (vect_i.target->IsBinary() && to_check.contains(vect_i.target) &&
-          vect_i.target->check_includes()) {
+          vect_i.target->check_includes() &&
+          !(in_output_dir && no_check_generated.contains(vect_i.target))) {
         targets_to_check.push_back(vect_i);
       }
     }
@@ -374,7 +390,7 @@ void HeaderChecker::AddTargetToFileMap(const Target* target, FileMap* dest) {
   }
 }
 
-bool HeaderChecker::IsFileInOuputDir(const SourceFile& file) const {
+bool HeaderChecker::IsFileInOutputDir(const SourceFile& file) const {
   const std::string& build_dir = build_settings_->build_dir().value();
   return file.value().starts_with(build_dir);
 }
@@ -418,15 +434,13 @@ SourceFile HeaderChecker::SourceFileForInclude(
   return SourceFile();
 }
 
-void HeaderChecker::ReachabilityCache::PerformDependencyWalk(bool permitted) {
+void HeaderChecker::ReachabilityCache::PerformDependencyWalk(
+    DependencyType type) {
   // Conduct the actual BFS.
-  if (permitted ? permitted_complete_.load(std::memory_order_relaxed)
-                : any_complete_.load(std::memory_order_relaxed)) {
+  auto& walk = walks_[static_cast<size_t>(type)];
+  if (walk.complete.load(std::memory_order_relaxed)) {
     return;
   }
-
-  BreadcrumbTable& breadcrumbs =
-      permitted ? permitted_breadcrumbs_ : any_breadcrumbs_;
 
   // work_queue maintains a queue of targets which need to be considered as part
   // of dependency chain, in the order they were first traversed. Each time a
@@ -435,67 +449,62 @@ void HeaderChecker::ReachabilityCache::PerformDependencyWalk(bool permitted) {
   // which target it was reached from when first discovered.
   base::queue<const Target*> work_queue;
   work_queue.push(source_target_);
-  breadcrumbs.Insert(source_target_, nullptr, true);
+  walk.breadcrumbs.Insert(source_target_, nullptr, true);
 
   while (!work_queue.empty()) {
     const Target* target = work_queue.front();
     work_queue.pop();
 
-    if (permitted && target != source_target_ &&
+    if (type == DependencyType::kPermitted && target != source_target_ &&
         target->check_includes_strict()) {
       continue;
     }
 
     for (const auto& dep : target->public_deps()) {
-      if (breadcrumbs.Insert(dep.ptr, target, true))
+      if (walk.breadcrumbs.Insert(dep.ptr, target, true))
         work_queue.push(dep.ptr);
     }
 
-    if (!permitted || target == source_target_) {
+    if (type == DependencyType::kNonPublic || target == source_target_) {
       // Consider all dependencies since all target paths are allowed, so add
       // in private ones. Also do this the first time through the loop, since
       // a target can include headers from its direct deps regardless of
       // public/private-ness.
       for (const auto& dep : target->private_deps()) {
-        if (breadcrumbs.Insert(dep.ptr, target, false))
+        if (walk.breadcrumbs.Insert(dep.ptr, target, false))
           work_queue.push(dep.ptr);
       }
     }
   }
-  if (permitted) {
-    permitted_complete_.store(true, std::memory_order_release);
-  } else {
-    any_complete_.store(true, std::memory_order_release);
-  }
+
+  walk.complete.store(true, std::memory_order_release);
 }
 
 bool HeaderChecker::ReachabilityCache::SearchForDependencyTo(
     const Target* search_for,
-    bool permitted,
+    DependencyType type,
     Chain* chain) {
-  if (permitted ? permitted_complete_.load(std::memory_order_acquire)
-                : any_complete_.load(std::memory_order_acquire)) {
-    return SearchBreadcrumbs(search_for, permitted, chain);
+  auto& walk = walks_[static_cast<size_t>(type)];
+  if (walk.complete.load(std::memory_order_acquire)) {
+    return SearchBreadcrumbs(search_for, type, chain);
   }
 
   {
     std::unique_lock<std::shared_mutex> write_lock(lock_);
-    if (!(permitted ? permitted_complete_.load(std::memory_order_relaxed)
-                    : any_complete_.load(std::memory_order_relaxed))) {
-      PerformDependencyWalk(permitted);
+    if (!walk.complete.load(std::memory_order_relaxed)) {
+      PerformDependencyWalk(type);
     }
   }
 
-  return SearchBreadcrumbs(search_for, permitted, chain);
+  return SearchBreadcrumbs(search_for, type, chain);
 }
 
 bool HeaderChecker::ReachabilityCache::SearchBreadcrumbs(
     const Target* search_for,
-    bool permitted,
+    DependencyType type,
     Chain* chain) const {
-  const BreadcrumbTable& breadcrumbs =
-      permitted ? permitted_breadcrumbs_ : any_breadcrumbs_;
-  ChainLink incoming_link = breadcrumbs.GetLink(search_for);
+  const auto& walk = walks_[static_cast<size_t>(type)];
+  ChainLink incoming_link = walk.breadcrumbs.GetLink(search_for);
   if (!incoming_link.target)
     return false;
 
@@ -503,7 +512,7 @@ bool HeaderChecker::ReachabilityCache::SearchBreadcrumbs(
   chain->clear();
   const Target* cur = search_for;
   while (cur != source_target_) {
-    ChainLink link = breadcrumbs.GetLink(cur);
+    ChainLink link = walk.breadcrumbs.GetLink(cur);
     chain->push_back(ChainLink(cur, link.is_public));
     cur = link.target;
   }
@@ -521,7 +530,7 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
   // target. These won't exist at checking time. Since we require all generated
   // files to be somewhere in the output tree, we can just check the name to
   // see if they should be skipped.
-  if (!check_generated_ && IsFileInOuputDir(file))
+  if (!check_generated_ && IsFileInOutputDir(file))
     return true;
 
   base::FilePath path = build_settings_->GetFullPath(file);
@@ -529,7 +538,7 @@ bool HeaderChecker::CheckFile(const TargetVector& targets,
   if (!base::ReadFileToString(path, &contents)) {
     // A missing (not yet) generated file is an acceptable problem
     // considering this code does not understand conditional includes.
-    if (IsFileInOuputDir(file))
+    if (IsFileInOutputDir(file))
       return true;
 
     for (const TargetInfo& from_target_info : targets) {
@@ -667,6 +676,18 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
   //    includes to detect when A implicitly includes C's header. This will not
   //    have the annoying false positive problem, but is complex to write.
 
+  // Some files are declared in multiple targets.
+  // While it does make exemptions a little overly broad, it does become much
+  // simpler this way, and it's pretty rare anyway.
+  bool strict_exempt = false;
+  for (const auto& target : targets) {
+    if (build_settings_->check_includes_strict_exceptions().HasException(
+            from_target->label(), target.target->label())) {
+      strict_exempt = true;
+      break;
+    }
+  }
+
   // Fast path: the include is valid if any target containing this header is
   // the includer itself, allowlists the includer, or is reachable through a
   // permitted dependency chain.
@@ -674,7 +695,7 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
     const Target* to_target = target.target;
     if (to_target == from_target) {
       if (from_target->check_includes_strict() && is_public_header &&
-          !target.is_public) {
+          !target.is_public && !strict_exempt) {
         break;
       }
       return;
@@ -688,12 +709,17 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
     if (!target.is_public && !FriendMatches(to_target, from_target))
       continue;
 
-    if (!from_target_cache.SearchForDependencyTo(to_target, true, &chain))
+    auto search_type =
+        strict_exempt
+            ? ReachabilityCache::DependencyType::kPermittedIgnoringStrict
+            : ReachabilityCache::DependencyType::kPermitted;
+    if (!from_target_cache.SearchForDependencyTo(to_target, search_type,
+                                                 &chain))
       continue;
     DCHECK(chain.size() >= 2);
 
     if (from_target->check_includes_strict() && is_public_header &&
-        !chain[chain.size() - 2].is_public) {
+        !chain[chain.size() - 2].is_public && !strict_exempt) {
       continue;
     }
     return;
@@ -750,7 +776,7 @@ void HeaderChecker::CheckInclude(ReachabilityCache& from_target_cache,
     } else {
       last_error = Err(CreatePersistentRange(source_file, range),
                        "Can't include this header from here.",
-                       GetDependencyChainPublicError(chain));
+                       GetDependencyChainPublicError(chain, strict_exempt));
     }
   }
 
@@ -791,13 +817,15 @@ bool HeaderChecker::IsDependencyOf(const Target* search_for,
   }
 
   // 1. Try permitted dependency.
-  if (from_target_cache.SearchForDependencyTo(search_for, true, chain)) {
+  if (from_target_cache.SearchForDependencyTo(
+          search_for, ReachabilityCache::DependencyType::kPermitted, chain)) {
     *is_permitted = true;
     return true;
   }
 
   // 2. Try any dependency.
-  if (from_target_cache.SearchForDependencyTo(search_for, false, chain)) {
+  if (from_target_cache.SearchForDependencyTo(
+          search_for, ReachabilityCache::DependencyType::kNonPublic, chain)) {
     *is_permitted = false;
     return true;
   }

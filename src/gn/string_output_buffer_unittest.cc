@@ -132,3 +132,38 @@ TEST(StringOutputBuffer, WriteToFile) {
   ASSERT_TRUE(base::GetFileInfo(file_path, &file_info));
   ASSERT_TRUE(buffer.ContentsEqual(file_path));
 }
+
+namespace {
+
+struct CustomGreeting {
+  std::string_view name;
+};
+
+struct Unwritable {};
+
+size_t MaximumSize(const CustomGreeting& greeting) {
+  return greeting.name.size() + 7;
+}
+
+void WriteToBuf(const CustomGreeting& greeting, char* buf, size_t& size) {
+  constexpr std::string_view prefix = "Hello, ";
+  memcpy(buf + size, prefix.data(), prefix.size());
+  size += prefix.size();
+  memcpy(buf + size, greeting.name.data(), greeting.name.size());
+  size += greeting.name.size();
+}
+
+static_assert(Writable<CustomGreeting>);
+static_assert(Writable<std::string_view>);
+static_assert(Writable<char>);
+static_assert(Writable<std::string>);
+static_assert(Writable<const char*>);
+static_assert(!Writable<Unwritable>);
+
+}  // namespace
+
+TEST(StringOutputBuffer, CustomWritable) {
+  StringOutputBuffer buffer;
+  buffer << CustomGreeting{"world"} << '!';
+  EXPECT_EQ(buffer.str(), "Hello, world!");
+}

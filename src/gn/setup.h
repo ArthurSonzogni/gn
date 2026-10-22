@@ -5,6 +5,7 @@
 #ifndef TOOLS_GN_SETUP_H_
 #define TOOLS_GN_SETUP_H_
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -67,6 +68,16 @@ class Setup {
   // a build directory.
   bool DoSetupForEditing();
 
+  // A callback that will be invoked by Run() once all items in the graph
+  // have been resolved (and no bad graph items were found). This can be
+  // used to schedule more work and then call |scheduler.Run()|.
+  using PostResolutionCallback = std::function<bool(Scheduler&)>;
+
+  // Set a PostResolutionCallback, which will be invoked by Run()
+  void SetPostResolutionCallback(PostResolutionCallback&& callback) {
+    post_resolution_callback_ = std::move(callback);
+  }
+
   // Runs the load, returning true on success. On failure, prints the error
   // and returns false. This includes both RunPreMessageLoop() and
   // RunPostMessageLoop().
@@ -116,6 +127,13 @@ class Setup {
   // check_patterns() and no_check_patterns() will be null.
   const std::vector<LabelPattern>* no_check_patterns() const {
     return no_check_patterns_.get();
+  }
+
+  // Read from the .gn file, these are the targets whose generated files are
+  // *not* checked by "gn check --check-generated". Empty if the .gn file does
+  // not specify anything.
+  const std::vector<LabelPattern>& no_check_generated_patterns() const {
+    return no_check_generated_patterns_;
   }
 
   // This is a combination of the export_compile_commands list in the dotfile,
@@ -186,6 +204,7 @@ class Setup {
   // See getter for info.
   std::unique_ptr<std::vector<LabelPattern>> check_patterns_;
   std::unique_ptr<std::vector<LabelPattern>> no_check_patterns_;
+  std::vector<LabelPattern> no_check_generated_patterns_;
 
   Scheduler scheduler_;
 
@@ -220,6 +239,8 @@ class Setup {
   std::unique_ptr<ParseNode> args_root_;
 
   std::vector<LabelPattern> export_compile_commands_;
+
+  PostResolutionCallback post_resolution_callback_;
 
   Setup(const Setup&) = delete;
   Setup& operator=(const Setup&) = delete;

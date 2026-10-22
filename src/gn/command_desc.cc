@@ -305,6 +305,7 @@ std::map<std::string, DescHandlerFunc> GetHandlers() {
           {variables::kDataKeys, DefaultHandler},
           {variables::kRebase, DefaultHandler},
           {variables::kWalkKeys, DefaultHandler},
+          {variables::kCollectValidationsMetadata, DefaultHandler},
           {variables::kWeakFrameworks, DefaultHandler},
           {variables::kWeakLibraries, DefaultHandler},
           {variables::kWriteOutputConversion, DefaultHandler},
@@ -407,6 +408,7 @@ bool PrintTarget(const Target* target,
   HandleProperty(variables::kLibDirs, handler_map, v, dict);
   HandleProperty(variables::kDataKeys, handler_map, v, dict);
   HandleProperty(variables::kRebase, handler_map, v, dict);
+  HandleProperty(variables::kCollectValidationsMetadata, handler_map, v, dict);
   HandleProperty(variables::kRustflags, handler_map, v, dict);
   HandleProperty(variables::kWalkKeys, handler_map, v, dict);
   HandleProperty(variables::kWeakFrameworks, handler_map, v, dict);
@@ -514,6 +516,7 @@ Possibilities for <what to show>
   cflags_c [--blame]
   cflags_cc [--blame]
   check_includes
+  collect_validations_metadata
   configs [--tree] (see below)
   data_keys
   defines [--blame]

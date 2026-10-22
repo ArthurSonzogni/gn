@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/loader.h"
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -10,7 +12,6 @@
 
 #include "gn/build_settings.h"
 #include "gn/err.h"
-#include "gn/loader.h"
 #include "gn/parse_tree.h"
 #include "gn/parser.h"
 #include "gn/scheduler.h"

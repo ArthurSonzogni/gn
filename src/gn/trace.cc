@@ -78,7 +78,7 @@ void SummarizeParses(std::vector<const TraceItem*>& loads, std::ostream& out) {
   std::sort(loads.begin(), loads.end(), &DurationGreater);
   for (auto* load : loads) {
     out << base::StringPrintf(" %8.2f  ", load->delta().InMillisecondsF());
-    out << load->name() << std::endl;
+    out << load->name() << '\n';
   }
 }
 
@@ -102,7 +102,7 @@ void SummarizeCoalesced(std::vector<const TraceItem*>& items,
 
   for (const auto& cur : sorted) {
     out << base::StringPrintf(" %8.2f  %d  ", cur.total_duration, cur.count);
-    out << *cur.name_ptr << std::endl;
+    out << *cur.name_ptr << '\n';
   }
 }
 
@@ -226,11 +226,11 @@ std::string SummarizeTraces() {
 
   std::ostringstream out;
   SummarizeParses(parses, out);
-  out << std::endl;
+  out << '\n';
   SummarizeFileExecs(file_execs, out);
-  out << std::endl;
+  out << '\n';
   SummarizeScriptExecs(script_execs, out);
-  out << std::endl;
+  out << '\n';
 
   // Generally there will only be one header check, but it's theoretically
   // possible for more than one to run if more than one build is going in

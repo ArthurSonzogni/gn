@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/config_values_extractors.h"
+
 #include <sstream>
 
 #include "gn/config.h"
-#include "gn/config_values_extractors.h"
 #include "gn/config_values_generator.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"

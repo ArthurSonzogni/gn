@@ -14,8 +14,9 @@
 #include "util/build_config.h"
 
 #if defined(OS_WIN)
-#include <io.h>
 #include <windows.h>
+
+#include <io.h>
 // Windows warns on using write().  It prefers _write().
 #define write(fd, buf, count) _write(fd, buf, static_cast<unsigned int>(count))
 // Windows doesn't define STDERR_FILENO.  Define it here.
@@ -171,9 +172,9 @@ LogMessage::LogMessage(const char* file,
 
 LogMessage::~LogMessage() {
   if (severity_ == LOG_FATAL) {
-    stream_ << std::endl;  // Newline to separate from log message.
+    stream_ << '\n';  // Newline to separate from log message.
   }
-  stream_ << std::endl;
+  stream_ << '\n';
   std::string str_newline(stream_.str());
 
 #if defined(OS_WIN)

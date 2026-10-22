@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/c_include_iterator.h"
+
 #include <stddef.h>
 
-#include "gn/c_include_iterator.h"
 #include "gn/input_file.h"
 #include "gn/location.h"
 #include "util/test/test.h"

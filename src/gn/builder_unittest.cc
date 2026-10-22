@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/builder.h"
+
 #include <algorithm>
 #include <memory>
 
-#include "gn/builder.h"
 #include "gn/config.h"
 #include "gn/loader.h"
 #include "gn/target.h"

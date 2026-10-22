@@ -118,6 +118,7 @@
     *   [cflags_objcc: [string list] Flags passed to the Objective C++ compiler.](#var_cflags_objcc)
     *   [check_includes: [boolean] Controls whether a target's files are checked.](#var_check_includes)
     *   [check_includes_strict: [boolean] Controls whether strict include checking is enforced.](#var_check_includes_strict)
+    *   [collect_validations_metadata: [bool] Collect metadata values from validations deps.](#var_collect_validations_metadata)
     *   [complete_static_lib: [boolean] Links all deps into a static library.](#var_complete_static_lib)
     *   [configs: [label list] Configs applying to this target or config.](#var_configs)
     *   [contents: Contents to write to file.](#var_contents)
@@ -388,7 +389,9 @@
   --check-generated
       Generated files are normally not checked since they do not exist
       until after a build. With this flag, those generated files that
-      can be found on disk are also checked.
+      can be found on disk are also checked. The .gn file can exclude the
+      generated files of some targets with no_check_generated_targets (see
+      "gn help dotfile").
 
   --check-system
      Check system style includes (using <angle brackets>) in addition to
@@ -415,9 +418,10 @@
 ```
   The .gn file may specify a list of targets to be checked in the list
   check_targets (see "gn help dotfile"). Alternatively, the .gn file may
-  specify a list of targets not to be checked in no_check_targets. If a label
-  pattern is specified on the command line, neither check_targets or
-  no_check_targets is used.
+  specify a list of targets not to be checked in no_check_targets. It may also
+  list targets whose generated files are not checked with --check-generated in
+  no_check_generated_targets. If a label pattern is specified on the command
+  line, none of these lists is used.
 
   Targets can opt-out from checking with "check_includes = false" (see
   "gn help check_includes").
@@ -559,6 +563,7 @@
   cflags_c [--blame]
   cflags_cc [--blame]
   check_includes
+  collect_validations_metadata
   configs [--tree] (see below)
   data_keys
   defines [--blame]
@@ -2163,6 +2168,9 @@
 
   Collected metadata, if specified, will be returned in postorder of
   dependencies. See the example for details.
+
+  By default, validations dependencies are never visited by metadata collection,
+  but setting `collect_validations_metadata = true` changes this behavior.
 ```
 
 #### **Variables**
@@ -2175,7 +2183,7 @@
            output_extension, output_name, public, sources, testonly,
            visibility
   Generated file: contents, data_keys, rebase, walk_keys, output_conversion,
-                  outputs
+                  outputs, collect_validations_metadata
 ```
 
 #### **Example (metadata collection)**
@@ -5792,15 +5800,18 @@
   3. Dependents of this target cannot transitively include headers from this
      target's "public_deps" (they must depend on those targets directly).
 
-  Note that targets listed in "allow_circular_includes_from" act as an escape
-  hatch and bypass these strict checks.
+  Note that targets listed in "allow_circular_includes_from" and
+  "check_includes_strict_exceptions" act as an escape hatch and bypass these
+  strict checks.
 
   This enforces strict API boundary separation. Under this strict model:
   * "public_deps" act as interface dependencies (dependencies required to
     compile this target's public headers), but they are not transitively
     forwarded to dependents.
   * "deps" act as private implementation dependencies (dependencies required to
-    compile this target's sources).
+    compile this target's sources). This also allows dependent targets to
+    compile without waiting for this target's private "deps" (unless
+    check_includes_strict_exceptions is non-empty).
 
   When false (the default), the default loose include checking rules apply.
 ```
@@ -5812,6 +5823,22 @@
     check_includes_strict = true
     ...
   }
+```
+### <a name="var_collect_validations_metadata"></a>**collect_validations_metadata**: Collect metadata values from validations deps&nbsp;[Back to Top](#gn-reference)
+
+```
+  A boolean flag for generated_file() targets. When true, a metadata walk
+  will visit validations dependencies (and their transitive dependencies,
+  including other validations ones) and collect metadata from them, unless
+  there are explicit barriers to prevent this.
+
+  When false (the default) the metadata walk will ignore validations
+  deps, to avoid inserting unexpected results in the result.
+
+  The default value can be changed by setting
+  'experimental_collect_validations_metadata = true' in the .gn file,
+  but this feature is temporary and will be removed in the future. See
+  https://gn.issues.chromium.org/566346002 for details.
 ```
 ### <a name="var_complete_static_lib"></a>**complete_static_lib**: [boolean] Links all deps into a static library.&nbsp;[Back to Top](#gn-reference)
 
@@ -7715,6 +7742,18 @@
       The format of this list is identical to that of "visibility" so see "gn
       help visibility" for examples.
 
+  no_check_generated_targets [optional]
+      A list of labels and label patterns whose generated files should *not*
+      be checked when running "gn check --check-generated". Unlike
+      no_check_targets, the other files of these targets are still checked.
+      Generated files are the target's files in the output directory, such as
+      action outputs listed in its sources. This list can be combined with
+      check_targets or no_check_targets. To bypass it, request an explicit
+      check of targets, like "//*".
+
+      The format of this list is identical to that of "visibility" so see "gn
+      help visibility" for examples.
+
   check_system_includes [optional]
       Boolean to control whether system style includes are checked by default
       when running "gn check" or "gn gen --check".  System style includes are
@@ -7722,6 +7761,15 @@
       setting is omitted or set to false, these includes will be ignored by
       default. They can be checked explicitly by running
       "gn check --check-system" or "gn gen --check=system"
+
+  check_includes_strict_exceptions [optional]
+      A list of scopes containing exceptions for strict dependencies checking.
+      Each scope in this list specifies an exception rule:
+          includer = <from_pattern>
+          included = <to_label> [optional]
+      which waives check_includes_strict violations from targets matching
+      <from_pattern> trying to include headers from <to_label>
+      (or to headers from any target if included is omitted).
 
   exec_script_allowlist [optional]
       A list of .gn/.gni files (not labels) that have permission to call the
@@ -7857,6 +7905,14 @@
       A boolean flag that can be set to generate Ninja files that use phony
       rules instead of stamp files whenever possible. This results in smaller
       Ninja build plans, but requires at least Ninja 1.11.
+
+  experimental_collect_validations_metadata [optional]
+      NOTE: This flag is experimental and will be removed in the future.
+
+      A boolean flag that determines whether generated_file() metadata walks
+      should include validations targets's metadata. This is false by default
+      but may be required temporarily by the Fuchsia build. See
+      https://gn.g-issues.chromium.org/issues/566346002 for details.
 ```
 
 #### **Example .gn file contents**
@@ -8909,6 +8965,7 @@
     *   --dotfile: Override the name of the ".gn" file.
     *   --enumerate-files-with-git: Use git to list files.
     *   --error-limit: Limit the number of errors or warnings to print.
+    *   --experimental-collect-validations-metadata: Collect metadata from validations.
     *   --fail-on-unused-args: Treat unused build args as fatal errors.
     *   --format-width: Set the formatting width (default is 80)
     *   --markdown: Write help output in the Markdown format.

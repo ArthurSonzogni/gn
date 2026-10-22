@@ -38,8 +38,13 @@ void MsgLoop::Run() {
         return (!task_queue_.empty()) || should_quit_;
       });
 
-      if (should_quit_)
+      if (should_quit_) {
+        // Clear any remaninig items in the queue to avoid
+        // running them on the next Run() invocation.
+        while (!task_queue_.empty())
+          task_queue_.pop();
         return;
+      }
 
       task = std::move(task_queue_.front());
       task_queue_.pop();

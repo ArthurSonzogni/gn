@@ -100,7 +100,8 @@ void NinjaTargetWriter::WriteOutputs(std::vector<OutputFile>&& outputs) const {
 std::string NinjaTargetWriter::RunAndWriteFile(
     const Target* target,
     ResolvedTargetData* resolved,
-    std::vector<OutputFile>* ninja_outputs) {
+    std::vector<OutputFile>* ninja_outputs,
+    bool* delayed_generated_file_write) {
   const Settings* settings = target->settings();
 
   ScopedTrace trace(TraceItem::TRACE_FILE_WRITE_NINJA,
@@ -109,6 +110,9 @@ std::string NinjaTargetWriter::RunAndWriteFile(
 
   if (g_scheduler->verbose_logging())
     g_scheduler->Log("Computing", target->label().GetUserVisibleName(true));
+
+  if (delayed_generated_file_write)
+    *delayed_generated_file_write = false;
 
   // It's ridiculously faster to write to a string and then write that to
   // disk in one operation than to use an fstream here.
@@ -161,6 +165,7 @@ std::string NinjaTargetWriter::RunAndWriteFile(
     NinjaGeneratedFileTargetWriter writer(target, rules);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
+    writer.SetDelayedGeneratedFileWritePtr(delayed_generated_file_write);
     writer.Run();
   } else if (target->IsBinary()) {
     needs_file_write = true;
@@ -254,7 +259,7 @@ void NinjaTargetWriter::WritePublicInputsStampOrPhony(
   }
 
   path_output.WriteFiles(out, deps);
-  out << std::endl << std::endl;
+  out << "\n\n";
 }
 
 namespace {
@@ -290,6 +295,31 @@ void NinjaTargetWriter::AppendHardDepsOutputs(
     outputs->push_back(single_hard_dep->dependency_output());
 }
 
+namespace {
+
+// Appends the ninja outputs representing hard dependencies for the given list
+// of direct |deps| of |target|, deduplicating the resulting |outputs|.
+// For each dep, if it (or |target|) is a direct hard_dep, its dependency output
+// is added directly; otherwise, if it forwards hard deps, its aggregated hard
+// deps output (at most one file/phony per dep) is appended.
+void AppendHardDepsOutputsForDeps(const Target* target,
+                                  base::span<const Target*> deps,
+                                  const ResolvedTargetData& resolved,
+                                  std::vector<OutputFile>* outputs) {
+  for (const Target* dep : deps) {
+    if (target->hard_dep() || dep->hard_dep()) {
+      if (IsListedHardDep(dep))
+        outputs->push_back(dep->dependency_output());
+    } else if (ResolvedTargetData::ForwardsHardDeps(dep)) {
+      NinjaTargetWriter::AppendHardDepsOutputs(dep, resolved, outputs);
+    }
+  }
+  std::sort(outputs->begin(), outputs->end());
+  outputs->erase(std::unique(outputs->begin(), outputs->end()), outputs->end());
+}
+
+}  // namespace
+
 // static
 void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
                                                   ResolvedTargetData* resolved,
@@ -309,18 +339,16 @@ void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
 
   // Keep in sync with ResolvedTargetData::ComputeHardDeps(). This produces
   // the same set of targets, but refers to the hard deps rules of deps
-  // instead of flattening them.
+  // instead of flattening them. Because dependents refer to this rule, only
+  // public_deps are included when OnlyForwardsPublicHardDeps() is true.
+  const ResolvedTargetDeps& target_deps = resolved->GetTargetDeps(target);
   std::vector<OutputFile> deps;
-  for (const Target* dep : resolved->GetTargetDeps(target).linked_deps()) {
-    if (target->hard_dep() || dep->hard_dep()) {
-      if (IsListedHardDep(dep))
-        deps.push_back(dep->dependency_output());
-    } else if (ResolvedTargetData::ForwardsHardDeps(dep)) {
-      AppendHardDepsOutputs(dep, *resolved, &deps);
-    }
-  }
-  std::sort(deps.begin(), deps.end());
-  deps.erase(std::unique(deps.begin(), deps.end()), deps.end());
+  AppendHardDepsOutputsForDeps(
+      target,
+      ResolvedTargetData::OnlyForwardsPublicHardDeps(target)
+          ? target_deps.public_deps()
+          : target_deps.linked_deps(),
+      *resolved, &deps);
 
   PathOutput path_output(build_settings->build_dir(),
                          build_settings->root_path_utf8(), ESCAPE_NINJA);
@@ -338,7 +366,7 @@ void NinjaTargetWriter::WriteHardDepsStampOrPhony(const Target* target,
         << GeneralTool::kGeneralToolStamp;
   }
   path_output.WriteFiles(out, deps);
-  out << std::endl;
+  out << '\n';
 }
 
 void NinjaTargetWriter::WriteEscapedSubstitution(const Substitution* type) {
@@ -348,7 +376,7 @@ void NinjaTargetWriter::WriteEscapedSubstitution(const Substitution* type) {
   out_ << type->ninja_name << " = ";
   EscapeStringToStream(
       out_, SubstitutionWriter::GetTargetSubstitution(target_, type), opts);
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaTargetWriter::WriteSharedVars(const SubstitutionBits& bits) {
@@ -405,7 +433,7 @@ void NinjaTargetWriter::WriteSharedVars(const SubstitutionBits& bits) {
   // If we wrote any vars, separate them from the rest of the file that follows
   // with a blank line.
   if (written_anything)
-    out_ << std::endl;
+    out_ << '\n';
 }
 
 void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
@@ -419,7 +447,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
     RecursiveTargetConfigToStream<std::string>(kRecursiveWriterSkipDuplicates,
                                                target_, &ConfigValues::defines,
                                                DefineWriter(), out_);
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   // Framework search path.
@@ -437,7 +465,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
         FrameworkDirsWriter(framework_dirs_output,
                             tool->framework_dir_switch()),
         out_);
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   // Include directories.
@@ -451,7 +479,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
     RecursiveTargetConfigToStream<SourceDir>(
         kRecursiveWriterSkipDuplicates, target_, &ConfigValues::include_dirs,
         IncludeWriter(include_path_output), out_);
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   bool has_precompiled_headers =
@@ -517,7 +545,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
         out_ << "  ";
       out_ << CSubstitutionSwiftModuleName.ninja_name << " = ";
       EscapeStringToStream(out_, target_->swift_values().module_name(), opts);
-      out_ << std::endl;
+      out_ << '\n';
     }
 
     if (bits.used.count(&CSubstitutionSwiftBridgeHeader)) {
@@ -529,7 +557,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
       } else {
         out_ << R"("")";
       }
-      out_ << std::endl;
+      out_ << '\n';
     }
 
     if (bits.used.count(&CSubstitutionSwiftModuleDirs)) {
@@ -549,7 +577,7 @@ void NinjaTargetWriter::WriteCCompilerVars(const SubstitutionBits& bits,
       for (const SourceDir& swiftmodule_dir : swiftmodule_dirs) {
         swiftmodule_path_writer(swiftmodule_dir, out_);
       }
-      out_ << std::endl;
+      out_ << '\n';
     }
 
     WriteOneFlag(kRecursiveWriterKeepDuplicates, target_,
@@ -639,6 +667,17 @@ NinjaTargetWriter::WriteInputDepsStampOrPhonyAndGetDep(
     // depends on all hard deps that aren't BUNDLE_DATA, to not write
     // thousands of hard deps for every target.
     AppendHardDepsOutputs(target_, resolved(), &hard_deps_outputs);
+    if (ResolvedTargetData::OnlyForwardsPublicHardDeps(target_)) {
+      // When OnlyForwardsPublicHardDeps() is true, GetHardDeps(target_) and
+      // <target>.harddeps only include hard deps from public_deps so that
+      // private hard deps are not forwarded to dependents. However, compiling
+      // this target's own sources may still depend on generated files from its
+      // private_deps, so include their hard deps in this target's own input
+      // deps.
+      AppendHardDepsOutputsForDeps(
+          target_, resolved().GetTargetDeps(target_).private_deps(), resolved(),
+          &hard_deps_outputs);
+    }
   }
 
   // Additional hard dependencies passed in. These are usually empty or small,
@@ -836,7 +875,7 @@ void NinjaTargetWriter::WriteStampOrPhonyForTarget(
     path_output_.WriteFiles(out_, order_only_deps);
   }
   WriteValidations();
-  out_ << std::endl;
+  out_ << '\n';
 }
 
 void NinjaTargetWriter::WriteValidations() {

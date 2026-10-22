@@ -170,6 +170,10 @@ extern const char kCheckIncludesStrict[];
 extern const char kCheckIncludesStrict_HelpShort[];
 extern const char kCheckIncludesStrict_Help[];
 
+extern const char kCollectValidationsMetadata[];
+extern const char kCollectValidationsMetadata_HelpShort[];
+extern const char kCollectValidationsMetadata_Help[];
+
 extern const char kCompleteStaticLib[];
 extern const char kCompleteStaticLib_HelpShort[];
 extern const char kCompleteStaticLib_Help[];

@@ -27,6 +27,7 @@ class GeneratedFileTargetGenerator : public TargetGenerator {
   bool FillGeneratedFileOutput();
   bool FillOutputConversion();
   bool FillContents();
+  bool FillCollectValidationsMetadata();
   bool FillDataKeys();
   bool FillWalkKeys();
   bool FillRebase();

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/builtin_tool.h"
+
 #include "base/logging.h"
 #include "gn/target.h"
 

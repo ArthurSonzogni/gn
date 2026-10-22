@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gn/binary_target_generator.h"
+
 #include "gn/err.h"
 #include "gn/label_pattern.h"
 #include "gn/scheduler.h"

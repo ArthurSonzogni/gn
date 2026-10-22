@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/tokenizer.h"
+
 #include <stddef.h>
 
 #include "gn/input_file.h"
 #include "gn/token.h"
-#include "gn/tokenizer.h"
 #include "util/test/test.h"
 
 namespace {

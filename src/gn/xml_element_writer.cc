@@ -42,11 +42,11 @@ XmlElementWriter::~XmlElementWriter() {
   if (!opening_tag_finished_) {
     // The XML spec does not require a space before the closing slash. However,
     // Eclipse is unable to parse XML settings files if there is no space.
-    out_ << " />" << std::endl;
+    out_ << " />\n";
   } else {
     if (!one_line_)
       out_ << std::string(indent_, ' ');
-    out_ << "</" << tag_ << '>' << std::endl;
+    out_ << "</" << tag_ << ">\n";
   }
 }
 
@@ -73,7 +73,7 @@ std::ostream& XmlElementWriter::StartContent(bool start_new_line) {
     opening_tag_finished_ = true;
 
     if (start_new_line && one_line_) {
-      out_ << std::endl;
+      out_ << '\n';
       one_line_ = false;
     }
   }

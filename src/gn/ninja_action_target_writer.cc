@@ -78,7 +78,7 @@ void NinjaActionTargetWriter::Run() {
   std::vector<OutputFile> input_deps = stamp_deps.implicit;
   input_deps.insert(input_deps.end(), stamp_deps.order_only.begin(),
                     stamp_deps.order_only.end());
-  out_ << std::endl;
+  out_ << '\n';
 
   // Collects all output files for writing below.
   std::vector<OutputFile> output_files;
@@ -112,7 +112,7 @@ void NinjaActionTargetWriter::Run() {
     }
 
     WriteValidations();
-    out_ << std::endl;
+    out_ << '\n';
 
     if (target_->action_values().has_depfile()) {
       WriteDepfile(SourceFile());
@@ -124,10 +124,10 @@ void NinjaActionTargetWriter::Run() {
       out_ << "  pool = ";
       out_ << target_->pool().ptr->GetNinjaName(
           settings_->default_toolchain_label());
-      out_ << std::endl;
+      out_ << '\n';
     }
   }
-  out_ << std::endl;
+  out_ << '\n';
 
   // Write the phony, which doesn't need to depend on the data deps because they
   // have been added as order-only deps of the action output itself.
@@ -152,7 +152,7 @@ std::string NinjaActionTargetWriter::WriteRuleDefinition() {
   EscapeOptions args_escape_options;
   args_escape_options.mode = ESCAPE_NINJA_COMMAND;
 
-  out_ << "rule " << custom_rule_name << std::endl;
+  out_ << "rule " << custom_rule_name << '\n';
 
   if (target_->action_values().uses_rsp_file()) {
     // Needs a response file. The unique_name part is for action_foreach so
@@ -163,7 +163,7 @@ std::string NinjaActionTargetWriter::WriteRuleDefinition() {
     if (!target_->sources().empty())
       rspfile += ".$unique_name";
     rspfile += ".rsp";
-    out_ << "  rspfile = " << rspfile << std::endl;
+    out_ << "  rspfile = " << rspfile << '\n';
 
     // Response file contents.
     out_ << "  rspfile_content =";
@@ -173,7 +173,7 @@ std::string NinjaActionTargetWriter::WriteRuleDefinition() {
       SubstitutionWriter::WriteWithNinjaVariables(arg, args_escape_options,
                                                   out_);
     }
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   // The command line requires shell escaping to properly handle filenames
@@ -190,19 +190,19 @@ std::string NinjaActionTargetWriter::WriteRuleDefinition() {
     out_ << " ";
     SubstitutionWriter::WriteWithNinjaVariables(arg, args_escape_options, out_);
   }
-  out_ << std::endl;
+  out_ << '\n';
   auto mnemonic = target_->action_values().mnemonic();
   if (mnemonic.empty())
     mnemonic = "ACTION";
-  out_ << "  description = " << mnemonic << " " << target_label << std::endl;
-  out_ << "  restat = 1" << std::endl;
+  out_ << "  description = " << mnemonic << " " << target_label << '\n';
+  out_ << "  restat = 1\n";
   const Tool* tool =
       target_->toolchain()->GetTool(GeneralTool::kGeneralToolAction);
   if (tool && tool->pool().ptr) {
     out_ << "  pool = ";
     out_ << tool->pool().ptr->GetNinjaName(
         settings_->default_toolchain_label());
-    out_ << std::endl;
+    out_ << '\n';
   }
 
   return custom_rule_name;
@@ -241,11 +241,11 @@ void NinjaActionTargetWriter::WriteSourceRules(
       path_output_.WriteFiles(out_, order_only_deps);
     }
     WriteValidations();
-    out_ << std::endl;
+    out_ << '\n';
 
     // Response files require a unique name be defined.
     if (target_->action_values().uses_rsp_file())
-      out_ << "  unique_name = " << i << std::endl;
+      out_ << "  unique_name = " << i << '\n';
 
     // The required types is the union of the args and response file. This
     // might theoretically duplicate a definition if the same substitution is
@@ -269,7 +269,7 @@ void NinjaActionTargetWriter::WriteSourceRules(
       out_ << "  pool = ";
       out_ << target_->pool().ptr->GetNinjaName(
           settings_->default_toolchain_label());
-      out_ << std::endl;
+      out_ << '\n';
     }
   }
 }
@@ -295,14 +295,14 @@ void NinjaActionTargetWriter::WriteDepfile(const SourceFile& source) {
       out_,
       SubstitutionWriter::ApplyPatternToSourceAsOutputFile(
           target_, settings_, target_->action_values().depfile(), source));
-  out_ << std::endl;
+  out_ << '\n';
   // Using "deps = gcc" allows Ninja to read and store the depfile content in
   // its internal database which improves performance, especially for large
   // depfiles. The use of this feature with depfiles that contain multiple
   // outputs require Ninja version 1.9.0 or newer.
   if (settings_->build_settings()->ninja_required_version() >=
       Version{1, 9, 0}) {
-    out_ << "  deps = gcc" << std::endl;
+    out_ << "  deps = gcc\n";
   }
 }
 

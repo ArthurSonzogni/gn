@@ -530,3 +530,58 @@ TEST(ResolvedTargetDataTest, GroupPublicInputsInheritance) {
   // A2 has G2 as private dep, so A2 does not export public_inputs.
   EXPECT_FALSE(resolved.ExportsPublicInputs(&a2));
 }
+
+TEST(ResolvedTargetDataTest, HardDepsStrictIncludes) {
+  TestWithScope setup;
+  Err err;
+
+  TestTarget pub_action(setup, "//foo:pub_action", Target::ACTION);
+  TestTarget priv_action(setup, "//foo:priv_action", Target::ACTION);
+
+  TestTarget strict(setup, "//foo:strict", Target::SOURCE_SET);
+  strict.set_check_includes_strict(true);
+  strict.public_deps().push_back(LabelTargetPair(&pub_action));
+  strict.private_deps().push_back(LabelTargetPair(&priv_action));
+
+  ASSERT_TRUE(pub_action.OnResolved(&err));
+  ASSERT_TRUE(priv_action.OnResolved(&err));
+  ASSERT_TRUE(strict.OnResolved(&err));
+
+  ResolvedTargetData resolved;
+
+  const TargetSet& strict_hard_deps = resolved.GetHardDeps(&strict);
+  EXPECT_EQ(1u, strict_hard_deps.size());
+  EXPECT_TRUE(strict_hard_deps.contains(&pub_action));
+  EXPECT_FALSE(strict_hard_deps.contains(&priv_action));
+}
+
+TEST(ResolvedTargetDataTest, HardDepsRustLibrary) {
+  TestWithScope setup;
+  Err err;
+
+  TestTarget pub_action(setup, "//foo:pub_action", Target::ACTION);
+  TestTarget priv_action(setup, "//foo:priv_action", Target::ACTION);
+
+  Target rust_lib(setup.settings(), Label(SourceDir("//foo/"), "rust_lib"));
+  rust_lib.set_output_type(Target::RUST_LIBRARY);
+  rust_lib.visibility().SetPublic();
+  SourceFile lib_rs("//foo/lib.rs");
+  rust_lib.sources().push_back(lib_rs);
+  rust_lib.source_types_used().Set(SourceFile::SOURCE_RS);
+  rust_lib.rust_values().set_crate_root(lib_rs);
+  rust_lib.rust_values().crate_name() = "rust_lib";
+  rust_lib.SetToolchain(setup.toolchain());
+  rust_lib.public_deps().push_back(LabelTargetPair(&pub_action));
+  rust_lib.private_deps().push_back(LabelTargetPair(&priv_action));
+
+  ASSERT_TRUE(pub_action.OnResolved(&err));
+  ASSERT_TRUE(priv_action.OnResolved(&err));
+  ASSERT_TRUE(rust_lib.OnResolved(&err));
+
+  ResolvedTargetData resolved;
+
+  const TargetSet& rust_hard_deps = resolved.GetHardDeps(&rust_lib);
+  EXPECT_EQ(1u, rust_hard_deps.size());
+  EXPECT_TRUE(rust_hard_deps.contains(&pub_action));
+  EXPECT_FALSE(rust_hard_deps.contains(&priv_action));
+}

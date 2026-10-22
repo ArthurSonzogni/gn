@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "gn/desc_builder.h"
+
 #include <memory>
 #include <set>
 
@@ -11,7 +13,6 @@
 #include "gn/config.h"
 #include "gn/config_values_extractors.h"
 #include "gn/deps_iterator.h"
-#include "gn/desc_builder.h"
 #include "gn/input_file.h"
 #include "gn/parse_tree.h"
 #include "gn/resolved_target_data.h"
@@ -585,6 +586,10 @@ class TargetDescBuilder : public BaseDescBuilder {
         for (const auto& k : target_->walk_keys())
           keys.GetList().push_back(base::Value(k));
         res->SetKey(variables::kWalkKeys, std::move(keys));
+      }
+      if (what(variables::kCollectValidationsMetadata)) {
+        res->SetKey(variables::kCollectValidationsMetadata,
+                    base::Value(target_->collect_validations_metadata()));
       }
     }
 
