@@ -363,7 +363,8 @@ TEST_F(BuilderTest, GenDepsCircle) {
   EXPECT_TRUE(b_record->should_generate());
 }
 
-// Tests that configs applied to a config get loaded (bug 536844).
+// Tests that configs applied to a config get loaded
+// (https://crbug.com/41204844).
 TEST_F(BuilderTest, ConfigLoad) {
   SourceDir toolchain_dir = settings_.toolchain_label().dir();
   std::string toolchain_name = settings_.toolchain_label().name();
@@ -382,6 +383,149 @@ TEST_F(BuilderTest, ConfigLoad) {
 
   // Should have requested that B is loaded.
   EXPECT_TRUE(loader_->HasLoadedOne(SourceFile("//b/BUILD.gn")));
+}
+
+// Tests that when a target depends on a config chain with an undefined
+// sub-config, the error reports the unresolved dependency instead of an
+// internal error (due to missing should_generate propagation).
+TEST_F(BuilderTest, SubConfigUndefinedError) {
+  DefineToolchain();
+  SourceDir toolchain_dir = settings_.toolchain_label().dir();
+  std::string toolchain_name = settings_.toolchain_label().name();
+
+  // Dependency chain: Target T -> Config A -> Config B -> Config C (undefined).
+  Label t_label(SourceDir("//t/"), "t", toolchain_dir, toolchain_name);
+  Label a_label(SourceDir("//a/"), "a", toolchain_dir, toolchain_name);
+  Label b_label(SourceDir("//b/"), "b", toolchain_dir, toolchain_name);
+  Label c_label(SourceDir("//c/"), "c", toolchain_dir, toolchain_name);
+
+  // 1. Define target T first, referencing Config A.
+  auto t = std::make_unique<Target>(&settings_, t_label);
+  t->set_output_type(Target::EXECUTABLE);
+  t->configs().push_back(LabelConfigPair(a_label));
+  builder_.ItemDefined(std::move(t));
+
+  // 2. Define Config A, referencing Config B.
+  auto a = std::make_unique<Config>(&settings_, a_label);
+  a->configs().push_back(LabelConfigPair(b_label));
+  builder_.ItemDefined(std::move(a));
+
+  // 3. Define Config B, referencing Config C.
+  auto b = std::make_unique<Config>(&settings_, b_label);
+  b->configs().push_back(LabelConfigPair(c_label));
+  builder_.ItemDefined(std::move(b));
+
+  // Config C is never defined.
+  scheduler().Run();
+
+  BuilderRecord* a_record = builder_.GetRecord(a_label);
+  ASSERT_TRUE(a_record);
+  EXPECT_TRUE(a_record->should_generate());
+
+  BuilderRecord* b_record = builder_.GetRecord(b_label);
+  ASSERT_TRUE(b_record);
+  EXPECT_TRUE(b_record->should_generate());
+
+  BuilderRecord* c_record = builder_.GetRecord(c_label);
+  ASSERT_TRUE(c_record);
+  EXPECT_TRUE(c_record->should_generate());
+  EXPECT_FALSE(c_record->item());
+
+  Err err;
+  EXPECT_FALSE(builder_.CheckForBadItems(&err));
+  EXPECT_TRUE(err.has_error());
+  EXPECT_EQ("Unresolved dependencies.", err.message());
+  EXPECT_EQ(b_label.GetUserVisibleName(true) + "\n  needs " +
+                c_label.GetUserVisibleName(true) + "\n",
+            err.help_text());
+}
+
+// Tests the same dependency chain when configs are defined before the target.
+TEST_F(BuilderTest, SubConfigUndefinedErrorReverseOrder) {
+  DefineToolchain();
+  SourceDir toolchain_dir = settings_.toolchain_label().dir();
+  std::string toolchain_name = settings_.toolchain_label().name();
+
+  Label t_label(SourceDir("//t/"), "t", toolchain_dir, toolchain_name);
+  Label a_label(SourceDir("//a/"), "a", toolchain_dir, toolchain_name);
+  Label b_label(SourceDir("//b/"), "b", toolchain_dir, toolchain_name);
+  Label c_label(SourceDir("//c/"), "c", toolchain_dir, toolchain_name);
+
+  // 1. Define Config B, referencing Config C (undefined).
+  auto b = std::make_unique<Config>(&settings_, b_label);
+  b->configs().push_back(LabelConfigPair(c_label));
+  builder_.ItemDefined(std::move(b));
+
+  // 2. Define Config A, referencing Config B.
+  auto a = std::make_unique<Config>(&settings_, a_label);
+  a->configs().push_back(LabelConfigPair(b_label));
+  builder_.ItemDefined(std::move(a));
+
+  // 3. Define Target T, referencing Config A.
+  auto t = std::make_unique<Target>(&settings_, t_label);
+  t->set_output_type(Target::EXECUTABLE);
+  t->configs().push_back(LabelConfigPair(a_label));
+  builder_.ItemDefined(std::move(t));
+
+  scheduler().Run();
+
+  BuilderRecord* a_record = builder_.GetRecord(a_label);
+  ASSERT_TRUE(a_record);
+  EXPECT_TRUE(a_record->should_generate());
+
+  BuilderRecord* b_record = builder_.GetRecord(b_label);
+  ASSERT_TRUE(b_record);
+  EXPECT_TRUE(b_record->should_generate());
+
+  BuilderRecord* c_record = builder_.GetRecord(c_label);
+  ASSERT_TRUE(c_record);
+  EXPECT_TRUE(c_record->should_generate());
+  EXPECT_FALSE(c_record->item());
+
+  Err err;
+  EXPECT_FALSE(builder_.CheckForBadItems(&err));
+  EXPECT_TRUE(err.has_error());
+  EXPECT_EQ("Unresolved dependencies.", err.message());
+  EXPECT_EQ(b_label.GetUserVisibleName(true) + "\n  needs " +
+                c_label.GetUserVisibleName(true) + "\n",
+            err.help_text());
+}
+
+// Tests that a cycle among sub-configs is detected and reported as a cycle.
+TEST_F(BuilderTest, SubConfigCycle) {
+  DefineToolchain();
+  SourceDir toolchain_dir = settings_.toolchain_label().dir();
+  std::string toolchain_name = settings_.toolchain_label().name();
+
+  Label t_label(SourceDir("//t/"), "t", toolchain_dir, toolchain_name);
+  Label a_label(SourceDir("//a/"), "a", toolchain_dir, toolchain_name);
+  Label b_label(SourceDir("//b/"), "b", toolchain_dir, toolchain_name);
+  Label c_label(SourceDir("//c/"), "c", toolchain_dir, toolchain_name);
+
+  // Target T -> Config A -> Config B -> Config C -> Config B.
+  auto t = std::make_unique<Target>(&settings_, t_label);
+  t->set_output_type(Target::EXECUTABLE);
+  t->configs().push_back(LabelConfigPair(a_label));
+  builder_.ItemDefined(std::move(t));
+
+  auto a = std::make_unique<Config>(&settings_, a_label);
+  a->configs().push_back(LabelConfigPair(b_label));
+  builder_.ItemDefined(std::move(a));
+
+  auto b = std::make_unique<Config>(&settings_, b_label);
+  b->configs().push_back(LabelConfigPair(c_label));
+  builder_.ItemDefined(std::move(b));
+
+  auto c = std::make_unique<Config>(&settings_, c_label);
+  c->configs().push_back(LabelConfigPair(b_label));
+  builder_.ItemDefined(std::move(c));
+
+  scheduler().Run();
+
+  Err err;
+  EXPECT_FALSE(builder_.CheckForBadItems(&err));
+  EXPECT_TRUE(err.has_error());
+  EXPECT_EQ("Dependency cycle:", err.message());
 }
 
 // Tests that "validations" dependencies behave correctly:
