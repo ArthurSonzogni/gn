@@ -40,7 +40,7 @@ PROPERTIES = {
                 'tool_package':
                     'infra/tools/mac_toolchain/${platform}',
                 'tool_version':
-                    'git_revision:1b9e28e1cfc65541b83def4480835449b60188a1',
+                    'git_revision:3433dc5aff8ca9427b0e2958e0ac87cfc1fa6ffc',
             },
         )
 }
