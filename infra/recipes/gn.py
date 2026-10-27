@@ -175,37 +175,6 @@ def RunSteps(api, repository):
 
     pkgs = api.cipd.EnsureFile()
     pkgs.add_package('infra/ninja/${platform}', 'version:1.8.2')
-    # Rust CIPD packages are tagged with `git_revisions:<rust_commit>,<llvm_commit>`
-    # because they bundle an LLVM backend. We select the Rust toolchain that matches
-    # the LLVM revision of Clang's 'integration' ref at the time of updating.
-    #
-    # See:
-    # * https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/rust/host
-    # * https://chrome-infra-packages.appspot.com/p/fuchsia/third_party/rust/target
-    rust_version = (
-        'git_revisions:c26ce708de5d14682647895d2f3caf38f70b5aa6,'
-        '3493720eca95cf844a8d7e58fdd12e0e5644e7d0'
-    )
-    pkgs.add_package('fuchsia/third_party/rust/host/${platform}', rust_version)
-    if api.platform.is_linux:
-      pkgs.add_package(
-          'fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu',
-          rust_version)
-      pkgs.add_package(
-          'fuchsia/third_party/rust/target/aarch64-unknown-linux-gnu',
-          rust_version)
-      pkgs.add_package(
-          'fuchsia/third_party/rust/target/riscv64gc-unknown-linux-gnu',
-          rust_version)
-    elif api.platform.is_mac:
-      pkgs.add_package(
-          'fuchsia/third_party/rust/target/x86_64-apple-darwin', rust_version)
-      pkgs.add_package(
-          'fuchsia/third_party/rust/target/aarch64-apple-darwin', rust_version)
-    elif api.platform.is_win:
-      pkgs.add_package(
-          'fuchsia/third_party/rust/target/x86_64-pc-windows-msvc',
-          rust_version)
     packages = set()
     for tc in toolchains.values():
       for pkg in tc.get('packages', []):
