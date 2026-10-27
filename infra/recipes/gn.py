@@ -56,9 +56,8 @@ def _get_compilation_environment(api, target, toolchains):
   env = dict(toolchain.get('env', {}))
   if target.is_linux:
     triple = '--target=%s' % target.triple
-    sysroot = ('--sysroot=%s' % toolchain['sysroot'])
-    env['CFLAGS'] = ('%s %s' % (triple, sysroot)).strip()
-    env['LDFLAGS'] = ('%s %s -static-libstdc++' % (triple, sysroot)).strip()
+    env['CFLAGS'] = triple
+    env['LDFLAGS'] = ('%s -static-libstdc++' % triple).strip()
   elif target.is_mac:
     triple = '--target=%s' % target.triple
     sysroot = '--sysroot=%s' % api.step(
@@ -255,6 +254,9 @@ def RunSteps(api, repository):
           # benchmarking shows that this leads to no performance difference
           # for the resulting GN binary.
           #
+          if sysroot := toolchains[platform]['sysroot']:
+            env['CFLAGS'] += f' --sysroot={sysroot}'
+            env['LDFLAGS'] += f' --sysroot={sysroot}'
           env['CFLAGS'] += " -Wno-error"
           env['CXXFLAGS'] = env['CFLAGS']
 
@@ -289,7 +291,10 @@ def RunSteps(api, repository):
           env = _get_compilation_environment(api, target, toolchains)
           with api.step.nest(target.platform), api.context(
               env=env, cwd=src_dir, env_prefixes={'PATH': [cipd_dir.join('bin')]}):
-            args = config['args'] + ['--out-path', out_dir]
+            args = config['args'] + [
+                '--out-path', out_dir,
+                '--cipd-packages=%s' % cipd_dir,
+            ]
             if config.get('use_jemalloc', False):
               args.append('--link-lib=%s' % jemalloc_static_libs[target.platform])
 

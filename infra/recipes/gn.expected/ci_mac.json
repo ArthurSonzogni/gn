@@ -376,7 +376,8 @@
       "--use-asan",
       "--use-ubsan",
       "--out-path",
-      "[START_DIR]/gn/out/Default"
+      "[START_DIR]/gn/out/Default",
+      "--cipd-packages=[START_DIR]/cipd"
     ],
     "cwd": "[START_DIR]/gn",
     "env": {
@@ -631,7 +632,8 @@
       "--use-lto",
       "--use-icf",
       "--out-path",
-      "[START_DIR]/gn/out/Default"
+      "[START_DIR]/gn/out/Default",
+      "--cipd-packages=[START_DIR]/cipd"
     ],
     "cwd": "[START_DIR]/gn",
     "env": {
@@ -940,7 +942,8 @@
       "--use-lto",
       "--use-icf",
       "--out-path",
-      "[START_DIR]/gn/out/Default"
+      "[START_DIR]/gn/out/Default",
+      "--cipd-packages=[START_DIR]/cipd"
     ],
     "cwd": "[START_DIR]/gn",
     "env": {

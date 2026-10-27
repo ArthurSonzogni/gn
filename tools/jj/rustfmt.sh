@@ -5,10 +5,16 @@
 
 set -eu -o pipefail
 
+root="$(dirname "$(dirname "$(dirname "$0")")")"
+rustfmt_bin="${RUSTFMT:-${root}/clang/bin/rustfmt}"
+
 # Use nightly rustfmt if available to get advanced formatting (import sorting, etc.)
 if rustup run nightly rustfmt --version >/dev/null 2>&1; then
-  rustup run nightly rustfmt --config-path=src/gn/starlark/rustfmt-nightly.toml
+  exec rustup run nightly rustfmt --config-path="${root}/src/gn/starlark/rustfmt-nightly.toml" "$@"
+elif [ -x "${rustfmt_bin}" ]; then
+  # Otherwise fallback to hermetic rustfmt with standard stable formatting rules
+  exec "${rustfmt_bin}" --config-path="${root}/src/gn/starlark/rustfmt.toml" "$@"
 else
-  # Otherwise fallback to stable rustfmt with standard stable formatting rules
-  rustfmt --config-path=src/gn/starlark/rustfmt.toml
+  # Fallback to no formatting, pipe stdin to stdout
+  cat
 fi

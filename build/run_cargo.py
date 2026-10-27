@@ -184,7 +184,7 @@ def main():
   if len(sys.argv) < 10:
     print(
         'Usage: run_cargo.py <test|lib> <out> <cargo_out_dir> <cxx> '
-        '<cxxflags> <ldflags> <target_triple> <ld> <command...>',
+        '<cxxflags> <ldflags> <target_triple> <ld> <cargo> <args...>',
         file=sys.stderr,
     )
     sys.exit(1)
@@ -198,6 +198,7 @@ def main():
       ldflags,
       target_triple,
       linker,
+      cargo,
       *cmd_args,
   ) = sys.argv[1:]
   out_path = Path(out_path_str)
@@ -217,6 +218,17 @@ def main():
   # are compiled away, triggering -Wunused-template causing failures with -Werror.
   if 'clang' in cxx:
     cxxflags += ' -Wno-unused-template'
+
+  # Ensure that cargo finds the correct rustc and clippy.
+  bin_dir = Path(cargo).parent.resolve()
+  os.environ['PATH'] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+
+  # Pass sysroot to CFLAGS so C dependencies (such as blake3) can find target
+  # headers when cross-compiling.
+  if sysroot_match := re.search(r'--sysroot=\S+', cxxflags):
+    sysroot = sysroot_match.group(0)
+    if sysroot not in os.environ.get('CFLAGS', ''):
+      os.environ['CFLAGS'] = f"{sysroot} {os.environ.get('CFLAGS', '')}".strip()
 
   os.environ['CXX'] = cxx
   os.environ['CXXFLAGS'] = cxxflags
@@ -286,7 +298,7 @@ def main():
   os.environ['CARGO_TARGET_APPLIES_TO_HOST'] = 'false'
 
   # Now we run the `cargo build` command
-  res = subprocess.run(cmd_args)
+  res = subprocess.run([cargo] + cmd_args)
   if res.returncode != 0:
     sys.exit(res.returncode)
 
