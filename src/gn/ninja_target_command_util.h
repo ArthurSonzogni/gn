@@ -13,6 +13,7 @@
 #include "gn/filesystem_utils.h"
 #include "gn/frameworks_utils.h"
 #include "gn/path_output.h"
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/toolchain.h"
 #include "gn/variables.h"
@@ -21,7 +22,7 @@ struct DefineWriter {
   DefineWriter() { options.mode = ESCAPE_NINJA_COMMAND; }
   DefineWriter(EscapingMode mode) { options.mode = mode; }
 
-  void operator()(const std::string& s, std::ostream& out) const {
+  void operator()(const std::string& s, StringOutputBuffer& out) const {
     out << " ";
     EscapeStringToStream(out, "-D" + s, options);
   }
@@ -35,10 +36,10 @@ struct FrameworkDirsWriter {
 
   ~FrameworkDirsWriter() = default;
 
-  void operator()(const SourceDir& d, std::ostream& out) const {
-    std::ostringstream path_out;
+  void operator()(const SourceDir& d, StringOutputBuffer& out) const {
+    StringOutputBuffer path_out;
     path_output_.WriteDir(path_out, d, PathOutput::DIR_NO_LAST_SLASH);
-    const std::string& path = path_out.str();
+    const std::string path = path_out.str();
     if (path[0] == '"')
       out << " \"" << tool_switch_ << path.substr(1);
     else
@@ -57,7 +58,7 @@ struct FrameworksWriter {
     options_.mode = mode;
   }
 
-  void operator()(const std::string& s, std::ostream& out) const {
+  void operator()(const std::string& s, StringOutputBuffer& out) const {
     out << " " << tool_switch_;
     std::string_view framework_name = GetFrameworkName(s);
     EscapeStringToStream(out, framework_name, options_);
@@ -75,7 +76,7 @@ struct WeakLibrariesWriter {
     options_.mode = mode;
   }
 
-  void operator()(std::string_view s, std::ostream& out) const {
+  void operator()(std::string_view s, StringOutputBuffer& out) const {
     out << " " << tool_switch_;
     EscapeStringToStream(out, s, options_);
   }
@@ -88,10 +89,10 @@ struct IncludeWriter {
   explicit IncludeWriter(PathOutput& path_output) : path_output_(path_output) {}
   ~IncludeWriter() = default;
 
-  void operator()(const SourceDir& d, std::ostream& out) const {
-    std::ostringstream path_out;
+  void operator()(const SourceDir& d, StringOutputBuffer& out) const {
+    StringOutputBuffer path_out;
     path_output_.WriteDir(path_out, d, PathOutput::DIR_NO_LAST_SLASH);
-    const std::string& path = path_out.str();
+    const std::string path = path_out.str();
     if (path[0] == '"')
       out << " \"-I" << path.substr(1);
     else
@@ -118,7 +119,7 @@ void WriteOneFlag(RecursiveWriterConfig config,
                       const,
                   EscapeOptions flag_escape_options,
                   PathOutput& path_output,
-                  std::ostream& out,
+                  StringOutputBuffer& out,
                   bool write_substitution = true,
                   bool indent = false);
 

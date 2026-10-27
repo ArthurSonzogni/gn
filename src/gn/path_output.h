@@ -5,7 +5,6 @@
 #ifndef TOOLS_GN_PATH_OUTPUT_H_
 #define TOOLS_GN_PATH_OUTPUT_H_
 
-#include <iosfwd>
 #include <string>
 #include <string_view>
 
@@ -15,6 +14,7 @@
 
 class OutputFile;
 class SourceFile;
+class StringOutputBuffer;
 
 namespace base {
 class FilePath;
@@ -48,35 +48,37 @@ class PathOutput {
   void set_inhibit_quoting(bool iq) { options_.inhibit_quoting = iq; }
   void set_escape_platform(EscapingPlatform p) { options_.platform = p; }
 
-  void WriteFile(std::ostream& out, const SourceFile& file) const;
-  void WriteFile(std::ostream& out, const OutputFile& file) const;
-  void WriteFile(std::ostream& out, const base::FilePath& file) const;
+  void WriteFile(StringOutputBuffer& out, const SourceFile& file) const;
+  void WriteFile(StringOutputBuffer& out, const OutputFile& file) const;
+  void WriteFile(StringOutputBuffer& out, const base::FilePath& file) const;
 
   // Writes the given SourceFiles/OutputFiles with spaces separating them. This
   // will also write an initial space before the first item.
-  void WriteFiles(std::ostream& out, const std::vector<SourceFile>& file) const;
-  void WriteFiles(std::ostream& out,
+  void WriteFiles(StringOutputBuffer& out,
+                  const std::vector<SourceFile>& file) const;
+  void WriteFiles(StringOutputBuffer& out,
                   const std::vector<OutputFile>& files) const;
-  void WriteFiles(std::ostream& out,
+  void WriteFiles(StringOutputBuffer& out,
                   const UniqueVector<OutputFile>& files) const;
 
   // This variant assumes the dir ends in a trailing slash or is empty.
-  void WriteDir(std::ostream& out,
+  void WriteDir(StringOutputBuffer& out,
                 const SourceDir& dir,
                 DirSlashEnding slash_ending) const;
 
-  void WriteDir(std::ostream& out,
+  void WriteDir(StringOutputBuffer& out,
                 const OutputFile& file,
                 DirSlashEnding slash_ending) const;
 
   // Backend for WriteFile and WriteDir. This appends the given file or
   // directory string to the file.
-  void WritePathStr(std::ostream& out, std::string_view str) const;
+  void WritePathStr(StringOutputBuffer& out, std::string_view str) const;
 
  private:
   // Takes the given string and writes it out, appending to the inverse
   // current dir. This assumes leading slashes have been trimmed.
-  void WriteSourceRelativeString(std::ostream& out, std::string_view str) const;
+  void WriteSourceRelativeString(StringOutputBuffer& out,
+                                 std::string_view str) const;
 
   SourceDir current_dir_;
 

@@ -15,138 +15,13 @@ import subprocess
 import sys
 
 from ninja_file import NinjaFile, escape_path_ninja
+from pinned import get_toolchain, install
+from target import Arch, Platform, Target
 
 assert sys.version_info >= (3, 9, 0)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-
-def rust_arch():
-  """Determines the target CPU architecture normalized for Rust."""
-  cflags = os.environ.get('CFLAGS', '').split()
-  ldflags = os.environ.get('LDFLAGS', '').split()
-
-  target_triple = None
-  for flag in cflags + ldflags:
-    if flag.startswith('--target='):
-      target_triple = flag.split('=', 1)[1]
-      break
-    elif flag.startswith('-target='):
-      target_triple = flag.split('=', 1)[1]
-      break
-
-  if target_triple:
-    arch = target_triple.split('-')[0].lower()
-  else:
-    import platform as py_platform
-    arch = py_platform.machine().lower()
-
-  if arch in ('amd64', 'x86_64'):
-    return 'x86_64'
-  elif arch in ('arm64', 'aarch64'):
-    return 'aarch64'
-  elif arch in ('riscv64', 'riscv64gc'):
-    return 'riscv64gc'
-  return arch
-
-
-class Platform(object):
-  """Represents a host/target platform."""
-  def __init__(self, platform):
-    self._platform = platform
-    if self._platform is not None:
-      return
-    self._platform = sys.platform
-    if self._platform.startswith('linux'):
-      self._platform = 'linux'
-    elif self._platform.startswith('darwin'):
-      self._platform = 'darwin'
-    elif self._platform.startswith('mingw'):
-      self._platform = 'mingw'
-    elif self._platform.startswith('msys'):
-      self._platform = 'msys'
-    elif self._platform.startswith('win'):
-      self._platform = 'msvc'
-    elif self._platform.startswith('aix'):
-      self._platform = 'aix'
-    elif self._platform.startswith('fuchsia'):
-      self._platform = 'fuchsia'
-    elif self._platform.startswith('freebsd'):
-      self._platform = 'freebsd'
-    elif self._platform.startswith('netbsd'):
-      self._platform = 'netbsd'
-    elif self._platform.startswith('openbsd'):
-      self._platform = 'openbsd'
-    elif self._platform.startswith('haiku'):
-      self._platform = 'haiku'
-    elif self._platform.startswith('sunos'):
-      self._platform = 'solaris'
-    elif self._platform.startswith('zos'):
-      self._platform = 'zos'
-    elif self._platform.startswith('serenity'):
-      self._platform = 'serenity'
-
-  @staticmethod
-  def known_platforms():
-    return ['linux', 'darwin', 'mingw', 'msys', 'msvc', 'aix', 'fuchsia', 'freebsd', 'netbsd', 'openbsd', 'haiku', 'solaris', 'zos', 'serenity']
-
-  def platform(self):
-    return self._platform
-
-  def is_linux(self):
-    return self._platform == 'linux'
-
-  def is_mingw(self):
-    return self._platform == 'mingw'
-
-  def is_msys(self):
-    return self._platform == 'msys'
-
-  def is_msvc(self):
-    return self._platform == 'msvc'
-
-  def is_windows(self):
-    return self.is_mingw() or self.is_msvc()
-
-  def is_darwin(self):
-    return self._platform == 'darwin'
-
-  def is_aix(self):
-    return self._platform == 'aix'
-
-  def is_haiku(self):
-    return self._platform == 'haiku'
-
-  def is_solaris(self):
-    return self._platform == 'solaris'
-
-  def is_posix(self):
-    return self._platform in ['linux', 'freebsd', 'darwin', 'aix', 'openbsd', 'haiku', 'solaris', 'msys', 'netbsd', 'serenity']
-
-  def is_zos(self):
-    return self._platform == 'zos'
-
-  def is_serenity(self):
-    return self._platform == 'serenity'
-
-  @property
-  def exe_suffix(self):
-    return '.exe' if self.is_windows() else ''
-
-  def rust_triple(self):
-    """Returns the Rust target triple for this platform."""
-    arch = rust_arch()
-
-    if self.is_linux():
-      return f"{arch}-unknown-linux-gnu"
-    elif self.is_darwin():
-      return f"{arch}-apple-darwin"
-    elif self.is_msvc():
-      return f"{arch}-pc-windows-msvc"
-    elif self.is_mingw() or self.is_msys():
-      return f"{arch}-pc-windows-gnu"
-    else:
-      raise NotImplementedError(f"Unsupported Rust target platform: {self._platform}")
 
 
 class ArgumentsList:
@@ -285,6 +160,11 @@ def main(argv):
     # does not invalidate the cache.
     options.no_last_commit_position or options.debug,
   )
+  if platform.is_linux():
+    # Rust binaries linking with clang's sysroot require libgcc_s for unwinding,
+    # which is provided by LLVM's libunwind.
+    with open(os.path.join(out_dir, 'libgcc_s.so'), 'w') as f:
+      f.write('INPUT(-lunwind)\n')
   WriteGNNinja(os.path.join(out_dir, 'build.ninja'), platform, host, options, args_list)
   return 0
 
@@ -350,12 +230,13 @@ USED_ENV_VARS = (
 
 
 def WriteGenericNinja(path, static_libraries, executables,
-                      cxx, ar, ld, platform, host, options,
+                      cxx, ar, ld, target, host, options,
                       args_list, cflags=[], ldflags=[],
                       libflags=[], include_dirs=[], solibs=[]):
+  platform = target.platform
   # Generate integration tests using NinjaFile
   build_dir = os.path.dirname(path)
-  ninja = NinjaFile(platform, REPO_ROOT, build_dir, debug=options.debug)
+  ninja = NinjaFile(target, REPO_ROOT, build_dir, debug=options.debug)
   args = args_list.gen_command_line_args(options)
 
   if args:
@@ -569,6 +450,8 @@ def WriteGenericNinja(path, static_libraries, executables,
       os.path.relpath(os.path.join(SCRIPT_DIR, 'gen.py'), build_dir),
       os.path.relpath(template_filename, build_dir),
       os.path.relpath(os.path.join(SCRIPT_DIR, 'ninja_file.py'), build_dir),
+      os.path.relpath(os.path.join(SCRIPT_DIR, 'pinned.py'), build_dir),
+      os.path.relpath(os.path.join(SCRIPT_DIR, 'target.py'), build_dir),
   ] + [str(path) for path in ninja.regen_triggers]
   with open(path + '.d', 'w') as f:
     f.write('build.ninja: ' + ' '.join(depfile_deps) + '\n')
@@ -579,6 +462,9 @@ def WriteGenericNinja(path, static_libraries, executables,
           ['ninja', '-C', build_dir, '-t', 'compdb'], stdout=f, check=True)
 
 def WriteGNNinja(path, platform, host, options, args_list):
+  target = Target(platform, Arch.target())
+  cflags = []
+  ldflags = []
   if platform.is_msvc():
     cxx = os.environ.get('CXX', 'cl.exe')
     ld = os.environ.get('LD', 'link.exe')
@@ -591,14 +477,25 @@ def WriteGNNinja(path, platform, host, options, args_list):
     cxx = os.environ.get('CXX', 'g++')
     ld = os.environ.get('LD', 'g++')
     ar = os.environ.get('AR', 'ar')
+  # Linux and mac are currently the only supported hosts for hermetic clang.
+  elif not (cxx := os.environ.get('CXX')) and any([platform.is_linux(), platform.is_darwin()]):
+    toolchain = get_toolchain(Target.host(), target)
+    install(toolchain.packages)
+
+    cxx = toolchain.env['CXX']
+    ld = os.environ.get('LD', toolchain.env['LD'])
+    ar = os.environ.get('AR', toolchain.env['AR'])
+    if toolchain.sysroot:
+      cflags.append(f'--sysroot={toolchain.sysroot}')
+      ldflags.append(f'--sysroot={toolchain.sysroot}')
   else:
-    cxx = os.environ.get('CXX', 'clang++')
-    ld = cxx
+    cxx = cxx or 'clang++'
+    ld = os.environ.get('LD', cxx)
     ar = os.environ.get('AR', 'ar')
 
-  cflags = os.environ.get('CFLAGS', '').split()
+  cflags += os.environ.get('CFLAGS', '').split()
   cflags += os.environ.get('CXXFLAGS', '').split()
-  ldflags = os.environ.get('LDFLAGS', '').split()
+  ldflags += os.environ.get('LDFLAGS', '').split()
   libflags = os.environ.get('LIBFLAGS', '').split()
   include_dirs = [
       os.path.relpath(os.path.join(REPO_ROOT, 'src'), os.path.dirname(path)),
@@ -1222,7 +1119,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
     f.write(REPO_ROOT)
 
   WriteGenericNinja(path, static_libraries, executables, cxx, ar, ld,
-                    platform, host, options, args_list,
+                    target, host, options, args_list,
                     cflags, ldflags, libflags, include_dirs, libs)
 
 if __name__ == '__main__':

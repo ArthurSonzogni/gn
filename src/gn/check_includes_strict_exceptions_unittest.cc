@@ -90,3 +90,43 @@ TEST(CheckIncludesStrictExceptionsTest, HasException) {
       exceptions.HasException(Label(SourceDir("//other_dir/"), "foo"),
                               Label(SourceDir("//any_dir/"), "any_target")));
 }
+
+TEST(CheckIncludesStrictExceptionsTest, HasExceptionFrom) {
+  CheckIncludesStrictExceptions exceptions;
+  EXPECT_FALSE(
+      exceptions.HasExceptionFrom(Label(SourceDir("//exact/"), "target")));
+
+  exceptions.AddLocalException(
+      LabelPattern(LabelPattern::MATCH, SourceDir("//exact/"), "target",
+                   Label()),
+      Label(SourceDir("//included/"), "target"));
+  exceptions.AddLocalException(
+      LabelPattern(LabelPattern::DIRECTORY, SourceDir("//dir/"), "", Label()),
+      Label(SourceDir("//included/"), "target"));
+  exceptions.AddGlobalException(LabelPattern(LabelPattern::RECURSIVE_DIRECTORY,
+                                             SourceDir("//rec/"), "", Label()));
+
+  // Exact match (with and without toolchain).
+  EXPECT_TRUE(
+      exceptions.HasExceptionFrom(Label(SourceDir("//exact/"), "target")));
+  EXPECT_TRUE(exceptions.HasExceptionFrom(
+      Label(SourceDir("//exact/"), "target", SourceDir("//tc/"), "tc")));
+  EXPECT_FALSE(
+      exceptions.HasExceptionFrom(Label(SourceDir("//exact/"), "other")));
+
+  // Directory match (non-recursive).
+  EXPECT_TRUE(exceptions.HasExceptionFrom(Label(SourceDir("//dir/"), "any")));
+  EXPECT_FALSE(
+      exceptions.HasExceptionFrom(Label(SourceDir("//dir/sub/"), "any")));
+
+  // Recursive directory match.
+  EXPECT_TRUE(exceptions.HasExceptionFrom(Label(SourceDir("//rec/"), "any")));
+  EXPECT_TRUE(
+      exceptions.HasExceptionFrom(Label(SourceDir("//rec/sub/deep/"), "any")));
+  EXPECT_FALSE(
+      exceptions.HasExceptionFrom(Label(SourceDir("//rec_other/"), "any")));
+
+  // Being on the `included` side does not make it an exempted includer.
+  EXPECT_FALSE(
+      exceptions.HasExceptionFrom(Label(SourceDir("//included/"), "target")));
+}

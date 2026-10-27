@@ -4,8 +4,6 @@
 
 #include "gn/compile_commands_writer.h"
 
-#include <sstream>
-
 #include "base/json/string_escape.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
@@ -68,7 +66,7 @@ std::string FlagsGetter(RecursiveWriterConfig config,
                         const std::vector<T>& (ConfigValues::*getter)() const,
                         const Writer& writer) {
   std::string result;
-  std::ostringstream out;
+  StringOutputBuffer out;
   RecursiveTargetConfigToStream<T>(config, target, getter, writer, out);
   base::EscapeJSONString(out.str(), false, &result);
   return result;
@@ -104,14 +102,14 @@ void SetupCompileFlags(const Target* target,
   std::set<ClangModuleDep> module_dep_info =
       GetModuleDepsInformation(target, resolved);
   if (!module_dep_info.empty()) {
-    std::ostringstream module_deps_out;
+    StringOutputBuffer module_deps_out;
     for (const auto& module_dep : module_dep_info) {
       module_dep.Write(module_deps_out, path_output, true);
     }
     base::EscapeJSONString(module_deps_out.str(), false,
                            &flags.clang_module_deps);
 
-    std::ostringstream module_deps_no_self_out;
+    StringOutputBuffer module_deps_no_self_out;
     for (const auto& module_dep : module_dep_info) {
       module_dep.Write(module_deps_no_self_out, path_output, false);
     }
@@ -127,7 +125,7 @@ void SetupCompileFlags(const Target* target,
                       const std::vector<std::string>& (ConfigValues::*getter)()
                           const) -> std::string {
     std::string result;
-    std::ostringstream out;
+    StringOutputBuffer out;
     WriteOneFlag(config, target, substitution, has_precompiled_headers,
                  tool_name, getter, opts, path_output, out,
                  /*write_substitution=*/false, /*indent=*/false);
@@ -158,13 +156,12 @@ void SetupCompileFlags(const Target* target,
 
 void WriteFile(const SourceFile& source,
                PathOutput& path_output,
-               std::ostream& out) {
-  std::ostringstream rel_source_path;
+               StringOutputBuffer& out) {
   out << "    \"file\": \"";
   path_output.WriteFile(out, source);
 }
 
-void WriteDirectory(std::string build_dir, std::ostream& out) {
+void WriteDirectory(std::string build_dir, StringOutputBuffer& out) {
   out << "\",";
   out << kPrettyPrintLineEnding;
   out << "    \"directory\": \"";
@@ -180,7 +177,7 @@ void WriteCommand(const Target* target,
                   SourceFile::Type source_type,
                   const char* tool_name,
                   EscapeOptions opts,
-                  std::ostream& out) {
+                  StringOutputBuffer& out) {
   EscapeOptions no_quoting(opts);
   no_quoting.inhibit_quoting = true;
   const Tool* tool = target->toolchain()->GetTool(tool_name);
@@ -254,7 +251,7 @@ void WriteCommand(const Target* target,
 
 void OutputJSON(const BuildSettings* build_settings,
                 std::vector<const Target*>& all_targets,
-                std::ostream& out) {
+                StringOutputBuffer& out) {
   out << '[';
   out << kPrettyPrintLineEnding;
   bool first = true;
@@ -325,8 +322,7 @@ std::string CompileCommandsWriter::RenderJSON(
     const BuildSettings* build_settings,
     std::vector<const Target*>& all_targets) {
   StringOutputBuffer json;
-  std::ostream out(&json);
-  OutputJSON(build_settings, all_targets, out);
+  OutputJSON(build_settings, all_targets, json);
   return json.str();
 }
 
@@ -343,8 +339,7 @@ bool CompileCommandsWriter::RunAndWriteFiles(
     return false;
 
   StringOutputBuffer json;
-  std::ostream output_to_json(&json);
-  OutputJSON(build_settings, to_write, output_to_json);
+  OutputJSON(build_settings, to_write, json);
 
   return json.WriteToFileIfChanged(output_path, err);
 }

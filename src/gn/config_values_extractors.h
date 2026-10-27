@@ -7,7 +7,6 @@
 
 #include <stddef.h>
 
-#include <ostream>
 #include <string>
 #include <vector>
 
@@ -15,6 +14,7 @@
 #include "gn/config_values.h"
 #include "gn/target.h"
 
+class StringOutputBuffer;
 struct EscapeOptions;
 
 // Provides a way to iterate through all ConfigValues applying to a given
@@ -87,7 +87,7 @@ inline void RecursiveTargetConfigToStream(
     const Target* target,
     const std::vector<T>& (ConfigValues::*getter)() const,
     const Writer& writer,
-    std::ostream& out) {
+    StringOutputBuffer& out) {
   std::set<T> seen;
   for (ConfigValuesIterator iter(target); !iter.done(); iter.Next()) {
     const std::vector<T>& values = ((iter.cur()).*getter)();
@@ -113,6 +113,6 @@ void RecursiveTargetConfigStringsToStream(
     const Target* target,
     const std::vector<std::string>& (ConfigValues::*getter)() const,
     const EscapeOptions& escape_options,
-    std::ostream& out);
+    StringOutputBuffer& out);
 
 #endif  // TOOLS_GN_CONFIG_VALUES_EXTRACTORS_H_

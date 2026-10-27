@@ -30,6 +30,37 @@ bool CheckIncludesStrictExceptions::HasException(const Label& from,
   return HasGlobalException(from) || HasLocalException(from, to);
 }
 
+bool CheckIncludesStrictExceptions::HasExceptionFrom(const Label& from) const {
+  if (includers_.empty())
+    return false;
+
+  // Instead of scanning all exception rules linearly, probe `includers_` for
+  // the only LabelPattern forms that can match `from`:
+  // 1. Exact target match (e.g. "//foo/bar:baz")
+  // 2. Non-recursive directory match (e.g. "//foo/bar:*")
+  // 3. Recursive directory match on any ancestor directory
+  //    (e.g. "//*", "//foo/*", "//foo/bar/*")
+  if (includers_.contains(LabelPattern(LabelPattern::MATCH, from.dir(),
+                                       from.name(), Label())) ||
+      includers_.contains(
+          LabelPattern(LabelPattern::DIRECTORY, from.dir(), "", Label()))) {
+    return true;
+  }
+
+  // Walk each '/' boundary in `from.dir()` (which starts with "//" and ends
+  // with "/") to check ancestor directories from "//" down to `from.dir()`.
+  std::string_view dir = from.dir().value();
+  for (size_t pos = dir.starts_with("//") ? 1 : 0;
+       (pos = dir.find('/', pos)) != std::string_view::npos; ++pos) {
+    if (includers_.contains(LabelPattern(LabelPattern::RECURSIVE_DIRECTORY,
+                                         SourceDir(dir.substr(0, pos + 1)), "",
+                                         Label()))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 Result<CheckIncludesStrictExceptions> CheckIncludesStrictExceptions::FromValue(
     const Value& value,
     const SourceDir& current_dir,

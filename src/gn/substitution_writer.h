@@ -5,7 +5,6 @@
 #ifndef TOOLS_GN_SUBSTITUTION_WRITER_H_
 #define TOOLS_GN_SUBSTITUTION_WRITER_H_
 
-#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -16,6 +15,7 @@ class OutputFile;
 class Settings;
 class SourceDir;
 class SourceFile;
+class StringOutputBuffer;
 class SubstitutionList;
 class SubstitutionPattern;
 class Target;
@@ -62,7 +62,7 @@ class SubstitutionWriter {
   // Ninja variables replacing the patterns.
   static void WriteWithNinjaVariables(const SubstitutionPattern& pattern,
                                       const EscapeOptions& escape_options,
-                                      std::ostream& out);
+                                      StringOutputBuffer& out);
 
   // NOP substitutions ---------------------------------------------------------
 
@@ -157,7 +157,7 @@ class SubstitutionWriter {
       const SourceFile& source,
       const std::vector<const Substitution*>& types,
       const EscapeOptions& escape_options,
-      std::ostream& out);
+      StringOutputBuffer& out);
 
   // Extracts the given type of substitution related to a source file from the
   // given source file. If output_style is OUTPUT_RELATIVE, relative_to

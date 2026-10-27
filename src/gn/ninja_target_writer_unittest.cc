@@ -4,10 +4,9 @@
 
 #include "gn/ninja_target_writer.h"
 
-#include <sstream>
-
 #include "gn/ninja_action_target_writer.h"
 #include "gn/ninja_group_target_writer.h"
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "util/test/test.h"
@@ -18,7 +17,7 @@ class TestingNinjaTargetWriter : public NinjaTargetWriter {
  public:
   TestingNinjaTargetWriter(const Target* target,
                            const Toolchain* toolchain,
-                           std::ostream& out)
+                           StringOutputBuffer& out)
       : NinjaTargetWriter(target, out) {}
 
   void Run() override {}
@@ -52,7 +51,7 @@ TEST(NinjaTargetWriter, ResolvedCreatedOnDemand) {
   base_target.action_values().set_script(SourceFile("//foo/script.py"));
   ASSERT_TRUE(base_target.OnResolved(&err));
 
-  std::ostringstream stream;
+  StringOutputBuffer stream;
   TestingNinjaTargetWriter writer(&base_target, setup.toolchain(), stream);
 
   const auto* resolved_ptr = &writer.resolved();
@@ -75,7 +74,7 @@ TEST(NinjaTargetWriter, ResolvedSetExplicitly) {
   ASSERT_TRUE(base_target.OnResolved(&err));
 
   ResolvedTargetData resolved;
-  std::ostringstream stream;
+  StringOutputBuffer stream;
   TestingNinjaTargetWriter writer(&base_target, setup.toolchain(), stream);
   writer.SetResolvedTargetData(&resolved);
 
@@ -119,7 +118,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
 
   // Input deps for the base (should be only the script itself).
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&base_target, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -134,7 +133,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
 
   // Input deps for the target (should depend on the base).
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&target, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -147,7 +146,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
   }
 
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     NinjaActionTargetWriter writer(&action, stream);
     writer.Run();
     EXPECT_EQ(
@@ -166,7 +165,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
   // Input deps for action which should depend on the base since its a hard dep
   // that is a (indirect) dependency, as well as the the action source.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&action, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -219,7 +218,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
 
   // Input deps for the base (should be only the script itself).
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&base_target, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -234,7 +233,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
 
   // Input deps for the target (should depend on the base).
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&target, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -247,7 +246,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
   }
 
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     NinjaActionTargetWriter writer(&action, stream);
     writer.Run();
     EXPECT_EQ(
@@ -266,7 +265,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
   // Input deps for action which should depend on the base since its a hard dep
   // that is a (indirect) dependency, as well as the the action source.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&action, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -303,7 +302,7 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepWithToolchainDeps) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream stream;
+  StringOutputBuffer stream;
   TestingNinjaTargetWriter writer(&target, setup.toolchain(), stream);
   auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
       std::vector<const Target*>(), 10u);
@@ -343,7 +342,7 @@ TEST(NinjaTargetWriter,
   target.public_deps().push_back(LabelTargetPair(&base_target));
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream stream;
+  StringOutputBuffer stream;
   TestingNinjaTargetWriter writer(&target, setup.toolchain(), stream);
   auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
       std::vector<const Target*>(), 10u);
@@ -380,7 +379,7 @@ TEST(NinjaTargetWriter, WriteValidations) {
   target.validations().push_back(LabelTargetPair(&validation_target));
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream stream;
+  StringOutputBuffer stream;
   TestingNinjaTargetWriter writer(&target, setup.toolchain(), stream);
 
   std::vector<OutputFile> deps;
@@ -428,7 +427,7 @@ TEST(NinjaTargetWriter, ValidationsWithNoOutput) {
   ASSERT_TRUE(target.OnResolved(&err));
   ASSERT_TRUE(target.has_dependency_output());
 
-  std::ostringstream stream;
+  StringOutputBuffer stream;
   TestingNinjaTargetWriter writer(&target, setup.toolchain(), stream);
 
   std::vector<OutputFile> deps;
@@ -532,7 +531,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
   // 1. Verify B_pub's stamp/phony target. It should contain A's output
   // (phony/foo/a).
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     NinjaActionTargetWriter writer(&b_pub, stream);
     writer.Run();
     EXPECT_EQ(
@@ -550,7 +549,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
 
   // 2. Verify B_priv's stamp/phony target. It should NOT contain A's output.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     NinjaActionTargetWriter writer(&b_priv, stream);
     writer.Run();
     EXPECT_EQ(
@@ -568,7 +567,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
 
   // 3. Verify C_pub's inputdeps contains B_pub's stamp/phony.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&c_pub, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -583,7 +582,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
 
   // 4. Verify C_priv's inputdeps contains B_priv's stamp/phony.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&c_priv, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -599,7 +598,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
   // 5. Verify B_data's stamp/phony target. It should NOT contain A's output
   // in implicit deps (since A is a data_dep), but in order_only_deps.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     NinjaActionTargetWriter writer(&b_data, stream);
     writer.Run();
     EXPECT_EQ(
@@ -617,7 +616,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
 
   // 6. Verify C_data's stamp/phony target. It should contain B_data, but NOT A.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     NinjaActionTargetWriter writer(&c_data, stream);
     writer.Run();
     EXPECT_EQ(
@@ -635,7 +634,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
 
   // 7. Verify D_data's inputdeps contains C_data, but NOT A.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&d_data, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -674,7 +673,7 @@ TEST(NinjaTargetWriter, PublicInputs) {
 
   // 1. Verify A's public_inputs phony/stamp target is written.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     ResolvedTargetData resolved;
     TestingNinjaTargetWriter::WritePublicInputsStampOrPhony(&a, &resolved,
                                                             stream);
@@ -684,7 +683,7 @@ TEST(NinjaTargetWriter, PublicInputs) {
 
   // 2. Verify B's input deps. It should depend on A's public_inputs.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&b, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -700,7 +699,7 @@ TEST(NinjaTargetWriter, PublicInputs) {
 
   // 3. Verify A's own action build definition includes its public_inputs.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     // B's target needs output defined, let's configure A as well
     a.action_values().outputs() =
         SubstitutionList::MakeForTest("//out/Debug/a.out");
@@ -738,7 +737,7 @@ TEST(NinjaTargetWriter, GroupPublicInputs) {
 
   // 1. Verify G's public_inputs phony/stamp target is written.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     ResolvedTargetData resolved;
     TestingNinjaTargetWriter::WritePublicInputsStampOrPhony(&g, &resolved,
                                                             stream);
@@ -748,7 +747,7 @@ TEST(NinjaTargetWriter, GroupPublicInputs) {
 
   // 2. Verify B's input deps. It should depend on G's public_inputs.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&b, setup.toolchain(), stream);
     auto dep = writer.WriteInputDepsStampOrPhonyAndGetDep(
         std::vector<const Target*>(), 10u);
@@ -783,7 +782,7 @@ TEST(NinjaTargetWriter, HardDeps) {
     target->SetToolchain(setup.toolchain());
   };
   auto hard_deps_rule = [](const Target* target) {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaTargetWriter::WriteHardDepsStampOrPhony(target, nullptr, out);
     return out.str();
   };
@@ -855,7 +854,7 @@ TEST(NinjaTargetWriter, HardDeps) {
 
   // The input deps of a target just refer to its hard deps rule.
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&top, setup.toolchain(), stream);
     auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 10u);
     EXPECT_EQ("", stream.str());
@@ -909,7 +908,7 @@ TEST(NinjaTargetWriter, HardDeps) {
   EXPECT_EQ("", hard_deps_rule(&strict));
   EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&strict));
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&strict, setup.toolchain(), stream);
     auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 1u);
     EXPECT_EQ("", stream.str());
@@ -938,7 +937,7 @@ TEST(NinjaTargetWriter, HardDeps) {
   EXPECT_EQ("", hard_deps_rule(&rust_lib));
   EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&rust_lib));
   {
-    std::ostringstream stream;
+    StringOutputBuffer stream;
     TestingNinjaTargetWriter writer(&rust_lib, setup.toolchain(), stream);
     auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 1u);
     EXPECT_EQ("", stream.str());

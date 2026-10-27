@@ -10,6 +10,7 @@
 
 #include "base/strings/stringprintf.h"
 #include "gn/resolved_target_data.h"
+#include "gn/string_output_buffer.h"
 #include "gn/substitution_writer.h"
 #include "gn/target.h"
 
@@ -90,7 +91,7 @@ std::set<ClangModuleDep> GetModuleDepsInformation(
   return ret;
 }
 
-void ClangModuleDep::Write(std::ostream& out,
+void ClangModuleDep::Write(StringOutputBuffer& out,
                            const PathOutput& path_output,
                            bool include_self) const {
   if (modulemap) {

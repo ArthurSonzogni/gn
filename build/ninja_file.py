@@ -78,8 +78,9 @@ class Rule(DummyRule):
 
 class NinjaFile:
 
-  def __init__(self, platform, source_root, out_dir, debug=False):
-    self.platform = platform
+  def __init__(self, target, source_root, out_dir, debug=False):
+    self.target = target
+    self.platform = target.platform
     self.debug = debug
     self.out_dir = pathlib.Path(out_dir).resolve()
     # source_root is relative to out_dir
@@ -185,7 +186,7 @@ class NinjaFile:
   def CargoLibTarget(
       self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs
   ):
-    target_triple = self.platform.rust_triple()
+    target_triple = self.target.rust_triple()
     return self.Cargo(
         name,
         inputs=self.directory(crate_dir, ['target', 'testdata']),
@@ -202,7 +203,7 @@ class NinjaFile:
   def CargoTestTarget(
       self, name, *, crate_dir, target_dir, cargo_flags='', **kwargs
   ):
-    target_triple = self.platform.rust_triple()
+    target_triple = self.target.rust_triple()
     return self.Cargo(
         name,
         inputs=self.directory(crate_dir, ['target']),
@@ -217,7 +218,7 @@ class NinjaFile:
     )
 
   def CargoClippyTarget(self, name, *, crate_dir, target_dir, cargo_flags='', clippy_flags='', **kwargs):
-    target_triple = self.platform.rust_triple()
+    target_triple = self.target.rust_triple()
     return self.CargoClippy(
         name,
         inputs=self.directory(crate_dir, ['target']),

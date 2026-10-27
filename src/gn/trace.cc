@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <map>
 #include <mutex>
-#include <sstream>
 #include <vector>
 
 #include "base/command_line.h"
@@ -20,6 +19,7 @@
 #include "base/strings/stringprintf.h"
 #include "gn/filesystem_utils.h"
 #include "gn/label.h"
+#include "gn/string_output_buffer.h"
 
 namespace {
 
@@ -72,7 +72,8 @@ bool CoalescedDurationGreater(const Coalesced& a, const Coalesced& b) {
   return a.total_duration > b.total_duration;
 }
 
-void SummarizeParses(std::vector<const TraceItem*>& loads, std::ostream& out) {
+void SummarizeParses(std::vector<const TraceItem*>& loads,
+                     StringOutputBuffer& out) {
   out << "File parse times: (time in ms, name)\n";
 
   std::sort(loads.begin(), loads.end(), &DurationGreater);
@@ -83,7 +84,7 @@ void SummarizeParses(std::vector<const TraceItem*>& loads, std::ostream& out) {
 }
 
 void SummarizeCoalesced(std::vector<const TraceItem*>& items,
-                        std::ostream& out) {
+                        StringOutputBuffer& out) {
   // Group by file name.
   std::map<std::string, Coalesced> coalesced;
   for (auto* item : items) {
@@ -107,13 +108,13 @@ void SummarizeCoalesced(std::vector<const TraceItem*>& items,
 }
 
 void SummarizeFileExecs(std::vector<const TraceItem*>& execs,
-                        std::ostream& out) {
+                        StringOutputBuffer& out) {
   out << "File execute times: (total time in ms, # executions, name)\n";
   SummarizeCoalesced(execs, out);
 }
 
 void SummarizeScriptExecs(std::vector<const TraceItem*>& execs,
-                          std::ostream& out) {
+                          StringOutputBuffer& out) {
   out << "Script execute times: (total time in ms, # executions, name)\n";
   SummarizeCoalesced(execs, out);
 }
@@ -224,7 +225,7 @@ std::string SummarizeTraces() {
     }
   }
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   SummarizeParses(parses, out);
   out << '\n';
   SummarizeFileExecs(file_execs, out);
@@ -249,7 +250,7 @@ std::string SummarizeTraces() {
 }
 
 void SaveTraces(const base::FilePath& file_name) {
-  std::ostringstream out;
+  StringOutputBuffer out;
 
   out << "{\"traceEvents\":[";
 

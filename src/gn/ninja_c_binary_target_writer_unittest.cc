@@ -5,7 +5,6 @@
 #include "gn/ninja_c_binary_target_writer.h"
 
 #include <memory>
-#include <sstream>
 #include <utility>
 
 #include "gn/config.h"
@@ -13,6 +12,7 @@
 #include "gn/ninja_target_command_util.h"
 #include "gn/pool.h"
 #include "gn/scheduler.h"
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scheduler.h"
 #include "gn/test_with_scope.h"
@@ -46,7 +46,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
 
   // Source set itself.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -70,8 +70,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
         "build phony/foo/bar.linkdeps: phony obj/foo/bar.input1.o "
         "obj/foo/bar.input2.o ../../foo/input3.o ../../foo/input4.obj\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // A shared library that depends on the source set.
@@ -82,7 +81,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
   ASSERT_TRUE(shlib_target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&shlib_target, out);
     writer.Run();
 
@@ -107,8 +106,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
         "  swiftmodules =\n"
         "  output_extension = .so\n"
         "  output_dir =\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // A static library that depends on the source set (should not link it).
@@ -119,7 +117,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
   ASSERT_TRUE(stlib_target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&stlib_target, out);
     writer.Run();
 
@@ -138,14 +136,13 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
         "  arflags =\n"
         "  output_extension =\n"
         "  output_dir =\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // Make the static library 'complete', which means it should be linked.
   stlib_target.set_complete_static_lib(true);
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&stlib_target, out);
     writer.Run();
 
@@ -167,8 +164,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
         "  arflags =\n"
         "  output_extension =\n"
         "  output_dir =\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -201,7 +197,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputs) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -223,7 +219,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputs) {
       "build phony/foo/bar.linkdeps: phony obj/foo/bar.input1.o\n"
       "build phony/foo/bar: phony phony/foo/bar.linkdeps obj/foo/input1.dwo\n";
 
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputsSourceSet) {
@@ -255,7 +251,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputsSourceSet) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -277,7 +273,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputsSourceSet) {
       "build phony/foo/bar.linkdeps: phony obj/foo/bar.input1.o\n"
       "build phony/foo/bar: phony phony/foo/bar.linkdeps obj/foo/input1.dwo\n";
 
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest,
@@ -323,7 +319,7 @@ TEST_F(NinjaCBinaryTargetWriterTest,
 
   // Verify B's output
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target_b, out);
     writer.Run();
 
@@ -348,12 +344,12 @@ TEST_F(NinjaCBinaryTargetWriterTest,
         "build phony/foo/b: phony phony/foo/b.linkdeps obj/foo/b.dwo "
         "obj/foo/b2.dwo\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 
   // Verify A's output
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target_a, out);
     writer.Run();
 
@@ -376,7 +372,7 @@ TEST_F(NinjaCBinaryTargetWriterTest,
         "  output_extension =\n"
         "  output_dir =\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -424,13 +420,13 @@ TEST_F(NinjaCBinaryTargetWriterTest, GroupOrderOnlyDeps) {
 
   // Verify E's output
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaGroupTargetWriter writer(&target_e, out);
     writer.Run();
 
     const char expected[] = "build phony/foo/e: phony phony/foo/b\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 
   // Static library F (depender on group E)
@@ -445,7 +441,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, GroupOrderOnlyDeps) {
 
   // Verify F's output
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target_f, out);
     writer.Run();
 
@@ -468,7 +464,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, GroupOrderOnlyDeps) {
         "  output_extension =\n"
         "  output_dir =\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -482,7 +478,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, EscapeDefines) {
   target.config_values().defines().push_back("STR_DEF=\"ABCD-1\"");
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -506,7 +502,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, StaticLibrary) {
   target.config_values().arflags().push_back("--asdf");
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -528,8 +524,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, StaticLibrary) {
       "  arflags = --asdf\n"
       "  output_extension =\n"
       "  output_dir =\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibrary) {
@@ -555,7 +550,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibrary) {
   // should link in the dependent object files as if the dependent target
   // were a source set.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -578,8 +573,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibrary) {
         "  arflags = --asdf\n"
         "  output_extension =\n"
         "  output_dir =\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // Make the dependent static library complete.
@@ -587,7 +581,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibrary) {
 
   // Dependent complete static libraries should not be linked directly.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -610,8 +604,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibrary) {
         "  arflags = --asdf\n"
         "  output_extension =\n"
         "  output_dir =\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -638,7 +631,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibraryWithRustDep) {
 
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -662,8 +655,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibraryWithRustDep) {
       "  output_extension =\n"
       "  output_dir =\n"
       "  rlibs = obj/foo/librust_lib.rlib\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest,
@@ -699,7 +691,7 @@ TEST_F(NinjaCBinaryTargetWriterTest,
 
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -726,8 +718,7 @@ TEST_F(NinjaCBinaryTargetWriterTest,
       "  output_extension =\n"
       "  output_dir =\n"
       "  rlibs = obj/foo/librust_lib.rlib\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // This tests that output extension and output dir overrides apply, and input
@@ -755,7 +746,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, OutputExtensionAndInputDeps) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -790,8 +781,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, OutputExtensionAndInputDeps) {
       "  output_extension = .so.6\n"
       "  output_dir = foo\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
@@ -823,7 +813,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
   gen_obj.SetToolchain(setup.toolchain());
   ASSERT_TRUE(gen_obj.OnResolved(&err));
 
-  std::ostringstream obj_out;
+  StringOutputBuffer obj_out;
   NinjaCBinaryTargetWriter obj_writer(&gen_obj, obj_out);
   obj_writer.Run();
 
@@ -864,7 +854,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
   gen_lib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(gen_lib.OnResolved(&err));
 
-  std::ostringstream lib_out;
+  StringOutputBuffer lib_out;
   NinjaCBinaryTargetWriter lib_writer(&gen_lib, lib_out);
   lib_writer.Run();
 
@@ -903,7 +893,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
   executable.SetToolchain(setup.toolchain());
   ASSERT_TRUE(executable.OnResolved(&err)) << err.message();
 
-  std::ostringstream final_out;
+  StringOutputBuffer final_out;
   NinjaCBinaryTargetWriter final_writer(&executable, final_out);
   final_writer.Run();
 
@@ -951,7 +941,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LibsAndLibDirs) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -978,8 +968,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LibsAndLibDirs) {
       "  output_extension = .so\n"
       "  output_dir =\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests frameworks are applied.
@@ -1022,7 +1011,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -1044,8 +1033,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
       "  output_extension = .so\n"
       "  output_dir =\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, EmptyOutputExtension) {
@@ -1066,7 +1054,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, EmptyOutputExtension) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -1096,8 +1084,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, EmptyOutputExtension) {
       "  output_extension =\n"
       "  output_dir =\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, SourceSetDataDeps) {
@@ -1122,7 +1109,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSetDataDeps) {
   ASSERT_TRUE(inter.OnResolved(&err)) << err.message();
 
   // Write out the intermediate target.
-  std::ostringstream inter_out;
+  StringOutputBuffer inter_out;
   NinjaCBinaryTargetWriter inter_writer(&inter, inter_out);
   inter_writer.Run();
 
@@ -1146,7 +1133,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSetDataDeps) {
       "build phony/foo/inter.linkdeps: phony obj/foo/inter.inter.o || "
       "./data_target\n"
       "build phony/foo/inter: phony phony/foo/inter.linkdeps\n";
-  EXPECT_EQ(inter_expected, inter_out.str());
+  EXPECT_EQ(inter_expected, inter_out);
 
   // Final target.
   Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"));
@@ -1157,7 +1144,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSetDataDeps) {
   exe.source_types_used().Set(SourceFile::SOURCE_CPP);
   ASSERT_TRUE(exe.OnResolved(&err));
 
-  std::ostringstream final_out;
+  StringOutputBuffer final_out;
   NinjaCBinaryTargetWriter final_writer(&exe, final_out);
   final_writer.Run();
 
@@ -1188,7 +1175,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSetDataDeps) {
       "  swiftmodules =\n"
       "  output_extension =\n"
       "  output_dir =\n";
-  EXPECT_EQ(final_expected, final_out.str());
+  EXPECT_EQ(final_expected, final_out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, SharedLibraryModuleDefinitionFile) {
@@ -1204,7 +1191,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SharedLibraryModuleDefinitionFile) {
   shared_lib.source_types_used().Set(SourceFile::SOURCE_DEF);
   ASSERT_TRUE(shared_lib.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&shared_lib, out);
   writer.Run();
 
@@ -1229,7 +1216,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SharedLibraryModuleDefinitionFile) {
       "  swiftmodules =\n"
       "  output_extension = .so\n"
       "  output_dir =\n";
-  EXPECT_EQ(expected, out.str());
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, LoadableModule) {
@@ -1244,7 +1231,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LoadableModule) {
   loadable_module.source_types_used().Set(SourceFile::SOURCE_CPP);
   ASSERT_TRUE(loadable_module.OnResolved(&err)) << err.message();
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&loadable_module, out);
   writer.Run();
 
@@ -1269,7 +1256,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LoadableModule) {
       "  swiftmodules =\n"
       "  output_extension = .so\n"
       "  output_dir =\n";
-  EXPECT_EQ(loadable_expected, out.str());
+  EXPECT_EQ(loadable_expected, out);
 
   // Final target.
   Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"));
@@ -1280,7 +1267,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LoadableModule) {
   exe.source_types_used().Set(SourceFile::SOURCE_CPP);
   ASSERT_TRUE(exe.OnResolved(&err)) << err.message();
 
-  std::ostringstream final_out;
+  StringOutputBuffer final_out;
   NinjaCBinaryTargetWriter final_writer(&exe, final_out);
   final_writer.Run();
 
@@ -1307,7 +1294,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LoadableModule) {
       "  swiftmodules =\n"
       "  output_extension =\n"
       "  output_dir =\n";
-  EXPECT_EQ(final_expected, final_out.str());
+  EXPECT_EQ(final_expected, final_out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, WinPrecompiledHeaders) {
@@ -1362,7 +1349,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, WinPrecompiledHeaders) {
     no_pch_target.SetToolchain(&pch_toolchain);
     ASSERT_TRUE(no_pch_target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&no_pch_target, out);
     writer.Run();
 
@@ -1388,7 +1375,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, WinPrecompiledHeaders) {
         "withpch/obj/foo/no_pch_target.input2.o\n"
         "build withpch/phony/foo/no_pch_target: "
         "phony withpch/phony/foo/no_pch_target.linkdeps\n";
-    EXPECT_EQ(no_pch_expected, out.str());
+    EXPECT_EQ(no_pch_expected, out);
   }
 
   // This target specifies PCH.
@@ -1406,7 +1393,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, WinPrecompiledHeaders) {
     pch_target.SetToolchain(&pch_toolchain);
     ASSERT_TRUE(pch_target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&pch_target, out);
     writer.Run();
 
@@ -1455,7 +1442,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, WinPrecompiledHeaders) {
         "withpch/obj/build/pch_target.precompile.cc.o\n"
         "build withpch/phony/foo/pch_target: phony "
         "withpch/phony/foo/pch_target.linkdeps\n";
-    EXPECT_EQ(pch_win_expected, out.str());
+    EXPECT_EQ(pch_win_expected, out);
   }
 }
 
@@ -1512,7 +1499,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, GCCPrecompiledHeaders) {
     no_pch_target.SetToolchain(&pch_toolchain);
     ASSERT_TRUE(no_pch_target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&no_pch_target, out);
     writer.Run();
 
@@ -1538,7 +1525,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, GCCPrecompiledHeaders) {
         "withpch/obj/foo/no_pch_target.input2.o\n"
         "build withpch/phony/foo/no_pch_target: "
         "phony withpch/phony/foo/no_pch_target.linkdeps\n";
-    EXPECT_EQ(no_pch_expected, out.str());
+    EXPECT_EQ(no_pch_expected, out);
   }
 
   // This target specifies PCH.
@@ -1556,7 +1543,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, GCCPrecompiledHeaders) {
     pch_target.SetToolchain(&pch_toolchain);
     ASSERT_TRUE(pch_target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&pch_target, out);
     writer.Run();
 
@@ -1600,7 +1587,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, GCCPrecompiledHeaders) {
         "withpch/obj/foo/pch_target.input2.o\n"
         "build withpch/phony/foo/pch_target: "
         "phony withpch/phony/foo/pch_target.linkdeps\n";
-    EXPECT_EQ(pch_gcc_expected, out.str());
+    EXPECT_EQ(pch_gcc_expected, out);
   }
 }
 
@@ -1619,7 +1606,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, DupeObjFileError) {
 
   scheduler().SuppressOutputForTesting(true);
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -1647,7 +1634,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
     target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1674,7 +1661,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
         "obj/foo/bar.input2.o\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 
   // This target has one input but no source files.
@@ -1686,7 +1673,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
     target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1707,7 +1694,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
         "  output_extension = .so\n"
         "  output_dir =\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 
   // This target has multiple inputs.
@@ -1723,7 +1710,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
     target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1752,7 +1739,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
         "obj/foo/bar.input2.o\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 
   // This target has one input itself, one from an immediate config, and one
@@ -1779,7 +1766,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
     target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1808,7 +1795,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
         "obj/foo/bar.input2.o\n"
         "build phony/foo/bar: phony phony/foo/bar.linkdeps\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1837,7 +1824,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustStaticLib) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -1863,8 +1850,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustStaticLib) {
       "  output_extension =\n"
       "  output_dir =\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Test linking of Rust dependencies into C targets.
@@ -2014,7 +2000,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2048,8 +2034,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
       "  rlibs = obj/pub_in_staticlib/libpub_in_staticlib.rlib "
       "obj/priv_in_staticlib/libpriv_in_staticlib.rlib\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Test linking of Rust dependencies into C targets. Proc-macro dependencies are
@@ -2180,7 +2165,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2215,8 +2200,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
       "obj/rlib/librlib.rlib "
       "obj/pub_in_procmacro_and_rlib/libpub_in_procmacro_and_rlib.rlib\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Test linking of Rust dependencies into C targets.
@@ -2257,7 +2241,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ProcMacroInRustStaticLib) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2283,8 +2267,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ProcMacroInRustStaticLib) {
       "  output_extension =\n"
       "  output_dir =\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
@@ -2360,7 +2343,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2388,8 +2371,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
       "  output_dir =\n"
       "  rlibs = obj/near/libnear.rlib\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
@@ -2456,7 +2438,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2486,8 +2468,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
       "  output_dir =\n"
       "  rlibs = obj/rlib/librlib.rlib\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
@@ -2554,7 +2535,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2584,8 +2565,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
       "  output_dir =\n"
       "  rlibs = obj/rlib/librlib.rlib\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Verify dependencies of a shared library and a rust library are inherited
@@ -2664,7 +2644,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustLibAfterSharedLib) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2693,8 +2673,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustLibAfterSharedLib) {
       "  output_dir =\n"
       "  rlibs = obj/rlib2/libmyrlib2.rlib\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInStaticLibrary) {
@@ -2709,7 +2688,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInStaticLibrary) {
   target.set_module_type(kExplicitModulemap);
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2738,8 +2717,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInStaticLibrary) {
       "  arflags =\n"
       "  output_extension =\n"
       "  output_dir =\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInSourceSet) {
@@ -2754,7 +2732,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInSourceSet) {
   target.set_module_type(kExplicitModulemap);
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2781,8 +2759,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapInSourceSet) {
       "\n"
       "build phony/foo/bar.linkdeps: phony obj/foo/bar.bar.o\n"
       "build phony/foo/bar: phony phony/foo/bar.linkdeps obj/foo/bar.bar.pcm\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Test linking of targets containing Swift modules.
@@ -2802,7 +2779,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
   ASSERT_TRUE(foo_target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&foo_target, out);
     writer.Run();
 
@@ -2824,8 +2801,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
         "build phony/foo/foo: phony phony/foo/foo.linkdeps gen/foo/foo.h "
         "obj/foo/Foo.swiftmodule\n";
 
-    const std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // Swift module_dirs correctly set if dependency between Swift modules.
@@ -2840,7 +2816,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
     bar_target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(bar_target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&bar_target, out);
     writer.Run();
 
@@ -2863,8 +2839,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
         "build phony/bar/bar: phony phony/bar/bar.linkdeps gen/bar/bar.h "
         "obj/bar/Bar.swiftmodule\n";
 
-    const std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // Swift module_dirs correctly set if dependency between Swift modules,
@@ -2887,7 +2862,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
     bar_target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(bar_target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&bar_target, out);
     writer.Run();
 
@@ -2910,8 +2885,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
         "build phony/bar/bar: phony phony/bar/bar.linkdeps gen/bar/bar.h "
         "obj/bar/Bar.swiftmodule\n";
 
-    const std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // C target links with module.
@@ -2923,7 +2897,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
     bar_target.SetToolchain(setup.toolchain());
     ASSERT_TRUE(bar_target.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&bar_target, out);
     writer.Run();
 
@@ -2946,8 +2920,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
         "  output_extension =\n"
         "  output_dir =\n";
 
-    const std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -3024,7 +2997,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
 
   // The library first.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -3052,8 +3025,7 @@ build obj/blah/liba.a: alink obj/blah/liba.a.o
   output_dir =
 )";
 
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target target2(&module_settings, Label(SourceDir("//stuff/"), "b",
@@ -3073,7 +3045,7 @@ build obj/blah/liba.a: alink obj/blah/liba.a.o
 
   // A second library to make sure the depender includes both.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target2, out);
     writer.Run();
 
@@ -3101,8 +3073,7 @@ build obj/stuff/libb.a: alink obj/stuff/libb.b.o || obj/blah/liba.a
   output_dir =
 )";
 
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target target3(&module_settings, Label(SourceDir("//things/"), "c",
@@ -3120,7 +3091,7 @@ build obj/stuff/libb.a: alink obj/stuff/libb.b.o || obj/blah/liba.a
   // A third library that depends on one of the previous static libraries, to
   // check module_deps_no_self.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target3, out);
     writer.Run();
 
@@ -3145,8 +3116,7 @@ build obj/things/libc.a: alink || obj/stuff/libb.a
   output_dir =
 )";
 
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target depender(&module_settings, Label(SourceDir("//zap/"), "c",
@@ -3162,7 +3132,7 @@ build obj/things/libc.a: alink || obj/stuff/libb.a
 
   // Then the executable that depends on it.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&depender, out);
     writer.Run();
 
@@ -3193,8 +3163,7 @@ build withmodules/c: link obj/zap/c.x.o obj/zap/c.y.o obj/stuff/libb.a obj/blah/
   output_dir =
 )";
 
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -3224,7 +3193,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, SolibsEscaping) {
   target.SetToolchain(&toolchain_with_toc);
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaCBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -3253,8 +3222,7 @@ build ./main: link obj/launchpad/main.main.o | ./Space$ Cadet.so.TOC
                           "  solibs = ./Space\\$ Cadet.so\n";
 #endif
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, Pool) {
@@ -3274,7 +3242,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, Pool) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -3299,8 +3267,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, Pool) {
       "  output_extension =\n"
       "  output_dir =\n"
       "  pool = foo_pool\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, ToolInputs) {
@@ -3340,7 +3307,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ToolInputs) {
   target.SetToolchain(&toolchain_with_inputs);
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -3363,8 +3330,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ToolInputs) {
       "  swiftmodules =\n"
       "  output_extension =\n"
       "  output_dir =\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
@@ -3414,10 +3380,10 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream ninja_out;
+  StringOutputBuffer ninja_out;
   NinjaCBinaryTargetWriter writer(&target, ninja_out);
 
-  std::ostringstream modulemap_out;
+  StringOutputBuffer modulemap_out;
   SourceDir out_dir("//out/Debug/gen/");
 
   writer.WritePublicModuleMap(modulemap_out, out_dir);
@@ -3468,11 +3434,11 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   target_no_public.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target_no_public.OnResolved(&err));
 
-  std::ostringstream ninja_out_no_public;
+  StringOutputBuffer ninja_out_no_public;
   NinjaCBinaryTargetWriter writer_no_public(&target_no_public,
                                             ninja_out_no_public);
 
-  std::ostringstream modulemap_out_no_public;
+  StringOutputBuffer modulemap_out_no_public;
 
   writer_no_public.WritePublicModuleMap(modulemap_out_no_public, out_dir);
 
@@ -3547,7 +3513,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   root.SetToolchain(&module_toolchain);
   ASSERT_TRUE(root.OnResolved(&err));
 
-  std::ostringstream public_modulemap;
+  StringOutputBuffer public_modulemap;
   NinjaCBinaryTargetWriter(&root, ninja_out)
       .WritePublicModuleMap(public_modulemap, out_dir);
 
@@ -3560,7 +3526,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
       "}\n";
   EXPECT_EQ(expected_public, public_modulemap.str());
 
-  std::ostringstream private_modulemap;
+  StringOutputBuffer private_modulemap;
   NinjaCBinaryTargetWriter(&root, ninja_out)
       .WritePrivateModuleMap(private_modulemap, out_dir);
 
@@ -3578,7 +3544,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
 
   EXPECT_EQ(expected_private, private_modulemap.str());
 
-  std::ostringstream root_ninja_out;
+  StringOutputBuffer root_ninja_out;
   NinjaCBinaryTargetWriter(&root, root_ninja_out).Run();
   std::string root_ninja_str = root_ninja_out.str();
   const char expected_root_ninja[] =
@@ -3650,7 +3616,7 @@ TEST_F(NinjaCBinaryTargetWriterTest,
 
   // Verify A's output
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&target_a, out);
     writer.Run();
 
@@ -3672,7 +3638,7 @@ TEST_F(NinjaCBinaryTargetWriterTest,
         " || phony/foo/b.linkdeps\n"
         "build phony/foo/a: phony phony/foo/a.linkdeps\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -3754,7 +3720,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, OrderOnlyDepsOmitTransitiveDeps) {
 
   // Source set: deps are on the .linkdeps phony.
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&a, out);
     writer.Run();
     const char expected[] =
@@ -3775,7 +3741,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, OrderOnlyDepsOmitTransitiveDeps) {
     lib.SetToolchain(setup.toolchain());
     ASSERT_TRUE(lib.OnResolved(&err));
 
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaCBinaryTargetWriter writer(&lib, out);
     writer.Run();
     const char expected[] =
@@ -3794,7 +3760,7 @@ TEST_F(NinjaCBinaryTargetWriterTest, OrderOnlyDepsOmitTransitiveDeps) {
     exe.SetToolchain(setup.toolchain());
     ASSERT_TRUE(exe.OnResolved(&err));
 
-    std::ostringstream exe_out;
+    StringOutputBuffer exe_out;
     NinjaCBinaryTargetWriter exe_writer(&exe, exe_out);
     exe_writer.Run();
     EXPECT_TRUE(exe_out.str().contains(" obj/foo/c.c.o ")) << exe_out.str();

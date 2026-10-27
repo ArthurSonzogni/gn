@@ -9,6 +9,7 @@
 #include "gn/pool.h"
 #include "gn/rust_values.h"
 #include "gn/scheduler.h"
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scheduler.h"
 #include "gn/test_with_scope.h"
@@ -49,7 +50,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustExecutable) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -73,8 +74,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustExecutable) {
         "  rustdeps =\n"
         "  ldflags = -fsanitize=address\n"
         "  sources = ../../foo/input3.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -104,7 +104,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
   ASSERT_TRUE(private_rlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&private_rlib, out);
     writer.Run();
 
@@ -128,8 +128,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../baz/privatelib.rs ../../baz/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target far_public_rlib(setup.settings(),
@@ -146,7 +145,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
   ASSERT_TRUE(far_public_rlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&far_public_rlib, out);
     writer.Run();
 
@@ -170,8 +169,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../far/farlib.rs ../../far/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target public_rlib(setup.settings(), Label(SourceDir("//bar/"), "publiclib"));
@@ -188,7 +186,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
   ASSERT_TRUE(public_rlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&public_rlib, out);
     writer.Run();
 
@@ -212,8 +210,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "  rustdeps = -Ldependency=obj/far\n"
         "  ldflags =\n"
         "  sources = ../../bar/publiclib.rs ../../bar/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target rlib(setup.settings(), Label(SourceDir("//foo/"), "direct"));
@@ -244,7 +241,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -273,8 +270,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
         "-Ldependency=obj/far -Ldependency=obj/baz\n"
         "  ldflags =\n"
         "  sources = ../../main/source.rs ../../main/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -297,7 +293,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   ASSERT_TRUE(private_inside_dylib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&private_inside_dylib, out);
     writer.Run();
 
@@ -321,8 +317,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../faz/private_inside.rs ../../faz/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target inside_dylib(setup.settings(), Label(SourceDir("//baz/"), "inside"));
@@ -338,7 +333,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   ASSERT_TRUE(inside_dylib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&inside_dylib, out);
     writer.Run();
 
@@ -362,8 +357,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../baz/inside.rs ../../baz/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target dylib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
@@ -382,7 +376,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   ASSERT_TRUE(dylib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&dylib, out);
     writer.Run();
 
@@ -408,8 +402,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "  rustdeps = -Ldependency=obj/baz -Ldependency=obj/faz\n"
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target private_dylib(setup.settings(),
@@ -455,7 +448,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -484,8 +477,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
         "-Ldependency=obj/private_dylib\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -507,7 +499,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
   ASSERT_TRUE(procmacro.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&procmacro, out);
     writer.Run();
 
@@ -531,8 +523,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // A group produces an order-only dependency in ninja:
@@ -563,7 +554,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
   ASSERT_TRUE(rlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&rlib, out);
     writer.Run();
 
@@ -592,8 +583,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
         "  rustdeps = -Ldependency=obj/bar\n"
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -610,7 +600,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -636,8 +626,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
         "  rustdeps = -Ldependency=obj/bar\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -695,7 +684,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupOrderOnlyDeps) {
 
   // Verify F's output
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target_f, out);
     writer.Run();
 
@@ -720,7 +709,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupOrderOnlyDeps) {
         "  ldflags =\n"
         "  sources = ../../foo/main.rs\n";
 
-    EXPECT_EQ(expected, out.str());
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -785,7 +774,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RenamedDeps) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -813,8 +802,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RenamedDeps) {
         "-Ldependency=obj/faz\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -888,7 +876,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   ASSERT_TRUE(nonrust.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&nonrust, out);
     writer.Run();
 
@@ -918,8 +906,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "-Clink-arg=./libshared_with_toc.so\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target nonrust_only(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -935,7 +922,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   ASSERT_TRUE(nonrust_only.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&nonrust_only, out);
     writer.Run();
 
@@ -959,8 +946,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "  rustdeps = -Clink-arg=-Bdynamic -Clink-arg=obj/foo/libstatic.a\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target rstaticlib(setup.settings(), Label(SourceDir("//baz/"), "baz"));
@@ -976,7 +962,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   ASSERT_TRUE(rstaticlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&rstaticlib, out);
     writer.Run();
 
@@ -1002,8 +988,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "-Clink-arg=obj/foo/libstatic.a\n"
         "  ldflags =\n"
         "  sources = ../../baz/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // An rlib is not linked by rustc, so its non-Rust dependencies are neither
@@ -1027,7 +1012,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   ASSERT_TRUE(rlib_with_nonrust.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&rlib_with_nonrust, out);
     writer.Run();
 
@@ -1052,8 +1037,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "  rustdeps = -Ldependency=obj/bar\n"
         "  ldflags =\n"
         "  sources = ../../qux/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   // The non-Rust dependencies of the rlib are instead linked into the final
@@ -1071,7 +1055,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   ASSERT_TRUE(bin_with_rlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&bin_with_rlib, out);
     writer.Run();
 
@@ -1100,8 +1084,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
         "-Clink-arg=./libshared_with_toc.so\n"
         "  ldflags =\n"
         "  sources = ../../qux/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1246,7 +1229,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaRustBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -1290,8 +1273,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
       "  ldflags =\n"
       "  sources = ../../exe/main.rs\n";
 
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaRustBinaryTargetWriterTest, RustOutputExtensionAndDir) {
@@ -1313,7 +1295,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustOutputExtensionAndDir) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1337,8 +1319,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustOutputExtensionAndDir) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../foo/input3.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1380,7 +1361,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, LibsAndLibDirs) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1407,8 +1388,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, LibsAndLibDirs) {
         "-lrliblib\n"
         "  ldflags =\n"
         "  sources = ../../foo/input.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1480,7 +1460,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibWithLibDeps) {
   ASSERT_TRUE(rlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&rlib, out);
     writer.Run();
 
@@ -1506,8 +1486,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibWithLibDeps) {
         "-lquux\n"
         "  ldflags =\n"
         "  sources = ../../foo/input.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1563,7 +1542,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
   ASSERT_TRUE(procmacro.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&procmacro, out);
     writer.Run();
 
@@ -1592,8 +1571,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
         "-Ldependency=obj/baz/private\n"
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -1610,7 +1588,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1634,8 +1612,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
         "  rustdeps = -Ldependency=obj/bar\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1656,7 +1633,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
   ASSERT_TRUE(rlib.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&rlib, out);
     writer.Run();
 
@@ -1680,8 +1657,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../bar/mylib.rs ../../bar/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target group(setup.settings(), Label(SourceDir("//baz/"), "group"));
@@ -1705,7 +1681,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1730,8 +1706,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
         "  rustdeps = -Ldependency=obj/bar\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1760,7 +1735,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Externs) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1785,8 +1760,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Externs) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1809,7 +1783,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Inputs) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1837,8 +1811,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Inputs) {
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs "
         "../../foo/config.json ../../foo/template.h\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1857,7 +1830,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
   cdylib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(cdylib.OnResolved(&err));
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&cdylib, out);
     writer.Run();
     const char expected[] =
@@ -1880,8 +1853,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
         "  rustdeps =\n"
         "  ldflags =\n"
         "  sources = ../../bar/lib.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 
   Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
@@ -1897,7 +1869,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1921,8 +1893,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
         "  rustdeps = -Clink-arg=-Bdynamic -Clink-arg=obj/bar/libmylib.so\n"
         "  ldflags =\n"
         "  sources = ../../foo/source.rs ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -1974,7 +1945,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitivePublicNonRustDeps) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -1999,8 +1970,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitivePublicNonRustDeps) {
         "-Clink-arg=./libshared.so -Clink-arg=./libimplicit.so\n"
         "  ldflags =\n"
         "  sources = ../../foo/main.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -2068,7 +2038,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
   ASSERT_TRUE(target.OnResolved(&err));
 
   {
-    std::ostringstream out;
+    StringOutputBuffer out;
     NinjaRustBinaryTargetWriter writer(&target, out);
     writer.Run();
 
@@ -2099,8 +2069,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
         "-Clink-arg=obj/private/libbehind_sourceset_private.rlib\n"
         "  ldflags =\n"
         "  sources = ../../linked/exe.rs\n";
-    std::string out_str = out.str();
-    EXPECT_EQ(expected, out_str);
+    EXPECT_EQ(expected, out);
   }
 }
 
@@ -2125,7 +2094,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Pool) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2149,8 +2118,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Pool) {
       "  ldflags =\n"
       "  sources = ../../foo/source.rs\n"
       "  pool = foo_pool\n";
-  std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Tests frameworks are applied.
@@ -2198,7 +2166,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaRustBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2223,8 +2191,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
       "-lframework=Whizbang\n"
       "  ldflags =\n"
       "  sources = ../../linked/exe.rs\n";
-  const std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }
 
 // Test linking of targets containing Swift modules.
@@ -2256,7 +2223,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, SwiftModule) {
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
-  std::ostringstream out;
+  StringOutputBuffer out;
   NinjaRustBinaryTargetWriter writer(&target, out);
   writer.Run();
 
@@ -2284,6 +2251,5 @@ TEST_F(NinjaRustBinaryTargetWriterTest, SwiftModule) {
       "  ldflags =\n"
       "  sources = ../../linked/exe.rs\n";
 
-  const std::string out_str = out.str();
-  EXPECT_EQ(expected, out_str);
+  EXPECT_EQ(expected, out);
 }

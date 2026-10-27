@@ -4,6 +4,8 @@
 
 #include "gn/string_output_buffer.h"
 
+#include <limits>
+
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -61,24 +63,19 @@ TEST(StringOutputBuffer, AppendWithPageSizeMultiples) {
   ASSERT_STREQ(data.c_str(), buffer.str().c_str());
 }
 
-TEST(StringOutput, WrappedByStdOstream) {
-  const size_t data_size = 100000;
-  std::string data = CreateTestString(data_size);
-
-  const size_t num_spans = 50;
-  const size_t span_size = data_size / num_spans;
-
+TEST(StringOutputBuffer, Clear) {
   StringOutputBuffer buffer;
-  std::ostream out(&buffer);
+  buffer << "first string";
+  EXPECT_EQ("first string", buffer.str());
+  EXPECT_EQ(12u, buffer.size());
 
-  for (size_t n = 0; n < num_spans; ++n) {
-    size_t start_offset = n * span_size;
-    size_t end_offset = std::min(start_offset + span_size, data.size());
-    out << std::string_view(&data[start_offset], end_offset - start_offset);
-  }
+  buffer.Clear();
+  EXPECT_EQ("", buffer.str());
+  EXPECT_EQ(0u, buffer.size());
 
-  EXPECT_EQ(data.size(), buffer.size());
-  ASSERT_STREQ(data.c_str(), buffer.str().c_str());
+  buffer << "second string";
+  EXPECT_EQ("second string", buffer.str());
+  EXPECT_EQ(13u, buffer.size());
 }
 
 TEST(StringOutputBuffer, ContentsEqual) {
@@ -86,14 +83,19 @@ TEST(StringOutputBuffer, ContentsEqual) {
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
   const size_t data_size = 100000;
-  std::string data = CreateTestString(data_size);
+  std::string elem = CreateTestString(data_size);
+  std::string data = elem + elem;
 
   base::FilePath file_path = temp_dir.GetPath().AppendASCII("foo.txt");
   base::WriteFile(file_path, data.c_str(), static_cast<int>(data.size()));
 
   {
     StringOutputBuffer buffer;
-    buffer.Append(data);
+    // If we just call buffer.Append(data), then it remains in the same
+    // allocation, and thus our code isn't tested properly.
+    buffer.Append(elem);
+    buffer.Append(elem);
+    EXPECT_EQ(data, buffer);
 
     EXPECT_TRUE(buffer.ContentsEqual(file_path));
 
@@ -158,12 +160,17 @@ static_assert(Writable<std::string_view>);
 static_assert(Writable<char>);
 static_assert(Writable<std::string>);
 static_assert(Writable<const char*>);
+static_assert(Writable<int>);
+static_assert(Writable<int64_t>);
+static_assert(Writable<uint64_t>);
+static_assert(!Writable<bool>);
 static_assert(!Writable<Unwritable>);
 
 }  // namespace
 
 TEST(StringOutputBuffer, CustomWritable) {
   StringOutputBuffer buffer;
-  buffer << CustomGreeting{"world"} << '!';
-  EXPECT_EQ(buffer.str(), "Hello, world!");
+  buffer << CustomGreeting{"world "} << std::numeric_limits<int>::min() << " "
+         << std::numeric_limits<int>::max() << '!';
+  EXPECT_EQ("Hello, world -2147483648 2147483647!", buffer);
 }

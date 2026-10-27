@@ -6,11 +6,12 @@
 #define TOOLS_GN_XML_ELEMENT_WRITER_H_
 
 #include <memory>
-#include <ostream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include "gn/string_output_buffer.h"
 
 // Vector of XML attribute key-value pairs.
 class XmlAttributes
@@ -29,11 +30,11 @@ class XmlElementWriter {
  public:
   // Starts new XML element. This constructor adds no indentation and is
   // designed for XML root element.
-  XmlElementWriter(std::ostream& out,
+  XmlElementWriter(StringOutputBuffer& out,
                    const std::string& tag,
                    const XmlAttributes& attributes);
   // Starts new XML element with specified indentation.
-  XmlElementWriter(std::ostream& out,
+  XmlElementWriter(StringOutputBuffer& out,
                    const std::string& tag,
                    const XmlAttributes& attributes,
                    int indent);
@@ -41,7 +42,7 @@ class XmlElementWriter {
   // that allows writing XML element with single attribute without copying
   // attribute value.
   template <class Writer>
-  XmlElementWriter(std::ostream& out,
+  XmlElementWriter(StringOutputBuffer& out,
                    const std::string& tag,
                    const std::string& attribute_name,
                    const Writer& attribute_value_writer,
@@ -66,12 +67,12 @@ class XmlElementWriter {
   // Finishes opening tag if it isn't finished yet and optionally starts new
   // document line. Returns the stream where XML element content can be written.
   // This is an alternative to Text() and SubElement() methods.
-  std::ostream& StartContent(bool start_new_line);
+  StringOutputBuffer& StartContent(bool start_new_line);
 
  private:
   // Output stream. XmlElementWriter objects for XML element and its
   // sub-elements share the same output stream.
-  std::ostream& out_;
+  StringOutputBuffer& out_;
 
   // XML element tag name.
   std::string tag_;
@@ -90,7 +91,7 @@ class XmlElementWriter {
 };
 
 template <class Writer>
-XmlElementWriter::XmlElementWriter(std::ostream& out,
+XmlElementWriter::XmlElementWriter(StringOutputBuffer& out,
                                    const std::string& tag,
                                    const std::string& attribute_name,
                                    const Writer& attribute_value_writer,

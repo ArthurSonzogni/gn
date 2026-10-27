@@ -19,12 +19,12 @@ XmlAttributes& XmlAttributes::add(std::string_view attr_key,
   return *this;
 }
 
-XmlElementWriter::XmlElementWriter(std::ostream& out,
+XmlElementWriter::XmlElementWriter(StringOutputBuffer& out,
                                    const std::string& tag,
                                    const XmlAttributes& attributes)
     : XmlElementWriter(out, tag, attributes, 0) {}
 
-XmlElementWriter::XmlElementWriter(std::ostream& out,
+XmlElementWriter::XmlElementWriter(StringOutputBuffer& out,
                                    const std::string& tag,
                                    const XmlAttributes& attributes,
                                    int indent)
@@ -67,7 +67,7 @@ std::unique_ptr<XmlElementWriter> XmlElementWriter::SubElement(
   return std::make_unique<XmlElementWriter>(out_, tag, attributes, indent_ + 2);
 }
 
-std::ostream& XmlElementWriter::StartContent(bool start_new_line) {
+StringOutputBuffer& XmlElementWriter::StartContent(bool start_new_line) {
   if (!opening_tag_finished_) {
     out_ << '>';
     opening_tag_finished_ = true;

@@ -6,10 +6,8 @@
 
 #include <stddef.h>
 
-#include <fstream>
 #include <map>
 #include <set>
-#include <sstream>
 
 #include "base/command_line.h"
 #include "base/files/file_util.h"
@@ -28,6 +26,7 @@
 #include "gn/pool.h"
 #include "gn/scheduler.h"
 #include "gn/string_atom.h"
+#include "gn/string_output_buffer.h"
 #include "gn/switches.h"
 #include "gn/target.h"
 #include "gn/trace.h"
@@ -201,8 +200,8 @@ NinjaBuildWriter::NinjaBuildWriter(
     const std::vector<const Target*>& all_targets,
     const Toolchain* default_toolchain,
     const std::vector<const Target*>& default_toolchain_targets,
-    std::ostream& out,
-    std::ostream& dep_out)
+    StringOutputBuffer& out,
+    StringOutputBuffer& dep_out)
     : build_settings_(build_settings),
       used_toolchains_(used_toolchains),
       all_targets_(all_targets),
@@ -256,8 +255,8 @@ bool NinjaBuildWriter::RunAndWriteFile(const BuildSettings* build_settings,
     }
   }
 
-  std::stringstream file;
-  std::stringstream depfile;
+  StringOutputBuffer file;
+  StringOutputBuffer depfile;
   NinjaBuildWriter gen(build_settings, used_toolchains, all_targets,
                        default_toolchain, default_toolchain_targets, file,
                        depfile);

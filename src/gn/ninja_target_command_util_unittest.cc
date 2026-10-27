@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
+#include "gn/string_output_buffer.h"
 #include "util/build_config.h"
 #include "util/test/test.h"
 
@@ -15,8 +16,8 @@ namespace {
 // Helper function that uses a "Writer" to format a list of strings and return
 // the generated output as a string.
 template <typename Writer, typename Item>
-std::string FormatWithWriter(Writer writer, std::vector<Item> items) {
-  std::ostringstream out;
+std::string FormatWithWriter(const Writer& writer, std::vector<Item> items) {
+  StringOutputBuffer out;
   for (const Item& item : items) {
     writer(item, out);
   }
@@ -26,7 +27,7 @@ std::string FormatWithWriter(Writer writer, std::vector<Item> items) {
 // Helper function running to test "Writer" by formatting N "Items" and
 // comparing the resulting string to an expected output.
 template <typename Writer, typename Item>
-void TestWriter(Writer writer,
+void TestWriter(const Writer& writer,
                 std::string expected,
                 std::initializer_list<Item> items) {
   std::string formatted =

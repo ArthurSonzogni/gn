@@ -7,6 +7,7 @@
 #include "base/strings/string_util.h"
 #include "gn/filesystem_utils.h"
 #include "gn/output_file.h"
+#include "gn/string_output_buffer.h"
 #include "gn/string_utils.h"
 #include "util/build_config.h"
 
@@ -22,11 +23,12 @@ PathOutput::PathOutput(const SourceDir& current_dir,
 
 PathOutput::~PathOutput() = default;
 
-void PathOutput::WriteFile(std::ostream& out, const SourceFile& file) const {
+void PathOutput::WriteFile(StringOutputBuffer& out,
+                           const SourceFile& file) const {
   WritePathStr(out, file.value());
 }
 
-void PathOutput::WriteDir(std::ostream& out,
+void PathOutput::WriteDir(StringOutputBuffer& out,
                           const SourceDir& dir,
                           DirSlashEnding slash_ending) const {
   if (dir.value() == "/") {
@@ -44,8 +46,8 @@ void PathOutput::WriteDir(std::ostream& out,
       if (inverse_current_dir_.empty()) {
         out << ".";
       } else {
-        out.write(inverse_current_dir_.c_str(),
-                  inverse_current_dir_.size() - 1);
+        out.Append(inverse_current_dir_.c_str(),
+                   inverse_current_dir_.size() - 1);
       }
     } else {
       if (inverse_current_dir_.empty())
@@ -69,12 +71,13 @@ void PathOutput::WriteDir(std::ostream& out,
   }
 }
 
-void PathOutput::WriteFile(std::ostream& out, const OutputFile& file) const {
+void PathOutput::WriteFile(StringOutputBuffer& out,
+                           const OutputFile& file) const {
   // Here we assume that the path is already preprocessed.
   EscapeStringToStream(out, file.value(), options_);
 }
 
-void PathOutput::WriteFiles(std::ostream& out,
+void PathOutput::WriteFiles(StringOutputBuffer& out,
                             const std::vector<SourceFile>& files) const {
   for (const auto& file : files) {
     out << " ";
@@ -82,7 +85,7 @@ void PathOutput::WriteFiles(std::ostream& out,
   }
 }
 
-void PathOutput::WriteFiles(std::ostream& out,
+void PathOutput::WriteFiles(StringOutputBuffer& out,
                             const std::vector<OutputFile>& files) const {
   for (const auto& file : files) {
     out << " ";
@@ -90,7 +93,7 @@ void PathOutput::WriteFiles(std::ostream& out,
   }
 }
 
-void PathOutput::WriteFiles(std::ostream& out,
+void PathOutput::WriteFiles(StringOutputBuffer& out,
                             const UniqueVector<OutputFile>& files) const {
   for (const auto& file : files) {
     out << " ";
@@ -98,7 +101,7 @@ void PathOutput::WriteFiles(std::ostream& out,
   }
 }
 
-void PathOutput::WriteDir(std::ostream& out,
+void PathOutput::WriteDir(StringOutputBuffer& out,
                           const OutputFile& file,
                           DirSlashEnding slash_ending) const {
   DCHECK(file.value().empty() || file.value()[file.value().size() - 1] == '/');
@@ -122,13 +125,13 @@ void PathOutput::WriteDir(std::ostream& out,
   }
 }
 
-void PathOutput::WriteFile(std::ostream& out,
+void PathOutput::WriteFile(StringOutputBuffer& out,
                            const base::FilePath& file) const {
   // Assume native file paths are always absolute.
   EscapeStringToStream(out, FilePathToUTF8(file), options_);
 }
 
-void PathOutput::WriteSourceRelativeString(std::ostream& out,
+void PathOutput::WriteSourceRelativeString(StringOutputBuffer& out,
                                            std::string_view str) const {
   if (options_.mode == ESCAPE_NINJA_COMMAND) {
     // Shell escaping needs an intermediate string since it may end up
@@ -150,7 +153,8 @@ void PathOutput::WriteSourceRelativeString(std::ostream& out,
   }
 }
 
-void PathOutput::WritePathStr(std::ostream& out, std::string_view str) const {
+void PathOutput::WritePathStr(StringOutputBuffer& out,
+                              std::string_view str) const {
   DCHECK(str.size() > 0 && str[0] == '/');
 
   if (str.substr(0, current_dir_.value().size()) ==

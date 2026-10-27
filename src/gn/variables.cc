@@ -938,8 +938,8 @@ const char kCheckIncludesStrict_Help[] =
     forwarded to dependents.
   * "deps" act as private implementation dependencies (dependencies required to
     compile this target's sources). This also allows dependent targets to
-    compile without waiting for this target's private "deps" (unless
-    check_includes_strict_exceptions is non-empty).
+    compile without waiting for this target's private "deps" (unless this
+    target is exempted as an includer via check_includes_strict_exceptions).
 
   When false (the default), the default loose include checking rules apply.
 

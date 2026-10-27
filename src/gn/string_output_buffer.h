@@ -5,10 +5,11 @@
 #ifndef TOOLS_GN_STRING_OUTPUT_BUFFER_H_
 #define TOOLS_GN_STRING_OUTPUT_BUFFER_H_
 
+#include <charconv>
 #include <concepts>
 #include <cstring>
+#include <limits>
 #include <memory>
-#include <streambuf>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -35,10 +36,30 @@ inline void WriteToBuf(char c, char buf[], size_t& upto) {
 }
 
 template <typename T>
-concept Writable = requires(const T& val, char buf[], size_t& upto) {
-  { MaximumSize(val) } -> std::convertible_to<size_t>;
-  WriteToBuf(val, buf, upto);
-};
+  requires(std::integral<T> && !std::same_as<T, char> && !std::same_as<T, bool>)
+inline size_t MaximumSize(T) {
+  // digits10 is the number of digits such that *every* number of this length
+  // can be represented. For int32 for example, this returns the number of
+  // digits required to store 999M (since we can store every number < 1B).
+  // +1 because although we can't represent *every* number in the billions, we
+  // can represent *some* numbers in the billions.
+  // +1 for negative sign.
+  return std::numeric_limits<T>::digits10 + 2;
+}
+
+template <typename T>
+  requires(std::integral<T> && !std::same_as<T, char> && !std::same_as<T, bool>)
+inline void WriteToBuf(T val, char buf[], size_t& upto) {
+  upto =
+      std::to_chars(&buf[upto], &buf[upto + MaximumSize(val)], val).ptr - buf;
+}
+
+template <typename T>
+concept Writable = !std::same_as<std::remove_cvref_t<T>, bool> &&
+                   requires(const T& val, char buf[], size_t& upto) {
+                     { MaximumSize(val) } -> std::convertible_to<size_t>;
+                     WriteToBuf(val, buf, upto);
+                   };
 
 // An append-only very large storage area for string data. Useful for the parts
 // of GN that need to generate huge output files (e.g. --ide=json will create
@@ -50,21 +71,17 @@ concept Writable = requires(const T& val, char buf[], size_t& upto) {
 //
 //   2) Use operator<<, or Append() to append data to the instance.
 //
-//   3) Alternatively, create an std::ostream that takes its address as
-//      argument, then use the output stream as usual to append data to it.
-//
-//      StringOutputBuffer storage;
-//      std::ostream out(&storage);
-//      out << "Hello world!";
-//
-//   4) Use ContentsEqual() to compare the instance's content with that of a
+//   3) Use ContentsEqual() to compare the instance's content with that of a
 //      given file.
 //
-//   5) Use WriteToFile() to write the content to a given file.
+//   4) Use WriteToFile() to write the content to a given file.
 //
-class StringOutputBuffer : public std::streambuf {
+class StringOutputBuffer {
  public:
   StringOutputBuffer() = default;
+
+  // Reset the buffer contents to empty, while retaining allocated capacity.
+  void Clear();
 
   // Convert content to single std::string instance. Useful for unit-testing.
   std::string str() const;
@@ -98,19 +115,6 @@ class StringOutputBuffer : public std::streambuf {
 
   static size_t GetPageSizeForTesting() { return kPageSize; }
 
- protected:
-  // Called by std::ostream to write |n| chars from |s|.
-  std::streamsize xsputn(const char* s, std::streamsize n) override {
-    Append(s, static_cast<size_t>(n));
-    return n;
-  }
-
-  // Called by std::ostream to write a single character.
-  int_type overflow(int_type ch) override {
-    Append(static_cast<char>(ch));
-    return 1;
-  }
-
  private:
   // Return the number of free bytes in the current page.
   size_t page_free_size() const { return rw_capacity_ - rw_.size; }
@@ -137,5 +141,7 @@ class StringOutputBuffer : public std::streambuf {
   // Contains sum([page.size for page in ro_])
   size_t ro_size_ = 0;
 };
+
+std::string Pretty(const StringOutputBuffer& buffer);
 
 #endif  // TOOLS_GN_STRING_OUTPUT_BUFFER_H_

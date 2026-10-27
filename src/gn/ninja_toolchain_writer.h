@@ -5,8 +5,6 @@
 #ifndef TOOLS_GN_NINJA_TOOLCHAIN_WRITER_H_
 #define TOOLS_GN_NINJA_TOOLCHAIN_WRITER_H_
 
-#include <iosfwd>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -17,6 +15,7 @@
 
 struct EscapeOptions;
 class Settings;
+class StringOutputBuffer;
 class Tool;
 
 class NinjaToolchainWriter {
@@ -35,7 +34,7 @@ class NinjaToolchainWriter {
 
   NinjaToolchainWriter(const Settings* settings,
                        const Toolchain* toolchain,
-                       std::ostream& out);
+                       StringOutputBuffer& out);
   ~NinjaToolchainWriter();
 
   void Run(const std::vector<NinjaWriter::TargetRulePair>& extra_rules);
@@ -52,7 +51,7 @@ class NinjaToolchainWriter {
 
   const Settings* settings_;
   const Toolchain* toolchain_;
-  std::ostream& out_;
+  StringOutputBuffer& out_;
   PathOutput path_output_;
 
   NinjaToolchainWriter(const NinjaToolchainWriter&) = delete;

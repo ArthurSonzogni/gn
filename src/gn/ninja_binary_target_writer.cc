@@ -5,7 +5,6 @@
 #include "gn/ninja_binary_target_writer.h"
 
 #include <algorithm>
-#include <sstream>
 #include <unordered_set>
 
 #include "base/strings/string_util.h"
@@ -64,7 +63,7 @@ std::vector<const Target*> ExpandModules(const LabelTargetVector& targets) {
   return modules;
 }
 
-void WriteModuleMapHeaders(std::ostream& out,
+void WriteModuleMapHeaders(StringOutputBuffer& out,
                            const SourceDir& out_dir,
                            const Target::FileList& headers,
                            const Settings* settings) {
@@ -78,7 +77,7 @@ void WriteModuleMapHeaders(std::ostream& out,
   }
 }
 
-void WriteModuleDeps(std::ostream& out,
+void WriteModuleDeps(StringOutputBuffer& out,
                      const std::vector<const Target*>& deps,
                      const SourceDir& base) {
   for (const auto& dep : deps) {
@@ -93,7 +92,7 @@ void WriteModuleDeps(std::ostream& out,
 }  // namespace
 
 NinjaBinaryTargetWriter::NinjaBinaryTargetWriter(const Target* target,
-                                                 std::ostream& out)
+                                                 StringOutputBuffer& out)
     : NinjaTargetWriter(target, out),
       rule_prefix_(GetNinjaRulePrefixForToolchain(settings_)) {}
 
@@ -114,7 +113,7 @@ void NinjaBinaryTargetWriter::Run() {
   writer.Run();
 }
 
-void NinjaBinaryTargetWriter::WritePublicModuleMap(std::ostream& out,
+void NinjaBinaryTargetWriter::WritePublicModuleMap(StringOutputBuffer& out,
                                                    const SourceDir& out_dir) {
   out << "module \"" << target_->module_name() << "\" {\n";
   if (target_->all_headers_public()) {
@@ -131,7 +130,7 @@ void NinjaBinaryTargetWriter::WritePublicModuleMap(std::ostream& out,
   out << "  export *\n}\n";
 }
 
-void NinjaBinaryTargetWriter::WritePrivateModuleMap(std::ostream& out,
+void NinjaBinaryTargetWriter::WritePrivateModuleMap(StringOutputBuffer& out,
                                                     const SourceDir& out_dir) {
   auto base = target_->modulemap_file()->GetDir();
   auto module_name = target_->module_name();
@@ -414,7 +413,7 @@ void NinjaBinaryTargetWriter::WriteCompilerBuildLine(
   }
 }
 
-void NinjaBinaryTargetWriter::WriteCustomLinkerFlags(std::ostream& out,
+void NinjaBinaryTargetWriter::WriteCustomLinkerFlags(StringOutputBuffer& out,
                                                      const Tool* tool) {
   if (tool->AsC() || (tool->AsRust() && tool->AsRust()->MayLink())) {
     // First the ldflags from the target and its config.
@@ -424,7 +423,7 @@ void NinjaBinaryTargetWriter::WriteCustomLinkerFlags(std::ostream& out,
   }
 }
 
-void NinjaBinaryTargetWriter::WriteLibrarySearchPath(std::ostream& out,
+void NinjaBinaryTargetWriter::WriteLibrarySearchPath(StringOutputBuffer& out,
                                                      const Tool* tool) {
   // Write library search paths that have been recursively pushed
   // through the dependency tree.
@@ -458,7 +457,7 @@ void NinjaBinaryTargetWriter::WriteLibrarySearchPath(std::ostream& out,
 }
 
 void NinjaBinaryTargetWriter::WriteLinkerFlags(
-    std::ostream& out,
+    StringOutputBuffer& out,
     const Tool* tool,
     const SourceFile* optional_def_file) {
   // First any ldflags
@@ -472,7 +471,8 @@ void NinjaBinaryTargetWriter::WriteLinkerFlags(
   }
 }
 
-void NinjaBinaryTargetWriter::WriteLibs(std::ostream& out, const Tool* tool) {
+void NinjaBinaryTargetWriter::WriteLibs(StringOutputBuffer& out,
+                                        const Tool* tool) {
   // Libraries that have been recursively pushed through the dependency tree.
   // Since we're passing these on the command line to the linker and not
   // to Ninja, we need to do shell escaping.
@@ -495,7 +495,7 @@ void NinjaBinaryTargetWriter::WriteLibs(std::ostream& out, const Tool* tool) {
   }
 }
 
-void NinjaBinaryTargetWriter::WriteFrameworks(std::ostream& out,
+void NinjaBinaryTargetWriter::WriteFrameworks(StringOutputBuffer& out,
                                               const Tool* tool) {
   // Frameworks that have been recursively pushed through the dependency tree.
   FrameworksWriter writer(tool->framework_switch());
@@ -520,7 +520,7 @@ void NinjaBinaryTargetWriter::WriteFrameworks(std::ostream& out,
 }
 
 void NinjaBinaryTargetWriter::WriteSwiftModules(
-    std::ostream& out,
+    StringOutputBuffer& out,
     const Tool* tool,
     const std::vector<OutputFile>& swiftmodules) {
   // Since we're passing these on the command line to the linker and not
@@ -535,7 +535,7 @@ void NinjaBinaryTargetWriter::WriteSwiftModules(
   }
 }
 
-void NinjaBinaryTargetWriter::WritePool(std::ostream& out) {
+void NinjaBinaryTargetWriter::WritePool(StringOutputBuffer& out) {
   if (target_->pool().ptr) {
     out << "  pool = ";
     out << target_->pool().ptr->GetNinjaName(

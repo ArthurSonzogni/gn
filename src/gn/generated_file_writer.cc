@@ -4,7 +4,6 @@
 
 #include "generated_file_writer.h"
 
-#include <ostream>
 #include <vector>
 
 #include "base/logging.h"
@@ -53,8 +52,7 @@ bool WriteGeneratedFileToDisk(const Target* target, Err* err) {
 
   // Compute output.
   StringOutputBuffer storage;
-  std::ostream out(&storage);
-  ConvertValueToOutput(settings, contents, target->output_conversion(), out,
+  ConvertValueToOutput(settings, contents, target->output_conversion(), storage,
                        err);
 
   if (err->has_error()) {
