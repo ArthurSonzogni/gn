@@ -543,16 +543,40 @@ TEST(ResolvedTargetDataTest, HardDepsStrictIncludes) {
   strict.public_deps().push_back(LabelTargetPair(&pub_action));
   strict.private_deps().push_back(LabelTargetPair(&priv_action));
 
+  TestTarget exempted(setup, "//bar:exempted", Target::SOURCE_SET);
+  exempted.set_check_includes_strict(true);
+  exempted.public_deps().push_back(LabelTargetPair(&pub_action));
+  exempted.private_deps().push_back(LabelTargetPair(&priv_action));
+
   ASSERT_TRUE(pub_action.OnResolved(&err));
   ASSERT_TRUE(priv_action.OnResolved(&err));
   ASSERT_TRUE(strict.OnResolved(&err));
+  ASSERT_TRUE(exempted.OnResolved(&err));
+
+  // Add an exception where //bar:exempted is the includer and //foo:strict is
+  // the included target.
+  CheckIncludesStrictExceptions exceptions;
+  exceptions.AddLocalException(
+      LabelPattern(LabelPattern::DIRECTORY, SourceDir("//bar/"), "", Label()),
+      strict.label());
+  setup.build_settings()->set_check_includes_strict_exceptions(
+      std::move(exceptions));
 
   ResolvedTargetData resolved;
 
+  // //foo:strict has no exceptions where it is the includer, so it only
+  // forwards public hard deps.
   const TargetSet& strict_hard_deps = resolved.GetHardDeps(&strict);
   EXPECT_EQ(1u, strict_hard_deps.size());
   EXPECT_TRUE(strict_hard_deps.contains(&pub_action));
   EXPECT_FALSE(strict_hard_deps.contains(&priv_action));
+
+  // //bar:exempted matches an exception as the includer, so its optimization
+  // is disabled and it forwards both public and private hard deps.
+  const TargetSet& exempted_hard_deps = resolved.GetHardDeps(&exempted);
+  EXPECT_EQ(2u, exempted_hard_deps.size());
+  EXPECT_TRUE(exempted_hard_deps.contains(&pub_action));
+  EXPECT_TRUE(exempted_hard_deps.contains(&priv_action));
 }
 
 TEST(ResolvedTargetDataTest, HardDepsRustLibrary) {
