@@ -25,11 +25,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from typing import Optional
 
 _ESC = '\u001e'
 
 
-def parse_depfile(src_depfile: Path) -> list[Path]:
+def parse_depfile(
+    src_depfile: Path, manifest_dir: Optional[Path] = None
+) -> list[Path]:
   """Parses depfile and returns a flattened list of resolved dependency Paths.
 
   Reads the file, extracts CARGO_MANIFEST_DIR, strips all comment lines,
@@ -47,8 +50,14 @@ def parse_depfile(src_depfile: Path) -> list[Path]:
   deps = []
 
   for f in re.split(r'\s+', content.strip()):
-    f = Path(f.replace('\\\\', '\\').replace(_ESC, ' '))
-    deps.append(f)
+    p = Path(f.replace('\\\\', '\\').replace(_ESC, ' '))
+    # rustc emits depfile paths relative to CARGO_MANIFEST_DIR (e.g.
+    # `crates/args/src/lib.rs`). If manifest_dir is provided, anchor any
+    # relative dependency paths to it so they can be accurately re-anchored
+    # relative to Ninja's out directory rather than Python's CWD.
+    if manifest_dir and not p.is_absolute():
+      p = (manifest_dir / p).resolve()
+    deps.append(p)
 
   return deps
 
@@ -61,13 +70,16 @@ def to_depfile_path(p: Path, out_dir: Path):
 
 
 def rewrite_depfile(
-    src_depfiles: list[Path], dest_depfile: Path, target_name: str
+    src_depfiles: list[Path],
+    dest_depfile: Path,
+    target_name: str,
+    manifest_dir: Optional[Path] = None,
 ):
   """Orchestrates reading, parsing, merging, and writing the depfile."""
   all_deps = set()
   for src in src_depfiles:
     if src.exists():
-      all_deps.update(parse_depfile(src))
+      all_deps.update(parse_depfile(src, manifest_dir))
   out_dir = dest_depfile.parent.resolve()
   deps_str = ' '.join(to_depfile_path(d, out_dir) for d in sorted(all_deps))
   new_content = f'{target_name}: {deps_str}\n'
@@ -316,7 +328,14 @@ def main():
     raise ValueError(f'Unknown target type: {target_type}')
 
   dest_depfile = out_path.parent / f'{out_path.name}.d'
-  rewrite_depfile(src_depfiles, dest_depfile, out_path)
+  manifest_dir = None
+  for arg in cmd_args:
+    if arg.startswith('--manifest-path='):
+      # Extract the manifest directory to resolve relative dependency paths
+      # emitted in rustc depfiles.
+      manifest_dir = Path(arg.split('=', 1)[1]).resolve().parent
+      break
+  rewrite_depfile(src_depfiles, dest_depfile, out_path, manifest_dir)
 
 
 if __name__ == '__main__':
