@@ -36,7 +36,11 @@ impl PathResolver {
     /// directory.
     pub fn new_for_testing() -> Self {
         let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../src/testdata");
-        Self::new(src.clone(), src.join("out/Default"), "../../".to_string())
+        Self::new(
+            src,
+            std::env::temp_dir().join("gn_starlark_test_out"),
+            "../../".to_string(),
+        )
     }
 
     /// Resolves an output file to its absolute on-disk path.
