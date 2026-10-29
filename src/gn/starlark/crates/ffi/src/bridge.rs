@@ -150,6 +150,7 @@ mod dummy {
         include!("gn/ffi/err.h");
         include!("gn/ffi/scope.h");
         include!("gn/ffi/source_file.h");
+        include!("gn/ffi/string_output_buffer.h");
         include!("gn/ffi/target.h");
         include!("gn/ffi/test_with_scope.h");
         include!("gn/ffi/value.h");
@@ -251,6 +252,13 @@ mod dummy {
         fn toolchain_label(self: &Settings) -> &Label;
         fn is_default(self: &Settings) -> bool;
 
+        type StringOutputBuffer;
+        // We allow dead code because this isn't used in production and we
+        // can't tag things in the bridge with cfg(test).
+        #[allow(dead_code)]
+        fn NewStringOutputBuffer() -> UniquePtr<StringOutputBuffer>;
+        fn StringOutputBufferToString(buffer: &StringOutputBuffer) -> String;
+        unsafe fn Reserve(buffer: Pin<&mut StringOutputBuffer>, n: usize) -> *mut *mut c_char;
         type Scope;
         // Constructs a new child Scope, populates placeholder Values for the given
         // keys, and returns an owned slice of references to the placeholders.

@@ -5,6 +5,7 @@
 #include "gn/ffi/err.h"
 #include "gn/ffi/scope.h"
 #include "gn/ffi/source_file.h"
+#include "gn/ffi/string_output_buffer.h"
 #include "gn/ffi/target.h"
 #include "gn/ffi/test_with_scope.h"
 #include "gn/ffi/value.h"
@@ -1005,6 +1006,7 @@ using SourceFile = ::SourceFile;
 using LabelTargetPair = ::LabelTargetPair;
 using Target = ::Target;
 using Settings = ::Settings;
+using StringOutputBuffer = ::StringOutputBuffer;
 using Scope = ::Scope;
 using TestWithScope = ::TestWithScope;
 using Value = ::Value;

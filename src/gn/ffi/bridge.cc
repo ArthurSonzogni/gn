@@ -4,6 +4,7 @@
 #include "gn/ffi/err.h"
 #include "gn/ffi/scope.h"
 #include "gn/ffi/source_file.h"
+#include "gn/ffi/string_output_buffer.h"
 #include "gn/ffi/target.h"
 #include "gn/ffi/test_with_scope.h"
 #include "gn/ffi/value.h"
@@ -1087,6 +1088,7 @@ using SourceFile = ::SourceFile;
 using LabelTargetPair = ::LabelTargetPair;
 using Target = ::Target;
 using Settings = ::Settings;
+using StringOutputBuffer = ::StringOutputBuffer;
 using Scope = ::Scope;
 using TestWithScope = ::TestWithScope;
 using Value = ::Value;
@@ -1347,6 +1349,21 @@ void cxxbridge1$196$Settings$toolchain_label(::Settings const &self, ::Label con
 bool cxxbridge1$196$Settings$is_default(::Settings const &self) noexcept {
   bool (::Settings::*is_default$)() const = &::Settings::is_default;
   return (self.*is_default$)();
+}
+
+::StringOutputBuffer *cxxbridge1$196$NewStringOutputBuffer() noexcept {
+  ::std::unique_ptr<::StringOutputBuffer> (*NewStringOutputBuffer$)() = ::NewStringOutputBuffer;
+  return NewStringOutputBuffer$().release();
+}
+
+void cxxbridge1$196$StringOutputBufferToString(::StringOutputBuffer const &buffer, ::rust::String *return$) noexcept {
+  ::rust::String (*StringOutputBufferToString$)(::StringOutputBuffer const &) = ::StringOutputBufferToString;
+  new (return$) ::rust::String(StringOutputBufferToString$(buffer));
+}
+
+char **cxxbridge1$196$Reserve(::StringOutputBuffer &buffer, ::std::size_t n) noexcept {
+  char **(*Reserve$)(::StringOutputBuffer &, ::std::size_t) = ::Reserve;
+  return Reserve$(buffer, n);
 }
 
 void cxxbridge1$196$NewScope(::Scope &parent_scope, ::rust::Slice<::rust::Str const> keys, ::std::unique_ptr<::Scope> &out_scope, ::SliceAny *return$) noexcept {
@@ -1691,6 +1708,25 @@ void cxxbridge1$unique_ptr$std$vector$OutputFile$raw(::std::unique_ptr<::std::ve
 }
 void cxxbridge1$unique_ptr$std$vector$OutputFile$drop(::std::unique_ptr<::std::vector<::OutputFile>> *ptr) noexcept {
   ::rust::deleter_if<::rust::detail::is_complete<::std::vector<::OutputFile>>::value>{}(ptr);
+}
+
+static_assert(::rust::detail::is_complete<::std::remove_extent<::StringOutputBuffer>::type>::value, "definition of `::StringOutputBuffer` is required");
+static_assert(sizeof(::std::unique_ptr<::StringOutputBuffer>) == sizeof(void *), "");
+static_assert(alignof(::std::unique_ptr<::StringOutputBuffer>) == alignof(void *), "");
+void cxxbridge1$unique_ptr$StringOutputBuffer$null(::std::unique_ptr<::StringOutputBuffer> *ptr) noexcept {
+  ::new (ptr) ::std::unique_ptr<::StringOutputBuffer>();
+}
+void cxxbridge1$unique_ptr$StringOutputBuffer$raw(::std::unique_ptr<::StringOutputBuffer> *ptr, ::std::unique_ptr<::StringOutputBuffer>::pointer raw) noexcept {
+  ::new (ptr) ::std::unique_ptr<::StringOutputBuffer>(raw);
+}
+::std::unique_ptr<::StringOutputBuffer>::element_type const *cxxbridge1$unique_ptr$StringOutputBuffer$get(::std::unique_ptr<::StringOutputBuffer> const &ptr) noexcept {
+  return ptr.get();
+}
+::std::unique_ptr<::StringOutputBuffer>::pointer cxxbridge1$unique_ptr$StringOutputBuffer$release(::std::unique_ptr<::StringOutputBuffer> &ptr) noexcept {
+  return ptr.release();
+}
+void cxxbridge1$unique_ptr$StringOutputBuffer$drop(::std::unique_ptr<::StringOutputBuffer> *ptr) noexcept {
+  ::rust::deleter_if<::rust::detail::is_complete<::StringOutputBuffer>::value>{}(ptr);
 }
 
 static_assert(::rust::detail::is_complete<::std::remove_extent<::Scope>::type>::value, "definition of `::Scope` is required");

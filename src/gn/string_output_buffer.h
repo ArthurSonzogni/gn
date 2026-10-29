@@ -133,10 +133,6 @@ class StringOutputBuffer {
 
   static size_t GetPageSizeForTesting() { return kPageSize; }
 
- private:
-  // Return the number of free bytes in the current page.
-  size_t page_free_size() const { return end_ - cur_; }
-
   // Ensures that the read-write section of the buffer has at least n bytes
   // available.
   void Reserve(size_t n) {
@@ -144,6 +140,12 @@ class StringOutputBuffer {
       ReserveSlow(n);
     }
   }
+
+  char** CurrentPage() { return &cur_; }
+
+ private:
+  // Return the number of free bytes in the current page.
+  size_t page_free_size() const { return end_ - cur_; }
 
   void ReserveSlow(size_t n);
 
