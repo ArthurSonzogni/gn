@@ -14,25 +14,44 @@
 #include <string_view>
 #include <vector>
 
+#include "base/compiler_specific.h"
+
 namespace base {
 class FilePath;
 }  // namespace base
+
+template <typename T>
+  requires requires(const T& val) {
+    { val.MaximumSize() } -> std::convertible_to<size_t>;
+  }
+inline size_t MaximumSize(const T& val) {
+  return val.MaximumSize();
+}
+
+template <typename T>
+  requires requires(const T& val, char* out) {
+    { val.WriteToBuf(out) } -> std::same_as<char*>;
+  }
+inline char* WriteToBuf(const T& val, char* out) {
+  return val.WriteToBuf(out);
+}
 
 class Err;
 
 inline size_t MaximumSize(std::string_view s) {
   return s.size();
 }
-inline void WriteToBuf(std::string_view s, char buf[], size_t& upto) {
-  memcpy(&buf[upto], s.data(), s.size());
-  upto += s.size();
+inline char* WriteToBuf(std::string_view s, char* out) {
+  memcpy(out, s.data(), s.size());
+  return out + s.size();
 }
 
 inline size_t MaximumSize(char) {
   return 1;
 }
-inline void WriteToBuf(char c, char buf[], size_t& upto) {
-  buf[upto++] = c;
+inline char* WriteToBuf(char c, char* out) {
+  *out++ = c;
+  return out;
 }
 
 template <typename T>
@@ -49,16 +68,15 @@ inline size_t MaximumSize(T) {
 
 template <typename T>
   requires(std::integral<T> && !std::same_as<T, char> && !std::same_as<T, bool>)
-inline void WriteToBuf(T val, char buf[], size_t& upto) {
-  upto =
-      std::to_chars(&buf[upto], &buf[upto + MaximumSize(val)], val).ptr - buf;
+inline char* WriteToBuf(T val, char* out) {
+  return std::to_chars(out, out + MaximumSize(val), val).ptr;
 }
 
 template <typename T>
 concept Writable = !std::same_as<std::remove_cvref_t<T>, bool> &&
-                   requires(const T& val, char buf[], size_t& upto) {
+                   requires(const T& val, char* out) {
                      { MaximumSize(val) } -> std::convertible_to<size_t>;
-                     WriteToBuf(val, buf, upto);
+                     { WriteToBuf(val, out) } -> std::same_as<char*>;
                    };
 
 // An append-only very large storage area for string data. Useful for the parts
@@ -87,12 +105,12 @@ class StringOutputBuffer {
   std::string str() const;
 
   // Return the number of characters stored in this instance.
-  size_t size() const { return ro_size_ + rw_.size; }
+  size_t size() const;
 
   // Append a value to this instance.
   void Append(const Writable auto& value) {
     Reserve(MaximumSize(value));
-    WriteToBuf(value, rw_.buf.get(), rw_.size);
+    cur_ = WriteToBuf(value, cur_);
   }
   void Append(const char* str, size_t len) {
     Append(std::string_view(str, len));
@@ -117,11 +135,17 @@ class StringOutputBuffer {
 
  private:
   // Return the number of free bytes in the current page.
-  size_t page_free_size() const { return rw_capacity_ - rw_.size; }
+  size_t page_free_size() const { return end_ - cur_; }
 
   // Ensures that the read-write section of the buffer has at least n bytes
   // available.
-  void Reserve(size_t n);
+  void Reserve(size_t n) {
+    if (UNLIKELY(page_free_size() < n)) {
+      ReserveSlow(n);
+    }
+  }
+
+  void ReserveSlow(size_t n);
 
   static constexpr size_t kPageSize = 65536;
 
@@ -130,16 +154,16 @@ class StringOutputBuffer {
     size_t size = 0;
   };
 
-  // Because this is an extremely hot path, we avoid pointer indirection by
-  // storing the current page inline.
-  // The current page is read-write.
-  Page rw_;
-  size_t rw_capacity_ = 0;
+  // The current read-write page buffer and write cursors.
+  // We use a three-pointer approach instead of (start, size, capacity).
+  // This is because we are optimizing for writes being as fast as possible,
+  // so we only need to update cur_ most of the time.
+  std::unique_ptr<char[]> rw_buf_;
+  char* cur_ = nullptr;
+  char* end_ = nullptr;
 
   // Completed read-only pages.
   std::vector<Page> ro_;
-  // Contains sum([page.size for page in ro_])
-  size_t ro_size_ = 0;
 };
 
 std::string Pretty(const StringOutputBuffer& buffer);

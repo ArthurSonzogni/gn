@@ -301,15 +301,16 @@ bool Builder::ConfigDefined(BuilderRecord* record, Err* err) {
   if (!AddDeps(record, config->configs(), err))
     return false;
 
-  // Make sure all deps of this config are scheduled to be loaded. For other
-  // item types like targets, the "should generate" flag is propagated around
-  // to mark whether this should happen. We could call
-  // RecursiveSetShouldGenerate to do this step here, but since configs nor
-  // anything they depend on is actually written, the "generate" flag isn't
-  // relevant and means extra book keeping. Just force load any deps of this
-  // config.
-  for (auto it = record->all_deps().begin(); it.valid(); ++it) {
-    ScheduleItemLoadIfNecessary(*it);
+  // If this config is required by a generated target or config, propagate the
+  // "should generate" flag to its dependencies. Otherwise, schedule them to be
+  // loaded in case this config is referenced later (see
+  // https://crbug.com/41204844).
+  if (record->should_generate()) {
+    RecursiveSetShouldGenerate(record, true);
+  } else {
+    for (auto it = record->all_deps().begin(); it.valid(); ++it) {
+      ScheduleItemLoadIfNecessary(*it);
+    }
   }
 
   return true;
@@ -723,7 +724,11 @@ void Builder::CheckAndTriggerWrite(BuilderRecord* record) {
 std::string Builder::CheckForCircularDependencies(
     const std::vector<const BuilderRecord*>& bad_records) const {
   std::vector<const BuilderRecord*> cycle;
-  if (!RecursiveFindCycle(bad_records[0], &cycle))
+  for (const auto* record : bad_records) {
+    if (RecursiveFindCycle(record, &cycle))
+      break;
+  }
+  if (cycle.empty())
     return std::string();  // Didn't find a cycle, something else is wrong.
 
   std::string ret;

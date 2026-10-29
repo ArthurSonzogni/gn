@@ -8,6 +8,8 @@
 #include <string>
 #include <string_view>
 
+#include "util/build_config.h"
+
 class StringOutputBuffer;
 
 enum EscapingMode {
@@ -41,12 +43,16 @@ enum EscapingMode {
 };
 
 enum EscapingPlatform {
-  // Do escaping for the current platform.
-  ESCAPE_PLATFORM_CURRENT,
-
   // Force escaping for the given platform.
   ESCAPE_PLATFORM_POSIX,
   ESCAPE_PLATFORM_WIN,
+
+// Do escaping for the current platform.
+#if defined(OS_WIN)
+  ESCAPE_PLATFORM_CURRENT = ESCAPE_PLATFORM_WIN,
+#else
+  ESCAPE_PLATFORM_CURRENT = ESCAPE_PLATFORM_POSIX,
+#endif
 };
 
 struct EscapeOptions {
@@ -66,6 +72,74 @@ struct EscapeOptions {
   // escaping rules assume that a double-quote will be appended to the result.
   bool inhibit_quoting = false;
 };
+
+// Usage:
+// StringOutputBuffer buf;
+// buf << Escaped::Ninja("blah");
+namespace Escaped {
+
+struct Space {
+  std::string_view str;
+
+  // Only spaces (' ') are escaped with a preceding backslash ("\ "). In the
+  // worst case (all spaces), each character expands to 2 characters.
+  size_t MaximumSize() const { return str.size() * 2; }
+  char* WriteToBuf(char* out) const;
+};
+
+struct Ninja {
+  std::string_view str;
+
+  // Ninja special characters ('$', ' ', ':') are prefixed with '$' ("$$",
+  // "$ ", "$:"). In the worst case, each character expands to 2 characters.
+  size_t MaximumSize() const { return str.size() * 2; }
+  char* WriteToBuf(char* out) const;
+};
+
+struct Depfile {
+  std::string_view str;
+
+  // Special characters (' ', '\', '#', '*', '[', '|', ']') are prefixed with
+  // '\' and '$' is doubled to "$$". In all cases, each character expands to
+  // at most 2 characters.
+  size_t MaximumSize() const { return str.size() * 2; }
+  char* WriteToBuf(char* out) const;
+};
+
+struct NinjaPreformatted {
+  std::string_view str;
+
+  // Only '$' is escaped by doubling to "$$". In the worst case, each
+  // character expands to 2 characters.
+  size_t MaximumSize() const { return str.size() * 2; }
+  char* WriteToBuf(char* out) const;
+};
+
+struct CompilationDatabase {
+  std::string_view str;
+
+  // Special characters ('\' and '"') are escaped with a backslash ("\\" and
+  // "\""), expanding each character to at most 2 characters. Up to 2
+  // enclosing double quotes are added if any character is invalid in shell.
+  size_t MaximumSize() const { return str.size() * 2 + 2; }
+  char* WriteToBuf(char* out) const;
+};
+
+struct Command {
+  std::string_view str;
+  EscapingPlatform platform = ESCAPE_PLATFORM_CURRENT;
+  bool inhibit_quoting = false;
+
+  // Command line escaping:
+  // On POSIX, '$' and ' ' expand to 3 chars ("\$$" and "\$ ").
+  // On Windows, chars expand to at most 2 chars, plus 2 enclosing quotes.
+  // In the worst case across platforms, 3 chars per input char plus 2
+  // enclosing quotes.
+  size_t MaximumSize() const { return str.size() * 3 + 2; }
+  char* WriteToBuf(char* out) const;
+};
+
+}  // namespace Escaped
 
 // Escapes the given input, returnining the result.
 //

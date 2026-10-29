@@ -29,6 +29,10 @@ TEST(Escape, WindowsCommand) {
   // Regular string is passed, even if it has backslashes.
   EXPECT_EQ("foo\\bar", EscapeString("foo\\bar", opts, nullptr));
 
+  // Colon and dollar sign get escaped for Ninja, but not quoted for Windows.
+  EXPECT_EQ("C$:\\foo\\bar", EscapeString("C:\\foo\\bar", opts, nullptr));
+  EXPECT_EQ("foo$$bar", EscapeString("foo$bar", opts, nullptr));
+
   // Spaces means the string is quoted, normal backslahes untouched.
   bool needs_quoting = false;
   EXPECT_EQ("\"foo\\$ bar\"", EscapeString("foo\\ bar", opts, &needs_quoting));
@@ -62,6 +66,11 @@ TEST(Escape, PosixCommand) {
   // Curly braces must be escaped to avoid brace expansion on systems using
   // bash as default shell..
   EXPECT_EQ("\\{a,b\\}\\{c,d\\}", EscapeString("{a,b}{c,d}", opts, nullptr));
+
+  // Non-ASCII UTF-8 bytes (>= 0x80) are not special to POSIX shells and must
+  // not be backslash-escaped byte-by-byte.
+  EXPECT_EQ("föo\\$ bär\\$ \\<あ\\>",
+            EscapeString("föo bär <あ>", opts, nullptr));
 }
 
 TEST(Escape, NinjaPreformatted) {
@@ -106,4 +115,18 @@ TEST(Escape, CompilationDatabase) {
   // The only special characters are '"' and '\'.
   std::string result = EscapeString("asdf:$ \\#*[|]bar", opts, nullptr);
   EXPECT_EQ("\"asdf:$ \\\\#*[|]bar\"", result);
+}
+
+TEST(Escape, EscapeStringToStream) {
+  EscapeOptions opts;
+  opts.mode = ESCAPE_NINJA;
+  StringOutputBuffer buffer;
+  EscapeStringToStream(buffer, "asdf: \"$\\bar", opts);
+  EXPECT_EQ("asdf$:$ \"$$\\bar", buffer.str());
+}
+
+TEST(Escape, EscapeDirect) {
+  StringOutputBuffer out;
+  out << Escaped::Ninja("asdf: \"$\\bar");
+  EXPECT_EQ("asdf$:$ \"$$\\bar", out.str());
 }
