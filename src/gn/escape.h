@@ -5,6 +5,8 @@
 #ifndef TOOLS_GN_ESCAPE_H_
 #define TOOLS_GN_ESCAPE_H_
 
+#include <stdint.h>
+
 #include <string>
 #include <string_view>
 
@@ -42,7 +44,7 @@ enum EscapingMode {
   ESCAPE_COMPILATION_DATABASE,
 };
 
-enum EscapingPlatform {
+enum EscapingPlatform : uint8_t {
   // Force escaping for the given platform.
   ESCAPE_PLATFORM_POSIX,
   ESCAPE_PLATFORM_WIN,

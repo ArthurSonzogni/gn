@@ -19,6 +19,7 @@
 mod bridge;
 mod err;
 mod errors;
+pub mod escape;
 mod eval_context;
 mod label;
 mod mutability;

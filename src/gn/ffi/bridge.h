@@ -2,7 +2,9 @@
 // Source: src/gn/ffi/starlark/crates/ffi/src/bridge.rs
 #pragma once
 #include "gn/err.h"
+#include "gn/escape.h"
 #include "gn/ffi/err.h"
+#include "gn/ffi/escape.h"
 #include "gn/ffi/scope.h"
 #include "gn/ffi/source_file.h"
 #include "gn/ffi/string_output_buffer.h"
@@ -16,6 +18,7 @@
 #include "gn/settings.h"
 #include "gn/source_dir.h"
 #include "gn/source_file.h"
+#include "gn/string_output_buffer.h"
 #include "gn/target.h"
 #include "gn/test_with_scope.h"
 #include "gn/value.h"
@@ -1007,6 +1010,7 @@ using LabelTargetPair = ::LabelTargetPair;
 using Target = ::Target;
 using Settings = ::Settings;
 using StringOutputBuffer = ::StringOutputBuffer;
+using EscapingPlatform = ::EscapingPlatform;
 using Scope = ::Scope;
 using TestWithScope = ::TestWithScope;
 using Value = ::Value;
@@ -1065,6 +1069,11 @@ enum class ValueType : ::std::uint8_t {
   StarlarkValue = 6,
 };
 #endif // CXXBRIDGE1_ENUM_ValueType
+
+static_assert(::std::is_enum<EscapingPlatform>::value, "expected enum");
+static_assert(sizeof(EscapingPlatform) == sizeof(::std::uint8_t), "incorrect size");
+static_assert(static_cast<::std::uint8_t>(EscapingPlatform::ESCAPE_PLATFORM_POSIX) == 0, "disagrees with the value in #[cxx::bridge]");
+static_assert(static_cast<::std::uint8_t>(EscapingPlatform::ESCAPE_PLATFORM_WIN) == 1, "disagrees with the value in #[cxx::bridge]");
 
 #ifndef CXXBRIDGE1_STRUCT_RustTarget
 #define CXXBRIDGE1_STRUCT_RustTarget

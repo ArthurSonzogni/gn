@@ -143,11 +143,22 @@ mod dummy {
         Scope = 5,
         StarlarkValue = 6,
     }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    #[repr(u8)]
+    enum EscapingPlatform {
+        #[cxx_name = "ESCAPE_PLATFORM_POSIX"]
+        Posix,
+        #[cxx_name = "ESCAPE_PLATFORM_WIN"]
+        Win,
+    }
     unsafe extern "C++" {
         // include! simply tells cxxbridge to put the #include in the generated C++
         // source code. It does not do anything on the rust side.
         include!("gn/err.h");
+        include!("gn/escape.h");
         include!("gn/ffi/err.h");
+        include!("gn/ffi/escape.h");
         include!("gn/ffi/scope.h");
         include!("gn/ffi/source_file.h");
         include!("gn/ffi/string_output_buffer.h");
@@ -161,6 +172,7 @@ mod dummy {
         include!("gn/settings.h");
         include!("gn/source_dir.h");
         include!("gn/source_file.h");
+        include!("gn/string_output_buffer.h");
         include!("gn/target.h");
         include!("gn/test_with_scope.h");
         include!("gn/value.h");
@@ -259,6 +271,12 @@ mod dummy {
         fn NewStringOutputBuffer() -> UniquePtr<StringOutputBuffer>;
         fn StringOutputBufferToString(buffer: &StringOutputBuffer) -> String;
         unsafe fn Reserve(buffer: Pin<&mut StringOutputBuffer>, n: usize) -> *mut *mut c_char;
+
+        type EscapingPlatform;
+        unsafe fn EscapeNinja(str: &str, out: *mut u8) -> *mut u8;
+        unsafe fn EscapeNinjaCommandPosix(str: &str, out: *mut u8) -> *mut u8;
+        unsafe fn EscapeNinjaCommandWindows(str: &str, out: *mut u8) -> *mut u8;
+
         type Scope;
         // Constructs a new child Scope, populates placeholder Values for the given
         // keys, and returns an owned slice of references to the placeholders.

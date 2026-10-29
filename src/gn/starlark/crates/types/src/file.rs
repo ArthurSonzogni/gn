@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::{borrow::Cow, path::Path};
+use std::path::Path;
 
 use allocative::Allocative;
 use starlark::{
@@ -70,24 +70,6 @@ impl File {
     /// Returns the file path relative to the root_build_dir as a &str.
     pub fn as_str(&self) -> &'static str {
         self.0
-    }
-
-    /// Returns the file path with proper escaping applied for use in the inputs
-    /// section of a ninja file.
-    pub fn ninja_escaped_path(&self) -> Cow<'static, str> {
-        let s = self.0;
-        if s.contains([' ', '$', ':']) {
-            let mut result = String::with_capacity(s.len());
-            for c in s.chars() {
-                if c == '$' || c == ' ' || c == ':' {
-                    result.push('$');
-                }
-                result.push(c);
-            }
-            Cow::Owned(result)
-        } else {
-            Cow::Borrowed(s)
-        }
     }
 }
 
