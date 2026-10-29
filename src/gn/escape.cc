@@ -253,44 +253,43 @@ size_t EscapeStringToString(std::string_view str,
 
 }  // namespace
 
-void Escaped::Space::WriteToBuf(char buf[], size_t& upto) const {
-  upto += EscapeStringToString_Space(str, &buf[upto]);
+char* Escaped::Space::WriteToBuf(char* out) const {
+  return &out[EscapeStringToString_Space(str, out)];
 }
 
-void Escaped::Ninja::WriteToBuf(char buf[], size_t& upto) const {
-  upto += EscapeStringToString_Ninja(str, &buf[upto]);
+char* Escaped::Ninja::WriteToBuf(char* out) const {
+  return &out[EscapeStringToString_Ninja(str, out)];
 }
 
-void Escaped::Depfile::WriteToBuf(char buf[], size_t& upto) const {
-  upto += EscapeStringToString_Depfile(str, &buf[upto]);
+char* Escaped::Depfile::WriteToBuf(char* out) const {
+  return &out[EscapeStringToString_Depfile(str, out)];
 }
 
-void Escaped::CompilationDatabase::WriteToBuf(char buf[], size_t& upto) const {
-  upto += EscapeStringToString_CompilationDatabase(str, &buf[upto]);
+char* Escaped::CompilationDatabase::WriteToBuf(char* out) const {
+  return &out[EscapeStringToString_CompilationDatabase(str, out)];
 }
 
-void Escaped::NinjaPreformatted::WriteToBuf(char buf[], size_t& upto) const {
-  upto += EscapeStringToString_NinjaPreformatted(str, &buf[upto]);
+char* Escaped::NinjaPreformatted::WriteToBuf(char* out) const {
+  return &out[EscapeStringToString_NinjaPreformatted(str, out)];
 }
 
-void Escaped::Command::WriteToBuf(char buf[], size_t& upto) const {
+char* Escaped::Command::WriteToBuf(char* out) const {
   switch (platform) {
     case ESCAPE_PLATFORM_CURRENT:
 #if defined(OS_WIN)
-      upto += EscapeStringToString_WindowsNinjaFork(str, inhibit_quoting,
-                                                    &buf[upto], nullptr);
+      return &out[EscapeStringToString_WindowsNinjaFork(str, inhibit_quoting,
+                                                        out, nullptr)];
 #else
-      upto += EscapeStringToString_PosixNinjaFork(str, &buf[upto]);
+      return &out[EscapeStringToString_PosixNinjaFork(str, out)];
 #endif
-      break;
     case ESCAPE_PLATFORM_WIN:
-      upto += EscapeStringToString_WindowsNinjaFork(str, inhibit_quoting,
-                                                    &buf[upto], nullptr);
-      break;
+      return &out[EscapeStringToString_WindowsNinjaFork(str, inhibit_quoting,
+                                                        out, nullptr)];
     case ESCAPE_PLATFORM_POSIX:
-      upto += EscapeStringToString_PosixNinjaFork(str, &buf[upto]);
-      break;
+      return &out[EscapeStringToString_PosixNinjaFork(str, out)];
   }
+  NOTREACHED();
+  return out;
 }
 
 std::string EscapeString(std::string_view str,

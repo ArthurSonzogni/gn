@@ -15,27 +15,36 @@
 
 void StringOutputBuffer::Clear() {
   ro_.clear();
-  ro_size_ = 0;
-  rw_.size = 0;
+  cur_ = rw_buf_.get();
 }
 
-void StringOutputBuffer::Reserve(size_t n) {
-  if (UNLIKELY(page_free_size() < n)) {
-    if (rw_.size > 0) {
-      ro_.push_back(std::move(rw_));
-      ro_size_ += rw_.size;
+void StringOutputBuffer::ReserveSlow(size_t n) {
+  if (rw_buf_) {
+    size_t page_size = cur_ - rw_buf_.get();
+    if (page_size > 0) {
+      ro_.push_back(Page{
+          .buf = std::move(rw_buf_),
+          .size = page_size,
+      });
     }
-
-    // Pick the minimum number of pages required to store n bytes.
-    // So technically, our "Page" could actually be multiple pages
-    // But unless you attempt to call append on a ridiculously large string,
-    // this should never happen in practice.
-    rw_capacity_ = (n + kPageSize - 1) & ~(kPageSize - 1);
-    rw_ = Page{
-        .buf = std::make_unique_for_overwrite<char[]>(rw_capacity_),
-        .size = 0,
-    };
   }
+
+  // Pick the minimum number of pages required to store n bytes.
+  // So technically, our "Page" could actually be multiple pages
+  // But unless you attempt to call append on a ridiculously large string,
+  // this should never happen in practice.
+  size_t capacity = (n + kPageSize - 1) & ~(kPageSize - 1);
+  rw_buf_ = std::make_unique_for_overwrite<char[]>(capacity);
+  cur_ = rw_buf_.get();
+  end_ = cur_ + capacity;
+}
+
+size_t StringOutputBuffer::size() const {
+  size_t total = rw_buf_ ? static_cast<size_t>(cur_ - rw_buf_.get()) : 0;
+  for (const auto& page : ro_) {
+    total += page.size;
+  }
+  return total;
 }
 
 std::string StringOutputBuffer::str() const {
@@ -44,8 +53,8 @@ std::string StringOutputBuffer::str() const {
   for (const auto& page : ro_) {
     result.append(page.buf.get(), page.size);
   }
-  if (rw_.size > 0) {
-    result.append(rw_.buf.get(), rw_.size);
+  if (rw_buf_) {
+    result.append(rw_buf_.get(), cur_);
   }
   return result;
 }
@@ -66,24 +75,27 @@ bool StringOutputBuffer::ContentsEqual(const base::FilePath& file_path) const {
 
   std::vector<char> file_page;
   file_page.resize(kPageSize);
-  auto check_page = [&](const Page& page) {
+  auto check_page = [&](const char* page_buf, size_t page_size) {
     // Don't use reserve because if we do that, capacity is high enough but not
     // size.
-    if (UNLIKELY(file_page.size() < page.size)) {
-      file_page.resize(page.size);
+    if (UNLIKELY(file_page.size() < page_size)) {
+      file_page.resize(page_size);
     }
-    file.read(file_page.data(), page.size);
+    file.read(file_page.data(), page_size);
     if (!file.good())
       return false;
 
-    return memcmp(file_page.data(), page.buf.get(), page.size) == 0;
+    return memcmp(file_page.data(), page_buf, page_size) == 0;
   };
 
   for (const auto& page : ro_) {
-    if (!check_page(page))
+    if (!check_page(page.buf.get(), page.size))
       return false;
   }
-  return rw_.size == 0 || check_page(rw_);
+  if (cur_ > rw_buf_.get()) {
+    return check_page(rw_buf_.get(), cur_ - rw_buf_.get());
+  }
+  return true;
 }
 
 // Write the contents of this instance to a file at |file_path|.
@@ -107,8 +119,8 @@ bool StringOutputBuffer::WriteToFile(const base::FilePath& file_path,
       if (!success)
         break;
     }
-    if (success && rw_.size > 0) {
-      success = writer.Write(std::string_view(rw_.buf.get(), rw_.size));
+    if (success && rw_buf_) {
+      success = writer.Write(std::string_view(rw_buf_.get(), cur_));
     }
   }
   if (!writer.Close())

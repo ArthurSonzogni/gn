@@ -147,12 +147,12 @@ size_t MaximumSize(const CustomGreeting& greeting) {
   return greeting.name.size() + 7;
 }
 
-void WriteToBuf(const CustomGreeting& greeting, char* buf, size_t& size) {
+char* WriteToBuf(const CustomGreeting& greeting, char* buf) {
   constexpr std::string_view prefix = "Hello, ";
-  memcpy(buf + size, prefix.data(), prefix.size());
-  size += prefix.size();
-  memcpy(buf + size, greeting.name.data(), greeting.name.size());
-  size += greeting.name.size();
+  memcpy(buf, prefix.data(), prefix.size());
+  buf += prefix.size();
+  memcpy(buf, greeting.name.data(), greeting.name.size());
+  return buf + greeting.name.size();
 }
 
 static_assert(Writable<CustomGreeting>);

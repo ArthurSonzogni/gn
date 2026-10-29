@@ -78,7 +78,7 @@ struct Space {
   // Only spaces (' ') are escaped with a preceding backslash ("\ "). In the
   // worst case (all spaces), each character expands to 2 characters.
   size_t MaximumSize() const { return str.size() * 2; }
-  void WriteToBuf(char buf[], size_t& upto) const;
+  char* WriteToBuf(char* out) const;
 };
 
 struct Ninja {
@@ -87,7 +87,7 @@ struct Ninja {
   // Ninja special characters ('$', ' ', ':') are prefixed with '$' ("$$",
   // "$ ", "$:"). In the worst case, each character expands to 2 characters.
   size_t MaximumSize() const { return str.size() * 2; }
-  void WriteToBuf(char buf[], size_t& upto) const;
+  char* WriteToBuf(char* out) const;
 };
 
 struct Depfile {
@@ -97,7 +97,7 @@ struct Depfile {
   // '\' and '$' is doubled to "$$". In all cases, each character expands to
   // at most 2 characters.
   size_t MaximumSize() const { return str.size() * 2; }
-  void WriteToBuf(char buf[], size_t& upto) const;
+  char* WriteToBuf(char* out) const;
 };
 
 struct NinjaPreformatted {
@@ -106,7 +106,7 @@ struct NinjaPreformatted {
   // Only '$' is escaped by doubling to "$$". In the worst case, each
   // character expands to 2 characters.
   size_t MaximumSize() const { return str.size() * 2; }
-  void WriteToBuf(char buf[], size_t& upto) const;
+  char* WriteToBuf(char* out) const;
 };
 
 struct CompilationDatabase {
@@ -116,7 +116,7 @@ struct CompilationDatabase {
   // "\""), expanding each character to at most 2 characters. Up to 2
   // enclosing double quotes are added if any character is invalid in shell.
   size_t MaximumSize() const { return str.size() * 2 + 2; }
-  void WriteToBuf(char buf[], size_t& upto) const;
+  char* WriteToBuf(char* out) const;
 };
 
 struct Command {
@@ -130,7 +130,7 @@ struct Command {
   // In the worst case across platforms, 3 chars per input char plus 2
   // enclosing quotes.
   size_t MaximumSize() const { return str.size() * 3 + 2; }
-  void WriteToBuf(char buf[], size_t& upto) const;
+  char* WriteToBuf(char* out) const;
 };
 
 }  // namespace Escaped
