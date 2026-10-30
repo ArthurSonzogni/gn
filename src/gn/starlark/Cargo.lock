@@ -799,14 +799,17 @@ version = "0.1.0"
 dependencies = [
  "allocative",
  "anyhow",
+ "args",
  "attr",
  "cxx",
  "depset",
+ "either",
  "loader",
  "providers",
  "rule",
  "starlark",
  "starlark_derive",
+ "testutils",
  "thiserror",
  "types",
 ]

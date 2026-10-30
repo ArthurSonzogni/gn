@@ -12,9 +12,11 @@ doctest = false
 [dependencies]
 allocative = { workspace = true }
 anyhow = { workspace = true }
+args = { path = "../args" }
 attr = { path = "../attr" }
 cxx = { workspace = true }
 depset = { path = "../depset" }
+either = { workspace = true }
 loader = { path = "../loader" }
 providers = { path = "../providers" }
 rule = { path = "../rule" }
@@ -22,3 +24,6 @@ starlark = { workspace = true }
 starlark_derive = { workspace = true }
 thiserror = { workspace = true }
 types = { path = "../types" }
+
+[dev-dependencies]
+testutils = { path = "../testutils" }

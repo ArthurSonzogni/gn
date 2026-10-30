@@ -16,6 +16,7 @@
 //!
 //! Safe APIs for C++ types are then exposed in the impl functions for each of
 //! these types in their own files.
+pub mod args;
 mod bridge;
 mod err;
 mod errors;
