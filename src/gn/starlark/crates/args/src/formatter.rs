@@ -13,8 +13,8 @@ use crate::errors::Error;
 /// Helper to format argument values using a template containing `%s`.
 #[derive(Allocative, Clone, Debug, Freeze)]
 pub struct Formatter {
-    before: String,
-    after: String,
+    pub(crate) before: String,
+    pub(crate) after: String,
 }
 
 fn consume_partial(chars: &mut std::str::Chars<'_>, fmt: &str) -> starlark::Result<(String, bool)> {

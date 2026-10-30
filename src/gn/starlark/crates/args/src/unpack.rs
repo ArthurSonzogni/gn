@@ -5,7 +5,7 @@ use starlark::{
     values::{UnpackValue, Value, ValueTyped, list::ListRef, type_repr::StarlarkTypeRepr},
 };
 
-use crate::{FrozenArgs, formatter::Formatter};
+use crate::{ArgVisitor, FrozenArgs, formatter::Formatter};
 
 impl<'v> UnpackValue<'v> for Formatter {
     type Error = starlark::Error;
@@ -44,16 +44,18 @@ impl<'v> UnpackValue<'v> for FrozenArgsSequence<'v> {
 }
 
 impl<'v> FrozenArgsSequence<'v> {
-    pub fn expand(&self, eval: &mut Evaluator<'v, '_, '_>) -> starlark::Result<Vec<String>> {
-        let mut command = Vec::new();
+    /// Expands the stored arguments sequence into the given visitor.
+    pub fn expand(
+        &self,
+        eval: &mut Evaluator<'v, '_, '_>,
+        visitor: &mut impl ArgVisitor,
+    ) -> starlark::Result<()> {
         for item in &self.0 {
             match item {
-                Either::Left(s) => command.push((*s).to_owned()),
-                Either::Right(args) => {
-                    crate::expand::expand_into(&mut command, args.as_ref(), eval)?;
-                },
+                Either::Left(s) => visitor.add_arg(s),
+                Either::Right(args) => args.expand(eval, visitor)?,
             }
         }
-        Ok(command)
+        Ok(())
     }
 }

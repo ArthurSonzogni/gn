@@ -5,7 +5,7 @@
 use starlark::{environment::GlobalsBuilder, eval::Evaluator, values::Value};
 use starlark_derive::starlark_module;
 
-use crate::args::Args;
+use crate::{ArgVisitor, args::Args, unpack::FrozenArgsSequence};
 
 #[starlark_module]
 pub(crate) fn register_args_test_globals(builder: &mut GlobalsBuilder) {
@@ -15,6 +15,22 @@ pub(crate) fn register_args_test_globals(builder: &mut GlobalsBuilder) {
 
     fn identity<'v>(x: Value<'v>) -> starlark::Result<Value<'v>> {
         Ok(x)
+    }
+}
+
+#[derive(Default)]
+struct VecCollector {
+    command: Vec<String>,
+    current: String,
+}
+
+impl ArgVisitor for VecCollector {
+    fn add_arg_chunk(&mut self, part: &str) {
+        self.current.push_str(part);
+    }
+
+    fn finish_arg(&mut self) {
+        self.command.push(std::mem::take(&mut self.current));
     }
 }
 
@@ -36,15 +52,15 @@ impl ArgsAssert {
     fn assert_expands_to(&mut self, code: &str, expected: Result<&[&str], &str>) {
         use starlark::values::UnpackValue as _;
 
-        use crate::unpack::FrozenArgsSequence;
-
         let val = self.assert.pass(code);
 
-        let res = starlark::environment::Module::with_temp_heap(|module| {
+        let res: starlark::Result<_> = starlark::environment::Module::with_temp_heap(|module| {
             let mut eval = starlark::eval::Evaluator::new(&module);
             let val_ref = val.as_ref().add_to_heap(module.heap());
             let seq = FrozenArgsSequence::unpack_value_err(val_ref).unwrap();
-            seq.expand(&mut eval)
+            let mut collector = VecCollector::default();
+            seq.expand(&mut eval, &mut collector)?;
+            Ok(collector.command)
         });
 
         match expected {

@@ -13,7 +13,7 @@ use starlark::{
 };
 use starlark_derive::{NoSerialize, starlark_module, starlark_value};
 
-use crate::{Error, formatter::Formatter};
+use crate::{ArgVisitor, Error, formatter::Formatter};
 
 /// Internal representation of individual arguments stored in `Args`.
 #[derive(Allocative, Clone, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
@@ -244,11 +244,12 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
 }
 
 impl<'v> FrozenArgs<'v> {
-    /// Expands the stored arguments list into command-line arguments and input
-    /// files.
-    pub fn expand(&self, eval: &mut Evaluator<'v, '_, '_>) -> starlark::Result<Vec<String>> {
-        let mut command = Vec::new();
-        crate::expand::expand_into(&mut command, self, eval)?;
-        Ok(command)
+    /// Expands the stored arguments into the given visitor.
+    pub fn expand(
+        &self,
+        eval: &mut Evaluator<'v, '_, '_>,
+        visitor: &mut impl ArgVisitor,
+    ) -> starlark::Result<()> {
+        crate::expand::expand_args(self, eval, visitor)
     }
 }
