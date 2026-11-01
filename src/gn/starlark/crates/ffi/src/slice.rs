@@ -41,6 +41,7 @@ impl<T: OpaqueSized> Slice<T> {
         let mut current = self.raw.ptr;
         (0..self.raw.len).map(move |_| {
             let ptr = current;
+            // Safety: current remains within bounds of the allocated buffer during iteration.
             current = unsafe { current.add(size) };
             // Safety: The pointer is valid and exclusive for the lifetime of the iteration.
             unsafe { Pin::new_unchecked(&mut *ptr.cast::<T>()) }
@@ -54,6 +55,7 @@ impl<T: OpaqueSized> Slice<T> {
         let mut current = self.raw.ptr;
         (0..self.raw.len).map(move |_| {
             let ptr = current;
+            // Safety: current remains within bounds of the allocated buffer during iteration.
             current = unsafe { current.add(size) };
             // Safety: The pointer is valid for the lifetime of Slice.
             unsafe { &*ptr.cast::<T>() }

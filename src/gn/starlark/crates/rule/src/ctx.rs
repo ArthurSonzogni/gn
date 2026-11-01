@@ -79,6 +79,7 @@ impl<'v, C: EvalContextAttrExt> std::fmt::Display for Ctx<'v, C> {
     }
 }
 
+// Safety: Traces all Starlark values contained in the context.
 unsafe impl<'v, C: EvalContextAttrExt> starlark::values::Trace<'v> for Ctx<'v, C> {
     fn trace(&mut self, tracer: &starlark::values::Tracer<'v>) {
         self.attrs.attr.trace(tracer);
@@ -89,6 +90,8 @@ unsafe impl<'v, C: EvalContextAttrExt> starlark::values::Trace<'v> for Ctx<'v, C
     }
 }
 
+// Safety: `Ctx` has no lifetime parameters other than `'v`, and `StaticType` is
+// `Self` with `'v` substituted by `'static`, guaranteeing identical memory layout.
 unsafe impl<'v, EvalCtx: EvalContextAttrExt> ProvidesStaticType<'v> for Ctx<'v, EvalCtx> {
     type StaticType = Ctx<'static, EvalCtx>;
 }

@@ -67,8 +67,10 @@ impl<'v, 'a, 'e> EvaluatorContextExt<'v, 'a, 'e> for starlark::eval::Evaluator<'
     fn context<C: EvalContext>(&self) -> &C {
         let extra = self.extra.as_ref();
         debug_assert!(extra.is_some(), "evaluator context not set");
+        // Safety: extra is guaranteed to be set when executing within an evaluation context.
         let dyn_any = unsafe { extra.unwrap_unchecked() };
         debug_assert!(dyn_any.is::<C>(), "failed to downcast evaluator context");
+        // Safety: dyn_any is guaranteed to be of type C in this context.
         unsafe { dyn_any.downcast_ref::<C>().unwrap_unchecked() }
     }
 

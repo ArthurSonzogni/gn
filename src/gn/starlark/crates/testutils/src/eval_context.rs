@@ -74,6 +74,7 @@ pub struct FakeEvalContext {
     pub scope: UnsafeCell<FakeScope>,
 }
 
+// Safety: FakeEvalContext is 'static and has no lifetime parameters.
 unsafe impl<'v> ProvidesStaticType<'v> for FakeEvalContext {
     type StaticType = Self;
 }
@@ -165,6 +166,7 @@ impl EvalContextAttrExt for FakeEvalContext {
         // long as the FakeSession in tests.
         let target_ref =
             unsafe { std::ptr::NonNull::from(targets.last_mut().unwrap().as_mut()).as_mut() };
+        // Safety: target_ref is pinned by the enclosing Box and never moved.
         Ok(unsafe { std::pin::Pin::new_unchecked(target_ref) })
     }
 

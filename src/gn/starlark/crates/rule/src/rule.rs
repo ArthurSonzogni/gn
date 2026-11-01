@@ -44,10 +44,9 @@ pub struct Rule<'v, C: EvalContextAttrExt + 'static> {
     pub(crate) _phantom: PhantomData<C>,
 }
 
-// Safety: Rule does not automatically derive Send and Sync because of C.
-// But it only contains C inside PhantomData, so Send and Sync are actually
-// safe.
+// Safety: Rule does not automatically derive Send because of C, but C is only in PhantomData.
 unsafe impl<'v, C: EvalContextAttrExt> Send for Rule<'v, C> {}
+// Safety: Rule does not automatically derive Sync because of C, but C is only in PhantomData.
 unsafe impl<'v, C: EvalContextAttrExt> Sync for Rule<'v, C> {}
 
 impl<'v, C: EvalContextAttrExt> fmt::Debug for Rule<'v, C> {
