@@ -55,27 +55,6 @@ base::CommandLine GetSelfInvocationCommandLine(
   const base::FilePath build_path =
       build_settings->build_dir().Resolve(build_settings->root_path());
 
-  base::FilePath exe_path = GetExePath();
-  if (build_path.IsAbsolute())
-    exe_path = MakeAbsoluteFilePathRelativeIfPossible(build_path, exe_path);
-
-  base::CommandLine cmdline(exe_path.NormalizePathSeparatorsTo('/'));
-
-  // Use "." for the directory to generate. When Ninja runs the command it
-  // will have the build directory as the current one. Coding it explicitly
-  // will cause everything to get confused if the user renames the directory.
-  cmdline.AppendArg("gen");
-  cmdline.AppendArg(".");
-
-  base::FilePath root_path = build_settings->root_path();
-  if (build_path.IsAbsolute())
-    root_path = MakeAbsoluteFilePathRelativeIfPossible(build_path, root_path);
-
-  cmdline.AppendSwitchPath(std::string("--") + switches::kRoot,
-                           root_path.NormalizePathSeparatorsTo('/'));
-  // Successful automatic invocations shouldn't print output.
-  cmdline.AppendSwitch(std::string("-") + switches::kQuiet);
-
   EscapeOptions escape_shell;
   escape_shell.mode = ESCAPE_NINJA_COMMAND;
 #if defined(OS_WIN)
@@ -85,16 +64,37 @@ base::CommandLine GetSelfInvocationCommandLine(
   escape_shell.inhibit_quoting = true;
 #endif
 
-  // If both --root and --dotfile are passed, make sure the --dotfile is
-  // made relative to the build dir here.
-  base::FilePath dotfile_path = build_settings->dotfile_name();
-  if (!dotfile_path.empty()) {
-    if (build_path.IsAbsolute()) {
-      dotfile_path =
-          MakeAbsoluteFilePathRelativeIfPossible(build_path, dotfile_path);
+  // The source root, and paths inside it or the build dir, are written relative
+  // to the build dir, so that build.ninja doesn't depend on where they live.
+  // Paths use '/', and are escaped since the command is written to build.ninja.
+  auto path_for_command = [build_settings, &build_path,
+                           &escape_shell](const base::FilePath& path) {
+    const base::FilePath& root = build_settings->root_path();
+    base::FilePath written = path;
+    if (build_path.IsAbsolute() &&
+        (path == root || root.IsParent(path) || build_path.IsParent(path))) {
+      written = MakeAbsoluteFilePathRelativeIfPossible(build_path, path);
     }
-    cmdline.AppendSwitchPath(std::string("--") + switches::kDotfile,
-                             dotfile_path.NormalizePathSeparatorsTo('/'));
+    return EscapeString(FilePathToUTF8(written.NormalizePathSeparatorsTo('/')),
+                        escape_shell, nullptr);
+  };
+
+  base::CommandLine cmdline(UTF8ToFilePath(path_for_command(GetExePath())));
+
+  // Use "." for the directory to generate. When Ninja runs the command it
+  // will have the build directory as the current one. Coding it explicitly
+  // will cause everything to get confused if the user renames the directory.
+  cmdline.AppendArg("gen");
+  cmdline.AppendArg(".");
+
+  cmdline.AppendSwitch(switches::kRoot,
+                       path_for_command(build_settings->root_path()));
+  // Successful automatic invocations shouldn't print output.
+  cmdline.AppendSwitch(std::string("-") + switches::kQuiet);
+
+  if (!build_settings->dotfile_name().empty()) {
+    cmdline.AppendSwitch(switches::kDotfile,
+                         path_for_command(build_settings->dotfile_name()));
   }
 
   const base::CommandLine& our_cmdline =

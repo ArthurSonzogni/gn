@@ -9,6 +9,7 @@
 
 #include "base/command_line.h"
 #include "base/files/file_util.h"
+#include "gn/filesystem_utils.h"
 #include "gn/pool.h"
 #include "gn/scheduler.h"
 #include "gn/string_output_buffer.h"
@@ -16,6 +17,7 @@
 #include "gn/target.h"
 #include "gn/test_with_scheduler.h"
 #include "gn/test_with_scope.h"
+#include "util/build_config.h"
 #include "util/test/test.h"
 
 using NinjaBuildWriterTest = TestWithScheduler;
@@ -67,6 +69,36 @@ TEST_F(NinjaBuildWriterTest, GetSelfInvocationCommandLine) {
   EXPECT_EQ("../..", cmd_out.GetSwitchValueString(switches::kRoot));
   EXPECT_EQ("../../testdot.gn",
             cmd_out.GetSwitchValueString(switches::kDotfile));
+
+  // When outside of the source root, it's kept absolute.
+  setup.build_settings()->set_dotfile_name(
+      base::FilePath(FILE_PATH_LITERAL("/outside/.gn")));
+  cmd_out = GetSelfInvocationCommandLine(setup.build_settings());
+  EXPECT_EQ("/outside/.gn", cmd_out.GetSwitchValueString(switches::kDotfile));
+
+  // Paths are escaped for Ninja and the shell.
+  setup.build_settings()->set_dotfile_name(
+      root_realpath.Append(FILE_PATH_LITERAL("my dot$.gn")));
+  cmd_out = GetSelfInvocationCommandLine(setup.build_settings());
+  // Escaping is different between Windows and Posix.
+#if defined(OS_WIN)
+  EXPECT_EQ("../../my$ dot$$.gn",
+            cmd_out.GetSwitchValueString(switches::kDotfile));
+#else
+  EXPECT_EQ("../../my\\$ dot\\$$.gn",
+            cmd_out.GetSwitchValueString(switches::kDotfile));
+#endif
+
+  // Paths inside the build dir are written relative to it even when it's
+  // outside the source root.
+  base::FilePath outside_build_dir =
+      root_realpath.DirName().Append(FILE_PATH_LITERAL("out"));
+  setup.build_settings()->SetBuildDir(
+      SourceDirForPath(root_realpath, outside_build_dir));
+  setup.build_settings()->set_dotfile_name(
+      outside_build_dir.Append(FILE_PATH_LITERAL("dot.gn")));
+  cmd_out = GetSelfInvocationCommandLine(setup.build_settings());
+  EXPECT_EQ("./dot.gn", cmd_out.GetSwitchValueString(switches::kDotfile));
 }
 
 TEST_F(NinjaBuildWriterTest, TwoTargets) {

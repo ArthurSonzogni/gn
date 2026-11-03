@@ -278,6 +278,18 @@ bool FilePath::AppendRelativePath(const FilePath& child, FilePath* path) const {
   }
 #endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
 
+  // The root is the only component made of separators, and it comes right
+  // after the drive letter, if any. Roots made of the same number of separators
+  // are equal, even if written with different separators (e.g. "/" and "\").
+  if (parent_comp != parent_components.end() &&
+      AreAllSeparators(*parent_comp)) {
+    if (parent_comp->size() != child_comp->size() ||
+        !AreAllSeparators(*child_comp))
+      return false;
+    ++parent_comp;
+    ++child_comp;
+  }
+
   while (parent_comp != parent_components.end()) {
     if (*parent_comp != *child_comp)
       return false;
