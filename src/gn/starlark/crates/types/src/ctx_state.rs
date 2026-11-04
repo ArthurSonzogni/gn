@@ -8,9 +8,18 @@ use starlark::collections::SmallSet;
 
 use crate::{File, TargetRef};
 
+/// A Ninja phony target and its expanded dependencies.
+#[derive(Debug, PartialEq, Eq, allocative::Allocative)]
+pub struct Phony {
+    /// The phony file.
+    pub phony: File,
+    /// The inputs that the phony expands to.
+    pub expansion: Vec<File>,
+}
+
 /// The state associated with the `ctx` object during the rule implementation
 /// function.
-#[derive(Clone, Debug, allocative::Allocative)]
+#[derive(Debug, allocative::Allocative)]
 pub struct CtxState<T: TargetRef> {
     /// Reference to the underlying target.
     pub target: T,
@@ -20,7 +29,7 @@ pub struct CtxState<T: TargetRef> {
     /// All files declared by ctx.actions.declare_file.
     declared_outputs: SmallSet<File>,
     /// A list of phonies declared during this execution step.
-    pub phonies: Vec<(File, Vec<File>)>,
+    pub phonies: Vec<Phony>,
 }
 
 impl<T: TargetRef> CtxState<T> {
@@ -49,7 +58,10 @@ impl<T: TargetRef> CtxState<T> {
         path.push('_');
         path.push_str(&count.to_string());
         let phony = File::intern(&path);
-        self.phonies.push((phony.clone(), deps));
+        self.phonies.push(Phony {
+            phony: phony.clone(),
+            expansion: deps,
+        });
         phony
     }
 

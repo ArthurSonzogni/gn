@@ -17,7 +17,7 @@ pub mod session;
 pub mod target_ref;
 pub mod util;
 
-pub use ctx_state::CtxState;
+pub use ctx_state::{CtxState, Phony};
 pub(crate) use errors::Error;
 pub use eval_context::{CtxMethods, EvalContext, EvaluatorContextExt};
 pub use file::{File, intern_string};

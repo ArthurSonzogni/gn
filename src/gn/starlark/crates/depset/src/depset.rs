@@ -337,15 +337,18 @@ mod tests {
         // This is to ensure we don't accidentally use File::new.
         // We cannot mix File::new and File::from_rust to get the same file object.
         let f = |s: &str| File::intern(s);
+        let make_phony = |phony: &str, expansion: &[&str]| types::Phony {
+            phony: f(phony),
+            expansion: expansion.iter().copied().map(f).collect(),
+        };
 
         let mut upto_phony = 0;
-        // Collect the phonies we've seen since last time we called new_phonies.
-        let mut new_phonies = |a: &Assert| {
+        let mut assert_new_phonies = |a: &Assert, expected: &[types::Phony]| {
             use types::EvalContext as _;
-            let phonies = &a.context().require_rule_impl().unwrap().borrow().phonies;
-            let result = phonies[upto_phony..].to_vec();
+            let binding = a.context().require_rule_impl().unwrap();
+            let phonies = &binding.borrow().phonies;
+            assert_eq!(&phonies[upto_phony..], expected);
             upto_phony = phonies.len();
-            result
         };
 
         assert!(
@@ -353,14 +356,14 @@ mod tests {
         );
 
         a.eq("depset()", UnpackFileDepset(None));
-        assert_eq!(new_phonies(&a), &[]);
+        assert_new_phonies(&a, &[]);
 
         // Because the outer depset only phonies to one item, we shouldn't make a phony.
         a.eq(
             "depset([make_file('a.txt')])",
             UnpackFileDepset(Some(f("a.txt"))),
         );
-        assert_eq!(new_phonies(&a), &[]);
+        assert_new_phonies(&a, &[]);
 
         // We should make a phony here for the inner depset.
         // Because the outer depset only phonies to one phony, it shouldn't make a
@@ -369,39 +372,30 @@ mod tests {
             "depset(transitive = [depset([make_file('a.txt'), make_file('b.txt')])])",
             UnpackFileDepset(Some(f("phony/:default_0"))),
         );
-        assert_eq!(
-            new_phonies(&a),
-            &[(f("phony/:default_0"), vec![f("a.txt"), f("b.txt")])]
-        );
+        assert_new_phonies(&a, &[make_phony("phony/:default_0", &["a.txt", "b.txt"])]);
         a.eq(
             "depset([make_file('c.txt')], transitive=[depset([make_file('a.txt'), make_file('b.txt')])])",
             UnpackFileDepset(Some(f("phony/:default_2"))),
         );
-        assert_eq!(
-            new_phonies(&a),
+        assert_new_phonies(
+            &a,
             &[
-                (f("phony/:default_1"), vec![f("a.txt"), f("b.txt")]),
-                (
-                    f("phony/:default_2"),
-                    vec![f("c.txt"), f("phony/:default_1")]
-                ),
-            ]
+                make_phony("phony/:default_1", &["a.txt", "b.txt"]),
+                make_phony("phony/:default_2", &["c.txt", "phony/:default_1"]),
+            ],
         );
-        assert_eq!(new_phonies(&a), &[]);
+        assert_new_phonies(&a, &[]);
 
         a.eq(
             "new_file_depset([make_file('a.txt')])",
             UnpackFileDepset(Some(f("a.txt"))),
         );
-        assert_eq!(new_phonies(&a), &[]);
+        assert_new_phonies(&a, &[]);
 
         a.eq(
             "new_file_depset([make_file('a.txt'), make_file('b.txt')])",
             UnpackFileDepset(Some(f("phony/:default_3"))),
         );
-        assert_eq!(
-            new_phonies(&a),
-            &[(f("phony/:default_3"), vec![f("a.txt"), f("b.txt")])]
-        );
+        assert_new_phonies(&a, &[make_phony("phony/:default_3", &["a.txt", "b.txt"])]);
     }
 }
