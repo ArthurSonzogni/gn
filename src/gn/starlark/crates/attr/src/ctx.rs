@@ -159,18 +159,9 @@ impl<'v> CtxAttrSchema<'v> {
         debug_assert!(ctx_files.len() == self.files.len());
 
         Ok(CtxAttr {
-            attr: heap.alloc(Record::new(
-                self.attr.to_value_typed(),
-                ctx_attr.into_boxed_slice(),
-            )?),
-            files: heap.alloc(Record::new(
-                self.files.to_value_typed(),
-                ctx_files.into_boxed_slice(),
-            )?),
-            file: heap.alloc(Record::new(
-                self.file.to_value_typed(),
-                ctx_file.into_boxed_slice(),
-            )?),
+            attr: Record::alloc(*heap, self.attr.to_value_typed(), &ctx_attr)?,
+            files: Record::alloc(*heap, self.files.to_value_typed(), &ctx_files)?,
+            file: Record::alloc(*heap, self.file.to_value_typed(), &ctx_file)?,
         })
     }
 
