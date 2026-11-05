@@ -32,13 +32,12 @@ pub trait ArgVisitor {
 
     /// Emits the string chunks corresponding to a formatted value into the current argument
     /// without completing the argument.
-    fn add_formatted_chunks(&mut self, formatter: Option<&Formatter>, value: &str) {
+    fn add_formatted_chunks(&mut self, formatter: Option<&Formatter<'_>>, value: &str) {
         if let Some(fmt) = formatter {
-            self.add_arg_chunk(&fmt.before);
+            self.add_arg_chunk(fmt.before());
             self.add_arg_chunk(value);
-            // It's almost always empty.
-            if !fmt.after.is_empty() {
-                self.add_arg_chunk(&fmt.after);
+            if let Some(after) = fmt.after() {
+                self.add_arg_chunk(after);
             }
         } else {
             self.add_arg_chunk(value);
@@ -46,7 +45,7 @@ pub trait ArgVisitor {
     }
 
     /// Emits a completed formatted argument, calling [`finish_arg`](Self::finish_arg) afterwards.
-    fn add_formatted(&mut self, formatter: Option<&Formatter>, value: &str) {
+    fn add_formatted(&mut self, formatter: Option<&Formatter<'_>>, value: &str) {
         self.add_formatted_chunks(formatter, value);
         self.finish_arg();
     }
@@ -130,7 +129,7 @@ pub(crate) fn expand_args<'v>(
                     }
                     if !wrote_any {
                         if let Some(fj) = format_joined {
-                            visitor.add_arg_chunk(&fj.before);
+                            visitor.add_arg_chunk(fj.before());
                         }
                         wrote_any = true;
                     } else {
@@ -142,9 +141,9 @@ pub(crate) fn expand_args<'v>(
 
                 if wrote_any {
                     if let Some(fj) = format_joined
-                        && !fj.after.is_empty()
+                        && let Some(after) = fj.after()
                     {
-                        visitor.add_arg_chunk(&fj.after);
+                        visitor.add_arg_chunk(after);
                     }
                     visitor.finish_arg();
                 } else if !omit_if_empty {
@@ -152,9 +151,9 @@ pub(crate) fn expand_args<'v>(
                         visitor.add_arg(f);
                     }
                     if let Some(fj) = format_joined {
-                        visitor.add_arg_chunk(&fj.before);
-                        if !fj.after.is_empty() {
-                            visitor.add_arg_chunk(&fj.after);
+                        visitor.add_arg_chunk(fj.before());
+                        if let Some(after) = fj.after() {
+                            visitor.add_arg_chunk(after);
                         }
                     }
                     visitor.finish_arg();
