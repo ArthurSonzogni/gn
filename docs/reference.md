@@ -367,7 +367,7 @@
     given arguments set (which may affect the values of other
     arguments).
 ```
-### <a name="cmd_check"></a>**gn check &lt;out_dir&gt; [&lt;label_pattern&gt;] [\--force] [\--check-generated] [\--fix]**&nbsp;[Back to Top](#gn-reference)
+### <a name="cmd_check"></a>**gn check &lt;out_dir&gt; [&lt;label_pattern&gt;...] [\--force] [\--check-generated] [\--fix]**&nbsp;[Back to Top](#gn-reference)
 
 ```
   GN's include header checker validates that the includes for C-like source
@@ -377,9 +377,10 @@
   this command does not write out any build files. It's intended to be an easy
   way to manually trigger include file checking.
 
-  The <label_pattern> can take exact labels or patterns that match more than
-  one (although not general regular expressions). If specified, only those
-  matching targets will be checked. See "gn help label_pattern" for details.
+  Each <label_pattern> can be an exact label or a pattern that matches more
+  than one (although not general regular expressions). If specified, only
+  those matching targets will be checked. See "gn help label_pattern" for
+  details.
 ```
 
 #### **Command-specific switches**

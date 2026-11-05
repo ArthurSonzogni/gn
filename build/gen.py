@@ -917,6 +917,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/bundle_data_unittest.cc',
         'src/gn/c_include_iterator_unittest.cc',
         'src/gn/check_includes_strict_exceptions_unittest.cc',
+        'src/gn/command_check_unittest.cc',
         'src/gn/command_format_unittest.cc',
         'src/gn/command_suggest_unittest.cc',
         'src/gn/commands_unittest.cc',
