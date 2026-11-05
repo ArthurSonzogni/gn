@@ -5,7 +5,7 @@
 use allocative::Allocative;
 use starlark::{
     typing::Ty,
-    values::{Freeze, type_repr::StarlarkTypeRepr},
+    values::{Freeze, UnpackValue, Value, type_repr::StarlarkTypeRepr},
 };
 
 use crate::errors::Error;
@@ -60,6 +60,15 @@ impl StarlarkTypeRepr for Formatter {
 
     fn starlark_type_repr() -> Ty {
         String::starlark_type_repr()
+    }
+}
+
+impl<'v> UnpackValue<'v> for Formatter {
+    type Error = starlark::Error;
+
+    fn unpack_value_impl(value: Value<'v>) -> Result<Option<Self>, Self::Error> {
+        let s = <&'v str>::unpack_value_err(value)?;
+        Self::new(s).map(Some)
     }
 }
 

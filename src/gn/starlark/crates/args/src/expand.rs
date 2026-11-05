@@ -10,11 +10,7 @@ use starlark::{
     values::{Value, list::ListRef, tuple::TupleRef},
 };
 
-use crate::{
-    Error,
-    args::{ArgValue, FrozenArgs},
-    formatter::Formatter,
-};
+use crate::{Error, args::ArgValue, formatter::Formatter};
 
 /// Visitor for receiving string parts and argument completion events.
 pub trait ArgVisitor {
@@ -56,14 +52,14 @@ pub trait ArgVisitor {
     }
 }
 
-/// Helper to process a `FrozenArgs` object, invoking `visitor.add_arg_chunk` for each string
+/// Helper to process a slice of [`ArgValue`]s, invoking `visitor.add_arg_chunk` for each string
 /// component of an argument and `visitor.finish_arg` at each argument boundary.
-pub fn expand_args<'v>(
-    args_obj: &FrozenArgs<'v>,
+pub(crate) fn expand_args<'v>(
+    args: &[ArgValue<'v>],
     eval: &mut Evaluator<'v, '_, '_>,
     visitor: &mut impl ArgVisitor,
 ) -> starlark::Result<()> {
-    for arg in &args_obj.arguments {
+    for arg in args {
         match arg {
             ArgValue::Scalar {
                 arg_name,

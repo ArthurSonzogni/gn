@@ -4,7 +4,7 @@
 
 //! Expansion of Starlark `Args` into command-line strings inside `StringOutputBuffer`.
 
-use args::{ArgVisitor, FrozenArgsSequence};
+use args::{ArgVisitor, ArgsList};
 use starlark::eval::Evaluator;
 
 use crate::{Cursor, StringOutputBuffer, escape::EscapingPlatform};
@@ -42,11 +42,11 @@ impl ArgVisitor for WinWriter<'_, '_> {
     }
 }
 
-/// Processes and writes a `FrozenArgsSequence` directly into `buffer`.
+/// Processes and writes an `ArgsList` directly into `buffer`.
 pub fn write_args<'v>(
     buffer: &mut StringOutputBuffer<'_>,
     eval: &mut Evaluator<'v, '_, '_>,
-    args: &FrozenArgsSequence<'v>,
+    args: &ArgsList<'v>,
     platform: EscapingPlatform,
 ) -> starlark::Result<()> {
     // Safety: We never write to this cursor
@@ -120,7 +120,7 @@ mod tests {
             let res = starlark::environment::Module::with_temp_heap(|module| {
                 let mut eval = starlark::eval::Evaluator::new(&module);
                 let val_ref = val.as_ref().add_to_heap(module.heap());
-                let seq = FrozenArgsSequence::unpack_value_err(val_ref).unwrap();
+                let seq = <args::ArgsList>::unpack_value_err(val_ref).unwrap();
                 let mut raw_buf = bridge::NewStringOutputBuffer();
                 let mut buffer = StringOutputBuffer::new(raw_buf.pin_mut());
                 write_args(&mut buffer, &mut eval, &seq, platform)?;

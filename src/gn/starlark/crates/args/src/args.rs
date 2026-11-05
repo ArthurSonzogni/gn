@@ -7,13 +7,12 @@ use std::{cell::RefCell, fmt, fmt::Display};
 use allocative::Allocative;
 use starlark::{
     environment::{Methods, MethodsBuilder},
-    eval::Evaluator,
     starlark_complex_value,
     values::{Freeze, FreezeResult, Freezer, ProvidesStaticType, StarlarkValue, Trace, Value},
 };
 use starlark_derive::{NoSerialize, starlark_module, starlark_value};
 
-use crate::{ArgVisitor, Error, formatter::Formatter};
+use crate::{Error, formatter::Formatter};
 
 /// Internal representation of individual arguments stored in `Args`.
 #[derive(Allocative, Clone, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
@@ -240,16 +239,5 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
             uniquify,
         });
         Ok(this)
-    }
-}
-
-impl<'v> FrozenArgs<'v> {
-    /// Expands the stored arguments into the given visitor.
-    pub fn expand(
-        &self,
-        eval: &mut Evaluator<'v, '_, '_>,
-        visitor: &mut impl ArgVisitor,
-    ) -> starlark::Result<()> {
-        crate::expand::expand_args(self, eval, visitor)
     }
 }

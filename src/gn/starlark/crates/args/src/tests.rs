@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use starlark::{environment::GlobalsBuilder, eval::Evaluator, values::Value};
+use starlark::{
+    environment::GlobalsBuilder,
+    eval::Evaluator,
+    values::{UnpackValue as _, Value},
+};
 use starlark_derive::starlark_module;
 
-use crate::{ArgVisitor, args::Args, unpack::FrozenArgsSequence};
+use crate::{ArgVisitor, ArgsList, args::Args};
 
 #[starlark_module]
 pub(crate) fn register_args_test_globals(builder: &mut GlobalsBuilder) {
@@ -50,14 +54,12 @@ impl ArgsAssert {
 
     #[track_caller]
     fn assert_expands_to(&mut self, code: &str, expected: Result<&[&str], &str>) {
-        use starlark::values::UnpackValue as _;
-
         let val = self.assert.pass(code);
 
         let res: starlark::Result<_> = starlark::environment::Module::with_temp_heap(|module| {
             let mut eval = starlark::eval::Evaluator::new(&module);
             let val_ref = val.as_ref().add_to_heap(module.heap());
-            let seq = FrozenArgsSequence::unpack_value_err(val_ref).unwrap();
+            let seq = <ArgsList>::unpack_value_err(val_ref)?;
             let mut collector = VecCollector::default();
             seq.expand(&mut eval, &mut collector)?;
             Ok(collector.command)

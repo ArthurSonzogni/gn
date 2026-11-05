@@ -3,15 +3,15 @@
 // found in the LICENSE file.
 
 pub mod args;
+pub mod args_list;
 pub mod errors;
 pub mod expand;
 pub mod formatter;
 #[cfg(test)]
 mod tests;
-pub mod unpack;
 
 pub use args::{ArgValue, Args, FrozenArgs, args_methods};
+pub use args_list::ArgsList;
 pub(crate) use errors::Error;
-pub use expand::{ArgVisitor, expand_args};
+pub use expand::ArgVisitor;
 pub use formatter::Formatter;
-pub use unpack::FrozenArgsSequence;

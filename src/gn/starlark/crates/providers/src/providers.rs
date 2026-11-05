@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use args::FrozenArgsSequence;
+use args::ArgsList;
 use depset::UnpackFileDepset;
 use starlark::{
     collections::SmallMap,
@@ -26,7 +26,7 @@ struct InnerProviders<'v> {
     /// `GnSubstitutionsInfo` carries key-value substitutions (packaged as a
     /// struct) that are used by toolchains and command-line execution
     /// blocks to expand variables and flags dynamically.
-    substitutions: Vec<(String, FrozenArgsSequence<'v>)>,
+    substitutions: Vec<(String, ArgsList<'v>)>,
 
     /// All provider instances mapped by their ProviderType's ProviderId.
     value: SmallMap<ProviderId, Value<'v>>,
@@ -70,7 +70,7 @@ impl Providers {
     pub fn substitutions(
         &self,
         f: impl for<'v> FnOnce(
-            &[(String, FrozenArgsSequence<'v>)],
+            &[(String, ArgsList<'v>)],
             &mut Evaluator<'v, '_, '_>,
         ) -> starlark::Result<()>,
     ) -> starlark::Result<()> {
@@ -199,8 +199,7 @@ fn parse_providers<'v>(val: Value<'v>) -> starlark::Result<ParsedProviders<'v>> 
                 };
 
                 for (k, v) in substitutions_struct.iter() {
-                    let seq: FrozenArgsSequence = <FrozenArgsSequence>::unpack_value_err(v)?;
-                    substitutions.push((k.as_str().to_owned(), seq));
+                    substitutions.push((k.as_str().to_owned(), <ArgsList>::unpack_value_err(v)?));
                 }
                 // Sort for deterministic ordering in the ninja file.
                 substitutions.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -394,13 +393,13 @@ mod tests {
         assert_unpack_fails(
             &mut a,
             r#"[GnSubstitutionsInfo(substitutions = struct(key = "not-a-list"))]"#,
-            r#"Expected `list`, but got `string (repr: "not-a-list")`"#,
+            r#"Expected `list[Args | str]`, but got `string (repr: "not-a-list")`"#,
         );
 
         assert_unpack_fails(
             &mut a,
             r#"[GnSubstitutionsInfo(substitutions = struct(key = [123]))]"#,
-            "Expected `Args | str`, but got `int (repr: 123)`",
+            r#"Expected `list[Args | str]`, but got `list (repr: [123])`"#,
         );
     }
 }
