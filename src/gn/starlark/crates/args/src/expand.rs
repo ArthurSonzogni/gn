@@ -67,7 +67,10 @@ pub(crate) fn expand_args<'v>(
                 format,
             } => {
                 if !value.is_none() {
-                    handle_arg(arg_name.as_deref(), *value, format.as_ref(), visitor);
+                    if let Some(flag) = arg_name.as_deref() {
+                        visitor.add_arg(flag);
+                    }
+                    visitor.add_formatted(format.as_ref(), &value.to_str());
                 }
             },
             ArgValue::All {
@@ -160,20 +163,6 @@ pub(crate) fn expand_args<'v>(
         }
     }
     Ok(())
-}
-
-fn handle_arg(
-    arg_name: Option<&str>,
-    value: Value<'_>,
-    format: Option<&Formatter>,
-    visitor: &mut impl ArgVisitor,
-) {
-    if let Some(flag) = arg_name {
-        visitor.add_arg(flag);
-    }
-
-    let s = value.to_str();
-    visitor.add_formatted(format, &s);
 }
 
 fn for_each<'v, F>(value: Value<'v>, mut f: F) -> starlark::Result<()>

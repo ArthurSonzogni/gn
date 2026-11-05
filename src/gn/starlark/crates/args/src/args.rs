@@ -8,7 +8,9 @@ use allocative::Allocative;
 use starlark::{
     environment::{Methods, MethodsBuilder},
     starlark_complex_value,
-    values::{Freeze, FreezeResult, Freezer, ProvidesStaticType, StarlarkValue, Trace, Value},
+    values::{
+        Freeze, FreezeResult, Freezer, ProvidesStaticType, StarlarkValue, StringValue, Trace, Value,
+    },
 };
 use starlark_derive::{NoSerialize, starlark_module, starlark_value};
 
@@ -18,24 +20,24 @@ use crate::{Error, formatter::Formatter};
 #[derive(Allocative, Clone, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
 pub enum ArgValue<'v> {
     Scalar {
-        arg_name: Option<String>,
+        arg_name: Option<StringValue<'v>>,
         value: Value<'v>,
         format: Option<Formatter>,
     },
     All {
-        flag: Option<String>,
+        flag: Option<StringValue<'v>>,
         values: Value<'v>,
         map_each: Option<Value<'v>>,
         format_each: Option<Formatter>,
-        before_each: Option<String>,
-        terminate_with: Option<String>,
+        before_each: Option<StringValue<'v>>,
+        terminate_with: Option<StringValue<'v>>,
         omit_if_empty: bool,
         uniquify: bool,
     },
     Joined {
-        flag: Option<String>,
+        flag: Option<StringValue<'v>>,
         values: Value<'v>,
-        join_with: String,
+        join_with: StringValue<'v>,
         map_each: Option<Value<'v>>,
         format_each: Option<Formatter>,
         format_joined: Option<Formatter>,
@@ -121,10 +123,10 @@ fn arg_name_and_value<'v>(
     arg_name_or_value: Value<'v>,
     value: Option<Value<'v>>,
     err: Error,
-) -> starlark::Result<(Option<String>, Value<'v>)> {
+) -> starlark::Result<(Option<StringValue<'v>>, Value<'v>)> {
     if let Some(val) = value {
-        if let Some(arg_name) = arg_name_or_value.unpack_str() {
-            Ok((Some(arg_name.to_owned()), val))
+        if let Some(arg_name) = StringValue::new(arg_name_or_value) {
+            Ok((Some(arg_name), val))
         } else {
             Err(starlark::Error::from(err))
         }
@@ -157,12 +159,12 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
     ) -> starlark::Result<Value<'v>> {
         let mut args = get_mutable_args(this)?;
 
-        let (arg_name, val) =
+        let (arg_name, value) =
             arg_name_and_value(arg_name_or_value, value, Error::ExpectedAddStringFlag)?;
 
         args.push(ArgValue::Scalar {
             arg_name,
-            value: val,
+            value,
             format,
         });
         Ok(this)
@@ -174,8 +176,8 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
         values: Option<Value<'v>>,
         #[starlark(require = named)] map_each: Option<Value<'v>>,
         #[starlark(require = named)] format_each: Option<Formatter>,
-        #[starlark(require = named)] before_each: Option<&str>,
-        #[starlark(require = named)] terminate_with: Option<&str>,
+        #[starlark(require = named)] before_each: Option<StringValue<'v>>,
+        #[starlark(require = named)] terminate_with: Option<StringValue<'v>>,
         #[starlark(require = named, default = true)] omit_if_empty: bool,
         #[starlark(require = named, default = false)] uniquify: bool,
         #[starlark(require = named)] allow_closure: Option<bool>,
@@ -195,8 +197,8 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
             values,
             map_each,
             format_each,
-            before_each: before_each.map(String::from),
-            terminate_with: terminate_with.map(String::from),
+            before_each,
+            terminate_with,
             omit_if_empty,
             uniquify,
         });
@@ -207,7 +209,7 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
         this: Value<'v>,
         arg_name_or_values: Value<'v>,
         values: Option<Value<'v>>,
-        #[starlark(require = named)] join_with: &str,
+        #[starlark(require = named)] join_with: StringValue<'v>,
         #[starlark(require = named)] map_each: Option<Value<'v>>,
         #[starlark(require = named)] format_each: Option<Formatter>,
         #[starlark(require = named)] format_joined: Option<Formatter>,
@@ -231,7 +233,7 @@ pub fn args_methods(builder: &mut MethodsBuilder) {
         args.push(ArgValue::Joined {
             flag,
             values,
-            join_with: join_with.to_owned(),
+            join_with,
             map_each,
             format_each,
             format_joined,
