@@ -103,7 +103,8 @@ Variables
       no_check_targets (see below) is specified, all targets will be checked.
       It is an error to specify both check_targets and no_check_targets. If it
       is the empty list, no targets will be checked. To bypass this list,
-      request an explicit check of targets, like "//*".
+      request an explicit check of targets, like "//*", without
+      --with-transitive-deps.
 
       The format of this list is identical to that of "visibility" so see "gn
       help visibility" for examples.
@@ -125,7 +126,7 @@ Variables
       Generated files are the target's files in the output directory, such as
       action outputs listed in its sources. This list can be combined with
       check_targets or no_check_targets. To bypass it, request an explicit
-      check of targets, like "//*".
+      check of targets, like "//*", without --with-transitive-deps.
 
       The format of this list is identical to that of "visibility" so see "gn
       help visibility" for examples.

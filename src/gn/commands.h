@@ -419,7 +419,8 @@ bool ResolveFromCommandLineInput(
 // The targets that "gn check" checks. See GetTargetsToCheck().
 struct TargetsToCheck {
   // All targets if no label pattern is given, or else the targets matching the
-  // label patterns.
+  // label patterns and, with --with-transitive-deps, their transitive public,
+  // private and data deps.
   std::vector<const Target*> candidates;
 
   // The candidates allowed by check_targets or no_check_targets in the .gn
@@ -432,14 +433,15 @@ struct TargetsToCheck {
 
 // Computes the targets that "gn check" checks. |all_targets| must be all
 // resolved targets in the build; they are the candidates if |label_patterns|
-// is empty. Label patterns bypass the .gn lists: |to_check| gets all candidates
-// and |no_check_generated| stays empty.
+// is empty. Label patterns without |with_transitive_deps| bypass the .gn lists:
+// |to_check| gets all candidates and |no_check_generated| stays empty.
 //
 // On failure, prints the error and returns std::nullopt.
 std::optional<TargetsToCheck> GetTargetsToCheck(
     Setup* setup,
     const std::vector<const Target*>& all_targets,
     const std::vector<std::string>& label_patterns,
+    bool with_transitive_deps,
     bool default_toolchain_only);
 
 // Runs the header checker. All targets in the build should be given in

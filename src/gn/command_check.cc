@@ -12,6 +12,7 @@
 #include "base/command_line.h"
 #include "base/strings/stringprintf.h"
 #include "gn/commands.h"
+#include "gn/deps_iterator.h"
 #include "gn/header_checker.h"
 #include "gn/setup.h"
 #include "gn/standard_out.h"
@@ -61,6 +62,7 @@ const char kCheck[] = "check";
 const char kCheck_HelpShort[] = "check: Check header dependencies.";
 const char kCheck_Help[] =
     R"(gn check <out_dir> [<label_pattern>...] [--force] [--check-generated] [--fix]
+      [--with-transitive-deps]
 
   GN's include header checker validates that the includes for C-like source
   files match the build dependency graph.
@@ -96,6 +98,12 @@ Command-specific switches
       Ignores specifications of "check_includes = false" and checks all
       target's files that match the target label.
 
+  --with-transitive-deps
+      Also checks the transitive dependencies, including data_deps, of the
+      targets that match the label patterns. These are the targets that
+      building the matching targets builds. The lists in the .gn file are
+      applied (see "What gets checked").
+
 What gets checked
 
   The .gn file may specify a list of targets to be checked in the list
@@ -103,7 +111,8 @@ What gets checked
   specify a list of targets not to be checked in no_check_targets. It may also
   list targets whose generated files are not checked with --check-generated in
   no_check_generated_targets. If a label pattern is specified on the command
-  line, none of these lists is used.
+  line, none of these lists is used unless --with-transitive-deps is
+  given.
 
   Targets can opt-out from checking with "check_includes = false" (see
   "gn help check_includes").
@@ -189,15 +198,21 @@ Examples
 
   gn check out/Default "//foo/*
       Check only the files in targets in the //foo directory tree.
+
+  gn check out/Default --with-transitive-deps //foo:bar //foo:baz
+      Check the files in //foo:bar, //foo:baz and their transitive
+      dependencies, except targets excluded by the lists in the .gn file.
 )";
 
 namespace {
 
-// Returns the targets matching label_patterns. Returns std::nullopt if the
-// patterns are invalid or match no target.
+// Returns the targets matching label_patterns, and their transitive deps if
+// with_transitive_deps is set. Returns std::nullopt if the patterns are
+// invalid or match no target.
 std::optional<std::vector<const Target*>> ResolveCandidates(
     Setup* setup,
     const std::vector<std::string>& label_patterns,
+    bool with_transitive_deps,
     bool default_toolchain_only) {
   UniqueVector<const Target*> target_matches;
   UniqueVector<const Config*> config_matches;
@@ -212,6 +227,16 @@ std::optional<std::vector<const Target*>> ResolveCandidates(
     OutputString("No matching targets.\n");
     return std::nullopt;
   }
+
+  if (with_transitive_deps) {
+    // Walk all public, private and data deps, which are what a build of the
+    // matching targets builds. target_matches grows while it is iterated.
+    for (size_t i = 0; i < target_matches.size(); i++) {
+      const Target* target = target_matches[i];
+      for (const auto& pair : target->GetDeps(Target::DEPS_ALL))
+        target_matches.push_back(pair.ptr);
+    }
+  }
   return target_matches.release();
 }
 
@@ -221,18 +246,20 @@ std::optional<TargetsToCheck> GetTargetsToCheck(
     Setup* setup,
     const std::vector<const Target*>& all_targets,
     const std::vector<std::string>& label_patterns,
+    bool with_transitive_deps,
     bool default_toolchain_only) {
   TargetsToCheck result;
   if (label_patterns.empty()) {
     result.candidates = all_targets;
-  } else if (auto resolved = ResolveCandidates(setup, label_patterns,
-                                               default_toolchain_only)) {
+  } else if (auto resolved =
+                 ResolveCandidates(setup, label_patterns, with_transitive_deps,
+                                   default_toolchain_only)) {
     result.candidates = std::move(*resolved);
   } else {
     return std::nullopt;
   }
 
-  if (!label_patterns.empty()) {
+  if (!label_patterns.empty() && !with_transitive_deps) {
     // An explicit check of targets bypasses the lists in the .gn file.
     result.to_check = result.candidates;
     return result;
@@ -269,6 +296,7 @@ int RunCheck(const std::vector<std::string>& args) {
 
   const base::CommandLine* cmdline = base::CommandLine::ForCurrentProcess();
   bool default_toolchain_only = cmdline->HasSwitch(switches::kDefaultToolchain);
+  bool with_transitive_deps = cmdline->HasSwitch("with-transitive-deps");
   bool force = cmdline->HasSwitch("force");
   bool check_generated = cmdline->HasSwitch("check-generated");
   bool check_system =
@@ -276,10 +304,19 @@ int RunCheck(const std::vector<std::string>& args) {
   bool fix = cmdline->HasSwitch("fix");
 
   std::vector<std::string> label_patterns(args.begin() + 1, args.end());
+  if (with_transitive_deps && label_patterns.empty()) {
+    Err(Location(), "--with-transitive-deps requires a label pattern.",
+        "Usage: \"gn check <out_dir> --with-transitive-deps "
+        "<label_pattern>...\"")
+        .PrintToStdout();
+    return 1;
+  }
+
   std::vector<const Target*> all_targets =
       setup->builder().GetAllResolvedTargets();
-  std::optional<TargetsToCheck> targets = GetTargetsToCheck(
-      setup, all_targets, label_patterns, default_toolchain_only);
+  std::optional<TargetsToCheck> targets =
+      GetTargetsToCheck(setup, all_targets, label_patterns,
+                        with_transitive_deps, default_toolchain_only);
   if (!targets)
     return 1;
 

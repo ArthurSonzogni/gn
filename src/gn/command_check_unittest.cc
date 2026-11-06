@@ -124,6 +124,7 @@ TEST_F(CommandCheckTest, NoLabelPatterns) {
   TestProject project;
   std::optional<commands::TargetsToCheck> targets =
       commands::GetTargetsToCheck(project.setup(), project.all_targets(), {},
+                                  /*with_transitive_deps=*/false,
                                   /*default_toolchain_only=*/false);
   ASSERT_TRUE(targets);
 
@@ -140,6 +141,7 @@ TEST_F(CommandCheckTest, LabelPatternsBypassDotFileLists) {
   TestProject project;
   std::optional<commands::TargetsToCheck> targets = commands::GetTargetsToCheck(
       project.setup(), project.all_targets(), {"//:b", "//:d"},
+      /*with_transitive_deps=*/false,
       /*default_toolchain_only=*/false);
   ASSERT_TRUE(targets);
 
@@ -156,6 +158,7 @@ check_targets = [ "//:a", "//:c" ]
 )");
   std::optional<commands::TargetsToCheck> targets =
       commands::GetTargetsToCheck(project.setup(), project.all_targets(), {},
+                                  /*with_transitive_deps=*/false,
                                   /*default_toolchain_only=*/false);
   ASSERT_TRUE(targets);
 
@@ -166,9 +169,58 @@ check_targets = [ "//:a", "//:c" ]
   EXPECT_TRUE(targets->no_check_generated.empty());
 }
 
+TEST_F(CommandCheckTest, WithTransitiveDeps) {
+  TestProject project;
+  std::optional<commands::TargetsToCheck> targets =
+      commands::GetTargetsToCheck(project.setup(), project.all_targets(),
+                                  {"//:a"}, /*with_transitive_deps=*/true,
+                                  /*default_toolchain_only=*/false);
+  ASSERT_TRUE(targets);
+
+  EXPECT_EQ((std::set<std::string>{"//:a", "//:b", "//:c", "//:d"}),
+            Labels(targets->candidates));
+  EXPECT_EQ((std::set<std::string>{"//:a", "//:b", "//:c"}),
+            Labels(targets->to_check));
+  EXPECT_EQ((std::set<std::string>{"//:b"}),
+            Labels(targets->no_check_generated));
+}
+
+TEST_F(CommandCheckTest, WithTransitiveDepsMultipleLabelPatterns) {
+  TestProject project;
+  std::optional<commands::TargetsToCheck> targets = commands::GetTargetsToCheck(
+      project.setup(), project.all_targets(), {"//:c", "//:b"},
+      /*with_transitive_deps=*/true,
+      /*default_toolchain_only=*/false);
+  ASSERT_TRUE(targets);
+
+  EXPECT_EQ((std::set<std::string>{"//:b", "//:c", "//:d"}),
+            Labels(targets->candidates));
+  EXPECT_EQ((std::set<std::string>{"//:b", "//:c"}), Labels(targets->to_check));
+  EXPECT_EQ((std::set<std::string>{"//:b"}),
+            Labels(targets->no_check_generated));
+}
+
+TEST_F(CommandCheckTest, WithTransitiveDepsCheckTargets) {
+  TestProject project(R"(
+buildconfig = "//BUILDCONFIG.gn"
+check_targets = [ "//:a", "//:c" ]
+)");
+  std::optional<commands::TargetsToCheck> targets =
+      commands::GetTargetsToCheck(project.setup(), project.all_targets(),
+                                  {"//:a"}, /*with_transitive_deps=*/true,
+                                  /*default_toolchain_only=*/false);
+  ASSERT_TRUE(targets);
+
+  EXPECT_EQ((std::set<std::string>{"//:a", "//:b", "//:c", "//:d"}),
+            Labels(targets->candidates));
+  EXPECT_EQ((std::set<std::string>{"//:a", "//:c"}), Labels(targets->to_check));
+  EXPECT_TRUE(targets->no_check_generated.empty());
+}
+
 TEST_F(CommandCheckTest, NoMatchingTargets) {
   TestProject project;
   EXPECT_FALSE(commands::GetTargetsToCheck(
       project.setup(), project.all_targets(), {"//nonexistent/*"},
+      /*with_transitive_deps=*/true,
       /*default_toolchain_only=*/false));
 }
