@@ -4,18 +4,12 @@
 
 use std::cell::OnceCell;
 
-use providers::Providers;
-use starlark::collections::SmallSet;
-use types::Phony;
+use starlark::{
+    collections::SmallSet,
+    values::{OwnedFrozen, ValueTyped},
+};
 
 use crate::{StringOutputBuffer, TargetRef, escape::Ninja, eval_context::EvalContext};
-
-/// The results of running the rule implementation on a target.
-#[derive(Debug)]
-pub(crate) struct EvaluatedTarget {
-    pub(crate) providers: Providers,
-    pub(crate) phonies: Vec<Phony>,
-}
 
 pub struct Target {
     // We maintain a 0-1 relationship between starlark Targets and rust targets.
@@ -24,7 +18,8 @@ pub struct Target {
     pub(crate) cxx: &'static crate::bridge::CxxTarget,
     pub(crate) rule: &'static rule::Rule<'static, EvalContext>,
     pub(crate) attrs: Vec<attr::Attr>,
-    pub(crate) evaluated: OnceCell<EvaluatedTarget>,
+    pub(crate) evaluated:
+        OnceCell<OwnedFrozen<ValueTyped<'static, rule::EvaluatedTarget<'static>>>>,
 }
 
 impl Target {
@@ -40,18 +35,18 @@ impl Target {
         let target_ref = TargetRef(static_self);
         let res = rule::run(&target_ref, |t| {
             crate::eval_context::EvalContext::new_rule_impl(session, *t)
-        })
-        .and_then(|(phonies, frozen)| {
-            providers::Providers::try_from(frozen).map(|providers| (phonies, providers))
         });
-        if let Some((phonies, providers)) = err.handle(res) {
-            let phony = providers
-                .outputs_phony
-                .as_ref()
-                .map(|f| f.as_str())
-                .unwrap_or_default();
+        if let Some(evaluated) = err.handle(res) {
+            let phony = evaluated.by_ref(|evaluated| {
+                evaluated
+                    .providers
+                    .outputs_phony
+                    .as_ref()
+                    .map(|f| f.as_str())
+                    .unwrap_or_default()
+            });
             self.evaluated
-                .set(EvaluatedTarget { providers, phonies })
+                .set(evaluated)
                 .expect("Rules can only be executed once");
             phony
         } else {
@@ -63,13 +58,15 @@ impl Target {
     pub fn write_phonies(&self, buffer: std::pin::Pin<&mut crate::bridge::StringOutputBuffer>) {
         if let Some(evaluated) = self.evaluated.get() {
             let mut buf = StringOutputBuffer::new(buffer);
-            for phony in &evaluated.phonies {
-                buf.append(("build ", Ninja(phony.phony.as_str()), ": phony"));
-                for dep in &phony.expansion {
-                    buf.append((b' ', Ninja(dep.as_str())));
+            evaluated.by_ref(|evaluated| {
+                for phony in &evaluated.phonies {
+                    buf.append(("build ", Ninja(phony.phony.as_str()), ": phony"));
+                    for dep in &phony.expansion {
+                        buf.append((b' ', Ninja(dep.as_str())));
+                    }
+                    buf.append(b'\n');
                 }
-                buf.append(b'\n');
-            }
+            });
         }
     }
 
@@ -83,13 +80,21 @@ impl Target {
         err.as_mut().handle((|| -> starlark::Result<()> {
             if let Some(evaluated) = self.evaluated.get() {
                 let mut buf = StringOutputBuffer::new(buffer);
-                evaluated.providers.substitutions(|substitutions, eval| {
-                    for (name, args) in substitutions {
-                        buf.append(("starlark_", name.as_str(), " = "));
-                        crate::args::write_args(&mut buf, eval, args, platform)?;
-                        buf.append(b'\n');
+                evaluated.by_ref_with_reconstructor(|evaluated, reconstructor| {
+                    if evaluated.providers.substitutions.is_empty() {
+                        return Ok::<(), starlark::Error>(());
                     }
-                    Ok(())
+                    starlark::environment::Module::with_temp_heap(|module| {
+                        let mut eval = starlark::eval::Evaluator::new(&module);
+                        let edge = reconstructor.edge(eval.heap());
+                        let providers = edge.rebrand_ref(&evaluated.providers);
+                        for (name, args) in &providers.substitutions {
+                            buf.append(("starlark_", name.as_str(), " = "));
+                            crate::args::write_args(&mut buf, &mut eval, args, platform)?;
+                            buf.append(b'\n');
+                        }
+                        Ok(())
+                    })
                 })?;
             }
             Ok(())
@@ -107,29 +112,31 @@ impl Target {
         if let Some(evaluated) = self.evaluated.get() {
             let mut buf = StringOutputBuffer::new(buffer);
             let mut seen = SmallSet::new();
-            for (suffix, phony) in &evaluated.providers.inputs_phony {
-                if outputs
-                    .iter()
-                    .any(|out| out.value().ends_with(suffix.as_str()))
-                    && seen.insert(phony.as_str())
-                {
-                    if !has_inputs {
-                        buf.append(" |");
-                        has_inputs = true;
+            evaluated.by_ref(|evaluated| {
+                for (suffix, phony) in &evaluated.providers.inputs_phony {
+                    if outputs
+                        .iter()
+                        .any(|out| out.value().ends_with(suffix.as_str()))
+                        && seen.insert(phony.as_str())
+                    {
+                        if !has_inputs {
+                            buf.append(" |");
+                            has_inputs = true;
+                        }
+                        buf.append((b' ', Ninja(phony.as_str())));
                     }
-                    buf.append((b' ', Ninja(phony.as_str())));
                 }
-            }
+            });
         }
         has_inputs
     }
 
-    pub fn providers(&self) -> &Providers {
-        &self
-            .evaluated
+    /// Returns the evaluated rule result for this target.
+    /// Invariant: The target has already been evaluated.
+    pub fn evaluated(&self) -> &OwnedFrozen<ValueTyped<'static, rule::EvaluatedTarget<'static>>> {
+        self.evaluated
             .get()
             .expect("Should only be called on an evaluated target")
-            .providers
     }
 }
 

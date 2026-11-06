@@ -4,12 +4,14 @@
 
 use std::path::{Component, Path};
 
+use allocative::Allocative;
 use starlark::collections::SmallSet;
+use starlark_derive::Freeze;
 
 use crate::{File, TargetRef};
 
 /// A Ninja phony target and its expanded dependencies.
-#[derive(Debug, PartialEq, Eq, allocative::Allocative)]
+#[derive(Allocative, Debug, Eq, Freeze, PartialEq)]
 pub struct Phony {
     /// The phony file.
     pub phony: File,

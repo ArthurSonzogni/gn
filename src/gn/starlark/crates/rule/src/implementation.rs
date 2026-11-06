@@ -2,15 +2,41 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use std::fmt;
+
+use allocative::Allocative;
 use attr::{TargetAttrExt, traits::EvalContextAttrExt};
+use providers::Providers;
 use starlark::{
+    any::ProvidesStaticType,
     environment::Module,
     eval::Evaluator,
-    values::{HeapEdge, OwnedFrozen, Value},
+    values::{Freeze, HeapEdge, OwnedFrozen, StarlarkValue, UnpackValue as _, ValueTyped},
 };
-use types::{EvaluatorContextExt as _, Session, TargetRef as _};
+use starlark_derive::{NoSerialize, Trace, starlark_value};
+use types::{EvaluatorContextExt as _, Phony, Session, TargetRef as _};
 
 use crate::{Ctx, Rule};
+
+/// The evaluated results of running a rule implementation on a target.
+#[derive(Allocative, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
+pub struct EvaluatedTarget<'v> {
+    /// The phony outputs declared by this target.
+    pub phonies: Vec<Phony>,
+    /// The providers returned by the target's rule implementation.
+    pub providers: Providers<'v>,
+}
+
+impl<'v> fmt::Display for EvaluatedTarget<'v> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "EvaluatedTarget")
+    }
+}
+
+#[starlark_value(type = "EvaluatedTarget")]
+impl<'v> StarlarkValue<'v> for EvaluatedTarget<'v> {
+    type Canonical = Self;
+}
 
 /// Runs the rule implementation function for a given target.
 /// This matches the execution phase where rule implementation is run
@@ -18,7 +44,7 @@ use crate::{Ctx, Rule};
 pub fn run<C: EvalContextAttrExt + crate::CtxMethods>(
     target: &<C::Session as Session>::TargetRef,
     create_context: impl FnOnce(&<C::Session as Session>::TargetRef) -> C,
-) -> starlark::Result<(Vec<types::Phony>, OwnedFrozen<Value<'static>>)>
+) -> starlark::Result<OwnedFrozen<ValueTyped<'static, EvaluatedTarget<'static>>>>
 where
     <C::Session as Session>::TargetRef:
         TargetAttrExt<Rule = Rule<'static, C>, Session = C::Session>,
@@ -59,13 +85,16 @@ where
             eval.eval_function(rule.implementation, &[ctx], &[])?
         };
 
-        let phonies = rule_context
-            .require_rule_impl()?
-            .borrow_mut()
-            .rule_impl_complete()?;
-        module.set_extra_value(res);
+        module.set_extra_value(
+            module.heap().alloc_complex(EvaluatedTarget {
+                phonies: rule_context
+                    .require_rule_impl()?
+                    .borrow_mut()
+                    .rule_impl_complete()?,
+                providers: providers::Providers::unpack_value_err(res)?,
+            }),
+        );
 
-        let frozen = module.freeze()?;
-        Ok((phonies, frozen.extra_value().unwrap()))
+        module.freeze()?.extra_value().unwrap().downcast_starlark()
     })
 }

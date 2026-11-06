@@ -123,17 +123,18 @@ undeclared_output(name = "undeclared_output", src = "foo/file.cc")
 
         match expected {
             Ok((defaultinfo_phony, files)) => {
-                let (_phonies, rooted) = res.expect(target_name);
-                let providers = providers::Providers::try_from(rooted).expect(target_name);
+                let evaluated = res.expect(target_name);
 
-                if defaultinfo_phony.is_empty() {
-                    assert_eq!(providers.outputs_phony, None);
-                } else {
-                    assert_eq!(
-                        providers.outputs_phony.unwrap().as_path(),
-                        Path::new(defaultinfo_phony)
-                    );
-                }
+                evaluated.by_ref(|evaluated| {
+                    if defaultinfo_phony.is_empty() {
+                        assert_eq!(evaluated.providers.outputs_phony, None);
+                    } else {
+                        assert_eq!(
+                            evaluated.providers.outputs_phony.unwrap().as_path(),
+                            Path::new(defaultinfo_phony)
+                        );
+                    }
+                });
 
                 for &(file_path, expected_content) in files {
                     let resolved = context

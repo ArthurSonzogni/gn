@@ -3,14 +3,13 @@
 // found in the LICENSE file.
 
 use rule::run;
-use starlark::values::list::ListRef;
 use testutils::Assert;
 use types::{Label, PackageRef, Session as _};
 
 #[test]
 fn test_ctx_super() {
     let mut assert = Assert::new_rule_assert();
-    assert.load_module("//rules:pure.scl");
+    let module = assert.load_module("//rules:pure.scl");
     assert.pass(
         r#"
 load("//rules:pure.scl", "child_rule", "parent_rule")
@@ -35,14 +34,33 @@ child_rule(
         .get_target(label.as_ref(), context.session.default_toolchain.as_ref());
 
     let session = assert.session();
-    let (_phonies, res) = run(&target, move |t: &testutils::FakeTargetRef| {
+    let evaluated = run(&target, move |t: &testutils::FakeTargetRef| {
         testutils::FakeEvalContext::rule_impl(session.clone(), t.clone())
     })
     .unwrap();
 
-    let list = ListRef::from_value(res.as_ref().value()).unwrap();
-    let items: Vec<starlark::values::Value<'_>> = list.iter().collect();
-    assert_eq!(items.len(), 2);
-    assert_eq!(items[0].to_repr(), r#"ParentInfo(parent = "parent_val")"#);
-    assert_eq!(items[1].to_repr(), r#"ChildInfo(child = "child_val")"#);
+    evaluated.by_ref(|evaluated| {
+        module.get("ParentInfo").unwrap().by_ref(|parent_info| {
+            assert_eq!(
+                evaluated
+                    .providers
+                    .get(&**evaluated, *parent_info)
+                    .unwrap()
+                    .unwrap()
+                    .to_repr(),
+                r#"ParentInfo(parent = "parent_val")"#
+            );
+        });
+        module.get("ChildInfo").unwrap().by_ref(|child_info| {
+            assert_eq!(
+                evaluated
+                    .providers
+                    .get(&**evaluated, *child_info)
+                    .unwrap()
+                    .unwrap()
+                    .to_repr(),
+                r#"ChildInfo(child = "child_val")"#
+            );
+        });
+    });
 }

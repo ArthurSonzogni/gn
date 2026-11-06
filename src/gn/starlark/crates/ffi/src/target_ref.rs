@@ -66,14 +66,22 @@ impl<'v> StarlarkValue<'v> for TargetRef {
     }
 
     fn at(&self, index: Value<'v>, heap: Heap<'v>) -> starlark::Result<Value<'v>> {
-        match self.providers().get(self, index, heap)? {
-            Some(val) => Ok(val),
-            None => Err(crate::errors::Error::MissingProvider(*self, index.to_string()).into()),
-        }
+        self.0
+            .evaluated()
+            .by_ref_with_reconstructor(|evaluated, reconstructor| {
+                match evaluated.providers.get(self, index)? {
+                    Some(val) => Ok(reconstructor.edge(heap).rebrand(val)),
+                    None => {
+                        Err(crate::errors::Error::MissingProvider(*self, index.to_string()).into())
+                    },
+                }
+            })
     }
 
     fn is_in(&self, index: Value<'v>) -> starlark::Result<bool> {
-        self.providers().contains(self, index)
+        self.0
+            .evaluated()
+            .by_ref(|evaluated| evaluated.providers.contains(self, index))
     }
 }
 

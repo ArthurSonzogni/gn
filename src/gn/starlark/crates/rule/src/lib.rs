@@ -11,6 +11,6 @@ pub use attr::AttrSchema;
 pub use ctx::Ctx;
 pub use errors::Error;
 pub use globals::{extract_builtin_rules, register_builtin_rules};
-pub use implementation::run;
+pub use implementation::{EvaluatedTarget, run};
 pub use rule::{OutputType, Rule};
 pub use types::CtxMethods;

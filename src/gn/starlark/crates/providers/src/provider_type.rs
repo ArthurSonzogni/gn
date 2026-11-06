@@ -27,7 +27,7 @@ use starlark_derive::{NoSerialize, Trace, starlark_value};
 use crate::{Error, ProviderInstance};
 
 /// A unique identifier for a provider type within a GN build session.
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Allocative)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Allocative, Freeze, Trace)]
 pub struct ProviderId(pub(crate) u64);
 
 impl ProviderId {
