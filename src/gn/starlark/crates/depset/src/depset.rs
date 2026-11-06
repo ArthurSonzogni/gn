@@ -121,7 +121,7 @@ impl<'v> Depset<'v> {
         state: &mut types::CtxState<T>,
     ) -> Self {
         let phony = if direct.len() == 1 {
-            Some(direct[0].clone())
+            Some(direct[0])
         } else if !direct.is_empty() {
             Some(state.new_phony(direct.clone()))
         } else {
@@ -173,8 +173,8 @@ impl<'v> Depset<'v> {
 
     /// Returns the single phony File if this is a file depset containing
     /// exactly one element.
-    pub fn phony(&self) -> &Option<File> {
-        &self.phony
+    pub fn phony(&self) -> Option<File> {
+        self.phony
     }
 
     /// Returns true if this depset has no elements (its kind is Empty).

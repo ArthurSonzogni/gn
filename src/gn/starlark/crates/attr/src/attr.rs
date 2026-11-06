@@ -32,7 +32,7 @@ impl LabelOrFile {
     pub fn to_value<'v>(&self, heap: &Heap<'v>) -> Value<'v> {
         match self {
             Self::Label(l) => heap.alloc(l.clone()),
-            Self::File(f) => heap.alloc(f.clone()),
+            Self::File(f) => heap.alloc(*f),
         }
     }
 }

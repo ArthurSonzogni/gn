@@ -29,7 +29,7 @@ use starlark_derive::{Freeze, NoSerialize, Trace, starlark_module, starlark_valu
 /// * Path::new(&str) is a zero cost transmute and always succeeds
 /// * Path::new(&str).to_string_lossy() always returns the input str but has to perform an error
 ///   check.
-#[derive(Allocative, Clone, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
+#[derive(Allocative, Clone, Copy, Debug, Freeze, NoSerialize, ProvidesStaticType, Trace)]
 pub struct File(
     #[freeze(identity)]
     #[allocative(skip)]
@@ -122,6 +122,16 @@ impl<'v> StarlarkValue<'v> for File {
     fn collect_str(&self, collector: &mut String) {
         use std::fmt::Write as _;
         write!(collector, "{self}").unwrap();
+    }
+}
+
+// Starlark supports Unpacking to &File by default.
+// Because this type implements Copy, we should also support Unpacking to File.
+impl<'v> starlark::values::UnpackValue<'v> for File {
+    type Error = std::convert::Infallible;
+
+    fn unpack_value_impl(value: starlark::values::Value<'v>) -> Result<Option<Self>, Self::Error> {
+        Ok(Self::from_value(value).copied())
     }
 }
 

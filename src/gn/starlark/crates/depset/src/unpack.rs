@@ -73,7 +73,7 @@ impl<'v> UnpackValue<'v> for UnpackFileDepset {
     fn unpack_value_impl(value: Value<'v>) -> Result<Option<Self>, Self::Error> {
         let depset = UnpackDepset::unpack_value_err(value)?;
         if depset.phony().is_some() || depset.is_empty() {
-            Ok(Some(Self(depset.depset.phony().clone())))
+            Ok(Some(Self(depset.depset.phony())))
         } else {
             Err(crate::errors::Error::ExpectedFileDepset.into())
         }

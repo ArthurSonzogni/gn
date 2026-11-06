@@ -252,7 +252,7 @@ mod tests {
         let target_label = Label::new(PackageRef::root().to_owned(), "bar".to_owned());
         let file1 = File::intern("out.cc");
         a.session().insert_target(FakeTarget {
-            outputs: vec![file1.clone()],
+            outputs: vec![file1],
             ..a.session()
                 .empty_target(target_label.package(), target_label.name())
         });

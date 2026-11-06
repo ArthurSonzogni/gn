@@ -90,7 +90,7 @@ pub fn depset_constructor<'v, C: types::EvalContext>(
                 direct: child_depset.direct.clone(),
                 transitive: child_depset.transitive.clone(),
                 kind: child_depset.kind,
-                phony: child_depset.phony.clone(),
+                phony: child_depset.phony,
             }))
         }
     } else {
@@ -100,13 +100,13 @@ pub fn depset_constructor<'v, C: types::EvalContext>(
                 // real object. We don't need to do this for transitive, because
                 // we optimize a depset with 1 transitive and no direct to not even create a
                 // depset object.
-                direct_vec[0].downcast_ref::<File>().cloned()
+                direct_vec[0].downcast_ref::<File>().copied()
             } else if !direct_vec.is_empty() || !transitive_vec.is_empty() {
                 let mut deps = vec![];
                 for v in &direct_vec {
                     // Safety: `v` is guaranteed to be a `File` because we validated all direct
                     // elements when setting the depset kind to `Kind::File`.
-                    deps.push(v.downcast_ref::<File>().unwrap().clone());
+                    deps.push(*v.downcast_ref::<File>().unwrap());
                 }
                 for v in &transitive_vec {
                     // Safety:
@@ -115,7 +115,7 @@ pub fn depset_constructor<'v, C: types::EvalContext>(
                     // 2. The child depset is guaranteed to have a `phony` File because it is a
                     //    non-empty `Kind::File` depset, which always has a phony file.
                     let child_dep = UnpackDepset::unpack_value(*v).unwrap().unwrap();
-                    deps.push(child_dep.phony().as_ref().unwrap().clone());
+                    deps.push(child_dep.phony().unwrap());
                 }
                 let state = ctx.require_rule_impl()?;
                 Some(state.borrow_mut().new_phony(deps))
@@ -187,16 +187,15 @@ pub(crate) mod tests {
     #[starlark_module]
     pub(crate) fn test_globals(builder: &mut GlobalsBuilder) {
         fn new_file_depset<'v>(
-            files: UnpackList<&File>,
+            files: UnpackList<File>,
             eval: &mut Evaluator<'v, '_, '_>,
         ) -> starlark::Result<Depset<'v>> {
             use types::EvalContext as _;
             let heap = eval.heap();
             let ctx = eval.context::<testutils::eval_context::FakeEvalContext>();
-            let direct = files.items.into_iter().cloned().collect();
             let state = ctx.require_rule_impl()?;
             Ok(Depset::new_file_depset(
-                direct,
+                files.items,
                 &heap,
                 &mut *state.borrow_mut(),
             ))

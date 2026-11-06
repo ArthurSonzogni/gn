@@ -214,7 +214,7 @@ impl Attr {
                     ));
                 }
                 for f in target.outputs() {
-                    files.insert(f.clone());
+                    files.insert(f);
                 }
                 Ok(heap.alloc(target))
             },
@@ -222,8 +222,8 @@ impl Attr {
                 if let Some(matcher) = schema.file_matcher() {
                     matcher.validate(f.as_str())?;
                 }
-                files.insert(f.clone());
-                Ok(heap.alloc(f.clone()))
+                files.insert(*f);
+                Ok(heap.alloc(*f))
             },
         }
     }
@@ -281,7 +281,7 @@ mod tests {
 
         let target_empty = session.insert_empty_target(PackageRef::new("//foo").unwrap(), "empty");
         let target_outputs = session.insert_target(FakeTarget {
-            outputs: vec![file1.clone()],
+            outputs: vec![file1],
             ..session.empty_target(PackageRef::new("//foo").unwrap(), "outputs")
         });
 
@@ -353,7 +353,7 @@ mod tests {
 
         // Target outputs out.cc and overlap.h
         let dep = session.insert_target(FakeTarget {
-            outputs: vec![label_only_file.clone(), overlap.clone()],
+            outputs: vec![label_only_file, overlap],
             ..session.empty_target(PackageRef::new("//foo").unwrap(), "dep")
         });
 
@@ -370,8 +370,8 @@ mod tests {
             let heap = module.heap();
             let AttrValue { attr, file, files } = Attr::LabelList(vec![
                 crate::LabelOrFile::Label(dep.label().to_owned()),
-                crate::LabelOrFile::File(file_only_file.clone()),
-                crate::LabelOrFile::File(overlap.clone()),
+                crate::LabelOrFile::File(file_only_file),
+                crate::LabelOrFile::File(overlap),
             ])
             .to_value(
                 &schema,
@@ -411,11 +411,11 @@ mod tests {
         let file1 = File::new("out.cc");
 
         let target_single = session.insert_target(FakeTarget {
-            outputs: vec![file1.clone()],
+            outputs: vec![file1],
             ..session.empty_target(PackageRef::new("//foo").unwrap(), "single")
         });
         let target_two = session.insert_target(FakeTarget {
-            outputs: vec![file1.clone(), File::new("out.h")],
+            outputs: vec![file1, File::new("out.h")],
             ..session.empty_target(PackageRef::new("//foo").unwrap(), "two")
         });
         let target_empty = session.insert_empty_target(PackageRef::new("//foo").unwrap(), "empty");
@@ -475,14 +475,14 @@ mod tests {
             );
 
             let resolved_target = resolved_attr.downcast_ref::<FakeTargetRef>().unwrap();
-            assert_eq!(resolved_target.outputs(), vec![file1.clone()]);
+            assert_eq!(resolved_target.outputs(), vec![file1]);
 
             // Direct File -> succeeds
             let AttrValue {
                 file,
                 files,
                 attr: _,
-            } = Attr::Label(Some(crate::LabelOrFile::File(file1.clone())))
+            } = Attr::Label(Some(crate::LabelOrFile::File(file1)))
                 .to_value(
                     &schema,
                     &session,
@@ -584,11 +584,11 @@ mod tests {
         let file2 = File::new("foo.h");
 
         let target_matching = session.insert_target(FakeTarget {
-            outputs: vec![file1.clone(), file2.clone()],
+            outputs: vec![file1, file2],
             ..session.empty_target(PackageRef::new("//foo").unwrap(), "matching")
         });
         let target_no_matching = session.insert_target(FakeTarget {
-            outputs: vec![file2.clone()],
+            outputs: vec![file2],
             ..session.empty_target(PackageRef::new("//foo").unwrap(), "no_matching")
         });
 

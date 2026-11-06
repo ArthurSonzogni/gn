@@ -59,7 +59,7 @@ impl<T: TargetRef> CtxState<T> {
         path.push_str(&count.to_string());
         let phony = File::intern(&path);
         self.phonies.push(Phony {
-            phony: phony.clone(),
+            phony,
             expansion: deps,
         });
         phony
@@ -90,20 +90,20 @@ impl<T: TargetRef> CtxState<T> {
         path.push('/');
         path.push_str(name);
         let file = File::intern(&path);
-        if !self.declared_outputs.insert(file.clone()) {
+        if !self.declared_outputs.insert(file) {
             return Err(crate::errors::Error::DuplicateDeclaredOutput(file).into());
         }
-        self.unused_declared_outputs.insert(file.clone());
+        self.unused_declared_outputs.insert(file);
         Ok(file)
     }
 
     /// Declares that we are generating a given file.
     pub fn generates_file(&mut self, f: &File) -> starlark::Result<()> {
         if !self.declared_outputs.contains(f) {
-            return Err(crate::errors::Error::OutputNotDeclaredByTarget(f.clone()).into());
+            return Err(crate::errors::Error::OutputNotDeclaredByTarget(*f).into());
         }
         if !self.unused_declared_outputs.shift_remove(f) {
-            return Err(crate::errors::Error::OutputAlreadyGenerated(f.clone()).into());
+            return Err(crate::errors::Error::OutputAlreadyGenerated(*f).into());
         }
         Ok(())
     }
@@ -111,9 +111,7 @@ impl<T: TargetRef> CtxState<T> {
     /// Verifies that all declared outputs were generated, and returns the generated phonies.
     pub fn rule_impl_complete(&mut self) -> starlark::Result<Vec<Phony>> {
         match self.unused_declared_outputs.first() {
-            Some(unused) => {
-                Err(crate::errors::Error::DeclaredOutputNeverGenerated(unused.clone()).into())
-            },
+            Some(unused) => Err(crate::errors::Error::DeclaredOutputNeverGenerated(*unused).into()),
             None => Ok(std::mem::take(&mut self.phonies)),
         }
     }
