@@ -187,13 +187,34 @@ starlark_complex_value!(pub Depset);
 
 impl<'v> Display for Depset<'v> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // Explicitly DO NOT flatten a depset implicitly, they can get massive.
-        // We may consider printing some fields in the future, but for now
-        // we'll leave this empty to be safe.
         if self.is_empty() {
-            write!(f, "depset([])")
+            write!(f, "depset([]")?;
+        } else if self.direct.len() == 1 && self.transitive.is_empty() {
+            // This is the only way you can have length 1 (aside from overlapping duplicates).
+            // Every element of transitive must have length >= 1, and if there is one transitive and
+            // no direct it will just reuse or clone the object instead of creating a new one.
+            write!(f, "depset([{}]", self.direct[0].to_repr())?;
         } else {
-            write!(f, "depset(...)")
+            // DO NOT flatten a depset implicitly, they can get massive.
+            // Instead, we'll just show [first_element, ...] so the user can see a sample of what's
+            // inside.
+            let mut cur = self;
+            while match self.order {
+                Order::Preorder => cur.direct.is_empty(),
+                Order::Unspecified | Order::Postorder => !cur.transitive.is_empty(),
+                // For topologically ordered depsets, there's no way to work out the first element
+                // without iterating through every single element.
+                Order::Topological => return write!(f, "depset(..., order=\"topological\")"),
+            } {
+                cur = Depset::from_value(cur.transitive[0]).unwrap();
+            }
+            write!(f, "depset([{}, ...]", cur.direct[0].to_repr())?;
+        }
+
+        if self.order == Order::Unspecified {
+            write!(f, ")")
+        } else {
+            write!(f, ", order=\"{}\")", self.order)
         }
     }
 }
@@ -326,8 +347,50 @@ mod tests {
         a.equivalent("bool(depset(['a']))", "True");
         a.equivalent("bool(depset())", "False");
         a.equivalent("bool(depset(transitive=[depset()]))", "False");
+    }
+
+    #[test]
+    fn test_depset_repr() {
+        let mut a = new_assert();
 
         a.equivalent("repr(depset())", "\"depset([])\"");
+        a.equivalent(
+            "repr(depset(order='preorder'))",
+            r#"'depset([], order="preorder")'"#,
+        );
+
+        // Singleton depsets omit ellipsis.
+        a.equivalent(
+            "repr(depset([make_file('a.txt')]))",
+            r#"'depset([File("a.txt")])'"#,
+        );
+        a.equivalent(
+            "repr(depset(['a'], order='topological'))",
+            r#"'depset(["a"], order="topological")'"#,
+        );
+
+        // Multiple elements outputs depset([first, ...])
+        a.equivalent("repr(depset([1, 2]))", "\"depset([1, ...])\"");
+        a.equivalent(
+            "repr(depset([1, 2], order='topological'))",
+            r#"'depset(..., order="topological")'"#,
+        );
+        a.equivalent(
+            "repr(depset(['b', 'c'], transitive=[depset(['a'])], order='preorder'))",
+            r#"'depset(["b", ...], order="preorder")'"#,
+        );
+        a.equivalent(
+            "repr(depset(transitive=[depset(['b'], transitive=[depset(['a'])]), depset(['c'])], order='preorder'))",
+            r#"'depset(["b", ...], order="preorder")'"#,
+        );
+        a.equivalent(
+            "repr(depset(['c'], transitive=[depset(['b'], transitive=[depset(['a'])]), depset(['d'])], order='postorder'))",
+            r#"'depset(["a", ...], order="postorder")'"#,
+        );
+        a.equivalent(
+            "repr(depset(['b'], transitive=[depset(['a'])]))",
+            r#"'depset(["a", ...])'"#,
+        );
     }
 
     #[test]
@@ -351,8 +414,11 @@ mod tests {
             upto_phony = phonies.len();
         };
 
-        assert!(
-            UnpackFileDepset::unpack_value_err(a.pass("depset([1])").as_ref().value()).is_err()
+        assert_eq!(
+            UnpackFileDepset::unpack_value_err(a.pass("depset([1])").as_ref().value())
+                .unwrap_err()
+                .to_string(),
+            "Expected `depset[File]`, but got `depset (repr: depset([1]))`"
         );
 
         a.eq("depset()", UnpackFileDepset(None));

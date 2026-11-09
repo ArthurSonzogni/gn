@@ -38,6 +38,8 @@ cxx = { version = "1.0", features = ["c++20"] }
 either = "1.18"
 link-cplusplus = "1.0"
 normalize-path = "0.2"
+# pagable on crates.io still points to the old location.
+pagable = { version = "0.4.2", git = "https://github.com/facebook/buck2.git", branch = "main" }
 starlark = "0.14.2"
 starlark_derive = "0.14.2"
 thiserror = "2.0"

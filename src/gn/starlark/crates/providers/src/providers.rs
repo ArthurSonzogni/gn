@@ -298,7 +298,7 @@ mod tests {
         assert_unpack_fails(
             &mut a,
             r#"[DefaultInfo(files = depset(["not-a-file"]))]"#,
-            "DefaultInfo.files must be a depset of files, got depset(...)",
+            r#"DefaultInfo.files must be a depset of files, got depset(["not-a-file"])"#,
         );
 
         assert_unpack_fails(

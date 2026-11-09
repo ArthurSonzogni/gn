@@ -15,6 +15,7 @@ starlark = { workspace = true }
 starlark_derive = { workspace = true }
 thiserror = { workspace = true }
 allocative = { workspace = true }
+pagable = { workspace = true }
 
 [dev-dependencies]
 testutils = { path = "../testutils" }

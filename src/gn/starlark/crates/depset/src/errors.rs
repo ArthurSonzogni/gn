@@ -15,8 +15,6 @@ pub enum Error {
     ConflictingOrders { order: Order, child_order: Order },
     #[error("depset elements must be of the same type, expected {expected}, got {got}")]
     DepsetTypeMismatch { expected: Kind, got: Kind },
-    #[error("expected a file depset")]
-    ExpectedFileDepset,
 }
 
 impl From<Error> for starlark::Error {

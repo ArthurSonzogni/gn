@@ -600,6 +600,7 @@ name = "depset"
 version = "0.1.0"
 dependencies = [
  "allocative",
+ "pagable",
  "starlark",
  "starlark_derive",
  "testutils",
