@@ -47,17 +47,21 @@ void FillDepMap(Setup* setup, DepMap* dep_map) {
 size_t RecursivePrintTargetDeps(const DepMap& dep_map,
                                 const Target* target,
                                 TargetSet* seen_targets,
+                                bool all,
                                 int indent_level);
 
-// Prints the target and its dependencies in tree form. If the set is non-null,
-// new targets encountered will be added to the set, and if a ref is in the set
-// already, it will not be recused into. When the set is null, all refs will be
-// printed.
+// Prints the target and its dependencies in tree form. New targets encountered
+// will be added to the set, and if a ref is in the set already, it will not be
+// recursed into. When |all| is true, targets are removed from the set once
+// their refs are printed, so that all refs are printed, except for those that
+// are being recursed into (which happens when there are reference cycles
+// through validations).
 //
 // Returns the number of items printed.
 size_t RecursivePrintTarget(const DepMap& dep_map,
                             const Target* target,
                             TargetSet* seen_targets,
+                            bool all,
                             int indent_level) {
   std::string indent(indent_level * 2, ' ');
   size_t count = 1;
@@ -67,21 +71,21 @@ size_t RecursivePrintTarget(const DepMap& dep_map,
                             !target->settings()->is_default()));
 
   bool print_children = true;
-  if (seen_targets) {
-    if (!seen_targets->add(target)) {
-      // Already seen.
-      print_children = false;
-      // Only print "..." if something is actually elided, which means that
-      // the current target has children.
-      if (dep_map.lower_bound(target) != dep_map.upper_bound(target))
-        OutputString("...");
-    }
+  if (!seen_targets->add(target)) {
+    // Already seen.
+    print_children = false;
+    // Only print "..." if something is actually elided, which means that
+    // the current target has children.
+    if (dep_map.lower_bound(target) != dep_map.upper_bound(target))
+      OutputString("...");
   }
 
   OutputString("\n");
   if (print_children) {
-    count += RecursivePrintTargetDeps(dep_map, target, seen_targets,
+    count += RecursivePrintTargetDeps(dep_map, target, seen_targets, all,
                                       indent_level + 1);
+    if (all)
+      seen_targets->erase(target);
   }
   return count;
 }
@@ -91,13 +95,14 @@ size_t RecursivePrintTarget(const DepMap& dep_map,
 size_t RecursivePrintTargetDeps(const DepMap& dep_map,
                                 const Target* target,
                                 TargetSet* seen_targets,
+                                bool all,
                                 int indent_level) {
   DepMap::const_iterator dep_begin = dep_map.lower_bound(target);
   DepMap::const_iterator dep_end = dep_map.upper_bound(target);
   size_t count = 0;
   for (DepMap::const_iterator cur_dep = dep_begin; cur_dep != dep_end;
        cur_dep++) {
-    count += RecursivePrintTarget(dep_map, cur_dep->second, seen_targets,
+    count += RecursivePrintTarget(dep_map, cur_dep->second, seen_targets, all,
                                   indent_level);
   }
   return count;
@@ -166,20 +171,12 @@ size_t DoTreeOutput(const DepMap& dep_map,
   size_t count = 0;
 
   // Implicit targets don't get printed themselves.
-  for (const Target* target : implicit_target_matches) {
-    if (all)
-      count += RecursivePrintTargetDeps(dep_map, target, nullptr, 0);
-    else
-      count += RecursivePrintTargetDeps(dep_map, target, &seen_targets, 0);
-  }
+  for (const Target* target : implicit_target_matches)
+    count += RecursivePrintTargetDeps(dep_map, target, &seen_targets, all, 0);
 
   // Explicit targets appear in the output.
-  for (const Target* target : implicit_target_matches) {
-    if (all)
-      count += RecursivePrintTarget(dep_map, target, nullptr, 0);
-    else
-      count += RecursivePrintTarget(dep_map, target, &seen_targets, 0);
-  }
+  for (const Target* target : implicit_target_matches)
+    count += RecursivePrintTarget(dep_map, target, &seen_targets, all, 0);
 
   return count;
 }
