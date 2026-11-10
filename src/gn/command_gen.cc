@@ -143,7 +143,8 @@ void ItemResolvedAndGeneratedCallback(TargetWriteInfo* write_info,
     // Do not write these targets yet because some of the targets visited by
     // their metadata walks might not be resolved, which would cause runtime
     // crashes. See the comment in builder_record.h.
-    if (target->collect_validations_metadata()) {
+    if (target->collect_validations_metadata() ||
+        !target->walk_deps().empty()) {
       write_info->delayed_generated_file_targets.push_back(target);
       return;
     }

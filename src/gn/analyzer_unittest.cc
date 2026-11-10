@@ -797,4 +797,34 @@ TEST_F(AnalyzerTest, TargetRefersToValidations) {
       "}");
 }
 
+// Tests that a generated_file() is affected by the targets that it walks, and
+// that walk_deps do not prevent the walked targets from being built by "all".
+TEST_F(AnalyzerTest, WalkDeps) {
+  // app -> final -> pickles --walk_deps--> app
+  std::unique_ptr<Target> app = MakeTarget("//dir", "app");
+  app->sources().push_back(SourceFile("//dir/app.cc"));
+  std::unique_ptr<Target> final = MakeTarget("//dir", "final");
+  std::unique_ptr<Target> pickles = MakeTarget("//dir", "pickles");
+  pickles->set_output_type(Target::GENERATED_FILE);
+  pickles->walk_deps().push_back(LabelTargetPair(app.get()));
+  final->private_deps().push_back(LabelTargetPair(pickles.get()));
+  app->private_deps().push_back(LabelTargetPair(final.get()));
+  builder_.ItemDefined(std::move(app));
+  builder_.ItemDefined(std::move(final));
+  builder_.ItemDefined(std::move(pickles));
+  builder_.ItemDefined(MakeTarget("//dir", "unrelated"));
+
+  RunAnalyzerTest(
+      R"({
+       "files": [ "//dir/app.cc" ],
+       "additional_compile_targets": [ "all" ],
+       "test_targets": [ "//dir:pickles", "//dir:unrelated" ]
+       })",
+      "{"
+      R"("compile_targets":["//dir:app"],)"
+      R"/("status":"Found dependency",)/"
+      R"("test_targets":["//dir:pickles"])"
+      "}");
+}
+
 }  // namespace gn_analyzer_unittest

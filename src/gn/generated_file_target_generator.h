@@ -30,6 +30,7 @@ class GeneratedFileTargetGenerator : public TargetGenerator {
   bool FillCollectValidationsMetadata();
   bool FillDataKeys();
   bool FillWalkKeys();
+  bool FillWalkDeps();
   bool FillRebase();
 
   // Appends the list of strings in the given variable (if set) to |out|.

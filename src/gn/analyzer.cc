@@ -252,6 +252,10 @@ Analyzer::Analyzer(const Builder& builder,
       for (const auto& validation_target_pair : item->AsTarget()->validations())
         dep_map_.insert(std::make_pair(validation_target_pair.ptr, item));
 
+      // A generated_file() is affected by the targets that it walks.
+      for (const auto& walk_dep_pair : item->AsTarget()->walk_deps())
+        walk_dep_map_.insert(std::make_pair(walk_dep_pair.ptr, item));
+
       for (const auto& dep_config_pair : item->AsTarget()->configs())
         dep_map_.insert(std::make_pair(dep_config_pair.ptr, item));
 
@@ -485,6 +489,10 @@ void Analyzer::AddAllItemsReferringToItem(
   auto dep_begin = dep_map_.lower_bound(item);
   auto dep_end = dep_map_.upper_bound(item);
   for (auto cur_dep = dep_begin; cur_dep != dep_end; ++cur_dep)
+    AddAllItemsReferringToItem(cur_dep->second, all_affected_items);
+
+  auto walk_deps = walk_dep_map_.equal_range(item);
+  for (auto cur_dep = walk_deps.first; cur_dep != walk_deps.second; ++cur_dep)
     AddAllItemsReferringToItem(cur_dep->second, all_affected_items);
 }
 

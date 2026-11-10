@@ -95,6 +95,12 @@ class Analyzer {
   // Maps items to the list of items that depend on them.
   std::multimap<const Item*, const Item*> dep_map_;
 
+  // Maps targets to the generated_file() targets that list them in walk_deps.
+  // Their contents are derived from the metadata of the targets they walk, but
+  // the walked targets are not their dependencies, so they are not in
+  // |dep_map_|.
+  std::multimap<const Item*, const Item*> walk_dep_map_;
+
   const SourceFile build_config_file_;
   const SourceFile dot_file_;
   const SourceFileSet build_args_dependency_files_;

@@ -306,6 +306,7 @@ std::map<std::string, DescHandlerFunc> GetHandlers() {
           {variables::kRebase, DefaultHandler},
           {variables::kWalkKeys, DefaultHandler},
           {variables::kCollectValidationsMetadata, DefaultHandler},
+          {variables::kWalkDeps, DefaultHandler},
           {variables::kWeakFrameworks, DefaultHandler},
           {variables::kWeakLibraries, DefaultHandler},
           {variables::kWriteOutputConversion, DefaultHandler},
@@ -411,6 +412,7 @@ bool PrintTarget(const Target* target,
   HandleProperty(variables::kCollectValidationsMetadata, handler_map, v, dict);
   HandleProperty(variables::kRustflags, handler_map, v, dict);
   HandleProperty(variables::kWalkKeys, handler_map, v, dict);
+  HandleProperty(variables::kWalkDeps, handler_map, v, dict);
   HandleProperty(variables::kWeakFrameworks, handler_map, v, dict);
   HandleProperty(variables::kWeakLibraries, handler_map, v, dict);
   HandleProperty(variables::kWriteOutputConversion, handler_map, v, dict);
@@ -541,6 +543,7 @@ Possibilities for <what to show>
   testonly
   validations
   visibility
+  walk_deps
   walk_keys
   weak_frameworks
   weak_libraries

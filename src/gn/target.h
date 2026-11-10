@@ -230,6 +230,7 @@ class Target : public Item {
     SourceDir rebase_;
     std::vector<std::string> data_keys_;
     std::vector<std::string> walk_keys_;
+    LabelTargetVector walk_deps_;
   };
   const GeneratedFile& generated_file() const;
   GeneratedFile& generated_file();
@@ -254,6 +255,10 @@ class Target : public Item {
     return generated_file().walk_keys_;
   }
   std::vector<std::string>& walk_keys() { return generated_file().walk_keys_; }
+  const LabelTargetVector& walk_deps() const {
+    return generated_file().walk_deps_;
+  }
+  LabelTargetVector& walk_deps() { return generated_file().walk_deps_; }
 
   OutputFile write_runtime_deps_output() const {
     return write_runtime_deps_output_;

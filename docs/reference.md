@@ -175,6 +175,7 @@
     *   [transparent: [bool] True if the bundle is transparent.](#var_transparent)
     *   [validations: [label list] Validation dependencies.](#var_validations)
     *   [visibility: [label list] A list of labels that can depend on a target.](#var_visibility)
+    *   [walk_deps: [label list] Metadata walk roots that are not dependencies.](#var_walk_deps)
     *   [walk_keys: [string list] Key(s) for managing the metadata collection walk.](#var_walk_keys)
     *   [weak_frameworks: [name list] Name of frameworks that must be weak linked.](#var_weak_frameworks)
     *   [weak_libraries: [file list] File of libraries that must be weak linked.](#var_weak_libraries)
@@ -600,6 +601,7 @@
   testonly
   validations
   visibility
+  walk_deps
   walk_keys
   weak_frameworks
   weak_libraries
@@ -2186,6 +2188,10 @@
 
   By default, validations dependencies are never visited by metadata collection,
   but setting `collect_validations_metadata = true` changes this behavior.
+
+  The metadata collection walk can also start from targets that are not
+  dependencies of the generated_file() target by listing them in `walk_deps`.
+  See `gn help walk_deps`.
 ```
 
 #### **Variables**
@@ -2198,7 +2204,7 @@
            output_extension, output_name, public, sources, testonly,
            visibility
   Generated file: contents, data_keys, rebase, walk_keys, output_conversion,
-                  outputs, collect_validations_metadata
+                  outputs, collect_validations_metadata, walk_deps
 ```
 
 #### **Example (metadata collection)**
@@ -7443,6 +7449,44 @@
   any targets in "//bar/" and any subdirectory thereof.
     visibility = [ "./*", "//bar/*" ]
 ```
+### <a name="var_walk_deps"></a>**walk_deps**: Metadata walk roots that are not dependencies.&nbsp;[Back to Top](#gn-reference)
+
+```
+  Valid on generated_file() targets that collect metadata.
+
+  The metadata walk starts from these targets in addition to deps and
+  data_deps, without making them Ninja dependencies of the generated_file()
+  target (allowing cycles with deps). Like "gen_deps", listed targets are
+  generated when the generated_file() target is generated. Like "deps", they
+  are subject to "visibility" and "testonly" checks.
+
+  They are used only when writing the generated_file() target itself, and not
+  when the metadata walk of another target passes through it. The metadata of
+  the generated_file() target itself is never collected, even when the walk
+  leads back to it.
+
+  See "gn help generated_file".
+```
+
+#### **Example**
+
+```
+  # Lists the libraries of an app without depending on them, even though the
+  # app depends on the list.
+  generated_file("app_libs_list") {
+    outputs = [ "$target_gen_dir/app_libs.txt" ]
+    data_keys = [ "lib_names" ]
+    walk_deps = [ ":app" ]
+  }
+
+  action("app") {
+    ...
+    deps = [
+      ":app_libs_list",
+      ":some_lib",
+    ]
+  }
+```
 ### <a name="var_walk_keys"></a>**walk_keys**: Key(s) for managing the metadata collection walk.&nbsp;[Back to Top](#gn-reference)
 
 ```
@@ -8541,7 +8585,8 @@
   A generated_file target can declare either 'contents' to write statically
   known contents to a file or 'data_keys' to aggregate metadata and write the
   result to a file. It can also specify 'walk_keys' (to restrict the metadata
-  collection), 'output_conversion', and 'rebase'.
+  collection), 'walk_deps' (to collect metadata from targets that are not
+  dependencies), 'output_conversion', and 'rebase'.
 ```
 
 #### **Collection and Aggregation**

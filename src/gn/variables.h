@@ -366,6 +366,10 @@ extern const char kVisibility[];
 extern const char kVisibility_HelpShort[];
 extern const char kVisibility_Help[];
 
+extern const char kWalkDeps[];
+extern const char kWalkDeps_HelpShort[];
+extern const char kWalkDeps_Help[];
+
 extern const char kWalkKeys[];
 extern const char kWalkKeys_HelpShort[];
 extern const char kWalkKeys_Help[];

@@ -60,6 +60,9 @@ class TargetGenerator {
   bool EnsureSubstitutionIsInOutputDir(const SubstitutionPattern& pattern,
                                        const Value& original_value);
 
+  // Reads deps from the given var name, and saves them to |dest|.
+  bool FillGenericDeps(const char* var_name, LabelTargetVector* dest);
+
   Target* target_;
   Scope* scope_;
   const FunctionCallNode* function_call_;
@@ -75,11 +78,10 @@ class TargetGenerator {
   bool FillCheckIncludesStrict();
   bool FillWriteRuntimeDeps();
 
-  // Reads configs/deps from the given var name, and uses the given setting on
+  // Reads configs from the given var name, and uses the given setting on
   // the target to save them.
   bool FillGenericConfigs(const char* var_name,
                           UniqueVector<LabelConfigPair>* dest);
-  bool FillGenericDeps(const char* var_name, LabelTargetVector* dest);
 
   TargetGenerator(const TargetGenerator&) = delete;
   TargetGenerator& operator=(const TargetGenerator&) = delete;

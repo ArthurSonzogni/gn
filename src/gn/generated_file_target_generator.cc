@@ -57,6 +57,8 @@ void GeneratedFileTargetGenerator::DoRun() {
     return;
   if (!FillWalkKeys())
     return;
+  if (!FillWalkDeps())
+    return;
 
   if (!FillOutputConversion())
     return;
@@ -161,6 +163,15 @@ bool GeneratedFileTargetGenerator::FillWalkKeys() {
     return true;
   }
   return FillKeys(variables::kWalkKeys, &target_->walk_keys());
+}
+
+bool GeneratedFileTargetGenerator::FillWalkDeps() {
+  const Value* value = scope_->GetValue(variables::kWalkDeps, false);
+  if (!value)
+    return true;
+  if (!IsMetadataCollectionTarget(variables::kWalkDeps, value->origin()))
+    return false;
+  return FillGenericDeps(variables::kWalkDeps, &target_->walk_deps());
 }
 
 bool GeneratedFileTargetGenerator::FillKeys(std::string_view variable,

@@ -899,3 +899,86 @@ group("default") {
     EXPECT_EQ(output_items[2].decoration, DECORATION_NONE);
   }
 }
+
+namespace {
+
+int RunGenForWalkDepsTest(const base::FilePath& in_path,
+                          const base::FilePath& build_path,
+                          const std::string& walk_deps) {
+  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")),
+            "buildconfig = \"//BUILDCONFIG.gn\"\n");
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
+            "set_default_toolchain(\"//:toolchain\")\n");
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("script.py")), "");
+  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILD.gn")), R"(
+toolchain("toolchain") {
+  tool("stamp") {
+    command = "touch {{output}}"
+  }
+}
+action("pickle") {
+  script = "//script.py"
+  outputs = [ "$target_gen_dir/foo.pickle" ]
+  metadata = {
+    pickle_files = [ "$target_gen_dir/foo.pickle" ]
+  }
+}
+group("lib") {
+  deps = [ ":pickle" ]
+}
+generated_file("pickles") {
+  outputs = [ "$target_gen_dir/pickles.txt" ]
+  data_keys = [ "pickle_files" ]
+  rebase = root_build_dir
+  walk_deps = )" + walk_deps + R"(
+}
+action("final") {
+  script = "//script.py"
+  outputs = [ "$target_gen_dir/final.txt" ]
+  inputs = [ "$target_gen_dir/pickles.txt" ]
+  deps = [ ":pickles" ]
+}
+group("app") {
+  deps = [ ":final", ":lib" ]
+}
+)");
+
+  ScopedCommandLineForTest global_cmdline;
+  global_cmdline.get().AppendSwitchPath(switches::kRoot, in_path);
+  global_cmdline.get().AppendSwitch(switches::kQuiet);
+  MsgLoop msg_loop;
+  return commands::RunGen({FilePathToUTF8(build_path)});
+}
+
+}  // namespace
+
+// Tests that walk_deps can form a cycle with deps without becoming
+// dependencies of the generated_file(), and that undefined walk_deps targets
+// are rejected.
+TEST(GenCommandTest, WalkDeps) {
+  base::ScopedTempDir in_temp_dir;
+  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
+  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+  base::ScopedTempDir build_temp_dir;
+  ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
+  const base::FilePath& build_path = build_temp_dir.GetPath();
+
+  EXPECT_EQ(0, RunGenForWalkDepsTest(in_path, build_path, "[ \":app\" ]"));
+  EXPECT_EQ("gen/foo.pickle\n",
+            ReadFile(build_path.Append(FILE_PATH_LITERAL("gen/pickles.txt"))));
+  std::string ninja =
+      ReadFile(build_path.Append(FILE_PATH_LITERAL("toolchain.ninja")));
+  EXPECT_NE(std::string::npos,
+            ninja.find("build phony/pickles: phony gen/pickles.txt\n"))
+      << ninja;
+
+  // Undefined target in walk_deps fails resolution.
+  ScopedBufferedOutput buffered_out;
+  EXPECT_NE(0, RunGenForWalkDepsTest(in_path, build_path, "[ \":missing\" ]"));
+
+  std::string output;
+  for (const auto& item : buffered_out.GetItems())
+    output += item.output;
+  EXPECT_NE(std::string::npos, output.find("needs //:missing(//:toolchain)"))
+      << output;
+}

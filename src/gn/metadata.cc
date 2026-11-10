@@ -29,7 +29,8 @@ generated_file targets
   A generated_file target can declare either 'contents' to write statically
   known contents to a file or 'data_keys' to aggregate metadata and write the
   result to a file. It can also specify 'walk_keys' (to restrict the metadata
-  collection), 'output_conversion', and 'rebase'.
+  collection), 'walk_deps' (to collect metadata from targets that are not
+  dependencies), 'output_conversion', and 'rebase'.
 
 
 Collection and Aggregation

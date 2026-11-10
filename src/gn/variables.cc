@@ -2451,6 +2451,46 @@ Examples
     visibility = [ "./*", "//bar/*" ]
 )";
 
+const char kWalkDeps[] = "walk_deps";
+const char kWalkDeps_HelpShort[] =
+    "walk_deps: [label list] Metadata walk roots that are not dependencies.";
+const char kWalkDeps_Help[] =
+    R"(walk_deps: Metadata walk roots that are not dependencies.
+
+  Valid on generated_file() targets that collect metadata.
+
+  The metadata walk starts from these targets in addition to deps and
+  data_deps, without making them Ninja dependencies of the generated_file()
+  target (allowing cycles with deps). Like "gen_deps", listed targets are
+  generated when the generated_file() target is generated. Like "deps", they
+  are subject to "visibility" and "testonly" checks.
+
+  They are used only when writing the generated_file() target itself, and not
+  when the metadata walk of another target passes through it. The metadata of
+  the generated_file() target itself is never collected, even when the walk
+  leads back to it.
+
+  See "gn help generated_file".
+
+Example
+
+  # Lists the libraries of an app without depending on them, even though the
+  # app depends on the list.
+  generated_file("app_libs_list") {
+    outputs = [ "$target_gen_dir/app_libs.txt" ]
+    data_keys = [ "lib_names" ]
+    walk_deps = [ ":app" ]
+  }
+
+  action("app") {
+    ...
+    deps = [
+      ":app_libs_list",
+      ":some_lib",
+    ]
+  }
+)";
+
 const char kWalkKeys[] = "walk_keys";
 const char kWalkKeys_HelpShort[] =
     "walk_keys: [string list] Key(s) for managing the metadata collection "
@@ -2680,6 +2720,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(Testonly)
     INSERT_VARIABLE(Validations)
     INSERT_VARIABLE(Visibility)
+    INSERT_VARIABLE(WalkDeps)
     INSERT_VARIABLE(WalkKeys)
     INSERT_VARIABLE(WeakFrameworks)
     INSERT_VARIABLE(WeakLibraries)

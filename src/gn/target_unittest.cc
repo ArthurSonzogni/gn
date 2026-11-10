@@ -1523,6 +1523,67 @@ TEST(TargetTest, CollectMetadataWithError) {
       << err.message();
 }
 
+// Tests that walk_deps are used as roots of the metadata walk, without
+// collecting the top-level target's own metadata if the walk cycles back to it.
+TEST(TargetTest, CollectMetadataWithWalkDeps) {
+  TestWithScope setup;
+
+  TestTarget pickle(setup, "//foo:pickle", Target::ACTION);
+  Value pickle_files(nullptr, Value::LIST);
+  pickle_files.list_value().push_back(Value(nullptr, "foo.pickle"));
+  pickle.metadata().contents().emplace("files", pickle_files);
+
+  TestTarget lib(setup, "//foo:lib", Target::SOURCE_SET);
+  lib.private_deps().push_back(LabelTargetPair(&pickle));
+
+  TestTarget gen(setup, "//foo:gen", Target::GENERATED_FILE);
+  gen.metadata().contents().emplace("files", pickle_files);
+
+  TestTarget app(setup, "//foo:app", Target::GROUP);
+  app.private_deps().push_back(LabelTargetPair(&lib));
+  app.private_deps().push_back(LabelTargetPair(&gen));
+  gen.walk_deps().push_back(LabelTargetPair(&app));
+
+  Err err;
+  std::vector<Value> result;
+  TargetSet targets;
+  gen.GetMetadata({"files"}, {""}, SourceDir(), true, &result, &targets, &err);
+  EXPECT_SUCCESS(err);
+  EXPECT_EQ(result, std::vector<Value>{Value(nullptr, "foo.pickle")});
+}
+
+// walk_deps are subject to the same visibility and testonly checks as deps.
+TEST_F(TargetTest, WalkDepsVisibilityAndTestonly) {
+  TestWithScope setup;
+  Err err;
+
+  TestTarget hidden(setup, "//private:hidden", Target::GROUP);
+  hidden.visibility().SetPrivate(hidden.label().dir());
+  ASSERT_TRUE(hidden.OnResolved(&err));
+
+  TestTarget testonly(setup, "//test:testonly", Target::GROUP);
+  testonly.set_testonly(true);
+  ASSERT_TRUE(testonly.OnResolved(&err));
+
+  for (const Target* walk_dep : {&hidden, &testonly}) {
+    TestTarget gen(setup, "//app:gen", Target::GENERATED_FILE);
+    gen.action_values().outputs() =
+        SubstitutionList::MakeForTest("//out/Debug/gen.json");
+    gen.walk_deps().push_back(LabelTargetPair(walk_dep));
+    err = Err();
+    EXPECT_FALSE(gen.OnResolved(&err));
+    std::string expected_message = walk_dep == &hidden
+                                       ? "Dependency not allowed."
+                                       : "Test-only dependency not allowed.";
+    EXPECT_EQ(expected_message, err.message());
+
+    // Marking the generated_file() as testonly makes the testonly one pass.
+    gen.set_testonly(true);
+    err = Err();
+    EXPECT_EQ(walk_dep == &testonly, gen.RunChecksAfterResolution(&err));
+  }
+}
+
 TEST_F(TargetTest, WriteMetadataCollection) {
   TestWithScope setup;
   Err err;

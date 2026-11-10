@@ -40,6 +40,8 @@ void FillDepMap(Setup* setup, DepMap* dep_map) {
       dep_map->insert(std::make_pair(dep_pair.ptr, target));
     for (const auto& validation_pair : target->validations())
       dep_map->insert(std::make_pair(validation_pair.ptr, target));
+    for (const auto& walk_dep_pair : target->walk_deps())
+      dep_map->insert(std::make_pair(walk_dep_pair.ptr, target));
   }
 }
 
@@ -55,7 +57,7 @@ size_t RecursivePrintTargetDeps(const DepMap& dep_map,
 // recursed into. When |all| is true, targets are removed from the set once
 // their refs are printed, so that all refs are printed, except for those that
 // are being recursed into (which happens when there are reference cycles
-// through validations).
+// through validations or walk_deps).
 //
 // Returns the number of items printed.
 size_t RecursivePrintTarget(const DepMap& dep_map,

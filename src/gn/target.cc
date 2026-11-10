@@ -1191,6 +1191,10 @@ bool Target::CheckVisibility(Err* err) const {
     if (!Visibility::CheckItemVisibility(this, pair.ptr, err))
       return false;
   }
+  for (const auto& pair : walk_deps()) {
+    if (!Visibility::CheckItemVisibility(this, pair.ptr, err))
+      return false;
+  }
   return true;
 }
 
@@ -1222,6 +1226,14 @@ bool Target::CheckTestonly(Err* err) const {
 
   // Verify no deps have "testonly" set.
   for (const auto& pair : GetDeps(DEPS_ALL)) {
+    if (pair.ptr->testonly()) {
+      *err = MakeTestOnlyError(this, pair.ptr);
+      return false;
+    }
+  }
+  // Like validations, walk_deps might not be resolved yet, but testonly is set
+  // when targets are defined.
+  for (const auto& pair : walk_deps()) {
     if (pair.ptr->testonly()) {
       *err = MakeTestOnlyError(this, pair.ptr);
       return false;
@@ -1326,6 +1338,9 @@ struct MetadataWalker {
     // If deps_only, this is the top-level target and thus we don't want to
     // collect its metadata, only that of its deps and data_deps.
     if (deps_only) {
+      // Do not collect its metadata either if the walk leads back to it
+      // (which is possible with walk_deps or validations).
+      targets_walked_.add(&target);
       // Empty string will be converted below to mean all deps and data_deps.
       // Origin is null because this isn't declared anywhere, and should never
       // trigger any errors.
@@ -1366,6 +1381,12 @@ struct MetadataWalker {
               if (!Walk(*dep.ptr, false))
                 return false;
             }
+          }
+        }
+        if (deps_only) {
+          for (const auto& dep : target.walk_deps()) {
+            if (targets_walked_.add(dep.ptr) && !Walk(*dep.ptr, false))
+              return false;
           }
         }
 
