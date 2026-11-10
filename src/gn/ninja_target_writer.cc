@@ -99,8 +99,7 @@ void NinjaTargetWriter::WriteOutputs(std::vector<OutputFile>&& outputs) const {
 std::string NinjaTargetWriter::RunAndWriteFile(
     const Target* target,
     ResolvedTargetData* resolved,
-    std::vector<OutputFile>* ninja_outputs,
-    bool* delayed_generated_file_write) {
+    std::vector<OutputFile>* ninja_outputs) {
   const Settings* settings = target->settings();
 
   ScopedTrace trace(TraceItem::TRACE_FILE_WRITE_NINJA,
@@ -109,9 +108,6 @@ std::string NinjaTargetWriter::RunAndWriteFile(
 
   if (g_scheduler->verbose_logging())
     g_scheduler->Log("Computing", target->label().GetUserVisibleName(true));
-
-  if (delayed_generated_file_write)
-    *delayed_generated_file_write = false;
 
   // It's ridiculously faster to write to a string and then write that to
   // disk in one operation than to use an fstream here.
@@ -163,7 +159,6 @@ std::string NinjaTargetWriter::RunAndWriteFile(
     NinjaGeneratedFileTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
     writer.SetNinjaOutputs(ninja_outputs);
-    writer.SetDelayedGeneratedFileWritePtr(delayed_generated_file_write);
     writer.Run();
   } else if (target->IsBinary()) {
     needs_file_write = true;

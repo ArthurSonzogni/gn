@@ -22,19 +22,11 @@ NinjaGeneratedFileTargetWriter::NinjaGeneratedFileTargetWriter(
 NinjaGeneratedFileTargetWriter::~NinjaGeneratedFileTargetWriter() = default;
 
 void NinjaGeneratedFileTargetWriter::Run() {
-  // Write the file.
-  if (target_->collect_validations_metadata()) {
-    // Do not write the file yet because some transitive dependencies
-    // might not be fully resolved, causing runtime crashes during the
-    // write. The |delayed_generated_file_write_| pointer must be set
-    // when validations metadata is collected.
-    CHECK(delayed_generated_file_write_ptr_);
-    *delayed_generated_file_write_ptr_ = true;
-  } else {
-    Err err;
-    if (!WriteGeneratedFileToDisk(target_, &err)) {
-      g_scheduler->FailWithError(err);
-    }
+  // Write the file. Targets whose metadata walks require a fully resolved
+  // graph are only written after all targets are resolved (see command_gen.cc).
+  Err err;
+  if (!WriteGeneratedFileToDisk(target_, &err)) {
+    g_scheduler->FailWithError(err);
   }
 
   // A generated_file target should generate a phony target with dependencies
