@@ -393,6 +393,7 @@ mod dummy {
         );
 
         fn loaded(self: &Session) -> Vec<&'static str>;
+        fn write_all_rules(self: &Session, buffer: Pin<&mut StringOutputBuffer>);
 
         type OwnedFrozenValue;
         #[rust_name = "clone_cxx"]

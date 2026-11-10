@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::{BTreeSet, HashMap, hash_map::Entry},
     pin::Pin,
     sync::RwLock,
 };
@@ -191,6 +191,28 @@ impl Session {
             }
             Ok(())
         })());
+    }
+
+    /// Writes global Ninja rules for all unique action mnemonics across evaluated targets.
+    pub fn write_all_rules(&self, buffer: Pin<&mut crate::bridge::StringOutputBuffer>) {
+        let targets = self.targets.read().unwrap();
+        let mnemonics: BTreeSet<&str> = targets
+            .values()
+            .filter_map(|t| t.evaluated.get())
+            .flat_map(|evaluated| &evaluated.as_ref().value().as_ref().actions)
+            .map(|action| action.mnemonic.map(|m| m.as_str()).unwrap_or("ACTION"))
+            .collect();
+
+        let mut buf = crate::StringOutputBuffer::new(buffer);
+        for mnemonic in mnemonics {
+            buf.append((
+                "rule action_",
+                mnemonic,
+                "\n  command = $command\n  restat = 1\n  description = ",
+                mnemonic,
+                " $out\n\n",
+            ));
+        }
     }
 }
 

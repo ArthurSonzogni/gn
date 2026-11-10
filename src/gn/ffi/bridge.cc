@@ -1183,6 +1183,7 @@ struct Session final : public ::rust::Opaque {
   ::RustTarget const &register_cxx_target(::Target const &target) const noexcept;
   void load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept;
   ::rust::Vec<::rust::Str> loaded() const noexcept;
+  void write_all_rules(::StringOutputBuffer &buffer) const noexcept;
   ~Session() = delete;
 
 private:
@@ -1539,6 +1540,8 @@ bool cxxbridge1$196$RustTarget$write_inputs(::RustTarget const &self, ::std::vec
 void cxxbridge1$196$Session$load_values(::Session const &self, ::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr *origin, ::Err &err) noexcept;
 
 void cxxbridge1$196$Session$loaded(::Session const &self, ::rust::Vec<::rust::Str> *return$) noexcept;
+
+void cxxbridge1$196$Session$write_all_rules(::Session const &self, ::StringOutputBuffer &buffer) noexcept;
 ::std::size_t cxxbridge1$196$OwnedFrozenValue$operator$sizeof() noexcept;
 ::std::size_t cxxbridge1$196$OwnedFrozenValue$operator$alignof() noexcept;
 
@@ -1604,6 +1607,10 @@ void Session::load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Sl
   ::rust::MaybeUninit<::rust::Vec<::rust::Str>> return$;
   cxxbridge1$196$Session$loaded(*this, &return$.value);
   return ::std::move(return$.value);
+}
+
+void Session::write_all_rules(::StringOutputBuffer &buffer) const noexcept {
+  cxxbridge1$196$Session$write_all_rules(*this, buffer);
 }
 
 ::std::size_t OwnedFrozenValue::layout::size() noexcept {

@@ -1,0 +1,29 @@
+# Copyright 2026 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+def _action_rules_impl(ctx):
+  a = ctx.actions.declare_file(ctx.label.name + ".a")
+  ctx.actions.run(
+    outputs = [a],
+    executable = "tool",
+    mnemonic = "TOOL",
+  )
+
+  b = ctx.actions.declare_file(ctx.label.name + ".b")
+  ctx.actions.run(
+    outputs = [b],
+    executable = "tool",
+    mnemonic = "TOOL",
+  )
+
+  c = ctx.actions.declare_file(ctx.label.name + ".c")
+  ctx.actions.run(
+    outputs = [c],
+    executable = "tool",
+  )
+  return [DefaultInfo(files = depset([a]))]
+
+action_rules = rule(
+  implementation = _action_rules_impl,
+)

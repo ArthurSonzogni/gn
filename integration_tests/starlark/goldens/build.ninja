@@ -9,18 +9,31 @@ ninja_required_version = 1.7.2
 build build.ninja: phony build.ninja.stamp
   generator = 1
 
+rule action_ACTION
+  command = $command
+  restat = 1
+  description = ACTION $out
+
+rule action_TOOL
+  command = $command
+  restat = 1
+  description = TOOL $out
+
 subninja toolchain.ninja
 
+build actions: phony obj/actions/actions.a
 build custom_shared: phony ./libcustom_shared.so
 build filegroup: phony ../first.txt
 build filegroups: phony phony/$:filegroups_0
 build multiple: phony phony/$:multiple_0
+build $:actions: phony obj/actions/actions.a
 build $:custom_shared: phony ./libcustom_shared.so
 build $:filegroup: phony ../first.txt
 build $:filegroups: phony phony/$:filegroups_0
 build $:multiple: phony phony/$:multiple_0
 
 build all: phony $
+    obj/actions/actions.a $
     ./libcustom_shared.so $
     ../first.txt $
     phony/$:filegroups_0 $

@@ -1101,6 +1101,7 @@ struct Session final : public ::rust::Opaque {
   ::RustTarget const &register_cxx_target(::Target const &target) const noexcept;
   void load_values(::rust::Str label, ::rust::Str relative_to, ::rust::Slice<::rust::Str const> keys, ::Scope &scope, ::Settings const &settings, ::ParseNodePtr origin, ::Err &err) const noexcept;
   ::rust::Vec<::rust::Str> loaded() const noexcept;
+  void write_all_rules(::StringOutputBuffer &buffer) const noexcept;
   ~Session() = delete;
 
 private:
