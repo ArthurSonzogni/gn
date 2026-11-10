@@ -5,6 +5,7 @@
 #include "gn/ninja_rust_binary_target_writer.h"
 
 #include <unordered_set>
+#include <utility>
 
 #include "base/strings/string_util.h"
 #include "gn/deps_iterator.h"
@@ -113,25 +114,17 @@ NinjaRustBinaryTargetWriter::~NinjaRustBinaryTargetWriter() = default;
 void NinjaRustBinaryTargetWriter::Run() {
   DCHECK(target_->output_type() != Target::SOURCE_SET);
 
-  size_t num_output_uses = target_->sources().size();
-
-  std::vector<OutputFile> input_deps =
-      WriteInputsStampOrPhonyAndGetDep(num_output_uses);
-
   WriteCompilerVars();
 
   // Classify our dependencies.
   ClassifiedDeps classified_deps = GetClassifiedDeps();
 
-  // The input dependencies will be an order-only dependency. This will cause
-  // Ninja to make sure the inputs are up to date before compiling this source,
-  // but changes in the inputs deps won't cause the file to be recompiled. See
-  // the comment on NinjaCBinaryTargetWriter::Run for more detailed explanation.
-  NinjaTargetWriter::InputDeps stamp_deps = WriteInputDepsStampOrPhonyAndGetDep(
-      std::vector<const Target*>(), num_output_uses);
-  std::vector<OutputFile> order_only_deps = stamp_deps.order_only;
-  std::copy(input_deps.begin(), input_deps.end(),
-            std::back_inserter(order_only_deps));
+  // Unlike C/C++, Rust compiles all sources of a crate in one command, so
+  // input dependencies are referenced only once in this ninja file.
+  InputDeps compiler_input_deps =
+      WriteCompilerInputDeps(/*num_output_uses=*/1u);
+  UniqueVector<OutputFile> order_only_deps;
+  order_only_deps.Append(std::move(compiler_input_deps.order_only));
 
   // rustc does not invoke a linker when building an rlib, so non-Rust native
   // dependencies (object files, static and shared libraries) are not used to
@@ -147,17 +140,16 @@ void NinjaRustBinaryTargetWriter::Run() {
   // -Ldependency. Also assemble a list of extra (i.e. implicit) deps
   // for ninja dependency tracking.
   UniqueVector<OutputFile> implicit_deps;
-  implicit_deps.Append(stamp_deps.implicit.begin(), stamp_deps.implicit.end());
-  AppendSourcesAndInputsToImplicitDeps(&implicit_deps);
+  // Only the crate_root file needs to be given to rustc as explicit input.
+  // Any other 'sources' are implicit deps.
+  for (const auto& source : target_->sources()) {
+    implicit_deps.push_back(OutputFile(settings_->build_settings(), source));
+  }
+  implicit_deps.Append(compiler_input_deps.implicit.begin(),
+                       compiler_input_deps.implicit.end());
   if (!is_rlib) {
     implicit_deps.Append(classified_deps.extra_object_files.begin(),
                          classified_deps.extra_object_files.end());
-  }
-
-  if (auto phony = tool_->inputs_phony_or_file(rule_prefix_,
-                                               *settings_->build_settings());
-      phony) {
-    implicit_deps.emplace_back(std::move(*phony));
   }
 
   std::vector<OutputFile> rustdeps;
@@ -190,8 +182,7 @@ void NinjaRustBinaryTargetWriter::Run() {
 
   std::vector<OutputFile> group_order_only_deps =
       GetOrderOnlyDepsFromNonLinkableDeps(classified_deps.non_linkable_deps);
-  order_only_deps.insert(order_only_deps.end(), group_order_only_deps.begin(),
-                         group_order_only_deps.end());
+  order_only_deps.Append(std::move(group_order_only_deps));
   for (const auto* linkable_dep : classified_deps.linkable_deps) {
     // Rust cdylibs are treated as non-Rust dependencies for linking purposes.
     if (linkable_dep->source_types_used().RustSourceUsed() &&
@@ -295,8 +286,8 @@ void NinjaRustBinaryTargetWriter::Run() {
   SubstitutionWriter::ApplyListToLinkerAsOutputFile(
       target_, tool_, tool_->outputs(), &tool_outputs);
   WriteCompilerBuildLine({target_->rust_values().crate_root()},
-                         implicit_deps.vector(), order_only_deps, tool_,
-                         tool_outputs);
+                         implicit_deps.vector(), order_only_deps.vector(),
+                         tool_, tool_outputs);
 
   std::vector<const Target*> extern_deps(
       classified_deps.linkable_deps.vector());
@@ -321,31 +312,15 @@ void NinjaRustBinaryTargetWriter::WriteCompilerVars() {
   WriteSharedVars(subst);
 }
 
-void NinjaRustBinaryTargetWriter::AppendSourcesAndInputsToImplicitDeps(
-    UniqueVector<OutputFile>* deps) const {
-  // Only the crate_root file needs to be given to rustc as input.
-  // Any other 'sources' are just implicit deps.
-  // Most Rust targets won't bother specifying the "sources =" line
-  // because it is handled sufficiently by crate_root and the generation
-  // of depfiles by rustc. But for those which do...
-  for (const auto& source : target_->sources()) {
-    deps->push_back(OutputFile(settings_->build_settings(), source));
-  }
-  for (const auto& data : target_->config_values().inputs()) {
-    deps->push_back(OutputFile(settings_->build_settings(), data));
-  }
-}
-
 void NinjaRustBinaryTargetWriter::WriteSourcesAndInputs() {
+  UniqueVector<SourceFile> files;
+  files.Append(target_->sources());
+  files.Append(GetInputs());
+
   out_ << "  sources =";
-  for (const auto& source : target_->sources()) {
+  for (const auto& file : files) {
     out_ << " ";
-    path_output_.WriteFile(out_,
-                           OutputFile(settings_->build_settings(), source));
-  }
-  for (const auto& data : target_->config_values().inputs()) {
-    out_ << " ";
-    path_output_.WriteFile(out_, OutputFile(settings_->build_settings(), data));
+    path_output_.WriteFile(out_, OutputFile(settings_->build_settings(), file));
   }
   out_ << '\n';
 }

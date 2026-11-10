@@ -1788,8 +1788,6 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Inputs) {
     writer.Run();
 
     const char expected[] =
-        "build phony/foo/bar.inputs: phony ../../foo/config.json "
-        "../../foo/template.h\n"
         "crate_name = foo_bar\n"
         "crate_type = bin\n"
         "output_extension = \n"
@@ -1802,8 +1800,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Inputs) {
         "target_output_name = bar\n"
         "\n"
         "build ./foo_bar: rust_bin ../../foo/main.rs | ../../foo/source.rs "
-        "../../foo/main.rs ../../foo/config.json ../../foo/template.h "
-        "|| phony/foo/bar.inputs\n"
+        "../../foo/main.rs ../../foo/config.json ../../foo/template.h\n"
         "  source_file_part = main.rs\n"
         "  source_name_part = main\n"
         "  externs =\n"
@@ -1813,6 +1810,391 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Inputs) {
         "../../foo/config.json ../../foo/template.h\n";
     EXPECT_EQ(expected, out);
   }
+}
+
+TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
+  Err err;
+  TestWithScope setup;
+
+  // Sub-config attached to a direct config (e.g. a custom target JSON spec).
+  Config sub_config(setup.settings(), Label(SourceDir("//cfg/"), "sub_cfg"));
+  sub_config.visibility().SetPublic();
+  sub_config.own_values().rustflags().push_back("--target=gen/cfg/target.json");
+  sub_config.own_values().inputs().push_back(
+      SourceFile("//out/Debug/gen/cfg/target.json"));
+  // Duplicate of direct_config's input to verify value-based deduplication.
+  sub_config.own_values().inputs().push_back(SourceFile("//cfg/direct.json"));
+  ASSERT_TRUE(sub_config.OnResolved(&err));
+
+  Config direct_config(setup.settings(), Label(SourceDir("//cfg/"), "direct"));
+  direct_config.visibility().SetPublic();
+  direct_config.own_values().inputs().push_back(
+      SourceFile("//cfg/direct.json"));
+  direct_config.configs().push_back(LabelConfigPair(&sub_config));
+  ASSERT_TRUE(direct_config.OnResolved(&err));
+
+  Config pub_config(setup.settings(), Label(SourceDir("//cfg/"), "pub"));
+  pub_config.visibility().SetPublic();
+  pub_config.own_values().inputs().push_back(SourceFile("//cfg/public.json"));
+  ASSERT_TRUE(pub_config.OnResolved(&err));
+
+  Config all_dep_config(setup.settings(), Label(SourceDir("//cfg/"), "all"));
+  all_dep_config.visibility().SetPublic();
+  all_dep_config.own_values().inputs().push_back(SourceFile("//cfg/all.json"));
+  ASSERT_TRUE(all_dep_config.OnResolved(&err));
+
+  // Upstream action target: its output should be an order-only dependency
+  // ("||"), while its public_configs / all_dependent_configs `inputs` and its
+  // `public_inputs` must be implicit rebuild dependencies ("|").
+  Target gen_action(setup.settings(), Label(SourceDir("//cfg/"), "gen_target"));
+  gen_action.set_output_type(Target::ACTION);
+  gen_action.visibility().SetPublic();
+  gen_action.action_values().set_script(SourceFile("//cfg/gen.py"));
+  gen_action.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/gen/cfg/target.json");
+  gen_action.public_configs().push_back(LabelConfigPair(&pub_config));
+  gen_action.all_dependent_configs().push_back(
+      LabelConfigPair(&all_dep_config));
+  gen_action.public_inputs().push_back(SourceFile("//cfg/pub_input.txt"));
+  gen_action.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(gen_action.OnResolved(&err));
+
+  // 1. Test RUST_LIBRARY (rlib) with target inputs, config inputs,
+  // public_inputs, and an order-only action dependency.
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "mylib"));
+  rlib.set_output_type(Target::RUST_LIBRARY);
+  rlib.visibility().SetPublic();
+  SourceFile lib_rs("//foo/lib.rs");
+  rlib.sources().push_back(SourceFile("//foo/extra.rs"));
+  rlib.sources().push_back(lib_rs);
+  rlib.source_types_used().Set(SourceFile::SOURCE_RS);
+  rlib.rust_values().set_crate_root(lib_rs);
+  rlib.rust_values().crate_name() = "mylib";
+  rlib.config_values().inputs().push_back(SourceFile("//foo/own.json"));
+  // Also duplicate //cfg/direct.json on the target itself to test deduping.
+  rlib.config_values().inputs().push_back(SourceFile("//cfg/direct.json"));
+  rlib.configs().push_back(LabelConfigPair(&direct_config));
+  rlib.public_deps().push_back(LabelTargetPair(&gen_action));
+  rlib.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(rlib.OnResolved(&err));
+
+  {
+    StringOutputBuffer out;
+    NinjaRustBinaryTargetWriter writer(&rlib, out);
+    writer.Run();
+
+    const char expected[] =
+        "crate_name = mylib\n"
+        "crate_type = rlib\n"
+        "output_extension = .rlib\n"
+        "output_dir = \n"
+        "rustflags = --target=gen/cfg/target.json\n"
+        "rustenv =\n"
+        "root_out_dir = .\n"
+        "target_gen_dir = gen/foo\n"
+        "target_out_dir = obj/foo\n"
+        "target_output_name = libmylib\n"
+        "\n"
+        "build obj/foo/libmylib.rlib: rust_rlib ../../foo/lib.rs | "
+        "../../foo/extra.rs ../../foo/lib.rs ../../foo/own.json "
+        "../../cfg/direct.json gen/cfg/target.json ../../cfg/all.json "
+        "../../cfg/public.json phony/cfg/gen_target.public_inputs || "
+        "phony/cfg/gen_target\n"
+        "  source_file_part = lib.rs\n"
+        "  source_name_part = lib\n"
+        "  externs =\n"
+        "  rustdeps =\n"
+        "  ldflags =\n"
+        "  sources = ../../foo/extra.rs ../../foo/lib.rs ../../foo/own.json "
+        "../../cfg/direct.json gen/cfg/target.json ../../cfg/all.json "
+        "../../cfg/public.json\n";
+    EXPECT_EQ(expected, out);
+  }
+
+  // 2. Test RUST_PROC_MACRO, SHARED_LIBRARY (dylib), LOADABLE_MODULE (cdylib),
+  // and STATIC_LIBRARY receiving inherited configs (all_dependent_configs +
+  // transitive public_configs via a group), toolchain deps, and multiple
+  // upstream action hard_deps, with stamp files enabled.
+  {
+    TestWithScope stamp_setup;
+    stamp_setup.build_settings()->set_no_stamp_files(false);
+
+    Target tc_dep(stamp_setup.settings(), Label(SourceDir("//tc/"), "setup"));
+    tc_dep.set_output_type(Target::ACTION);
+    tc_dep.visibility().SetPublic();
+    tc_dep.action_values().set_script(SourceFile("//tc/setup.py"));
+    tc_dep.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(tc_dep.OnResolved(&err));
+    stamp_setup.toolchain()->deps().push_back(LabelTargetPair(&tc_dep));
+
+    Config transitive_pub_cfg(stamp_setup.settings(),
+                              Label(SourceDir("//cfg/"), "trans_pub"));
+    transitive_pub_cfg.visibility().SetPublic();
+    transitive_pub_cfg.own_values().inputs().push_back(
+        SourceFile("//cfg/spec1.json"));
+    ASSERT_TRUE(transitive_pub_cfg.OnResolved(&err));
+
+    Config all_dep_spec_cfg(stamp_setup.settings(),
+                            Label(SourceDir("//cfg/"), "all_spec"));
+    all_dep_spec_cfg.visibility().SetPublic();
+    all_dep_spec_cfg.own_values().inputs().push_back(
+        SourceFile("//cfg/spec2.json"));
+    ASSERT_TRUE(all_dep_spec_cfg.OnResolved(&err));
+
+    Target action_dep(stamp_setup.settings(),
+                      Label(SourceDir("//cfg/"), "act"));
+    action_dep.set_output_type(Target::ACTION);
+    action_dep.visibility().SetPublic();
+    action_dep.action_values().set_script(SourceFile("//cfg/gen.py"));
+    action_dep.action_values().outputs() =
+        SubstitutionList::MakeForTest("//out/Debug/gen/cfg/out.txt");
+    action_dep.public_configs().push_back(LabelConfigPair(&transitive_pub_cfg));
+    action_dep.all_dependent_configs().push_back(
+        LabelConfigPair(&all_dep_spec_cfg));
+    action_dep.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(action_dep.OnResolved(&err));
+
+    Target action_dep2(stamp_setup.settings(),
+                       Label(SourceDir("//cfg/"), "act2"));
+    action_dep2.set_output_type(Target::ACTION);
+    action_dep2.visibility().SetPublic();
+    action_dep2.action_values().set_script(SourceFile("//cfg/gen2.py"));
+    action_dep2.action_values().outputs() =
+        SubstitutionList::MakeForTest("//out/Debug/gen/cfg/out2.txt");
+    action_dep2.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(action_dep2.OnResolved(&err));
+
+    Target cfg_group(stamp_setup.settings(), Label(SourceDir("//cfg/"), "grp"));
+    cfg_group.set_output_type(Target::GROUP);
+    cfg_group.visibility().SetPublic();
+    cfg_group.public_deps().push_back(LabelTargetPair(&action_dep));
+    cfg_group.public_deps().push_back(LabelTargetPair(&action_dep2));
+    cfg_group.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(cfg_group.OnResolved(&err));
+
+    Target procmacro(stamp_setup.settings(),
+                     Label(SourceDir("//macro/"), "pm"));
+    procmacro.set_output_type(Target::RUST_PROC_MACRO);
+    procmacro.visibility().SetPublic();
+    SourceFile pm_root("//macro/lib.rs");
+    procmacro.sources().push_back(SourceFile("//macro/helper.rs"));
+    procmacro.sources().push_back(pm_root);
+    procmacro.source_types_used().Set(SourceFile::SOURCE_RS);
+    procmacro.rust_values().set_crate_root(pm_root);
+    procmacro.rust_values().crate_name() = "pm";
+    procmacro.private_deps().push_back(LabelTargetPair(&cfg_group));
+    procmacro.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(procmacro.OnResolved(&err));
+
+    StringOutputBuffer pm_out;
+    NinjaRustBinaryTargetWriter pm_writer(&procmacro, pm_out);
+    pm_writer.Run();
+
+    const char pm_expected[] =
+        "crate_name = pm\n"
+        "crate_type = proc-macro\n"
+        "output_extension = .so\n"
+        "output_dir = \n"
+        "rustflags =\n"
+        "rustenv =\n"
+        "root_out_dir = .\n"
+        "target_gen_dir = gen/macro\n"
+        "target_out_dir = obj/macro\n"
+        "target_output_name = libpm\n"
+        "\n"
+        "build obj/macro/libpm.so: rust_macro ../../macro/lib.rs | "
+        "../../macro/helper.rs ../../macro/lib.rs ../../cfg/spec2.json "
+        "../../cfg/spec1.json obj/tc/setup.stamp || obj/cfg/grp.harddeps.stamp "
+        "obj/cfg/act.stamp obj/cfg/act2.stamp\n"
+        "  source_file_part = lib.rs\n"
+        "  source_name_part = lib\n"
+        "  externs =\n"
+        "  rustdeps =\n"
+        "  ldflags =\n"
+        "  sources = ../../macro/helper.rs ../../macro/lib.rs "
+        "../../cfg/spec2.json ../../cfg/spec1.json\n";
+    EXPECT_EQ(pm_expected, pm_out);
+
+    Target dylib(stamp_setup.settings(), Label(SourceDir("//dylib/"), "dy"));
+    dylib.set_output_type(Target::SHARED_LIBRARY);
+    dylib.visibility().SetPublic();
+    SourceFile dy_root("//dylib/lib.rs");
+    dylib.sources().push_back(dy_root);
+    dylib.source_types_used().Set(SourceFile::SOURCE_RS);
+    dylib.rust_values().set_crate_root(dy_root);
+    dylib.rust_values().set_crate_type(RustValues::CRATE_DYLIB);
+    dylib.rust_values().crate_name() = "dy";
+    dylib.private_deps().push_back(LabelTargetPair(&cfg_group));
+    dylib.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(dylib.OnResolved(&err));
+
+    StringOutputBuffer dy_out;
+    NinjaRustBinaryTargetWriter dy_writer(&dylib, dy_out);
+    dy_writer.Run();
+
+    const char dy_expected[] =
+        "crate_name = dy\n"
+        "crate_type = dylib\n"
+        "output_extension = .so\n"
+        "output_dir = \n"
+        "rustflags =\n"
+        "rustenv =\n"
+        "root_out_dir = .\n"
+        "target_gen_dir = gen/dylib\n"
+        "target_out_dir = obj/dylib\n"
+        "target_output_name = libdy\n"
+        "\n"
+        "build obj/dylib/libdy.so: rust_dylib ../../dylib/lib.rs | "
+        "../../dylib/lib.rs ../../cfg/spec2.json ../../cfg/spec1.json "
+        "obj/tc/setup.stamp || obj/cfg/grp.harddeps.stamp obj/cfg/act.stamp "
+        "obj/cfg/act2.stamp\n"
+        "  source_file_part = lib.rs\n"
+        "  source_name_part = lib\n"
+        "  externs =\n"
+        "  rustdeps =\n"
+        "  ldflags =\n"
+        "  sources = ../../dylib/lib.rs ../../cfg/spec2.json "
+        "../../cfg/spec1.json\n";
+    EXPECT_EQ(dy_expected, dy_out);
+
+    Target cdylib(stamp_setup.settings(), Label(SourceDir("//cdylib/"), "cd"));
+    cdylib.set_output_type(Target::LOADABLE_MODULE);
+    cdylib.visibility().SetPublic();
+    SourceFile cd_root("//cdylib/lib.rs");
+    cdylib.sources().push_back(cd_root);
+    cdylib.source_types_used().Set(SourceFile::SOURCE_RS);
+    cdylib.rust_values().set_crate_root(cd_root);
+    cdylib.rust_values().set_crate_type(RustValues::CRATE_CDYLIB);
+    cdylib.rust_values().crate_name() = "cd";
+    cdylib.private_deps().push_back(LabelTargetPair(&cfg_group));
+    cdylib.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(cdylib.OnResolved(&err));
+
+    StringOutputBuffer cd_out;
+    NinjaRustBinaryTargetWriter cd_writer(&cdylib, cd_out);
+    cd_writer.Run();
+
+    const char cd_expected[] =
+        "crate_name = cd\n"
+        "crate_type = cdylib\n"
+        "output_extension = .so\n"
+        "output_dir = \n"
+        "rustflags =\n"
+        "rustenv =\n"
+        "root_out_dir = .\n"
+        "target_gen_dir = gen/cdylib\n"
+        "target_out_dir = obj/cdylib\n"
+        "target_output_name = libcd\n"
+        "\n"
+        "build obj/cdylib/libcd.so: rust_cdylib ../../cdylib/lib.rs | "
+        "../../cdylib/lib.rs ../../cfg/spec2.json ../../cfg/spec1.json "
+        "obj/tc/setup.stamp || obj/cfg/grp.harddeps.stamp obj/cfg/act.stamp "
+        "obj/cfg/act2.stamp\n"
+        "  source_file_part = lib.rs\n"
+        "  source_name_part = lib\n"
+        "  externs =\n"
+        "  rustdeps =\n"
+        "  ldflags =\n"
+        "  sources = ../../cdylib/lib.rs ../../cfg/spec2.json "
+        "../../cfg/spec1.json\n";
+    EXPECT_EQ(cd_expected, cd_out);
+
+    Target staticlib(stamp_setup.settings(),
+                     Label(SourceDir("//static/"), "st"));
+    staticlib.set_output_type(Target::STATIC_LIBRARY);
+    staticlib.visibility().SetPublic();
+    SourceFile st_root("//static/lib.rs");
+    staticlib.sources().push_back(st_root);
+    staticlib.source_types_used().Set(SourceFile::SOURCE_RS);
+    staticlib.rust_values().set_crate_root(st_root);
+    staticlib.rust_values().crate_name() = "st";
+    staticlib.private_deps().push_back(LabelTargetPair(&cfg_group));
+    staticlib.SetToolchain(stamp_setup.toolchain());
+    ASSERT_TRUE(staticlib.OnResolved(&err));
+
+    StringOutputBuffer st_out;
+    NinjaRustBinaryTargetWriter st_writer(&staticlib, st_out);
+    st_writer.Run();
+
+    const char st_expected[] =
+        "crate_name = st\n"
+        "crate_type = staticlib\n"
+        "output_extension = .a\n"
+        "output_dir = \n"
+        "rustflags =\n"
+        "rustenv =\n"
+        "root_out_dir = .\n"
+        "target_gen_dir = gen/static\n"
+        "target_out_dir = obj/static\n"
+        "target_output_name = libst\n"
+        "\n"
+        "build obj/static/libst.a: rust_staticlib ../../static/lib.rs | "
+        "../../static/lib.rs ../../cfg/spec2.json ../../cfg/spec1.json "
+        "obj/tc/setup.stamp || obj/cfg/grp.harddeps.stamp obj/cfg/act.stamp "
+        "obj/cfg/act2.stamp\n"
+        "  source_file_part = lib.rs\n"
+        "  source_name_part = lib\n"
+        "  externs =\n"
+        "  rustdeps =\n"
+        "  ldflags =\n"
+        "  sources = ../../static/lib.rs ../../cfg/spec2.json "
+        "../../cfg/spec1.json\n";
+    EXPECT_EQ(st_expected, st_out);
+  }
+}
+
+TEST_F(NinjaRustBinaryTargetWriterTest, ToolInputs) {
+  Err err;
+  TestWithScope setup;
+
+  Toolchain toolchain_with_inputs(
+      setup.settings(),
+      Label(SourceDir("//toolchain_with_inputs/"), "with_inputs"));
+  std::unique_ptr<Tool> rust_bin = Tool::CreateTool(RustTool::kRsToolBin);
+  TestWithScope::SetCommandForTool(
+      "{{rustenv}} rustc --crate-name {{crate_name}} {{source}} "
+      "--crate-type {{crate_type}} {{rustflags}} -o {{output}} "
+      "{{rustdeps}} {{externs}}",
+      rust_bin.get());
+  rust_bin->set_outputs(SubstitutionList::MakeForTest(
+      "{{root_out_dir}}/{{crate_name}}{{output_extension}}"));
+  rust_bin->set_inputs({SourceFile("//bin/rustc")});
+  toolchain_with_inputs.SetTool(std::move(rust_bin));
+  toolchain_with_inputs.ToolchainSetupComplete();
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.set_output_type(Target::EXECUTABLE);
+  target.visibility().SetPublic();
+  SourceFile main("//foo/main.rs");
+  target.sources().push_back(main);
+  target.source_types_used().Set(SourceFile::SOURCE_RS);
+  target.rust_values().set_crate_root(main);
+  target.rust_values().crate_name() = "foo_bar";
+  target.SetToolchain(&toolchain_with_inputs);
+  ASSERT_TRUE(target.OnResolved(&err));
+
+  StringOutputBuffer out;
+  NinjaRustBinaryTargetWriter writer(&target, out);
+  writer.Run();
+
+  const char expected[] =
+      "crate_name = foo_bar\n"
+      "crate_type = bin\n"
+      "output_extension = \n"
+      "output_dir = \n"
+      "rustflags =\n"
+      "rustenv =\n"
+      "root_out_dir = .\n"
+      "\n"
+      "build ./foo_bar: rust_bin ../../foo/main.rs | ../../foo/main.rs "
+      "../../bin/rustc\n"
+      "  source_file_part = main.rs\n"
+      "  source_name_part = main\n"
+      "  externs =\n"
+      "  rustdeps =\n"
+      "  ldflags =\n"
+      "  sources = ../../foo/main.rs\n";
+  EXPECT_EQ(expected, out);
 }
 
 TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {

@@ -26,8 +26,6 @@ class NinjaRustBinaryTargetWriter : public NinjaBinaryTargetWriter {
   };
 
   void WriteCompilerVars();
-  void WriteSources(const OutputFile& input_dep,
-                    const std::vector<OutputFile>& order_only_deps);
   void WriteExternsAndDeps(const std::vector<const Target*>& deps,
                            const std::vector<ExternCrate>& transitive_rust_deps,
                            const std::vector<OutputFile>& rustdeps,
@@ -36,9 +34,6 @@ class NinjaRustBinaryTargetWriter : public NinjaBinaryTargetWriter {
   // Unlike C/C++, Rust compiles all sources of a crate in one command.
   // Write a ninja variable `sources` that contains all sources and input files.
   void WriteSourcesAndInputs();
-  void WriteEdition();
-  void AppendSourcesAndInputsToImplicitDeps(
-      UniqueVector<OutputFile>* deps) const;
 
   const RustTool* tool_;
 

@@ -1747,6 +1747,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
   {
     Config far_config(setup.settings(), Label(SourceDir("//foo/"), "qux"));
     far_config.own_values().inputs().push_back(SourceFile("//foo/input3.data"));
+    // Duplicate of target's input1.data to verify value-based deduplication.
+    far_config.own_values().inputs().push_back(SourceFile("//foo/input1.data"));
     ASSERT_TRUE(far_config.OnResolved(&err));
 
     Config config(setup.settings(), Label(SourceDir("//foo/"), "baz"));
