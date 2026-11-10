@@ -1324,8 +1324,6 @@ struct MetadataWalker {
 
     // Gather walk keys and find the appropriate target. Targets identified in
     // the walk key set must be deps or data_deps of the declaring target.
-    const DepsIteratorRange& all_deps = target.GetDeps(Target::DEPS_ALL);
-    SourceDir current_dir = target.label().dir();
     for (const auto& next : next_walk_labels) {
       DCHECK(next.type() == Value::STRING);
 
@@ -1334,7 +1332,7 @@ struct MetadataWalker {
       // from each explicitly listed dep prior to this, followed by all data in
       // walk order of the remaining deps.
       if (next.string_value().empty()) {
-        for (const auto& dep : all_deps) {
+        for (const auto& dep : target.GetDeps(Target::DEPS_ALL)) {
           // If we haven't walked this dep yet, go down into it.
           if (targets_walked_.add(dep.ptr)) {
             if (!Walk(*dep.ptr, false))
@@ -1356,61 +1354,10 @@ struct MetadataWalker {
         break;
       }
 
-      // Otherwise, look through the target's deps for the specified one.
-      // Canonicalize the label if possible.
-      const Settings* settings = target.settings();
-      const Label& toolchain_label = settings->toolchain_label();
-      Label next_label = Label::Resolve(
-          current_dir, settings->build_settings()->root_path_utf8(),
-          toolchain_label, next, &err_);
-      if (next_label.is_null()) {
-        err_ = Err(next.origin(), std::string("Failed to canonicalize ") +
-                                      next.string_value() + std::string("."));
+      // Otherwise, go down into the specified dep if we haven't walked it yet.
+      const Target* dep = ResolveDepLabel(target, next);
+      if (!dep || (targets_walked_.add(dep) && !Walk(*dep, false)))
         return false;
-      }
-
-      bool found_next = false;
-      for (const auto& dep : all_deps) {
-        // Match against the label with the toolchain.
-        if (dep.label.Matches(next_label, toolchain_label)) {
-          // If we haven't walked this dep yet, go down into it.
-          if (targets_walked_.add(dep.ptr)) {
-            if (!Walk(*dep.ptr, false))
-              return false;
-          }
-          // We found it, so we can exit this search now.
-          found_next = true;
-          break;
-        }
-      }
-      if (!found_next && collect_validations_metadata_) {
-        for (const auto& dep : target.validations()) {
-          // Match against the label with the toolchain.
-          if (dep.label.Matches(next_label, toolchain_label)) {
-            // If we haven't walked this dep yet, go down into it.
-            if (targets_walked_.add(dep.ptr)) {
-              if (!Walk(*dep.ptr, false))
-                return false;
-            }
-            // We found it, so we can exit this search now.
-            found_next = true;
-            break;
-          }
-        }
-      }
-      // If we didn't find the specified dep in the target, that's an error.
-      // Propagate it back to the user.
-      if (!found_next) {
-        err_ =
-            Err(next.origin(),
-                std::string("I was expecting ") +
-                    next_label.GetUserVisibleName(true) +
-                    std::string(" to be a dependency of ") +
-                    target.label().GetUserVisibleName(true) +
-                    ". Make sure it's included in the deps or data_deps, and "
-                    "that you've specified the appropriate toolchain.");
-        return false;
-      }
     }
     result_->insert(result_->end(),
                     std::make_move_iterator(current_result.begin()),
@@ -1419,6 +1366,42 @@ struct MetadataWalker {
   }
 
  private:
+  // Resolves |value| as a label relative to |target|, and returns the
+  // dependency of |target| that it refers to. If there is none, sets |err_| and
+  // returns nullptr.
+  const Target* ResolveDepLabel(const Target& target, const Value& value) {
+    const Settings* settings = target.settings();
+    const Label& toolchain_label = settings->toolchain_label();
+    Label label = Label::Resolve(target.label().dir(),
+                                 settings->build_settings()->root_path_utf8(),
+                                 toolchain_label, value, &err_);
+    if (label.is_null()) {
+      err_ = Err(value.origin(),
+                 "Failed to canonicalize " + value.string_value() + ".");
+      return nullptr;
+    }
+    // Match against the label with the toolchain.
+    for (const auto& dep : target.GetDeps(Target::DEPS_ALL)) {
+      if (dep.label.Matches(label, toolchain_label))
+        return dep.ptr;
+    }
+    if (collect_validations_metadata_) {
+      for (const auto& dep : target.validations()) {
+        if (dep.label.Matches(label, toolchain_label))
+          return dep.ptr;
+      }
+    }
+    // If we didn't find the specified dep in the target, that's an error.
+    // Propagate it back to the user.
+    err_ = Err(value.origin(),
+               "I was expecting " + label.GetUserVisibleName(true) +
+                   " to be a dependency of " +
+                   target.label().GetUserVisibleName(true) +
+                   ". Make sure it's included in the deps or data_deps, and "
+                   "that you've specified the appropriate toolchain.");
+    return nullptr;
+  }
+
   const KeyList& data_keys_;
   const KeyList& walk_keys_;
   const SourceDir& rebase_dir_;

@@ -32,6 +32,9 @@ class GeneratedFileTargetGenerator : public TargetGenerator {
   bool FillWalkKeys();
   bool FillRebase();
 
+  // Appends the list of strings in the given variable (if set) to |out|.
+  bool FillKeys(std::string_view variable, std::vector<std::string>* out);
+
   // Returns false if `contents` is defined (i.e. if this target was provided
   // with explicit contents to write). Returns false otherwise, indicating that
   // it is okay to set metadata collection variables on this target.
