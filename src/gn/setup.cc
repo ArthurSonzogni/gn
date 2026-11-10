@@ -1087,9 +1087,9 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
     std::optional<Version> version =
         Version::FromString(ninja_required_version_value->string_value());
     if (!version) {
-      Err(Location(), "Invalid Ninja version '" +
-                          ninja_required_version_value->string_value() + "'")
-          .PrintToStdout();
+      *err = Err(Location(), "Invalid Ninja version '" +
+                                 ninja_required_version_value->string_value() +
+                                 "'");
       return false;
     }
     build_settings_.set_ninja_required_version(*version);
@@ -1184,11 +1184,10 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
   const Value* build_config_value =
       dotfile_scope_.GetValue("buildconfig", true);
   if (!build_config_value) {
-    Err(Location(), "No build config file.",
-        "Your .gn file (\"" + FilePathToUTF8(dotfile_name_) +
-            "\")\n"
-            "didn't specify a \"buildconfig\" value.")
-        .PrintToStdout();
+    *err = Err(Location(), "No build config file.",
+               "Your .gn file (\"" + FilePathToUTF8(dotfile_name_) +
+                   "\")\n"
+                   "didn't specify a \"buildconfig\" value.");
     return false;
   } else if (!build_config_value->VerifyTypeIs(Value::STRING, err)) {
     return false;
@@ -1213,12 +1212,11 @@ bool Setup::FillOtherConfig(const base::CommandLine& cmdline, Err* err) {
       dotfile_scope_.GetValue("no_check_targets", true);
   if (no_check_targets_value) {
     if (check_targets_value) {
-      Err(Location(), "Conflicting check settings.",
-          "Your .gn file (\"" + FilePathToUTF8(dotfile_name_) +
-              "\")\n"
-              "specified both check_targets and no_check_targets and at most "
-              "one is allowed.")
-          .PrintToStdout();
+      *err = Err(Location(), "Conflicting check settings.",
+                 "Your .gn file (\"" + FilePathToUTF8(dotfile_name_) +
+                     "\")\n"
+                     "specified both check_targets and no_check_targets and "
+                     "at most one is allowed.");
       return false;
     }
     no_check_patterns_ = std::make_unique<std::vector<LabelPattern>>();

@@ -4,6 +4,8 @@
 
 #include "gn/setup.h"
 
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -16,11 +18,39 @@
 #include "util/build_config.h"
 #include "util/msg_loop.h"
 
+namespace {
+
 using SetupTest = TestWithScheduler;
 
-static void WriteFile(const base::FilePath& file, const std::string& data) {
+// A .gn file that only sets the build config.
+constexpr char kMinimalDotfile[] = R"(
+buildconfig = "//BUILDCONFIG.gn"
+)";
+
+// A BUILDCONFIG.gn that makes //:toolchain the default toolchain.
+constexpr char kToolchainBuildConfig[] = R"(
+set_default_toolchain("//:toolchain")
+)";
+
+}  // namespace
+
+static void WriteFile(const base::FilePath& file, std::string_view data) {
   CHECK_EQ(static_cast<int>(data.size()),  // Way smaller than INT_MAX.
            base::WriteFile(file, data.data(), data.size()));
+}
+
+// Creates a source root in `temp_dir`, with a .gn file with `dotfile_contents`
+// and a BUILDCONFIG.gn with `buildconfig_contents`, and returns its path.
+static base::FilePath CreateSourceRoot(
+    base::ScopedTempDir* temp_dir,
+    std::string_view dotfile_contents = kMinimalDotfile,
+    std::string_view buildconfig_contents = "") {
+  CHECK(temp_dir->CreateUniqueTempDir());
+  base::FilePath path = base::MakeAbsoluteFilePath(temp_dir->GetPath());
+  WriteFile(path.Append(FILE_PATH_LITERAL(".gn")), dotfile_contents);
+  WriteFile(path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
+            buildconfig_contents);
+  return path;
 }
 
 static std::string ReadFile(const base::FilePath& file) {
@@ -35,11 +65,8 @@ TEST_F(SetupTest, DotGNFileIsGenDep) {
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir);
   base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, "buildconfig = \"//BUILDCONFIG.gn\"\n");
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
 
   // Create another temp dir for writing the generated files to.
@@ -66,12 +93,7 @@ script_executable = ""
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
 
   // Create another temp dir for writing the generated files to.
@@ -97,12 +119,7 @@ script_executable = "this_does_not_exist"
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
 
   // Create another temp dir for writing the generated files to.
@@ -126,14 +143,11 @@ static void RunExtensionCheckTest(std::string extension,
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name,
-            "buildconfig = \"//BUILDCONFIG.gn\"\n\
+  base::FilePath in_path =
+      CreateSourceRoot(&in_temp_dir,
+                       "buildconfig = \"//BUILDCONFIG.gn\"\n\
       build_file_extension = \"" +
-                extension + "\"");
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+                           extension + "\"");
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
 
   // Create another temp dir for writing the generated files to.
@@ -164,6 +178,46 @@ TEST_F(SetupTest, Extension) {
   RunExtensionCheckTest("yay", true, "");
 }
 
+// Errors in the .gn file must be returned through `err`, since callers print
+// it when setup fails.
+static void RunDotfileErrorTest(std::string_view dotfile_contents,
+                                std::string_view expected_message) {
+  base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
+
+  base::ScopedTempDir in_temp_dir;
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, dotfile_contents);
+  cmdline.AppendSwitchPath(switches::kRoot, in_path);
+
+  base::ScopedTempDir build_temp_dir;
+  ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
+
+  Setup setup;
+  Err err;
+  EXPECT_FALSE(setup.DoSetupWithErr(FilePathToUTF8(build_temp_dir.GetPath()),
+                                    true, cmdline, &err));
+  ASSERT_TRUE(err.has_error());
+  EXPECT_EQ(expected_message, err.message());
+}
+
+TEST_F(SetupTest, MissingBuildConfig) {
+  RunDotfileErrorTest("", "No build config file.");
+}
+
+TEST_F(SetupTest, InvalidNinjaRequiredVersion) {
+  RunDotfileErrorTest(
+      "buildconfig = \"//BUILDCONFIG.gn\"\n"
+      "ninja_required_version = \"x\"\n",
+      "Invalid Ninja version 'x'");
+}
+
+TEST_F(SetupTest, ConflictingCheckSettings) {
+  RunDotfileErrorTest(
+      "buildconfig = \"//BUILDCONFIG.gn\"\n"
+      "check_targets = []\n"
+      "no_check_targets = []\n",
+      "Conflicting check settings.");
+}
+
 TEST_F(SetupTest, AddExportCompileCommands) {
   base::CommandLine cmdline(base::CommandLine::NO_PROGRAM);
 
@@ -175,12 +229,7 @@ export_compile_commands = [ "//base/*" ]
 
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitch(switches::kRoot, FilePathToUTF8(in_path));
 
   // Two additions to the compile commands list.
@@ -221,10 +270,7 @@ no_check_generated_targets = [
 
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")), kDotfileContents);
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitch(switches::kRoot, FilePathToUTF8(in_path));
 
   // Create another temp dir for writing the generated files to.
@@ -256,12 +302,7 @@ root_patterns = [ "//:*" ]
 
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
-  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")), kDotfileContents);
-
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitch(switches::kRoot, FilePathToUTF8(in_path));
 
   // Create another temp dir for writing the generated files to.
@@ -291,12 +332,7 @@ root_patterns = [ "//:foo" ]
 
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
-  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")), kDotfileContents);
-
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitch(switches::kRoot, FilePathToUTF8(in_path));
 
   // Override the default root pattern list.
@@ -356,13 +392,10 @@ toolchain("toolchain") {
 
   // Create a temp directory containing the build.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
+  base::FilePath in_path =
+      CreateSourceRoot(&in_temp_dir, kDotfileContents, kBuildConfigContents);
 
   WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILD.gn")), kBuildGnContents);
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
-            kBuildConfigContents);
-  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")), kDotfileContents);
 
   cmdline.AppendSwitch(switches::kRoot, FilePathToUTF8(in_path));
 
@@ -419,12 +452,7 @@ TEST_F(SetupTest, ArgsGnRelativeAndAbsoluteImports) {
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
 
   WriteFile(in_path.Append(FILE_PATH_LITERAL("build_defines.gni")),
@@ -469,16 +497,12 @@ script_executable = ""
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
 
   base::FilePath absolute_bin_dir = in_path.Append(FILE_PATH_LITERAL("bin"));
   base::FilePath script_executable =
       absolute_bin_dir.Append(FILE_PATH_LITERAL("python"));
 
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
   cmdline.AppendSwitchPath(switches::kScriptExecutable, script_executable);
 
@@ -506,10 +530,7 @@ script_executable = ""
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
 
   base::ScopedTempDir other_temp_dir;
   ASSERT_TRUE(other_temp_dir.CreateUniqueTempDir());
@@ -518,7 +539,6 @@ script_executable = ""
   base::FilePath script_executable =
       absolute_bin_dir.Append(FILE_PATH_LITERAL("python"));
 
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
   cmdline.AppendSwitchPath(switches::kScriptExecutable, script_executable);
 
@@ -546,10 +566,7 @@ script_executable = ""
   // Create a temp directory containing a .gn file and a BUILDCONFIG.gn file,
   // pass it as --root.
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
 
   base::FilePath relative_bin_dir(FILE_PATH_LITERAL("bin"));
   base::FilePath script_executable =
@@ -575,7 +592,6 @@ script_executable = ""
   base::SetCurrentDirectory(cwd_temp_dir.GetPath());
 #endif
 
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
   cmdline.AppendSwitchPath(switches::kScriptExecutable, script_executable);
 
@@ -609,12 +625,7 @@ script_executable = "//third_party/python/bin/python3"
 )";
 
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
 
   base::FilePath build_dir = in_path.Append(FILE_PATH_LITERAL("out"))
@@ -646,12 +657,7 @@ if (host_os != "nonexistent_os") {
 )";
 
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-  base::FilePath dot_gn_name = in_path.Append(FILE_PATH_LITERAL(".gn"));
-  WriteFile(dot_gn_name, kDotfileContents);
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")), "");
+  base::FilePath in_path = CreateSourceRoot(&in_temp_dir, kDotfileContents);
   cmdline.AppendSwitchPath(switches::kRoot, in_path);
 
   base::FilePath build_dir = in_path.Append(FILE_PATH_LITERAL("out"))
@@ -721,14 +727,8 @@ TEST(GenCommandTest, ValidationMetadataRace) {
   ScopedCommandLineForTest global_cmdline;
 
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")),
-            "buildconfig = \"//BUILDCONFIG.gn\"\n");
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
-            "set_default_toolchain(\"//:toolchain\")\n");
+  base::FilePath in_path =
+      CreateSourceRoot(&in_temp_dir, kMinimalDotfile, kToolchainBuildConfig);
 
   std::string build_gn = R"(
 toolchain("toolchain") {
@@ -822,14 +822,8 @@ TEST(GenCommandTest, ValidationMetadataRaceMissingTarget) {
   ScopedCommandLineForTest global_cmdline;
 
   base::ScopedTempDir in_temp_dir;
-  ASSERT_TRUE(in_temp_dir.CreateUniqueTempDir());
-  base::FilePath in_path = base::MakeAbsoluteFilePath(in_temp_dir.GetPath());
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL(".gn")),
-            "buildconfig = \"//BUILDCONFIG.gn\"\n");
-
-  WriteFile(in_path.Append(FILE_PATH_LITERAL("BUILDCONFIG.gn")),
-            "set_default_toolchain(\"//:toolchain\")\n");
+  base::FilePath in_path =
+      CreateSourceRoot(&in_temp_dir, kMinimalDotfile, kToolchainBuildConfig);
 
   std::string build_gn = R"(
 toolchain("toolchain") {
