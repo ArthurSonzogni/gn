@@ -18,6 +18,7 @@
 
 #include "base/values.h"
 #include "gn/build_file_editor.h"
+#include "gn/err.h"
 #include "gn/header_checker.h"
 #include "gn/standard_out.h"
 #include "gn/target.h"
@@ -70,6 +71,12 @@ extern const char kGen[];
 extern const char kGen_HelpShort[];
 extern const char kGen_Help[];
 int RunGen(const std::vector<std::string>& args);
+
+// Returns one Err per target (deduplicated across toolchains) that declared a
+// source or input file in the output directory without the required generating
+// dependency. Exposed for testing.
+std::vector<Err> GetInvalidGeneratedInputErrors(
+    const std::vector<const Target*>& all_targets);
 
 extern const char kFormat[];
 extern const char kFormat_HelpShort[];
