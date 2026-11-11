@@ -5,6 +5,7 @@
 #include "gn/scheduler.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "gn/standard_out.h"
 #include "gn/target.h"
@@ -106,9 +107,10 @@ void Scheduler::AddWrittenFile(const SourceFile& file) {
 }
 
 void Scheduler::AddUnknownGeneratedInput(const Target* target,
-                                         const SourceFile& file) {
+                                         const SourceFile& file,
+                                         DepType dep_type) {
   std::lock_guard<std::mutex> lock(lock_);
-  unknown_generated_inputs_.insert(std::make_pair(file, target));
+  unknown_generated_inputs_.emplace(file, std::make_pair(target, dep_type));
 }
 
 void Scheduler::AddWriteRuntimeDepsTarget(const Target* target) {
@@ -143,8 +145,8 @@ bool Scheduler::IsFileGeneratedByTarget(const SourceFile& file) const {
   return generated_files_.find(file) != generated_files_.end();
 }
 
-std::multimap<SourceFile, const Target*> Scheduler::GetUnknownGeneratedInputs()
-    const {
+std::multimap<SourceFile, std::pair<const Target*, Scheduler::DepType>>
+Scheduler::GetUnknownGeneratedInputs() const {
   std::lock_guard<std::mutex> lock(lock_);
 
   // Remove all unknown inputs that were written files. These are OK as inputs
@@ -152,7 +154,8 @@ std::multimap<SourceFile, const Target*> Scheduler::GetUnknownGeneratedInputs()
   //
   // It's assumed that this function is called once during cleanup to check for
   // errors, so performing this work in the lock doesn't matter.
-  std::multimap<SourceFile, const Target*> filtered = unknown_generated_inputs_;
+  std::multimap<SourceFile, std::pair<const Target*, DepType>> filtered =
+      unknown_generated_inputs_;
   for (const SourceFile& file : written_files_)
     filtered.erase(file);
 

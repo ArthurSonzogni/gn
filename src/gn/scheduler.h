@@ -9,6 +9,8 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <utility>
+#include <vector>
 
 #include "base/atomic_ref_count.h"
 #include "base/files/file_path.h"
@@ -24,6 +26,11 @@ class Target;
 // Maintains the thread pool and error state.
 class Scheduler {
  public:
+  enum DepType {
+    PRIVATE_DEP,
+    PUBLIC_DEP,
+  };
+
   Scheduler();
   ~Scheduler();
 
@@ -90,8 +97,11 @@ class Scheduler {
   //
   // The result returned by GetUnknownGeneratedInputs will not count any files
   // that were written by write_file during execution.
-  void AddUnknownGeneratedInput(const Target* target, const SourceFile& file);
-  std::multimap<SourceFile, const Target*> GetUnknownGeneratedInputs() const;
+  void AddUnknownGeneratedInput(const Target* target,
+                                const SourceFile& file,
+                                DepType dep_type);
+  std::multimap<SourceFile, std::pair<const Target*, DepType>>
+  GetUnknownGeneratedInputs() const;
   void ClearUnknownGeneratedInputsAndWrittenFiles();  // For testing.
 
   // We maintain a count of the things we need to do that works like a
@@ -149,7 +159,8 @@ class Scheduler {
   std::vector<base::FilePath> gen_dependencies_;
   std::vector<SourceFile> written_files_;
   std::vector<const Target*> write_runtime_deps_targets_;
-  std::multimap<SourceFile, const Target*> unknown_generated_inputs_;
+  std::multimap<SourceFile, std::pair<const Target*, DepType>>
+      unknown_generated_inputs_;
   std::map<SourceFile, bool> generated_files_;
 
   Scheduler(const Scheduler&) = delete;

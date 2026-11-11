@@ -21,16 +21,21 @@ namespace {
 
 // Asserts that the current global scheduler has a single unknown generated
 // file with the given name from the given target.
-void AssertSchedulerHasOneUnknownFileMatching(const Target* target,
-                                              const SourceFile& file) {
+void AssertSchedulerHasOneUnknownFileMatching(
+    const Target* target,
+    const SourceFile& file,
+    bool requires_public_dep = false) {
   auto unknown = g_scheduler->GetUnknownGeneratedInputs();
-  ASSERT_EQ(1u, unknown.size());  // Should be one unknown file.
-  auto found = unknown.find(file);
-  ASSERT_TRUE(found != unknown.end()) << file.value();
-  EXPECT_TRUE(target == found->second)
-      << "Target doesn't match. Expected\n  "
-      << target->label().GetUserVisibleName(false) << "\nBut got\n  "
-      << found->second->label().GetUserVisibleName(false);
+  ASSERT_EQ(1u, unknown.size());  // Should be one unknown value.
+  auto first = unknown.begin();
+  EXPECT_EQ(file, first->first);
+  EXPECT_EQ(target, first->second.first)
+      << "Target doesn't match: expected "
+      << target->label().GetUserVisibleName(false) << ", got "
+      << first->second.first->label().GetUserVisibleName(false);
+  Scheduler::DepType expected_dep =
+      requires_public_dep ? Scheduler::PUBLIC_DEP : Scheduler::PRIVATE_DEP;
+  EXPECT_EQ(expected_dep, first->second.second);
 }
 
 }  // namespace
@@ -914,6 +919,7 @@ TEST_F(TargetTest, GeneratedInputs) {
   Err err;
 
   SourceFile generated_file("//out/Debug/generated.cc");
+  SourceFile generated_header("//out/Debug/generated.h");
 
   // This target has a generated input and no dependency makes it.
   TestTarget non_existent_generator(setup, "//foo:non_existent_generator",
@@ -926,8 +932,8 @@ TEST_F(TargetTest, GeneratedInputs) {
 
   // Make a target that generates the file.
   TestTarget generator(setup, "//foo:generator", Target::ACTION);
-  generator.action_values().outputs() =
-      SubstitutionList::MakeForTest(generated_file.value().c_str());
+  generator.action_values().outputs() = SubstitutionList::MakeForTest(
+      "//out/Debug/generated.cc", "//out/Debug/generated.h");
   err = Err();
   EXPECT_TRUE(generator.OnResolved(&err)) << err.message();
 
@@ -960,9 +966,59 @@ TEST_F(TargetTest, GeneratedInputs) {
   EXPECT_TRUE(existent_public.OnResolved(&err)) << err.message();
   TestTarget indirect_public(setup, "//foo:indirect_public",
                              Target::EXECUTABLE);
+  indirect_public.set_check_includes_strict(true);
+  indirect_public.public_headers().push_back(generated_header);
   indirect_public.sources().push_back(generated_file);
   indirect_public.public_deps().push_back(LabelTargetPair(&existent_public));
   EXPECT_TRUE(indirect_public.OnResolved(&err)) << err.message();
+  EXPECT_TRUE(scheduler().GetUnknownGeneratedInputs().empty());
+
+  // Under check_includes_strict, private headers (all_headers_public = false)
+  // are allowed via private deps, while public_headers and public headers in
+  // sources require public_deps (using a separate cursor from .cc sources).
+  TestTarget strict_priv_header(setup, "//foo:strict_priv_header",
+                                Target::SOURCE_SET);
+  strict_priv_header.set_check_includes_strict(true);
+  strict_priv_header.set_all_headers_public(false);
+  strict_priv_header.sources().push_back(generated_header);
+  strict_priv_header.private_deps().push_back(LabelTargetPair(&generator));
+  EXPECT_TRUE(strict_priv_header.OnResolved(&err)) << err.message();
+  EXPECT_TRUE(scheduler().GetUnknownGeneratedInputs().empty());
+
+  TestTarget strict_public_header(setup, "//foo:strict_public_header",
+                                  Target::SOURCE_SET);
+  strict_public_header.set_check_includes_strict(true);
+  strict_public_header.set_all_headers_public(false);
+  strict_public_header.public_headers().push_back(generated_header);
+  strict_public_header.private_deps().push_back(LabelTargetPair(&generator));
+  EXPECT_TRUE(strict_public_header.OnResolved(&err)) << err.message();
+  AssertSchedulerHasOneUnknownFileMatching(&strict_public_header,
+                                           generated_header,
+                                           /*requires_public_dep=*/true);
+  scheduler().ClearUnknownGeneratedInputsAndWrittenFiles();
+
+  TestTarget strict_cursor(setup, "//foo:strict_cursor", Target::SOURCE_SET);
+  strict_cursor.set_check_includes_strict(true);
+  strict_cursor.sources().push_back(generated_file);
+  strict_cursor.sources().push_back(generated_header);
+  strict_cursor.private_deps().push_back(LabelTargetPair(&generator));
+  EXPECT_TRUE(strict_cursor.OnResolved(&err)) << err.message();
+  AssertSchedulerHasOneUnknownFileMatching(&strict_cursor, generated_header,
+                                           /*requires_public_dep=*/true);
+  scheduler().ClearUnknownGeneratedInputsAndWrittenFiles();
+
+  TestTarget non_strict(setup, "//foo:non_strict", Target::SOURCE_SET);
+  non_strict.set_check_includes_strict(false);
+  non_strict.public_headers().push_back(generated_header);
+  non_strict.private_deps().push_back(LabelTargetPair(&generator));
+  EXPECT_TRUE(non_strict.OnResolved(&err)) << err.message();
+  EXPECT_TRUE(scheduler().GetUnknownGeneratedInputs().empty());
+
+  TestTarget copy_target(setup, "//foo:copy_target", Target::COPY_FILES);
+  copy_target.set_check_includes_strict(true);
+  copy_target.sources().push_back(generated_header);
+  copy_target.private_deps().push_back(LabelTargetPair(&generator));
+  EXPECT_TRUE(copy_target.OnResolved(&err)) << err.message();
   EXPECT_TRUE(scheduler().GetUnknownGeneratedInputs().empty());
 }
 
