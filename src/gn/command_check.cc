@@ -296,6 +296,7 @@ int RunCheck(const std::vector<std::string>& args) {
 
   const base::CommandLine* cmdline = base::CommandLine::ForCurrentProcess();
   bool default_toolchain_only = cmdline->HasSwitch(switches::kDefaultToolchain);
+  // TODO(crbug.com/584730525): Consider checking transitive deps by default.
   bool with_transitive_deps = cmdline->HasSwitch("with-transitive-deps");
   bool force = cmdline->HasSwitch("force");
   bool check_generated = cmdline->HasSwitch("check-generated");
