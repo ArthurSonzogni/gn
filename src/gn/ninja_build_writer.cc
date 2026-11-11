@@ -6,8 +6,11 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+#include <array>
 #include <map>
 #include <set>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/files/file_util.h"
@@ -47,6 +50,26 @@ struct Counts {
   // The last one we encountered.
   const Target* last_seen;
 };
+
+// Returns whether GetSelfInvocationCommandLine() shouldn't copy a switch of the
+// current process.
+bool SkipSwitchForSelfInvocation(std::string_view name) {
+  static constexpr std::array kSkippedSwitches = {
+      // GetSelfInvocationCommandLine() writes these itself.
+      switches::kQuiet,
+      switches::kRoot,
+      switches::kDotfile,
+      // --args are written to args.gn, which future runs read. Keeping --args
+      // would mean changes to the file would be ignored.
+      switches::kArgs,
+      // Diagnostic switches, which are meant for the run they were passed to,
+      // not for every regeneration.
+      switches::kTime,
+      switches::kTracelog,
+      switches::kVerbose,
+  };
+  return std::ranges::find(kSkippedSwitches, name) != kSkippedSwitches.end();
+}
 
 }  // namespace
 
@@ -102,12 +125,7 @@ base::CommandLine GetSelfInvocationCommandLine(
   const base::CommandLine::SwitchMap& switches = our_cmdline.GetSwitches();
   for (base::CommandLine::SwitchMap::const_iterator i = switches.begin();
        i != switches.end(); ++i) {
-    // Only write arguments we haven't already written. Always skip "args"
-    // since those will have been written to the file and will be used
-    // implicitly in the future. Keeping --args would mean changes to the file
-    // would be ignored.
-    if (i->first != switches::kQuiet && i->first != switches::kRoot &&
-        i->first != switches::kDotfile && i->first != switches::kArgs) {
+    if (!SkipSwitchForSelfInvocation(i->first)) {
       std::string escaped_value =
           EscapeString(FilePathToUTF8(i->second), escape_shell, nullptr);
       cmdline.AppendSwitch(i->first, escaped_value);

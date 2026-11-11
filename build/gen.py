@@ -908,6 +908,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
 
       'gn_unittests': { 'sources': [
         'src/base/sha2_unittest.cc',
+        'src/base/test/scoped_command_line.cc',
         'src/gn/action_target_generator_unittest.cc',
         'src/gn/analyzer_unittest.cc',
         'src/gn/args_unittest.cc',

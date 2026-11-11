@@ -641,6 +641,9 @@ const char kGen_Help[] =
 
   See "gn help switches" for the common command-line switches.
 
+  When the build files change, Ninja reruns "gn gen" with the same switches,
+  except --args and the diagnostic switches --time, --tracelog and -v.
+
 General options
 
   --ninja-executable=<string>

@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/test/scoped_command_line.h"
 #include "gn/builder_record.h"
 #include "gn/commands.h"
 #include "gn/filesystem_utils.h"
@@ -670,25 +671,6 @@ if (host_os != "nonexistent_os") {
   EXPECT_FALSE(err.has_error());
 }
 
-// Convenience class to save the current process base::CommandLine
-// on construction, modify it through the get() method, then restore
-// the saved version on scope exit. This is useful for tests that need
-// to modify the process global singleton temporarily.
-class ScopedCommandLineForTest {
- public:
-  ScopedCommandLineForTest()
-      : command_line_ref_(*base::CommandLine::ForCurrentProcess()),
-        saved_command_line_(command_line_ref_) {}
-
-  ~ScopedCommandLineForTest() { command_line_ref_ = saved_command_line_; }
-
-  base::CommandLine& get() { return command_line_ref_; }
-
- private:
-  base::CommandLine& command_line_ref_;
-  base::CommandLine saved_command_line_;
-};
-
 // A test that verifies that generated_file() generation doesn't crash.
 // See the commands in builder_record.h regarding metadata walks
 // requiring all items in the graph to be fully resolved to run safely.
@@ -724,7 +706,7 @@ class ScopedCommandLineForTest {
 // i.e. that metadata collection was done properly, even if it was delayed.
 TEST(GenCommandTest, ValidationMetadataRace) {
   MsgLoop msg_loop;
-  ScopedCommandLineForTest global_cmdline;
+  base::test::ScopedCommandLine global_cmdline;
 
   base::ScopedTempDir in_temp_dir;
   base::FilePath in_path =
@@ -783,10 +765,12 @@ group("default") {
   base::ScopedTempDir build_temp_dir;
   ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
 
-  global_cmdline.get().AppendSwitchPath(switches::kRoot, in_path);
-  global_cmdline.get().AppendSwitch(switches::kFailOnUnusedArgs);
-  global_cmdline.get().AppendSwitch(switches::kQuiet);
-  global_cmdline.get().AppendSwitch(switches::kThreads, "4");
+  global_cmdline.GetProcessCommandLine()->AppendSwitchPath(switches::kRoot,
+                                                           in_path);
+  global_cmdline.GetProcessCommandLine()->AppendSwitch(
+      switches::kFailOnUnusedArgs);
+  global_cmdline.GetProcessCommandLine()->AppendSwitch(switches::kQuiet);
+  global_cmdline.GetProcessCommandLine()->AppendSwitch(switches::kThreads, "4");
 
   std::vector<std::string> args;
   args.push_back(FilePathToUTF8(build_temp_dir.GetPath()));
@@ -819,7 +803,7 @@ group("default") {
 // proper checks.
 TEST(GenCommandTest, ValidationMetadataRaceMissingTarget) {
   MsgLoop msg_loop;
-  ScopedCommandLineForTest global_cmdline;
+  base::test::ScopedCommandLine global_cmdline;
 
   base::ScopedTempDir in_temp_dir;
   base::FilePath in_path =
@@ -886,10 +870,12 @@ group("default") {
   base::ScopedTempDir build_temp_dir;
   ASSERT_TRUE(build_temp_dir.CreateUniqueTempDir());
 
-  global_cmdline.get().AppendSwitchPath(switches::kRoot, in_path);
-  global_cmdline.get().AppendSwitch(switches::kFailOnUnusedArgs);
-  global_cmdline.get().AppendSwitch(switches::kQuiet);
-  global_cmdline.get().AppendSwitch(switches::kThreads, "4");
+  global_cmdline.GetProcessCommandLine()->AppendSwitchPath(switches::kRoot,
+                                                           in_path);
+  global_cmdline.GetProcessCommandLine()->AppendSwitch(
+      switches::kFailOnUnusedArgs);
+  global_cmdline.GetProcessCommandLine()->AppendSwitch(switches::kQuiet);
+  global_cmdline.GetProcessCommandLine()->AppendSwitch(switches::kThreads, "4");
 
   std::vector<std::string> args;
   args.push_back(FilePathToUTF8(build_temp_dir.GetPath()));

@@ -9,6 +9,7 @@
 
 #include "base/command_line.h"
 #include "base/files/file_util.h"
+#include "base/test/scoped_command_line.h"
 #include "gn/filesystem_utils.h"
 #include "gn/pool.h"
 #include "gn/scheduler.h"
@@ -99,6 +100,28 @@ TEST_F(NinjaBuildWriterTest, GetSelfInvocationCommandLine) {
       outside_build_dir.Append(FILE_PATH_LITERAL("dot.gn")));
   cmd_out = GetSelfInvocationCommandLine(setup.build_settings());
   EXPECT_EQ("./dot.gn", cmd_out.GetSwitchValueString(switches::kDotfile));
+}
+
+TEST_F(NinjaBuildWriterTest, GetSelfInvocationCommandLineSwitches) {
+  TestWithScope setup;
+  setup.build_settings()->SetRootPath(
+      base::MakeAbsoluteFilePath(base::FilePath(FILE_PATH_LITERAL("."))));
+
+  // The regeneration command copies the switches of the current process,
+  // except diagnostic ones.
+  base::test::ScopedCommandLine cmdline;
+  cmdline.GetProcessCommandLine()->AppendSwitch(switches::kThreads, "2");
+  cmdline.GetProcessCommandLine()->AppendSwitch(switches::kTime);
+  cmdline.GetProcessCommandLine()->AppendSwitch(switches::kTracelog,
+                                                "trace.json");
+  cmdline.GetProcessCommandLine()->AppendSwitch(switches::kVerbose);
+  base::CommandLine cmd_out =
+      GetSelfInvocationCommandLine(setup.build_settings());
+
+  EXPECT_EQ("2", cmd_out.GetSwitchValueString(switches::kThreads));
+  EXPECT_FALSE(cmd_out.HasSwitch(switches::kTime));
+  EXPECT_FALSE(cmd_out.HasSwitch(switches::kTracelog));
+  EXPECT_FALSE(cmd_out.HasSwitch(switches::kVerbose));
 }
 
 TEST_F(NinjaBuildWriterTest, TwoTargets) {
