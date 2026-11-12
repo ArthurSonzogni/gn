@@ -904,9 +904,7 @@ SuggestResult OutputSuggestions(const std::vector<const Target*>& all_targets,
               "and remove that dependency.\n");
         }
       }
-      std::string label_str = label.dir() == includer->label().dir()
-                                  ? ":" + label.name()
-                                  : label.GetUserVisibleName(current_toolchain);
+      std::string label_str = label.AsRelative(includer->label());
       EditCommand edit{
           .command = {"add", std::string(dep_field), label_str},
           .target = includer->label().GetUserVisibleName(current_toolchain),

@@ -23,6 +23,32 @@ std::string DirWithNoTrailingSlash(const SourceDir& dir) {
   return dir.value();
 }
 
+std::string FormatLabel(const Label& label,
+                        bool include_dir,
+                        bool include_toolchain) {
+  std::string ret;
+  if (label.dir().is_null())
+    return ret;
+
+  ret.reserve((include_dir ? label.dir().value().size() : 0) +
+              label.name().size() + 1);
+  if (include_dir)
+    ret = DirWithNoTrailingSlash(label.dir());
+  ret.push_back(':');
+  ret.append(label.name());
+
+  if (include_toolchain) {
+    ret.push_back('(');
+    if (!label.toolchain_dir().is_null() && !label.toolchain_name().empty()) {
+      ret.append(DirWithNoTrailingSlash(label.toolchain_dir()));
+      ret.push_back(':');
+      ret.append(label.toolchain_name());
+    }
+    ret.push_back(')');
+  }
+  return ret;
+}
+
 // Given the separate-out input (everything before the colon) in the dep rule,
 // computes the final build rule. Sets err on failure. On success,
 // |*used_implicit| will be set to whether the implicit current directory was
@@ -326,32 +352,18 @@ bool Label::Matches(const Label& other, const Label& default_toolchain) const {
 }
 
 std::string Label::GetUserVisibleName(bool include_toolchain) const {
-  std::string ret;
-  ret.reserve(dir_.value().size() + name_.str().size() + 1);
-
-  if (dir_.is_null())
-    return ret;
-
-  ret = DirWithNoTrailingSlash(dir_);
-  ret.push_back(':');
-  ret.append(name_.str());
-
-  if (include_toolchain) {
-    ret.push_back('(');
-    if (!toolchain_dir_.is_null() && !toolchain_name_.empty()) {
-      ret.append(DirWithNoTrailingSlash(toolchain_dir_));
-      ret.push_back(':');
-      ret.append(toolchain_name_.str());
-    }
-    ret.push_back(')');
-  }
-  return ret;
+  return FormatLabel(*this, /*include_dir=*/true, include_toolchain);
 }
 
 std::string Label::GetUserVisibleName(const Label& default_toolchain) const {
   bool include_toolchain = default_toolchain.dir() != toolchain_dir_ ||
                            default_toolchain.name_atom() != toolchain_name_;
   return GetUserVisibleName(include_toolchain);
+}
+
+std::string Label::AsRelative(const Label& other) const {
+  return FormatLabel(*this, /*include_dir=*/dir_ != other.dir(),
+                     !ToolchainsEqual(other));
 }
 
 std::string Pretty(const Label& label) {

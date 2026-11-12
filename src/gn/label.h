@@ -69,6 +69,11 @@ class Label {
   // non-default ones, so this can make certain output more clear.
   std::string GetUserVisibleName(const Label& default_toolchain) const;
 
+  // Returns a string that can be used to refer to this label from other.
+  // * Includes a toolchain iff the toolchains differ.
+  // * Uses a relative label iff the directories match.
+  std::string AsRelative(const Label& other) const;
+
   // Return true if this instance matches |other|. |default_toolchain| is
   // used when either label doesn't have a toolchain suffix to ensure
   // canonical and non-canonical labels are compared correctly.
