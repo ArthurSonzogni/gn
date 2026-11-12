@@ -16,6 +16,7 @@ pub mod scope;
 pub mod session;
 pub mod target_ref;
 pub mod util;
+pub mod writable;
 
 pub use ctx_state::{CtxState, Phony};
 pub(crate) use errors::Error;
@@ -31,3 +32,4 @@ pub use scope::Scope;
 pub use session::Session;
 pub use target_ref::{IPromiseToImplementStarlarkEqAndHash, TargetMut, TargetRef};
 pub use util::uniquify_small_vec;
+pub use writable::{Cursor, Writable};

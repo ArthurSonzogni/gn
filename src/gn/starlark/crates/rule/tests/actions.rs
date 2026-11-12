@@ -217,7 +217,7 @@ run_action(name = "run_action", src = "foo/file.cc")
         );
         action
             .arguments
-            .assert_eq(&reconstructor, &["--flag", "-c", "../../foo/file.cc"]);
+            .assert_eq(&reconstructor, "--flag -c ../../foo/file.cc");
 
         let action = &evaluated.actions[1];
         assert_eq!(
@@ -236,7 +236,7 @@ run_action(name = "run_action", src = "foo/file.cc")
             Either::Left(File::intern("../../foo/file.cc"))
         );
         assert_eq!(action.mnemonic, None);
-        action.arguments.assert_eq(&reconstructor, &["--test"]);
+        action.arguments.assert_eq(&reconstructor, "--test");
     });
 }
 

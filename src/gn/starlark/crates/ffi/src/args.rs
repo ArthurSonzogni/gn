@@ -9,8 +9,31 @@ use starlark::eval::Evaluator;
 
 use crate::{Cursor, StringOutputBuffer, escape::EscapingPlatform};
 
+fn backspace_if_moved(buffer: &mut StringOutputBuffer<'_>, start: Cursor) {
+    // Safety: `reserve(0)` is safe as long as you don't advance it.
+    // We can safely subtract 1 because if `cursor != start` then we must have
+    // written at least one byte into the current allocation chunk.
+    unsafe {
+        let cursor: &mut Cursor = buffer.reserve(0);
+        if *cursor != start {
+            // If we wrote some data, the last thing we wrote, by design, is
+            // always a space (usually via finish_arg, though sometimes via write).
+            *cursor = (*cursor).sub(1);
+        }
+    }
+}
+
 struct PosixWriter<'a, 'b> {
     buffer: &'a mut StringOutputBuffer<'b>,
+    start: Cursor,
+}
+
+impl<'a, 'b> PosixWriter<'a, 'b> {
+    fn new(buffer: &'a mut StringOutputBuffer<'b>) -> Self {
+        // Safety: We never write to this cursor.
+        let start = unsafe { *buffer.reserve(0) };
+        Self { buffer, start }
+    }
 }
 
 impl ArgVisitor for PosixWriter<'_, '_> {
@@ -21,6 +44,14 @@ impl ArgVisitor for PosixWriter<'_, '_> {
     fn finish_arg(&mut self) {
         self.buffer.append(b' ');
     }
+
+    fn write(&mut self, val: impl types::Writable) {
+        self.buffer.append(val);
+    }
+
+    fn done(&mut self) {
+        backspace_if_moved(self.buffer, self.start);
+    }
 }
 
 // Windows can't perform zero-copy escaping because we don't know whether we
@@ -28,6 +59,19 @@ impl ArgVisitor for PosixWriter<'_, '_> {
 struct WinWriter<'a, 'b> {
     buffer: &'a mut StringOutputBuffer<'b>,
     token: String,
+    start: Cursor,
+}
+
+impl<'a, 'b> WinWriter<'a, 'b> {
+    fn new(buffer: &'a mut StringOutputBuffer<'b>) -> Self {
+        // Safety: We never write to this cursor.
+        let start = unsafe { *buffer.reserve(0) };
+        Self {
+            buffer,
+            token: String::new(),
+            start,
+        }
+    }
 }
 
 impl ArgVisitor for WinWriter<'_, '_> {
@@ -40,6 +84,14 @@ impl ArgVisitor for WinWriter<'_, '_> {
             .append((crate::escape::NinjaCommandWindows(&self.token), b' '));
         self.token.clear();
     }
+
+    fn write(&mut self, val: impl types::Writable) {
+        self.buffer.append(val);
+    }
+
+    fn done(&mut self) {
+        backspace_if_moved(self.buffer, self.start);
+    }
 }
 
 /// Processes and writes an `ArgsList` directly into `buffer`.
@@ -49,33 +101,18 @@ pub fn write_args<'v>(
     args: &ArgsList<'v>,
     platform: EscapingPlatform,
 ) -> starlark::Result<()> {
-    // Safety: We never write to this cursor
-    let start: Cursor = unsafe { *buffer.reserve(0) };
     match platform {
         EscapingPlatform::Posix => {
-            let mut writer = PosixWriter { buffer };
+            let mut writer = PosixWriter::new(buffer);
             args.expand(eval, &mut writer)?;
+            writer.done();
         },
         EscapingPlatform::Win => {
-            let mut writer = WinWriter {
-                buffer,
-                token: String::new(),
-            };
+            let mut writer = WinWriter::new(buffer);
             args.expand(eval, &mut writer)?;
+            writer.done();
         },
         _ => unreachable!(),
-    }
-
-    // Safety: reserve(0) is safe as long as you don't advance it.
-    // we can safely subtract 1 because if cursor != start then we must have
-    // wrote at least one byte into the current allocation chunk.
-    unsafe {
-        let cursor: &mut Cursor = buffer.reserve(0);
-        if *cursor != start {
-            // If we wrote some data, the last thing we did must have been to
-            // call finish_arg, which always ends with ' '. Strip it.
-            *cursor = (*cursor).sub(1);
-        }
     }
     Ok(())
 }
@@ -134,6 +171,7 @@ mod tests {
     #[test]
     fn test_args_escape_command_line_posix() {
         let mut a = ArgsAssert::new();
+        a.assert_expands_to(r#"[]"#, EscapingPlatform::Posix, "");
         a.assert_expands_to(
             r#"[args().add_joined(["my flag", "my value"], join_with=",")]"#,
             EscapingPlatform::Posix,
@@ -144,6 +182,7 @@ mod tests {
     #[test]
     fn test_args_escape_command_line_windows() {
         let mut a = ArgsAssert::new();
+        a.assert_expands_to(r#"[]"#, EscapingPlatform::Win, "");
         a.assert_expands_to(
             r#"[args().add_joined(["my flag", "my value"], join_with=",")]"#,
             EscapingPlatform::Win,

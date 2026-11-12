@@ -9,6 +9,7 @@ use starlark::{
     eval::Evaluator,
     values::{Value, list::ListRef, tuple::TupleRef},
 };
+use types::Writable;
 
 use crate::{Error, args::ArgValue, formatter::Formatter};
 
@@ -23,6 +24,9 @@ pub trait ArgVisitor {
     /// calls to emit an empty argument (`""`), for example when `add_joined` has empty
     /// values and `omit_if_empty = false` without `format_joined`.
     fn finish_arg(&mut self);
+
+    /// Called when all args have been written.
+    fn done(&mut self);
 
     /// Appends a complete single-chunk argument and completes it.
     fn add_arg(&mut self, arg: &str) {
@@ -49,23 +53,41 @@ pub trait ArgVisitor {
         self.add_formatted_chunks(formatter, value);
         self.finish_arg();
     }
+
+    /// Writes an unescaped `Writable` value directly to the output without argument escaping or
+    /// boundaries.
+    fn write(&mut self, val: impl Writable);
 }
 
-/// Helper visitor for testing argument expansion.
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct TestArgVisitor {
-    /// Collected arguments.
-    pub args: Vec<String>,
-    current: String,
-}
-
-impl ArgVisitor for TestArgVisitor {
+// For use in tests only.
+// Use StringOutputBuffer in the FFI crate for real code.
+// We don't allow that here because we can't introduce dependencies on the FFI crate.
+impl ArgVisitor for String {
     fn add_arg_chunk(&mut self, part: &str) {
-        self.current.push_str(part);
+        self.push_str(part);
     }
 
     fn finish_arg(&mut self) {
-        self.args.push(std::mem::take(&mut self.current));
+        self.push(' ');
+    }
+
+    fn write(&mut self, val: impl Writable) {
+        self.reserve(val.maximum_size());
+        // Safety: We ensure that:
+        // * We have sufficient capacity to store the buffer.
+        // * The slice is a valid slice, and contains valid utf-8
+        unsafe {
+            let vec = self.as_mut_vec();
+            let start = vec.spare_capacity_mut().as_mut_ptr().cast::<u8>();
+            let len = val.write_to_buf(start).offset_from_unsigned(start);
+            std::str::from_utf8(std::slice::from_raw_parts(start, len)).unwrap();
+            vec.set_len(vec.len() + len);
+        }
+    }
+
+    fn done(&mut self) {
+        assert!(self.is_empty() || self.ends_with(' '));
+        self.pop();
     }
 }
 

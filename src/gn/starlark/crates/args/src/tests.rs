@@ -9,7 +9,7 @@ use starlark::{
 };
 use starlark_derive::starlark_module;
 
-use crate::{ArgsList, TestArgVisitor, args::Args};
+use crate::{ArgVisitor as _, ArgsList, args::Args};
 
 #[starlark_module]
 pub(crate) fn register_args_test_globals(builder: &mut GlobalsBuilder) {
@@ -37,16 +37,17 @@ impl ArgsAssert {
     }
 
     #[track_caller]
-    fn assert_expands_to(&mut self, code: &str, expected: Result<&[&str], &str>) {
+    fn assert_expands_to(&mut self, code: &str, expected: Result<&str, &str>) {
         let val = self.assert.pass(code);
 
         let res: starlark::Result<_> = starlark::environment::Module::with_temp_heap(|module| {
             let mut eval = starlark::eval::Evaluator::new(&module);
             let val_ref = val.as_ref().add_to_heap(module.heap());
             let seq = <ArgsList>::unpack_value_err(val_ref)?;
-            let mut collector = TestArgVisitor::default();
+            let mut collector = String::new();
             seq.expand(&mut eval, &mut collector)?;
-            Ok(collector.args)
+            collector.done();
+            Ok(collector)
         });
 
         match expected {
@@ -72,26 +73,23 @@ impl ArgsAssert {
 #[test]
 fn test_combine_string_and_args() {
     let mut a = ArgsAssert::new();
-    a.assert_expands_to(
-        r#"["foo", args().add("bar"), "baz"]"#,
-        Ok(&["foo", "bar", "baz"]),
-    );
+    a.assert_expands_to(r#"["foo", args().add("bar"), "baz"]"#, Ok("foo bar baz"));
 }
 
 #[test]
 fn test_args_add() {
     let mut a = ArgsAssert::new();
-    a.assert_expands_to(r#"[args().add("--foo")]"#, Ok(&["--foo"]));
+    a.assert_expands_to(r#"[args().add("--foo")]"#, Ok("--foo"));
 
-    a.assert_expands_to(r#"[args().add(make_file("a/b.cc"))]"#, Ok(&["a/b.cc"]));
+    a.assert_expands_to(r#"[args().add(make_file("a/b.cc"))]"#, Ok("a/b.cc"));
 
-    a.assert_expands_to(r#"[args().add("--bar", "baz")]"#, Ok(&["--bar", "baz"]));
+    a.assert_expands_to(r#"[args().add("--bar", "baz")]"#, Ok("--bar baz"));
 
-    a.assert_expands_to(r#"[args().add("--qux", None)]"#, Ok(&[]));
+    a.assert_expands_to(r#"[args().add("--qux", None)]"#, Ok(""));
 
     a.assert_expands_to(
         r#"[args().add("--val", 1, format="before %s after")]"#,
-        Ok(&["--val", "before 1 after"]),
+        Ok("--val before 1 after"),
     );
 
     a.fail(
@@ -108,21 +106,21 @@ fn test_args_add() {
 #[test]
 fn test_args_add_all() {
     let mut a = ArgsAssert::new();
-    a.assert_expands_to(r#"[args().add_all([1, 2])]"#, Ok(&["1", "2"]));
+    a.assert_expands_to(r#"[args().add_all([1, 2])]"#, Ok("1 2"));
 
     a.assert_expands_to(
         r#"[args().add_all("--flag", ["3", "4"], before_each = "-b")]"#,
-        Ok(&["--flag", "-b", "3", "-b", "4"]),
+        Ok("--flag -b 3 -b 4"),
     );
 
     a.assert_expands_to(
         r#"[args().add_all(["x", "y"], before_each="-b", format_each=".%s.", terminate_with="--end")]"#,
-        Ok(&["-b", ".x.", "-b", ".y.", "--end"]),
+        Ok("-b .x. -b .y. --end"),
     );
 
     a.assert_expands_to(
         r#"[args().add_all([make_file("x.cc"), make_file("y.cc")])]"#,
-        Ok(&["x.cc", "y.cc"]),
+        Ok("x.cc y.cc"),
     );
 
     a.assert_expands_to(
@@ -134,19 +132,16 @@ fn test_args_add_all() {
 #[test]
 fn test_args_add_joined() {
     let mut a = ArgsAssert::new();
-    a.assert_expands_to(
-        r#"[args().add_joined([1, 2], join_with = ',')]"#,
-        Ok(&["1,2"]),
-    );
+    a.assert_expands_to(r#"[args().add_joined([1, 2], join_with = ',')]"#, Ok("1,2"));
 
     a.assert_expands_to(
         r#"[args().add_joined("--flag", ["c", "d"], join_with=":")]"#,
-        Ok(&["--flag", "c:d"]),
+        Ok("--flag c:d"),
     );
 
     a.assert_expands_to(
         r#"[args().add_joined(depset(["a", "b"]), join_with = ",")]"#,
-        Ok(&["a,b"]),
+        Ok("a,b"),
     );
 
     a.assert_expands_to(
@@ -159,12 +154,12 @@ fn test_args_add_joined() {
     )
 ]
 "#,
-        Ok(&["a/b.cc:c/d.cc"]),
+        Ok("a/b.cc:c/d.cc"),
     );
 
     a.assert_expands_to(
         r#"[args().add_joined([1, 2], join_with=",", format_each=".%s.", format_joined="list=%s")]"#,
-        Ok(&["list=.1.,.2."]),
+        Ok("list=.1.,.2."),
     );
 }
 
@@ -174,17 +169,17 @@ fn test_args_omit_if_empty() {
 
     a.assert_expands_to(
         r#"[args().add_all("--flag", [], terminate_with = "after")]"#,
-        Ok(&[]),
+        Ok(""),
     );
 
     a.assert_expands_to(
         r#"[args().add_joined("--flag", [], join_with=",", omit_if_empty=False)]"#,
-        Ok(&["--flag", ""]),
+        Ok("--flag "),
     );
 
     a.assert_expands_to(
         r#"[args().add_all("--flag", [None], map_each=identity, allow_closure=False, omit_if_empty=True)]"#,
-        Ok(&[]),
+        Ok(""),
     );
 }
 
@@ -194,7 +189,7 @@ fn test_args_map_each() {
 
     a.assert_expands_to(
         r#"[args().add_all(["abc", ["def", "ghi"], None], map_each=identity, allow_closure=False)]"#,
-        Ok(&["abc", "def", "ghi"]),
+        Ok("abc def ghi"),
     );
 
     a.assert_expands_to(
@@ -221,24 +216,21 @@ fn test_args_map_each() {
 fn test_args_uniquify() {
     let mut a = ArgsAssert::new();
 
-    a.assert_expands_to(
-        r#"[args().add_all(["a", "b", "a", "c"])]"#,
-        Ok(&["a", "b", "a", "c"]),
-    );
+    a.assert_expands_to(r#"[args().add_all(["a", "b", "a", "c"])]"#, Ok("a b a c"));
 
     a.assert_expands_to(
         r#"[args().add_all(["a", "b", "a", "c"], uniquify=True)]"#,
-        Ok(&["a", "b", "c"]),
+        Ok("a b c"),
     );
 
     a.assert_expands_to(
         r#"[args().add_joined(["a", "b", "a", "c"], join_with=",", uniquify=True)]"#,
-        Ok(&["a,b,c"]),
+        Ok("a,b,c"),
     );
 
     a.assert_expands_to(
         r#"[args().add_all(["a", "b", "a", "c"], before_each="-b", uniquify=True)]"#,
-        Ok(&["-b", "a", "-b", "b", "-b", "c"]),
+        Ok("-b a -b b -b c"),
     );
 
     a.assert_expands_to(
@@ -248,7 +240,7 @@ def map_to_constant(x):
 
 [args().add_joined(["a", "b", "c"], map_each=map_to_constant, allow_closure=False, uniquify=True, join_with=",")]
 "#,
-        Ok(&["constant"]),
+        Ok("constant"),
     );
 }
 
@@ -264,7 +256,7 @@ fn test_args_chaining() {
     .add_joined(["x", "y"], join_with=":")
 ]
 "#,
-        Ok(&["--foo", "bar", "baz", "x:y"]),
+        Ok("--foo bar baz x:y"),
     );
 }
 
