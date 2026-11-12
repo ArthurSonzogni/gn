@@ -1,7 +1,8 @@
 agrieve@google.com
-brettw@chromium.org
 digit@google.com
-dpranke@chromium.org
-phosek@google.com
 sdefresne@chromium.org
 tikuta@google.com
+
+brettw@chromium.org #{LAST_RESORT_SUGGESTION}
+dpranke@chromium.org #{LAST_RESORT_SUGGESTION}
+phosek@google.com #{LAST_RESORT_SUGGESTION}
