@@ -10,7 +10,6 @@
 #include "gn/build_settings.h"
 #include "gn/err.h"
 #include "gn/exec_process.h"
-#include "gn/filesystem_utils.h"
 
 namespace internal {
 
@@ -40,9 +39,8 @@ bool InvokePython(const BuildSettings* build_settings,
   int exit_code = 0;
   if (!internal::ExecProcess(cmdline, startup_dir, &output, &stderr_output,
                              &exit_code)) {
-    *err =
-        Err(Location(), "Could not execute python.",
-            "I was trying to execute \"" + FilePathToUTF8(python_path) + "\".");
+    *err = Err(Location(), "Could not execute python.",
+               internal::DescribeStartFailure(cmdline, stderr_output));
     return false;
   }
 

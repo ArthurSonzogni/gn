@@ -5,13 +5,21 @@
 #include "gn/exec_process.h"
 
 #include "base/command_line.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/logging.h"
 #include "base/strings/string_util.h"
+#include "gn/filesystem_utils.h"
 #include "util/build_config.h"
 #include "util/test/test.h"
 
 #if defined(OS_WIN)
+#include <windows.h>
+
 #include "base/strings/utf_string_conversions.h"
+#else
+#include <errno.h>
+#include <signal.h>
 #endif
 
 namespace internal {
@@ -120,4 +128,68 @@ TEST(ExecProcessTest, TestOneOutputClosed) {
   EXPECT_EQ(10001u, std_err.size());
 }
 #endif
+
+namespace {
+
+// Expects `program` not to start because of `error`, which `std_err` reports.
+void ExpectStartFailure(const base::FilePath& program,
+                        logging::SystemErrorCode error) {
+  base::CommandLine cmdline(program);
+  std::string std_out, std_err;
+  int exit_code;
+  EXPECT_FALSE(
+      ExecProcess(cmdline, program.DirName(), &std_out, &std_err, &exit_code));
+  std::string reason = logging::SystemErrorCodeToString(error);
+#if defined(OS_WIN)
+  base::ReplaceSubstringsAfterOffset(&reason, 0, "%1", FilePathToUTF8(program));
+#endif
+  EXPECT_EQ(reason, std_err);
+}
+
+}  // namespace
+
+// A program that can't be started is a failure, rather than a process that
+// exited with an error.
+TEST(ExecProcessTest, MissingProgram) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath program =
+      temp_dir.GetPath().Append(FILE_PATH_LITERAL("missing"));
+#if defined(OS_WIN)
+  ExpectStartFailure(program, ERROR_FILE_NOT_FOUND);
+#else
+  ExpectStartFailure(program, ENOENT);
+#endif
+}
+
+// A file that exists but can't be run fails for another reason.
+TEST(ExecProcessTest, ProgramNotExecutable) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  // It's not a valid program on Windows, and not executable on POSIX. Without
+  // the extension, CreateProcess() would look for "not_executable.exe".
+  base::FilePath program =
+      temp_dir.GetPath().Append(FILE_PATH_LITERAL("not_executable.exe"));
+  ASSERT_EQ(0, base::WriteFile(program, "", 0));
+#if defined(OS_WIN)
+  ExpectStartFailure(program, ERROR_BAD_EXE_FORMAT);
+#else
+  ExpectStartFailure(program, EACCES);
+#endif
+}
+
+#if !defined(OS_WIN)
+// A program killed by a signal exits with 128 plus the signal, like in shells.
+TEST(ExecProcessTest, ProgramKilledBySignal) {
+  base::CommandLine cmdline(base::FilePath("/bin/sh"));
+  cmdline.AppendArg("-c");
+  cmdline.AppendArg("kill -KILL $$");
+  std::string std_out, std_err;
+  int exit_code;
+  EXPECT_TRUE(ExecProcess(cmdline, base::FilePath("/"), &std_out, &std_err,
+                          &exit_code));
+  EXPECT_EQ(128 + SIGKILL, exit_code);
+}
+#endif
+
 }  // namespace internal

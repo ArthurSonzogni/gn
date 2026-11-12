@@ -7,15 +7,18 @@
 #include <stddef.h>
 
 #include <memory>
+#include <tuple>
 
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "gn/filesystem_utils.h"
 #include "util/build_config.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
 
+#include "base/strings/string_util.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_process_information.h"
 #include "base/win/win_util.h"
@@ -33,6 +36,12 @@
 #endif
 
 namespace internal {
+
+std::string DescribeStartFailure(const base::CommandLine& cmdline,
+                                 const std::string& std_err) {
+  return "When trying to execute \"" + FilePathToUTF8(cmdline.GetProgram()) +
+         "\":\n    " + std_err;
+}
 
 #if defined(OS_WIN)
 bool ExecProcess(const base::CommandLine& cmdline,
@@ -105,6 +114,13 @@ bool ExecProcess(const std::u16string& cmdline_str,
           TRUE,  // Handles are inherited.
           NORMAL_PRIORITY_CLASS, nullptr, base::ToWCharT(&startup_dir.value()),
           &start_info, &temp_process_info)) {
+    *std_err =
+        logging::SystemErrorCodeToString(logging::GetLastSystemErrorCode());
+    // Some messages have a "%1" placeholder for the program.
+    base::ReplaceSubstringsAfterOffset(
+        std_err, 0, "%1",
+        FilePathToUTF8(
+            base::CommandLine::FromString(cmdline_str).GetProgram()));
     return false;
   }
   base::win::ScopedProcessInformation proc_info(temp_process_info);
@@ -155,22 +171,38 @@ bool ReadFromPipe(int fd, std::string* output) {
   return true;
 }
 
-bool WaitForExit(int pid, int* exit_code) {
+namespace {
+
+// Sets `std_err` to the description of `error`, and returns false.
+bool FailWith(int error, std::string* std_err) {
+  *std_err = logging::SystemErrorCodeToString(error);
+  return false;
+}
+
+// Called in the child of ExecProcess() when the program can't be started:
+// sends `errno` to the parent through `fd`, and exits.
+[[noreturn]] void ExitWithErrno(int fd) {
+  int error = errno;
+  std::ignore = HANDLE_EINTR(write(fd, &error, sizeof(error)));
+  _exit(127);
+}
+
+}  // namespace
+
+bool WaitForExit(int pid, int* exit_code, std::string* std_err) {
   int status;
-  if (waitpid(pid, &status, 0) < 0) {
-    PLOG(ERROR) << "waitpid";
-    return false;
-  }
+  if (waitpid(pid, &status, 0) < 0)
+    return FailWith(errno, std_err);
 
   if (WIFEXITED(status)) {
     *exit_code = WEXITSTATUS(status);
     return true;
-  } else if (WIFSIGNALED(status)) {
-    if (WTERMSIG(status) == SIGINT || WTERMSIG(status) == SIGTERM ||
-        WTERMSIG(status) == SIGHUP)
-      return false;
   }
-  return false;
+
+  // Otherwise, it was killed by a signal. Like shells do, report it like any
+  // other failure.
+  *exit_code = 128 + WTERMSIG(status);
+  return true;
 }
 
 bool ExecProcess(const base::CommandLine& cmdline,
@@ -191,19 +223,32 @@ bool ExecProcess(const base::CommandLine& cmdline,
   fd_shuffle2.reserve(3);
 
   if (pipe(out_fd) < 0)
-    return false;
+    return FailWith(errno, std_err);
   base::ScopedFD out_read(out_fd[0]), out_write(out_fd[1]);
 
   if (pipe(err_fd) < 0)
-    return false;
+    return FailWith(errno, std_err);
   base::ScopedFD err_read(err_fd[0]), err_write(err_fd[1]);
 
+  // select() can't wait for them.
   if (out_read.get() >= FD_SETSIZE || err_read.get() >= FD_SETSIZE)
-    return false;
+    return FailWith(EMFILE, std_err);
+
+  // If the program can't be started, the child writes `errno` to this pipe.
+  // Both ends are closed on exec, so the parent reads end of file when the
+  // program starts.
+  int exec_fd[2];
+  if (pipe(exec_fd) < 0)
+    return FailWith(errno, std_err);
+  base::ScopedFD exec_read(exec_fd[0]), exec_write(exec_fd[1]);
+  if (!base::SetCloseOnExec(exec_read.get()) ||
+      !base::SetCloseOnExec(exec_write.get())) {
+    return FailWith(errno, std_err);
+  }
 
   switch (pid = fork()) {
     case -1:  // error
-      return false;
+      return FailWith(errno, std_err);
     case 0:  // child
     {
 #if defined(OS_MAC)
@@ -226,7 +271,7 @@ bool ExecProcess(const base::CommandLine& cmdline,
       // in the child.
       int dev_null = open("/dev/null", O_WRONLY);
       if (dev_null < 0)
-        _exit(127);
+        ExitWithErrno(exec_write.get());
 
       fd_shuffle1.push_back(
           base::InjectionArc(out_write.get(), STDOUT_FILENO, true));
@@ -241,9 +286,10 @@ bool ExecProcess(const base::CommandLine& cmdline,
         fd_shuffle2.push_back(fd_shuffle1[i]);
 
       if (!ShuffleFileDescriptors(&fd_shuffle1))
-        _exit(127);
+        ExitWithErrno(exec_write.get());
 
-      base::SetCurrentDirectory(startup_dir);
+      if (!base::SetCurrentDirectory(startup_dir))
+        ExitWithErrno(exec_write.get());
 
       // TODO(brettw) the base version GetAppOutput does a
       // CloseSuperfluousFds call here. Do we need this?
@@ -253,17 +299,26 @@ bool ExecProcess(const base::CommandLine& cmdline,
         argv_cstr[i] = const_cast<char*>(argv[i].c_str());
       argv_cstr[argv.size()] = nullptr;
       execvp(argv_cstr[0], argv_cstr.get());
-      _exit(127);
+      ExitWithErrno(exec_write.get());
       // Avoid `fall through` warning on some gcc versions.
       break;
     }
     default:  // parent
     {
-      // Close our writing end of pipe now. Otherwise later read would not
-      // be able to detect end of child's output (in theory we could still
-      // write to the pipe).
+      // Close our writing ends of the pipes now. Otherwise later reads would
+      // not be able to detect their end (in theory we could still write to
+      // them).
+      exec_write.reset();
       out_write.reset();
       err_write.reset();
+
+      // Wait for the child to start the program, or to send why it couldn't.
+      int error;
+      if (HANDLE_EINTR(read(exec_read.get(), &error, sizeof(error))) ==
+          sizeof(error)) {
+        HANDLE_EINTR(waitpid(pid, nullptr, 0));
+        return FailWith(error, std_err);
+      }
 
       bool out_open = true, err_open = true;
       while (out_open || err_open) {
@@ -282,7 +337,7 @@ bool ExecProcess(const base::CommandLine& cmdline,
           err_open = ReadFromPipe(err_read.get(), std_err);
       }
 
-      return WaitForExit(pid, exit_code);
+      return WaitForExit(pid, exit_code, std_err);
     }
   }
 

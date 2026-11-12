@@ -11,7 +11,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "gn/err.h"
 #include "gn/exec_process.h"
-#include "gn/filesystem_utils.h"
 
 namespace {
 
@@ -35,8 +34,7 @@ bool RunNinja(const base::CommandLine& cmdline,
   if (!internal::ExecProcess(cmdline, startup_dir, output, &stderr_output,
                              &exit_code)) {
     *err = Err(Location(), "Could not execute Ninja.",
-               "I was trying to execute \"" +
-                   FilePathToUTF8(cmdline.GetProgram()) + "\".");
+               internal::DescribeStartFailure(cmdline, stderr_output));
     return false;
   }
 
