@@ -4,10 +4,9 @@
 
 //! Expansion of Starlark `Args` into command-line strings inside `StringOutputBuffer`.
 
-use args::{ArgVisitor, ArgsList};
-use starlark::eval::Evaluator;
+use args::ArgVisitor;
 
-use crate::{Cursor, StringOutputBuffer, escape::EscapingPlatform};
+use crate::{Cursor, StringOutputBuffer};
 
 fn backspace_if_moved(buffer: &mut StringOutputBuffer<'_>, start: Cursor) {
     // Safety: `reserve(0)` is safe as long as you don't advance it.
@@ -23,13 +22,13 @@ fn backspace_if_moved(buffer: &mut StringOutputBuffer<'_>, start: Cursor) {
     }
 }
 
-struct PosixWriter<'a, 'b> {
+pub(crate) struct PosixWriter<'a, 'b> {
     buffer: &'a mut StringOutputBuffer<'b>,
     start: Cursor,
 }
 
 impl<'a, 'b> PosixWriter<'a, 'b> {
-    fn new(buffer: &'a mut StringOutputBuffer<'b>) -> Self {
+    pub(crate) fn new(buffer: &'a mut StringOutputBuffer<'b>) -> Self {
         // Safety: We never write to this cursor.
         let start = unsafe { *buffer.reserve(0) };
         Self { buffer, start }
@@ -56,14 +55,14 @@ impl ArgVisitor for PosixWriter<'_, '_> {
 
 // Windows can't perform zero-copy escaping because we don't know whether we
 // need to add quotes until we read the entire arg.
-struct WinWriter<'a, 'b> {
+pub(crate) struct WinWriter<'a, 'b> {
     buffer: &'a mut StringOutputBuffer<'b>,
     token: String,
     start: Cursor,
 }
 
 impl<'a, 'b> WinWriter<'a, 'b> {
-    fn new(buffer: &'a mut StringOutputBuffer<'b>) -> Self {
+    pub(crate) fn new(buffer: &'a mut StringOutputBuffer<'b>) -> Self {
         // Safety: We never write to this cursor.
         let start = unsafe { *buffer.reserve(0) };
         Self {
@@ -98,29 +97,6 @@ impl ArgVisitor for WinWriter<'_, '_> {
     fn done(&mut self) {
         backspace_if_moved(self.buffer, self.start);
     }
-}
-
-/// Processes and writes an `ArgsList` directly into `buffer`.
-pub fn write_args<'v>(
-    buffer: &mut StringOutputBuffer<'_>,
-    eval: &mut Evaluator<'v, '_, '_>,
-    args: &ArgsList<'v>,
-    platform: EscapingPlatform,
-) -> starlark::Result<()> {
-    match platform {
-        EscapingPlatform::Posix => {
-            let mut writer = PosixWriter::new(buffer);
-            args.expand(eval, &mut writer)?;
-            writer.done();
-        },
-        EscapingPlatform::Win => {
-            let mut writer = WinWriter::new(buffer);
-            args.expand(eval, &mut writer)?;
-            writer.done();
-        },
-        _ => unreachable!(),
-    }
-    Ok(())
 }
 
 #[cfg(test)]

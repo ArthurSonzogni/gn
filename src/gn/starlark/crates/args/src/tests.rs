@@ -9,7 +9,7 @@ use starlark::{
 };
 use starlark_derive::starlark_module;
 
-use crate::{ArgVisitor as _, ArgsList, args::Args};
+use crate::{ArgSharingPlans, ArgVisitor as _, ArgsList, args::Args};
 
 #[starlark_module]
 pub(crate) fn register_args_test_globals(builder: &mut GlobalsBuilder) {
@@ -40,14 +40,19 @@ impl ArgsAssert {
     fn assert_expands_to(&mut self, code: &str, expected: Result<&str, &str>) {
         let val = self.assert.pass(code);
 
-        let res: starlark::Result<_> = starlark::environment::Module::with_temp_heap(|module| {
-            let mut eval = starlark::eval::Evaluator::new(&module);
-            let val_ref = val.as_ref().add_to_heap(module.heap());
-            let seq = <ArgsList>::unpack_value_err(val_ref)?;
-            let mut collector = String::new();
-            seq.expand(&mut eval, &mut collector)?;
-            collector.done();
-            Ok(collector)
+        let res: starlark::Result<_> = val.by_ref_with_reconstructor(|val_ref, reconstructor| {
+            let seq = <ArgsList>::unpack_value_err(*val_ref)?;
+            let plans = ArgSharingPlans::new(seq.items().iter());
+            starlark::environment::Module::with_temp_heap(|module| {
+                let mut eval = Evaluator::new(&module);
+                let edge = reconstructor.edge(module.heap());
+                let mut collector = String::new();
+                for arg in seq.items() {
+                    plans.write(arg, &mut eval, edge, &mut collector)?;
+                }
+                collector.done();
+                Ok(collector)
+            })
         });
 
         match expected {

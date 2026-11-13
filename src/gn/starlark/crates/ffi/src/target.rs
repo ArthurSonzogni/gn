@@ -6,10 +6,14 @@ use std::cell::OnceCell;
 
 use starlark::{
     collections::SmallSet,
-    values::{OwnedFrozen, ValueTyped},
+    values::{HeapEdge, OwnedFrozen, ValueTyped},
 };
 
-use crate::{StringOutputBuffer, TargetRef, escape::Ninja, eval_context::EvalContext};
+use crate::{
+    StringOutputBuffer, TargetRef,
+    escape::{EscapingPlatform, Ninja},
+    eval_context::EvalContext,
+};
 
 pub struct Target {
     // We maintain a 0-1 relationship between starlark Targets and rust targets.
@@ -74,31 +78,26 @@ impl Target {
     pub fn write_substitutions(
         &self,
         buffer: std::pin::Pin<&mut crate::bridge::StringOutputBuffer>,
-        platform: crate::bridge::EscapingPlatform,
+        platform: EscapingPlatform,
         mut err: std::pin::Pin<&mut crate::bridge::Err>,
     ) {
-        err.as_mut().handle((|| -> starlark::Result<()> {
-            if let Some(evaluated) = self.evaluated.get() {
-                let mut buf = StringOutputBuffer::new(buffer);
-                evaluated.by_ref_with_reconstructor(|evaluated, reconstructor| {
-                    if evaluated.providers.substitutions.is_empty() {
-                        return Ok::<(), starlark::Error>(());
-                    }
-                    starlark::environment::Module::with_temp_heap(|module| {
-                        let mut eval = starlark::eval::Evaluator::new(&module);
-                        let edge = reconstructor.edge(eval.heap());
-                        let providers = edge.rebrand_ref(&evaluated.providers);
-                        for (name, args) in &providers.substitutions {
-                            buf.append(("starlark_", name.as_str(), " = "));
-                            crate::args::write_args(&mut buf, &mut eval, args, platform)?;
-                            buf.append(b'\n');
-                        }
-                        Ok(())
-                    })
-                })?;
-            }
-            Ok(())
-        })());
+        if let Some(evaluated) = self.evaluated.get() {
+            let mut buf = StringOutputBuffer::new(buffer);
+            evaluated.by_ref_with_reconstructor(|evaluated, reconstructor| {
+                if !evaluated.providers.substitutions.is_empty() {
+                    err.as_mut()
+                        .handle(starlark::environment::Module::with_temp_heap(|module| {
+                            write_ninja_for_platform(
+                                module,
+                                reconstructor,
+                                &evaluated.providers.substitutions,
+                                &mut buf,
+                                platform,
+                            )
+                        }));
+                }
+            });
+        }
     }
 
     /// Writes the inputs for `outputs` declared by GnInputsInfo to the ninja
@@ -183,5 +182,55 @@ impl crate::bridge::CxxTarget {
     /// the session if it doesn't exist yet.
     pub fn to_rust(&self, session: &crate::Session) -> TargetRef {
         TargetRef(self.rust_target(session))
+    }
+}
+
+fn write_ninja<'m, 'v>(
+    plans: &args::ArgSharingPlans<'v>,
+    substitutions: &[(String, args::ArgsList<'v>)],
+    eval: &mut starlark::eval::Evaluator<'m, '_, '_>,
+    edge: HeapEdge<'m, 'v>,
+    visitor: &mut impl args::ArgVisitor,
+) -> starlark::Result<()> {
+    plans.write_shared_args(eval, edge, visitor)?;
+
+    for (name, args) in substitutions {
+        visitor.write(("starlark_", name.as_str(), " = "));
+        for arg in args.items() {
+            plans.write(arg, eval, edge, visitor)?;
+        }
+        visitor.done();
+        visitor.write(b'\n');
+    }
+    Ok(())
+}
+
+fn write_ninja_for_platform<'v>(
+    module: starlark::environment::Module,
+    reconstructor: starlark::values::OwnedFrozenReconstructor<'v>,
+    substitutions: &[(String, args::ArgsList<'v>)],
+    buf: &mut StringOutputBuffer<'_>,
+    platform: EscapingPlatform,
+) -> starlark::Result<()> {
+    let mut eval = starlark::eval::Evaluator::new(&module);
+    let edge = reconstructor.edge(eval.heap());
+    let plans = args::ArgSharingPlans::new(substitutions.iter().flat_map(|(_, args)| args.items()));
+
+    match platform {
+        EscapingPlatform::Posix => write_ninja(
+            &plans,
+            substitutions,
+            &mut eval,
+            edge,
+            &mut crate::args::PosixWriter::new(buf),
+        ),
+        EscapingPlatform::Win => write_ninja(
+            &plans,
+            substitutions,
+            &mut eval,
+            edge,
+            &mut crate::args::WinWriter::new(buf),
+        ),
+        _ => unreachable!(),
     }
 }

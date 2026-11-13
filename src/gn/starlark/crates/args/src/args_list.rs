@@ -22,9 +22,8 @@ use starlark::{
 };
 
 use crate::{
-    ArgVisitor,
+    ArgVisitor as _,
     args::{Args, FrozenArgs},
-    expand::expand_args,
 };
 
 /// Starlark value for Args | str.
@@ -100,24 +99,9 @@ impl<'v> UnpackValue<'v> for ArgsList<'v> {
 }
 
 impl<'v> ArgsList<'v> {
-    /// Expands the arguments list into the given visitor.
-    pub fn expand(
-        &self,
-        eval: &mut Evaluator<'v, '_, '_>,
-        visitor: &mut impl ArgVisitor,
-    ) -> starlark::Result<()> {
-        for arg in &self.0 {
-            match arg {
-                ArgsLike::String(s) => visitor.add_arg(s.as_str()),
-                ArgsLike::Args(..) => {
-                    unreachable!("expand should never be called on a non-frozen ArgsList")
-                },
-                ArgsLike::FrozenArgs(args, upto) => {
-                    expand_args(&args.arguments[..*upto], eval, visitor)?;
-                },
-            }
-        }
-        Ok(())
+    /// Returns the argument items in this list.
+    pub fn items(&self) -> &[ArgsLike<'v>] {
+        &self.0
     }
 
     /// Asserts that expanding this argument list produces the expected strings.
@@ -127,12 +111,15 @@ impl<'v> ArgsList<'v> {
         reconstructor: &starlark::values::OwnedFrozenReconstructor<'v>,
         value: &str,
     ) {
+        let plans = crate::ArgSharingPlans::new(self.items().iter());
         let expanded = starlark::environment::Module::with_temp_heap(|module| {
             let mut eval = Evaluator::new(&module);
             let edge = reconstructor.edge(eval.heap());
-            let args = edge.rebrand_ref(self);
             let mut visitor = String::new();
-            args.expand(&mut eval, &mut visitor)?;
+            plans.write_shared_args(&mut eval, edge, &mut visitor)?;
+            for arg in self.items() {
+                plans.write(arg, &mut eval, edge, &mut visitor)?;
+            }
             visitor.done();
             starlark::Result::Ok(visitor)
         });
