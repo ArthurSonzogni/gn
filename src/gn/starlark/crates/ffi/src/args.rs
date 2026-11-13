@@ -75,6 +75,12 @@ impl<'a, 'b> WinWriter<'a, 'b> {
 }
 
 impl ArgVisitor for WinWriter<'_, '_> {
+    // Optimization: Skip the extra copy into token if we're writing a whole arg at a time.
+    fn add_arg(&mut self, part: &str) {
+        self.buffer
+            .append((crate::escape::NinjaCommandWindows(part), b' '));
+    }
+
     fn add_arg_chunk(&mut self, part: &str) {
         self.token.push_str(part);
     }
@@ -119,74 +125,95 @@ pub fn write_args<'v>(
 
 #[cfg(test)]
 mod tests {
-    use args::Args;
-    use starlark::{
-        environment::GlobalsBuilder,
-        values::{UnpackValue as _, Value},
-    };
-    use starlark_derive::starlark_module;
-
     use super::*;
     use crate::bridge;
 
-    #[starlark_module]
-    fn register_args_test_globals(builder: &mut GlobalsBuilder) {
-        fn args<'v>(eval: &mut Evaluator<'v, '_, '_>) -> starlark::Result<Value<'v>> {
-            Ok(eval.heap().alloc(Args::default()))
-        }
+    #[derive(Debug, Eq, PartialEq)]
+    struct EscapedStrings {
+        posix: String,
+        win: String,
     }
 
-    struct ArgsAssert {
-        assert: testutils::Assert,
-    }
+    macro_rules! escape {
+        (| $w:ident | $body:expr) => {{
+            let mut posix_raw = bridge::NewStringOutputBuffer();
+            let mut posix_buf = StringOutputBuffer::new(posix_raw.pin_mut());
+            {
+                let $w = &mut PosixWriter::new(&mut posix_buf);
+                $body;
+            }
 
-    impl ArgsAssert {
-        fn new() -> Self {
-            let mut a = testutils::Assert::default();
-            a.modify_globals(|builder| {
-                register_args_test_globals(builder);
-                depset::depset_globals!(builder, testutils::FakeEvalContext);
-            });
-            Self { assert: a }
-        }
+            let mut win_raw = bridge::NewStringOutputBuffer();
+            let mut win_buf = StringOutputBuffer::new(win_raw.pin_mut());
+            {
+                let $w = &mut WinWriter::new(&mut win_buf);
+                $body;
+            }
 
-        #[track_caller]
-        fn assert_expands_to(&mut self, code: &str, platform: EscapingPlatform, expected: &str) {
-            let val = self.assert.pass(code);
-
-            let res = starlark::environment::Module::with_temp_heap(|module| {
-                let mut eval = starlark::eval::Evaluator::new(&module);
-                let val_ref = val.as_ref().add_to_heap(module.heap());
-                let seq = <args::ArgsList>::unpack_value_err(val_ref).unwrap();
-                let mut raw_buf = bridge::NewStringOutputBuffer();
-                let mut buffer = StringOutputBuffer::new(raw_buf.pin_mut());
-                write_args(&mut buffer, &mut eval, &seq, platform)?;
-                starlark::Result::Ok(buffer.to_string())
-            });
-
-            assert_eq!(res.unwrap(), expected);
-        }
+            EscapedStrings {
+                posix: posix_buf.to_string(),
+                win: win_buf.to_string(),
+            }
+        }};
     }
 
     #[test]
-    fn test_args_escape_command_line_posix() {
-        let mut a = ArgsAssert::new();
-        a.assert_expands_to(r#"[]"#, EscapingPlatform::Posix, "");
-        a.assert_expands_to(
-            r#"[args().add_joined(["my flag", "my value"], join_with=",")]"#,
-            EscapingPlatform::Posix,
-            "my\\$ flag,my\\$ value",
+    fn test_writer_empty() {
+        assert_eq!(
+            escape!(|w| w.done()),
+            EscapedStrings {
+                posix: "".into(),
+                win: "".into(),
+            },
         );
     }
 
     #[test]
-    fn test_args_escape_command_line_windows() {
-        let mut a = ArgsAssert::new();
-        a.assert_expands_to(r#"[]"#, EscapingPlatform::Win, "");
-        a.assert_expands_to(
-            r#"[args().add_joined(["my flag", "my value"], join_with=",")]"#,
-            EscapingPlatform::Win,
-            "\"my$ flag,my$ value\"",
+    fn test_writer_args() {
+        assert_eq!(
+            escape!(|w| {
+                w.add_arg("plain");
+                w.add_arg("has space");
+                w.done();
+            }),
+            EscapedStrings {
+                posix: "plain has\\$ space".into(),
+                win: "plain \"has$ space\"".into(),
+            },
+        );
+    }
+
+    #[test]
+    fn test_writer_chunks() {
+        assert_eq!(
+            escape!(|w| {
+                w.add_arg_chunk("my flag");
+                w.add_arg_chunk(",");
+                w.add_arg_chunk("my value");
+                w.finish_arg();
+                w.add_arg_chunk("next");
+                w.finish_arg();
+                w.done();
+            }),
+            EscapedStrings {
+                posix: "my\\$ flag,my\\$ value next".into(),
+                win: "\"my$ flag,my$ value\" next".into(),
+            },
+        );
+    }
+
+    #[test]
+    fn test_writer_unescaped() {
+        assert_eq!(
+            escape!(|w| {
+                w.add_arg("first");
+                w.write(("${shared_", 42u32, "} "));
+                w.done();
+            }),
+            EscapedStrings {
+                posix: "first ${shared_42}".into(),
+                win: "first ${shared_42}".into(),
+            },
         );
     }
 }

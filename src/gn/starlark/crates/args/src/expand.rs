@@ -50,8 +50,13 @@ pub trait ArgVisitor {
 
     /// Emits a completed formatted argument, calling [`finish_arg`](Self::finish_arg) afterwards.
     fn add_formatted(&mut self, formatter: Option<&Formatter<'_>>, value: &str) {
-        self.add_formatted_chunks(formatter, value);
-        self.finish_arg();
+        if formatter.is_some() {
+            self.add_formatted_chunks(formatter, value);
+            self.finish_arg();
+        } else {
+            // Can be more efficient than calling add_formatted_chunks then finish_arg.
+            self.add_arg(value);
+        }
     }
 
     /// Writes an unescaped `Writable` value directly to the output without argument escaping or
