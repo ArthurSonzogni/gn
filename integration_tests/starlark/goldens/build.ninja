@@ -21,19 +21,19 @@ rule action_TOOL
 
 subninja toolchain.ninja
 
-build actions: phony obj/actions/actions.a
+build actions: phony obj/actions/actions.c
 build custom_shared: phony ./libcustom_shared.so
 build filegroup: phony ../first.txt
 build filegroups: phony phony/$:filegroups_0
 build multiple: phony phony/$:multiple_0
-build $:actions: phony obj/actions/actions.a
+build $:actions: phony obj/actions/actions.c
 build $:custom_shared: phony ./libcustom_shared.so
 build $:filegroup: phony ../first.txt
 build $:filegroups: phony phony/$:filegroups_0
 build $:multiple: phony phony/$:multiple_0
 
 build all: phony $
-    obj/actions/actions.a $
+    obj/actions/actions.c $
     ./libcustom_shared.so $
     ../first.txt $
     phony/$:filegroups_0 $

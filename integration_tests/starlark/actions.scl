@@ -4,25 +4,35 @@
 
 def _action_rules_impl(ctx):
   a = ctx.actions.declare_file(ctx.label.name + ".a")
+  common = ctx.actions.args().add("--common")
   ctx.actions.run(
     outputs = [a],
     executable = "tool",
     mnemonic = "TOOL",
+    arguments = [common]
   )
+
+  args = ctx.actions.args().add("-a", a)
 
   b = ctx.actions.declare_file(ctx.label.name + ".b")
   ctx.actions.run(
     outputs = [b],
     executable = "tool",
     mnemonic = "TOOL",
+    inputs = [a],
+    arguments = [common, args],
   )
+
+  args.add("-b", b)
 
   c = ctx.actions.declare_file(ctx.label.name + ".c")
   ctx.actions.run(
     outputs = [c],
     executable = "tool",
+    inputs = [a, b],
+    arguments = [common, args],
   )
-  return [DefaultInfo(files = depset([a]))]
+  return [DefaultInfo(files = depset([c]))]
 
 action_rules = rule(
   implementation = _action_rules_impl,

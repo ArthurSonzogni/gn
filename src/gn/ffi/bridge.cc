@@ -1162,7 +1162,7 @@ static_assert(static_cast<::std::uint8_t>(EscapingPlatform::ESCAPE_PLATFORM_WIN)
 struct RustTarget final : public ::rust::Opaque {
   ::rust::Str execute_rule_impl(::Session const &session, ::Err &err) const noexcept;
   void write_phonies(::StringOutputBuffer &buffer) const noexcept;
-  void write_substitutions(::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) const noexcept;
+  void write_ninja(::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) const noexcept;
   bool write_inputs(::std::vector<::OutputFile> const &outputs, bool has_inputs, ::StringOutputBuffer &buffer) const noexcept;
   ~RustTarget() = delete;
 
@@ -1525,7 +1525,7 @@ void cxxbridge1$196$Value$starlark_value(::Value const &self, ::OwnedFrozenValue
 
 void cxxbridge1$196$RustTarget$write_phonies(::RustTarget const &self, ::StringOutputBuffer &buffer) noexcept;
 
-void cxxbridge1$196$RustTarget$write_substitutions(::RustTarget const &self, ::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) noexcept;
+void cxxbridge1$196$RustTarget$write_ninja(::RustTarget const &self, ::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) noexcept;
 
 bool cxxbridge1$196$RustTarget$write_inputs(::RustTarget const &self, ::std::vector<::OutputFile> const &outputs, bool has_inputs, ::StringOutputBuffer &buffer) noexcept;
 ::std::size_t cxxbridge1$196$Session$operator$sizeof() noexcept;
@@ -1570,8 +1570,8 @@ void RustTarget::write_phonies(::StringOutputBuffer &buffer) const noexcept {
   cxxbridge1$196$RustTarget$write_phonies(*this, buffer);
 }
 
-void RustTarget::write_substitutions(::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) const noexcept {
-  cxxbridge1$196$RustTarget$write_substitutions(*this, buffer, platform, err);
+void RustTarget::write_ninja(::StringOutputBuffer &buffer, ::EscapingPlatform platform, ::Err &err) const noexcept {
+  cxxbridge1$196$RustTarget$write_ninja(*this, buffer, platform, err);
 }
 
 bool RustTarget::write_inputs(::std::vector<::OutputFile> const &outputs, bool has_inputs, ::StringOutputBuffer &buffer) const noexcept {

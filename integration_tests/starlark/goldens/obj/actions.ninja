@@ -1,0 +1,7 @@
+args_0 = --common
+build obj/actions/actions.a: action_TOOL
+  command = tool $args_0
+build obj/actions/actions.b: action_TOOL | obj/actions/actions.a
+  command = tool $args_0 -a obj/actions/actions.a
+build obj/actions/actions.c: action_ACTION | obj/actions/actions.a obj/actions/actions.b
+  command = tool $args_0 -a obj/actions/actions.a -b obj/actions/actions.b

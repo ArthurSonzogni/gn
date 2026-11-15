@@ -74,8 +74,8 @@ impl Target {
         }
     }
 
-    /// Writes the substitutions declared by GnSubstitutionsInfo to the ninja file.
-    pub fn write_substitutions(
+    /// Writes Ninja variables and build edges declared by this target.
+    pub fn write_ninja(
         &self,
         buffer: std::pin::Pin<&mut crate::bridge::StringOutputBuffer>,
         platform: EscapingPlatform,
@@ -84,13 +84,14 @@ impl Target {
         if let Some(evaluated) = self.evaluated.get() {
             let mut buf = StringOutputBuffer::new(buffer);
             evaluated.by_ref_with_reconstructor(|evaluated, reconstructor| {
-                if !evaluated.providers.substitutions.is_empty() {
+                if !evaluated.providers.substitutions.is_empty() || !evaluated.actions.is_empty() {
                     err.as_mut()
                         .handle(starlark::environment::Module::with_temp_heap(|module| {
                             write_ninja_for_platform(
                                 module,
                                 reconstructor,
                                 &evaluated.providers.substitutions,
+                                &evaluated.actions,
                                 &mut buf,
                                 platform,
                             )
@@ -188,6 +189,7 @@ impl crate::bridge::CxxTarget {
 fn write_ninja<'m, 'v>(
     plans: &args::ArgSharingPlans<'v>,
     substitutions: &[(String, args::ArgsList<'v>)],
+    actions: &[rule::action::Action<'v>],
     eval: &mut starlark::eval::Evaluator<'m, '_, '_>,
     edge: HeapEdge<'m, 'v>,
     visitor: &mut impl args::ArgVisitor,
@@ -202,6 +204,33 @@ fn write_ninja<'m, 'v>(
         visitor.done();
         visitor.write(b'\n');
     }
+
+    for action in actions {
+        visitor.write("build");
+        for out in &action.outputs {
+            visitor.write((b' ', crate::escape::Ninja::from(*out)));
+        }
+        visitor.write((
+            ": action_",
+            action.mnemonic.map(|m| m.as_str()).unwrap_or("ACTION"),
+        ));
+        if !action.inputs.is_empty() {
+            visitor.write(" |");
+            for input in &action.inputs {
+                visitor.write((" ", crate::escape::Ninja::from(*input)));
+            }
+        }
+        visitor.write("\n  command = ");
+        visitor.add_arg(match action.executable {
+            either::Either::Left(file) => file.as_str(),
+            either::Either::Right(s) => s.as_str(),
+        });
+        for arg in action.arguments.items() {
+            plans.write(arg, eval, edge, visitor)?;
+        }
+        visitor.done();
+        visitor.write(b'\n');
+    }
     Ok(())
 }
 
@@ -209,17 +238,24 @@ fn write_ninja_for_platform<'v>(
     module: starlark::environment::Module,
     reconstructor: starlark::values::OwnedFrozenReconstructor<'v>,
     substitutions: &[(String, args::ArgsList<'v>)],
+    actions: &[rule::action::Action<'v>],
     buf: &mut StringOutputBuffer<'_>,
     platform: EscapingPlatform,
 ) -> starlark::Result<()> {
     let mut eval = starlark::eval::Evaluator::new(&module);
     let edge = reconstructor.edge(eval.heap());
-    let plans = args::ArgSharingPlans::new(substitutions.iter().flat_map(|(_, args)| args.items()));
+    let plans = args::ArgSharingPlans::new(
+        actions
+            .iter()
+            .flat_map(|action| action.arguments.items())
+            .chain(substitutions.iter().flat_map(|(_, args)| args.items())),
+    );
 
     match platform {
         EscapingPlatform::Posix => write_ninja(
             &plans,
             substitutions,
+            actions,
             &mut eval,
             edge,
             &mut crate::args::PosixWriter::new(buf),
@@ -227,6 +263,7 @@ fn write_ninja_for_platform<'v>(
         EscapingPlatform::Win => write_ninja(
             &plans,
             substitutions,
+            actions,
             &mut eval,
             edge,
             &mut crate::args::WinWriter::new(buf),

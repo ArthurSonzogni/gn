@@ -354,7 +354,7 @@ mod dummy {
             err: Pin<&mut Err>,
         ) -> &'static str;
         fn write_phonies(self: &Target, buffer: Pin<&mut StringOutputBuffer>);
-        fn write_substitutions(
+        fn write_ninja(
             self: &Target,
             buffer: Pin<&mut StringOutputBuffer>,
             platform: EscapingPlatform,

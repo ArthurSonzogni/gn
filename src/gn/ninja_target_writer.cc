@@ -134,6 +134,22 @@ std::string NinjaTargetWriter::RunAndWriteFile(
   // or write variables scoped under each build line. As a result, they don't
   // need the separate files.
   bool needs_file_write = false;
+
+  // We write all the starlark stuff first because non-starlark can depend on
+  // starlark substitutions, but starlark cannot depend on non-starlark.
+  if (const auto* rust = target->rust_target()) {
+    // We write the phonies separately because phonies aren't scope-dependent,
+    // so don't affect whether we need to give them their own ninja file.
+    rust->write_phonies(storage);
+    Err err;
+    auto size = storage.size();
+    rust->write_ninja(storage, ESCAPE_PLATFORM_CURRENT, err);
+    if (err.has_error()) {
+      g_scheduler->FailWithError(err);
+    }
+    needs_file_write = storage.size() != size;
+  }
+
   if (target->output_type() == Target::BUNDLE_DATA) {
     NinjaBundleDataTargetWriter writer(target, storage);
     writer.SetResolvedTargetData(resolved);
@@ -196,10 +212,6 @@ std::string NinjaTargetWriter::RunAndWriteFile(
 
   WritePublicInputsStampOrPhony(target, resolved, storage);
   WriteHardDepsStampOrPhony(target, resolved, storage);
-
-  if (const auto* rust = target->rust_target()) {
-    rust->write_phonies(storage);
-  }
 
   if (needs_file_write) {
     // Write the ninja file.
@@ -421,14 +433,6 @@ void NinjaTargetWriter::WriteSharedVars(const SubstitutionBits& bits) {
   // Target output name.
   if (bits.used.count(&SubstitutionTargetOutputName)) {
     WriteEscapedSubstitution(&SubstitutionTargetOutputName);
-  }
-
-  if (const auto* rust = target_->rust_target()) {
-    Err err;
-    rust->write_substitutions(out_, ESCAPE_PLATFORM_CURRENT, err);
-    if (err.has_error()) {
-      g_scheduler->FailWithError(err);
-    }
   }
 
   // If we wrote any vars, separate them from the rest of the file that follows
