@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+use providers::ProviderType;
+use types::Label;
+
 /// Errors returned by the GN Starlark rule system.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -24,6 +27,12 @@ pub enum Error {
         "mnemonic must be an uppercase letter followed by uppercase letters or digits. Got '{0}'"
     )]
     InvalidMnemonic(String),
+    #[error("Rule '{rule}' on target '{target}' did not return declared provider: {provider}")]
+    MissingProvider {
+        rule: String,
+        target: Label,
+        provider: ProviderType,
+    },
 }
 
 impl From<Error> for starlark::Error {

@@ -75,7 +75,14 @@ starlark_simple_value!(ProviderType);
 
 impl Display for ProviderType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<provider>")
+        write!(
+            f,
+            "{}",
+            self.data
+                .get()
+                .map(|data| data.name.as_ref().value().as_str())
+                .unwrap_or("<provider>")
+        )
     }
 }
 
@@ -145,6 +152,11 @@ impl<'v> StarlarkValue<'v> for ProviderType {
 }
 
 impl ProviderType {
+    /// Returns the unique identifier for this provider type.
+    pub fn id(&self) -> ProviderId {
+        self.id
+    }
+
     /// Creates a new provider type with the provided fields.
     /// This provider is not yet configured, and is unusable until `export_as`
     /// is called.

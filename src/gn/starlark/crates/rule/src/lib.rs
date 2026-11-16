@@ -16,5 +16,6 @@ pub use either;
 pub use errors::Error;
 pub use globals::{extract_builtin_rules, register_builtin_rules};
 pub use implementation::{EvaluatedTarget, run};
+pub use providers;
 pub use rule::{OutputType, Rule};
 pub use types::{self, CtxMethods};

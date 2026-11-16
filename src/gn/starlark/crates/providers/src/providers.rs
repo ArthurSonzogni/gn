@@ -82,6 +82,11 @@ impl<'v> Providers<'v> {
         };
         Ok(self.providers.contains_key(key))
     }
+
+    /// Returns whether a provider instance exists for the given [`ProviderId`].
+    pub fn contains_id(&self, id: ProviderId) -> bool {
+        self.providers.contains_key(&id)
+    }
 }
 
 impl<'v> StarlarkTypeRepr for Providers<'v> {

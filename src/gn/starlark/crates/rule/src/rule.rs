@@ -6,6 +6,7 @@ use std::{cell::OnceCell, fmt, marker::PhantomData};
 
 use allocative::Allocative;
 use attr::{Attr, AttrSchema, CtxAttrSchema, traits::EvalContextAttrExt};
+use providers::ProviderType;
 use starlark::{
     any::ProvidesStaticType,
     collections::SmallMap,
@@ -17,7 +18,7 @@ use starlark::{
 };
 use starlark_derive::{NoSerialize, starlark_value};
 pub use types::OutputType;
-use types::{EvaluatorContextExt as _, Scope as _};
+use types::{EvaluatorContextExt as _, Scope as _, util::uniquify_small_vec};
 
 /// Representation of a Starlark rule object.
 ///
@@ -41,6 +42,7 @@ pub struct Rule<'v, C: EvalContextAttrExt + 'static> {
     pub(crate) output_type: Option<OutputType>,
     pub(crate) implementation: Value<'v>,
     pub(crate) parent: Option<ValueTyped<'v, Self>>,
+    pub(crate) provides: Vec<ValueTyped<'v, ProviderType>>,
     pub(crate) _phantom: PhantomData<C>,
 }
 
@@ -101,6 +103,7 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
         attrs: SmallMap<String, AttrSchema>,
         parent: Option<ValueTyped<'v, Self>>,
         implementation: Value<'v>,
+        mut provides: Vec<ValueTyped<'v, ProviderType>>,
         frozen_heap: &FrozenHeap<'fh>,
         edge: HeapEdge<'v, 'fh>,
     ) -> Result<Self, starlark::Error> {
@@ -111,12 +114,16 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
         }
 
         let (output_type, attrs) = match parent {
-            Some(p) => (
-                p.as_ref().output_type,
-                merge_attrs(p.as_ref().schema.attrs(), attrs)?,
-            ),
+            Some(p) => {
+                provides.extend_from_slice(&p.as_ref().provides);
+                (
+                    p.as_ref().output_type,
+                    merge_attrs(p.as_ref().schema.attrs(), attrs)?,
+                )
+            },
             None => (None, attrs),
         };
+        uniquify_small_vec(&mut provides);
 
         let schema = edge.rebrand(CtxAttrSchema::new(attrs, output_type, frozen_heap));
         Ok(Self {
@@ -125,6 +132,7 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
             output_type,
             implementation,
             parent,
+            provides,
             _phantom: PhantomData,
         })
     }
@@ -146,6 +154,7 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
             output_type: Some(builtin),
             implementation,
             parent: None,
+            provides: Vec::new(),
             _phantom: PhantomData,
         }
     }
@@ -158,6 +167,15 @@ impl<'v, C: EvalContextAttrExt> Rule<'v, C> {
     /// If this rule is not a pure starlark rule, returns the underlying GN target type.
     pub fn output_type(&self) -> Option<OutputType> {
         self.output_type
+    }
+
+    /// Returns the name of the rule. Can only be called if it has been named already
+    pub fn name(&self) -> &str {
+        &self
+            .once_named
+            .get()
+            .expect("calling rule.name() on an unnamed rule")
+            .0
     }
 }
 
@@ -284,6 +302,7 @@ impl<'v, C: EvalContextAttrExt> Freeze<'v> for Rule<'v, C> {
             output_type: self.output_type,
             implementation: self.implementation.freeze(freezer)?,
             parent: self.parent.freeze(freezer)?,
+            provides: self.provides.freeze(freezer)?,
             _phantom: PhantomData,
         })
     }

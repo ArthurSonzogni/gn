@@ -82,6 +82,11 @@ macro_rules! register_rule_globals {
                 #[starlark(require = named)] attrs: Option<
                     starlark::collections::SmallMap<&str, &attr::AttrSchema>,
                 >,
+                #[starlark(require = named)] provides: Option<
+                    starlark::values::list::UnpackList<
+                        starlark::values::ValueTyped<'v, $crate::providers::ProviderType>,
+                    >,
+                >,
                 eval: &mut starlark::eval::Evaluator<'v, '_, '_>,
             ) -> starlark::Result<starlark::values::Value<'v>> {
                 // Rules can only be created while loading scl files, not in macros or rule
@@ -94,8 +99,16 @@ macro_rules! register_rule_globals {
                     .into_iter()
                     .map(|(k, v)| (k.to_string(), v.clone()))
                     .collect();
+                let provides = provides.map(|p| p.items).unwrap_or_default();
                 let rule = eval.frozen_heap(|heap, edge| {
-                    <$crate::Rule<'v, $ctx_type>>::new(attrs, parent, implementation, &heap, edge)
+                    <$crate::Rule<'v, $ctx_type>>::new(
+                        attrs,
+                        parent,
+                        implementation,
+                        provides,
+                        &heap,
+                        edge,
+                    )
                 })?;
                 Ok(eval.heap().alloc(rule))
             }

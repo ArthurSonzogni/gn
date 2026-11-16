@@ -96,6 +96,18 @@ where
             )
         };
 
+        let providers = Providers::unpack_value_err(res)?;
+        for provider in &rule.provides {
+            if !providers.contains_id(provider.id()) {
+                return Err(crate::Error::MissingProvider {
+                    rule: rule.name().to_string(),
+                    target: target.label().to_owned(),
+                    provider: provider.as_ref().clone(),
+                }
+                .into());
+            }
+        }
+
         module.set_extra_value(
             module.heap().alloc_complex(EvaluatedTarget {
                 phonies: rule_context
@@ -103,7 +115,7 @@ where
                     .borrow_mut()
                     .rule_impl_complete()?,
                 actions,
-                providers: providers::Providers::unpack_value_err(res)?,
+                providers,
             }),
         );
 
