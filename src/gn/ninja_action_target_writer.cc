@@ -184,6 +184,10 @@ std::string NinjaActionTargetWriter::WriteRuleDefinition() {
 
   out_ << "  command = ";
   command_output.WriteFile(out_, settings_->build_settings()->python_path());
+  for (const auto& arg : settings_->build_settings()->python_args()) {
+    out_ << " ";
+    EscapeStringToStream(out_, arg, args_escape_options);
+  }
   out_ << " ";
   command_output.WriteFile(out_, target_->action_values().script());
   for (const auto& arg : args.list()) {

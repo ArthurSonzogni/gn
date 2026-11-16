@@ -697,3 +697,40 @@ TEST(NinjaActionTargetWriter, ActionWithValidations) {
 
   EXPECT_EQ(expected, out);
 }
+
+TEST(NinjaActionTargetWriter, ActionWithPythonArgs) {
+  Err err;
+  TestWithScope setup;
+
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  target.set_output_type(Target::ACTION);
+  target.action_values().set_script(SourceFile("//foo/script.py"));
+  target.action_values().args() = SubstitutionList::MakeForTest("--flag");
+  target.action_values().outputs() =
+      SubstitutionList::MakeForTest("//out/Debug/foo.out");
+  target.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(target.OnResolved(&err)) << err.message();
+
+  setup.build_settings()->SetPythonPath(
+      base::FilePath(FILE_PATH_LITERAL("python3")), {"-s", "arg with space"});
+
+  StringOutputBuffer out;
+  NinjaActionTargetWriter writer(&target, out);
+  writer.Run();
+
+  const char expected[] =
+      "rule __foo_bar___rule\n"
+#if defined(OS_WIN)
+      "  command = python3 -s \"arg$ with$ space\" ../../foo/script.py --flag\n"
+#else
+      "  command = python3 -s arg\\$ with\\$ space ../../foo/script.py --flag\n"
+#endif
+      "  description = ACTION //foo:bar()\n"
+      "  restat = 1\n"
+      "\n"
+      "build foo.out: __foo_bar___rule | ../../foo/script.py\n"
+      "\n"
+      "build phony/foo/bar: phony foo.out\n";
+
+  EXPECT_EQ(expected, out);
+}

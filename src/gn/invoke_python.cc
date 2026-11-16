@@ -26,6 +26,10 @@ bool InvokePython(const BuildSettings* build_settings,
     python_path = startup_dir.Append(python_path);
   }
   base::CommandLine cmdline(python_path);
+  cmdline.SetParseSwitches(false);
+  for (const auto& arg : build_settings->python_args()) {
+    cmdline.AppendArg(arg);
+  }
   cmdline.AppendArg("--");
   cmdline.AppendArgPath(python_script_path);
   cmdline.AppendArgPath(output_path);

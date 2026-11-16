@@ -128,16 +128,20 @@ std::string NinjaCreateBundleTargetWriter::WritePostProcessingRuleDefinition() {
   base::ReplaceChars(custom_rule_name, ":/()", "_", &custom_rule_name);
   custom_rule_name.append("_post_processing_rule");
 
+  EscapeOptions args_escape_options;
+  args_escape_options.mode = ESCAPE_NINJA_COMMAND;
+
   out_ << "rule " << custom_rule_name << '\n';
   out_ << "  command = ";
   path_output_.WriteFile(out_, settings_->build_settings()->python_path());
+  for (const auto& arg : settings_->build_settings()->python_args()) {
+    out_ << " ";
+    EscapeStringToStream(out_, arg, args_escape_options);
+  }
   out_ << " ";
   path_output_.WriteFile(out_, target_->bundle_data().post_processing_script());
 
   const SubstitutionList& args = target_->bundle_data().post_processing_args();
-  EscapeOptions args_escape_options;
-  args_escape_options.mode = ESCAPE_NINJA_COMMAND;
-
   for (const auto& arg : args.list()) {
     out_ << " ";
     SubstitutionWriter::WriteWithNinjaVariables(arg, args_escape_options, out_);

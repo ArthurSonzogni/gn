@@ -576,3 +576,44 @@ TEST(NinjaCreateBundleTargetWriter, PostProcessingNoStampFilesCustomToolchain) {
       "build bar.bundle: phony toolchain/phony/baz/bar\n";
   EXPECT_EQ(expected, out);
 }
+
+TEST(NinjaCreateBundleTargetWriter, PostProcessingWithPythonArgs) {
+  Err err;
+  TestWithScope setup;
+  setup.build_settings()->SetPythonPath(
+      base::FilePath(FILE_PATH_LITERAL("python3")), {"-s"});
+
+  Target create_bundle(
+      setup.settings(),
+      Label(SourceDir("//baz/"), "bar", setup.toolchain()->label().dir(),
+            setup.toolchain()->label().name()));
+  SetupBundleDataDir(&create_bundle.bundle_data(), "//out/Debug");
+  create_bundle.set_output_type(Target::CREATE_BUNDLE);
+  create_bundle.bundle_data().set_post_processing_script(
+      SourceFile("//build/codesign.py"));
+  create_bundle.bundle_data().post_processing_outputs() =
+      SubstitutionList::MakeForTest(
+          "//out/Debug/bar.bundle/_CodeSignature/CodeResources");
+  create_bundle.bundle_data().post_processing_args() =
+      SubstitutionList::MakeForTest("bar.bundle");
+  create_bundle.SetToolchain(setup.toolchain());
+  ASSERT_TRUE(create_bundle.OnResolved(&err));
+
+  StringOutputBuffer out;
+  NinjaCreateBundleTargetWriter writer(&create_bundle, out);
+  writer.Run();
+
+  const char expected[] =
+      "rule __baz_bar___toolchain_default__post_processing_rule\n"
+      "  command = python3 -s ../../build/codesign.py bar.bundle\n"
+      "  description = POST PROCESSING //baz:bar(//toolchain:default)\n"
+      "  restat = 1\n"
+      "\n"
+      "build bar.bundle/_CodeSignature/CodeResources: "
+      "__baz_bar___toolchain_default__post_processing_rule "
+      "| ../../build/codesign.py\n"
+      "build phony/baz/bar: phony "
+      "bar.bundle/_CodeSignature/CodeResources\n"
+      "build bar.bundle: phony phony/baz/bar\n";
+  EXPECT_EQ(expected, out);
+}

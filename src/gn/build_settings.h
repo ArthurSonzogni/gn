@@ -9,7 +9,9 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "gn/args.h"
@@ -59,9 +61,11 @@ class BuildSettings {
   }
   void SetSecondarySourcePath(const SourceDir& d);
 
-  // Path of the python executable to run scripts with.
+  // Path of the python executable to run scripts with, and optional extra
+  // arguments passed to it before the script path.
   base::FilePath python_path() const { return python_path_; }
-  void SetPythonPath(base::FilePath p);
+  const std::vector<std::string>& python_args() const { return python_args_; }
+  void SetPythonPath(base::FilePath p, std::vector<std::string> args = {});
   bool python_path_is_relative_to_build_dir() const {
     return python_path_is_relative_to_build_dir_;
   }
@@ -192,6 +196,7 @@ class BuildSettings {
   std::string root_path_utf8_;
   base::FilePath secondary_source_path_;
   base::FilePath python_path_;
+  std::vector<std::string> python_args_;
   bool python_path_is_relative_to_build_dir_ = false;
 
   // See 40045b9 for the reason behind using 1.7.2 as the default version.
