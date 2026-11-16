@@ -13,5 +13,6 @@ pub use builtins::{BuiltinProviders, builtin_providers_module};
 pub(crate) use errors::Error;
 pub use globals::register_providers;
 pub use provider_instance::ProviderInstance;
-pub use provider_type::{ProviderId, ProviderType};
+pub use provider_type::ProviderType;
 pub use providers::Providers;
+pub use types::ProviderId;

@@ -188,6 +188,13 @@ impl types::TargetRef for TargetRef {
         }
         attrs
     }
+
+    fn has_provider(&self, id: types::ProviderId) -> bool {
+        self.0
+            .evaluated
+            .get()
+            .is_some_and(|evaluated| evaluated.by_ref(|e| e.providers.contains_id(id)))
+    }
 }
 
 impl attr::TargetAttrExt for TargetRef {

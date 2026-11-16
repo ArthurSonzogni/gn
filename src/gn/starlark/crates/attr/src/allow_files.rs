@@ -117,6 +117,7 @@ mod tests {
                     disallow_empty: false,
                     allow_files: AllowFilesSchema::Many(AllowFiles::Some(vec![pattern.to_owned()])),
                     cfg: AttrCfg::CurrentToolchain,
+                    providers: Default::default(),
                     doc: String::new(),
                 };
                 Attr::create(

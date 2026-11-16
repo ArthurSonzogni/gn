@@ -158,6 +158,7 @@ version = "0.1.0"
 dependencies = [
  "allocative",
  "either",
+ "providers",
  "starlark",
  "starlark_derive",
  "testutils",

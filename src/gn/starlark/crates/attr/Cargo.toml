@@ -12,6 +12,7 @@ doctest = false
 [dependencies]
 allocative = { workspace = true }
 either = { workspace = true }
+providers = { path = "../providers" }
 starlark = { workspace = true }
 starlark_derive = { workspace = true }
 thiserror = { workspace = true }

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use providers::ProviderType;
 use types::Label;
 
 /// Errors returned by the GN Starlark rule system.
@@ -31,7 +30,7 @@ pub enum Error {
     MissingProvider {
         rule: String,
         target: Label,
-        provider: ProviderType,
+        provider: providers::ProviderType,
     },
 }
 

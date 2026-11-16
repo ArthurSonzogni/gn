@@ -4,7 +4,7 @@
 
 use starlark::values::{AllocValue, Heap, StarlarkValue, Value};
 
-use crate::{File, LabelRef, OutputType, Session};
+use crate::{File, LabelRef, OutputType, ProviderId, Session};
 
 /// Unfortunately while we could specify that Eq and Hash are implemented, there
 /// is no way to delegate starlark's equality and hash function to it
@@ -40,6 +40,9 @@ pub trait TargetRef:
 
     /// Returns the resolved built-in attributes as Starlark values.
     fn builtin_attrs<'v>(&self, session: &Self::Session, heap: &Heap<'v>) -> Vec<Value<'v>>;
+
+    /// Returns `true` if this target provides the given provider type.
+    fn has_provider(&self, id: ProviderId) -> bool;
 }
 
 /// A trait for mutating a target before it is registered in the session.

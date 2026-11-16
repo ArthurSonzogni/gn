@@ -159,6 +159,7 @@ impl EvalContextAttrExt for FakeEvalContext {
             cxx_attrs: scope.0.clone(),
             outputs: vec![],
             attrs: vec![],
+            evaluated: Default::default(),
         };
         let mut targets = self.session.targets_under_construction.borrow_mut();
         targets.push(Box::new(target));

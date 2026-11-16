@@ -3,11 +3,12 @@
 // found in the LICENSE file.
 
 use allocative::Allocative;
+use providers::ProviderType;
 use starlark::{
     collections::{SmallMap, SmallSet},
     values::{Heap, Value, dict::Dict},
 };
-use types::{File, LabelRef, TargetRef as _};
+use types::{File, LabelRef, TargetRef};
 
 use crate::{Attr, Session, schema::AttrSchema};
 
@@ -202,6 +203,7 @@ impl Attr {
         match lf {
             crate::LabelOrFile::Label(lbl) => {
                 let target = session.get_target(lbl.as_ref(), *current_toolchain);
+                verify_providers(&target, &schema.providers)?;
                 if let Some(matcher) = schema.file_matcher()
                     && let crate::allow_files::AllowFiles::Some(exts) = matcher
                     && !target.outputs().iter().any(|f| matcher.matches(f.as_str()))
@@ -229,6 +231,37 @@ impl Attr {
     }
 }
 
+fn verify_providers(dep: &impl TargetRef, required: &[Vec<ProviderType>]) -> starlark::Result<()> {
+    if required.is_empty()
+        || required
+            .iter()
+            .any(|group| group.iter().all(|p| dep.has_provider(p.id())))
+    {
+        return Ok(());
+    }
+    let missing = required
+        .iter()
+        .map(|group| {
+            let mut names: Vec<_> = group
+                .iter()
+                .filter(|p| !dep.has_provider(p.id()))
+                .map(|p| format!("'{p}'"))
+                .collect();
+            if names.len() == 1 {
+                names.pop().unwrap()
+            } else {
+                format!("({})", names.join(" and "))
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" or ");
+    Err(crate::Error::MissingRequiredProviders {
+        target: dep.label().to_owned(),
+        missing,
+    }
+    .into())
+}
+
 #[cfg(test)]
 mod tests {
     use starlark::{
@@ -254,6 +287,7 @@ mod tests {
             disallow_empty: false,
             allow_files: AllowFilesSchema::None,
             cfg: AttrCfg::CurrentToolchain,
+            providers: Vec::new(),
             doc: String::new(),
         };
 
@@ -291,6 +325,7 @@ mod tests {
             disallow_empty: false,
             allow_files: AllowFilesSchema::None,
             cfg: AttrCfg::CurrentToolchain,
+            providers: Vec::new(),
             doc: String::new(),
         };
 
@@ -363,6 +398,7 @@ mod tests {
             disallow_empty: false,
             allow_files: AllowFilesSchema::Many(AllowFiles::All),
             cfg: AttrCfg::CurrentToolchain,
+            providers: Vec::new(),
             doc: String::new(),
         };
 
@@ -426,6 +462,7 @@ mod tests {
             disallow_empty: false,
             allow_files: AllowFilesSchema::Single(AllowFiles::All),
             cfg: AttrCfg::CurrentToolchain,
+            providers: Vec::new(),
             doc: String::new(),
         };
 
@@ -545,6 +582,7 @@ mod tests {
             disallow_empty: false,
             allow_files: AllowFilesSchema::None,
             cfg: AttrCfg::CurrentToolchain,
+            providers: Vec::new(),
             doc: String::new(),
         };
 
@@ -598,6 +636,7 @@ mod tests {
             disallow_empty: false,
             allow_files: AllowFilesSchema::Many(AllowFiles::Some(vec![".cc".to_owned()])),
             cfg: AttrCfg::CurrentToolchain,
+            providers: Vec::new(),
             doc: String::new(),
         };
 

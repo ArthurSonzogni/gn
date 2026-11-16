@@ -85,6 +85,7 @@ impl FakeSession {
             rule: self.default_rule(),
             cxx_attrs: Default::default(),
             dependencies: Default::default(),
+            evaluated: Default::default(),
         }
     }
 

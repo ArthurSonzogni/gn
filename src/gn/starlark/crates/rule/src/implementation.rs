@@ -77,15 +77,16 @@ where
             let actions = eval
                 .heap()
                 .alloc_typed(crate::actions::Actions::<C>::default());
+            let ctx_fields = rule.schema.create_ctx_fields(
+                target.attrs(),
+                rule_context.session(),
+                &rule_context.current_toolchain(),
+                rule.output_type,
+                target.builtin_attrs(rule_context.session(), &eval.heap()),
+                &eval.heap(),
+            )?;
             let ctx = eval.heap().alloc(Ctx::<C>::new(
-                rule.schema.create_ctx_fields(
-                    target.attrs(),
-                    rule_context.session(),
-                    &rule_context.current_toolchain(),
-                    rule.output_type,
-                    target.builtin_attrs(rule_context.session(), &eval.heap()),
-                    &eval.heap(),
-                )?,
+                ctx_fields,
                 rule,
                 eval.heap().alloc(target.label().to_owned()),
                 actions.to_value(),

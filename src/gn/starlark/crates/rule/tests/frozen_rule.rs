@@ -99,6 +99,7 @@ child_rule(
             rule: rule(&native, "custom_shared_library"),
             cxx_attrs: unknown_attrs.clone(),
             dependencies: HashSet::new(),
+            evaluated: Default::default(),
         }
     );
 
@@ -113,6 +114,7 @@ child_rule(
             rule: rule(&native, "static_library"),
             cxx_attrs: unknown_attrs.clone(),
             dependencies: HashSet::new(),
+            evaluated: Default::default(),
         }
     );
 
@@ -141,6 +143,7 @@ child_rule(
                 Label::new(PackageRef::root().to_owned(), "parent".to_owned()),
                 toolchain.clone(),
             )]),
+            evaluated: Default::default(),
         }
     );
 
@@ -165,6 +168,7 @@ child_rule(
                 Label::new(PackageRef::root().to_owned(), "child".to_owned()),
                 toolchain.clone(),
             )]),
+            evaluated: Default::default(),
         }
     );
 
@@ -189,6 +193,7 @@ child_rule(
                 Label::new(PackageRef::root().to_owned(), "custom_val".to_owned()),
                 toolchain.clone(),
             )]),
+            evaluated: Default::default(),
         }
     );
 }

@@ -5,10 +5,7 @@
 use std::{
     fmt,
     fmt::{Debug, Display},
-    sync::{
-        OnceLock,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::OnceLock,
 };
 
 use allocative::Allocative;
@@ -23,30 +20,9 @@ use starlark::{
     },
 };
 use starlark_derive::{NoSerialize, Trace, starlark_value};
+use types::ProviderId;
 
 use crate::{Error, ProviderInstance};
-
-/// A unique identifier for a provider type within a GN build session.
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Allocative, Freeze, Trace)]
-pub struct ProviderId(pub(crate) u64);
-
-impl ProviderId {
-    /// Generates a new unique `ProviderId`.
-    ///
-    /// A process-wide counter is fine here because all we care about is that these type IDs are
-    /// distinct Provider IDs are also not persisted anywhere so we don't have nondeterminism
-    /// concerns.
-    pub fn next() -> Self {
-        // Built-in provider IDs are u8s, so starting at 256 is safe
-        static NEXT_ID: AtomicU64 = AtomicU64::new(256);
-        Self(NEXT_ID.fetch_add(1, Ordering::Relaxed))
-    }
-
-    /// Constant constructor for built-in providers.
-    pub const fn builtin(id: u8) -> Self {
-        Self(id as u64)
-    }
-}
 
 #[derive(Allocative, Clone, Debug, Trace)]
 // Contains all the information we cannot know about a provider type until we
@@ -72,6 +48,14 @@ pub struct ProviderType {
 }
 
 starlark_simple_value!(ProviderType);
+
+impl PartialEq for ProviderType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for ProviderType {}
 
 impl Display for ProviderType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
