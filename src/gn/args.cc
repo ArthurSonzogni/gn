@@ -99,13 +99,6 @@ Args::ValueWithOverride::~ValueWithOverride() = default;
 
 Args::Args() = default;
 
-Args::Args(const Args& other)
-    : overrides_(other.overrides_),
-      all_overrides_(other.all_overrides_),
-      declared_arguments_per_toolchain_(
-          other.declared_arguments_per_toolchain_),
-      toolchain_overrides_(other.toolchain_overrides_) {}
-
 Args::~Args() = default;
 
 void Args::AddArgOverride(const char* name, const Value& value) {

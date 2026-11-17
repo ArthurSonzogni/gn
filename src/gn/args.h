@@ -41,7 +41,8 @@ class Args {
   using ValueWithOverrideMap = std::map<std::string_view, ValueWithOverride>;
 
   Args();
-  Args(const Args& other);
+  Args(const Args&) = delete;
+  Args& operator=(const Args&) = delete;
   ~Args();
 
   // Specifies overrides of the build arguments. These are normally specified
@@ -155,8 +156,6 @@ class Args {
   mutable ArgumentsPerToolchain toolchain_overrides_;
 
   SourceFileSet build_args_dependency_files_;
-
-  Args& operator=(const Args&) = delete;
 };
 
 #endif  // TOOLS_GN_ARGS_H_

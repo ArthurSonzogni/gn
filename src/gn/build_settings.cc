@@ -11,21 +11,6 @@
 
 BuildSettings::BuildSettings() = default;
 
-BuildSettings::BuildSettings(const BuildSettings& other)
-    : dotfile_name_(other.dotfile_name_),
-      root_path_(other.root_path_),
-      root_path_utf8_(other.root_path_utf8_),
-      secondary_source_path_(other.secondary_source_path_),
-      python_path_(other.python_path_),
-      python_args_(other.python_args_),
-      python_path_is_relative_to_build_dir_(
-          other.python_path_is_relative_to_build_dir_),
-      ninja_required_version_(other.ninja_required_version_),
-      build_config_file_(other.build_config_file_),
-      arg_file_template_path_(other.arg_file_template_path_),
-      build_dir_(other.build_dir_),
-      build_args_(other.build_args_) {}
-
 void BuildSettings::SetRootTargetLabel(const Label& r) {
   root_target_label_ = r;
 }

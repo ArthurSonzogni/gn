@@ -353,7 +353,7 @@ int EditArgsFile(const std::string& build_dir) {
     // Ensure the file exists. Need to normalize path separators since on
     // Windows they can come out as forward slashes here, and that confuses some
     // of the commands.
-    BuildSettings build_settings = setup.build_settings();
+    const BuildSettings& build_settings = setup.build_settings();
     base::FilePath arg_file =
         build_settings.GetFullPath(setup.GetBuildArgFile())
             .NormalizePathSeparators();

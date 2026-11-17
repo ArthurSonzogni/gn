@@ -12,17 +12,15 @@
 
 namespace {
 
-BuildSettings CreateBuildSettingsForTest() {
-  BuildSettings build_settings;
-  build_settings.SetBuildDir(SourceDir("//out/Debug/"));
+BuildSettings* InitBuildSettingsForTest(BuildSettings* build_settings) {
+  build_settings->SetBuildDir(SourceDir("//out/Debug/"));
   return build_settings;
 }
 
 }  // namespace
 
 TestWithScope::TestWithScope()
-    : build_settings_(CreateBuildSettingsForTest()),
-      settings_(&build_settings_, std::string()),
+    : settings_(InitBuildSettingsForTest(&build_settings_), std::string()),
       toolchain_(&settings_, Label(SourceDir("//toolchain/"), "default")),
       scope_(&settings_),
       scope_progammatic_provider_(&scope_, true) {
