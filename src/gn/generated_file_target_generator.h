@@ -24,7 +24,6 @@ class GeneratedFileTargetGenerator : public TargetGenerator {
   void DoRun() override;
 
  private:
-  bool FillGeneratedFileOutput();
   bool FillOutputConversion();
   bool FillContents();
   bool FillCollectValidationsMetadata();

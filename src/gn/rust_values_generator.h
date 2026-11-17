@@ -24,7 +24,6 @@ class RustValuesGenerator {
   bool FillCrateName();
   bool FillCrateRoot();
   bool FillCrateType();
-  bool FillEdition();
   bool FillAliasedDeps();
 
   Target* target_;

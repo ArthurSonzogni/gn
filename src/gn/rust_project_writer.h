@@ -29,10 +29,6 @@ class RustProjectWriter {
   static void RenderJSON(const BuildSettings* build_settings,
                          std::vector<const Target*>& all_targets,
                          StringOutputBuffer& rust_project);
-
- private:
-  // This function visits the deps graph of a target in a DFS fashion.
-  static void VisitDeps(const Target* target, TargetSet* visited);
 };
 
 #endif  // TOOLS_GN_RUST_PROJECT_WRITER_H_

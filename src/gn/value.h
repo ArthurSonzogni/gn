@@ -132,8 +132,6 @@ class Value {
   bool operator!=(const Value& other) const;
 
  private:
-  void Deallocate();
-
   Type type_ = NONE;
   const ParseNode* origin_ = nullptr;
 

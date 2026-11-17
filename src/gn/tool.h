@@ -273,7 +273,6 @@ class Tool {
   bool ValidateSubstitutionList(const std::vector<const Substitution*>& list,
                                 const Value* origin,
                                 Err* err) const;
-  bool ValidateOutputs(Err* err) const;
   bool ReadBool(Scope* scope, const char* var, bool* field, Err* err);
   bool ReadString(Scope* scope, const char* var, std::string* field, Err* err);
   bool ReadPattern(Scope* scope,

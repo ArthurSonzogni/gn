@@ -159,7 +159,6 @@ class NinjaTargetWriter {
   mutable std::unique_ptr<ResolvedTargetData> resolved_owned_;
 
  private:
-  void WriteCopyRules();
   void WriteEscapedSubstitution(const Substitution* type);
 
   NinjaTargetWriter(const NinjaTargetWriter&) = delete;

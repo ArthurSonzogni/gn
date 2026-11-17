@@ -115,8 +115,6 @@ class Scheduler {
   void LogOnMainThread(const std::string& verb, const std::string& msg);
   void FailWithErrorOnMainThread(const Err& err);
 
-  void DoTargetFileWrite(const Target* target);
-
   void OnComplete();
 
   // Waits for tasks scheduled via ScheduleWork() to complete their execution.

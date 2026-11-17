@@ -223,9 +223,6 @@ class Target : public Item {
                    Err* err,
                    UniqueVector<const Target*>* deps_collected = nullptr) const;
 
-  // GeneratedFile-related methods.
-  bool GenerateFile(Err* err) const;
-
   // Metadata collection methods for GeneratedFile targets.
   struct GeneratedFile {
     Value output_conversion_;
@@ -547,9 +544,6 @@ class Target : public Item {
   // Pulls necessary information from dependencies to this one when all
   // dependencies have been resolved.
   void PullDependentTargetConfigs();
-  void PullDependentTargetLibsFrom(const Target* dep, bool is_public);
-  void PullDependentTargetLibs();
-  void PullRecursiveHardDeps();
   void PullRecursiveBundleData();
 
   // Checks to see whether this target or any of its dependencies have real

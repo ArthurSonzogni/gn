@@ -49,7 +49,6 @@ class Template : public base::RefCountedThreadSafe<Template> {
  private:
   friend class base::RefCountedThreadSafe<Template>;
 
-  Template();
   ~Template();
 
   // It's important that this Scope is const. A template can be referenced by

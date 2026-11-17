@@ -73,8 +73,6 @@ class Item {
   virtual bool OnResolved(Err* err);
 
  private:
-  bool CheckTestonly(Err* err) const;
-
   const Settings* settings_;
   Label label_;
   SourceFileSet build_dependency_files_;
