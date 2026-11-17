@@ -392,10 +392,6 @@ class PBXProject : public PBXObject {
       const std::string& shell_script,
       const PBXAttributes& extra_attributes = PBXAttributes());
 
-  void SetProjectDirPath(const std::string& project_dir_path);
-  void SetProjectRoot(const std::string& project_root);
-  void AddTarget(std::unique_ptr<PBXTarget> target);
-
   // PBXObject implementation.
   PBXObjectClass Class() const override;
   std::string Name() const override;

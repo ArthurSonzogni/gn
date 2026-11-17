@@ -402,34 +402,6 @@ std::string SubstitutionWriter::GetSourceSubstitution(
 }
 
 // static
-OutputFile SubstitutionWriter::ApplyPatternToTargetAsOutputFile(
-    const Target* target,
-    const Tool* tool,
-    const SubstitutionPattern& pattern) {
-  std::string result_value;
-  for (const auto& subrange : pattern.ranges()) {
-    if (subrange.type == &SubstitutionLiteral) {
-      result_value.append(subrange.literal);
-    } else {
-      std::string subst;
-      CHECK(GetTargetSubstitution(target, subrange.type, &subst));
-      result_value.append(subst);
-    }
-  }
-  return OutputFile(result_value);
-}
-
-// static
-void SubstitutionWriter::ApplyListToTargetAsOutputFile(
-    const Target* target,
-    const Tool* tool,
-    const SubstitutionList& list,
-    std::vector<OutputFile>* output) {
-  for (const auto& item : list.list())
-    output->push_back(ApplyPatternToTargetAsOutputFile(target, tool, item));
-}
-
-// static
 bool SubstitutionWriter::GetTargetSubstitution(const Target* target,
                                                const Substitution* type,
                                                std::string* result) {

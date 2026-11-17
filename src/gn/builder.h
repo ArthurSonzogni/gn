@@ -44,8 +44,6 @@ class Builder {
   const Item* GetItem(const Label& label) const;
   const Toolchain* GetToolchain(const Label& label) const;
 
-  std::vector<const BuilderRecord*> GetAllRecords() const;
-
   // Returns items which should be generated and which are defined.
   std::vector<const Item*> GetAllResolvedItems() const;
 

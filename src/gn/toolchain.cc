@@ -52,27 +52,6 @@ const Tool* Toolchain::GetTool(const char* name) const {
   return nullptr;
 }
 
-GeneralTool* Toolchain::GetToolAsGeneral(const char* name) {
-  if (Tool* tool = GetTool(name)) {
-    return tool->AsGeneral();
-  }
-  return nullptr;
-}
-
-const GeneralTool* Toolchain::GetToolAsGeneral(const char* name) const {
-  if (const Tool* tool = GetTool(name)) {
-    return tool->AsGeneral();
-  }
-  return nullptr;
-}
-
-CTool* Toolchain::GetToolAsC(const char* name) {
-  if (Tool* tool = GetTool(name)) {
-    return tool->AsC();
-  }
-  return nullptr;
-}
-
 const CTool* Toolchain::GetToolAsC(const char* name) const {
   if (const Tool* tool = GetTool(name)) {
     return tool->AsC();
@@ -80,30 +59,9 @@ const CTool* Toolchain::GetToolAsC(const char* name) const {
   return nullptr;
 }
 
-RustTool* Toolchain::GetToolAsRust(const char* name) {
-  if (Tool* tool = GetTool(name)) {
-    return tool->AsRust();
-  }
-  return nullptr;
-}
-
 const RustTool* Toolchain::GetToolAsRust(const char* name) const {
   if (const Tool* tool = GetTool(name)) {
     return tool->AsRust();
-  }
-  return nullptr;
-}
-
-BuiltinTool* Toolchain::GetToolAsBuiltin(const char* name) {
-  if (Tool* tool = GetTool(name)) {
-    return tool->AsBuiltin();
-  }
-  return nullptr;
-}
-
-const BuiltinTool* Toolchain::GetToolAsBuiltin(const char* name) const {
-  if (const Tool* tool = GetTool(name)) {
-    return tool->AsBuiltin();
   }
   return nullptr;
 }
@@ -127,25 +85,6 @@ const Tool* Toolchain::GetToolForSourceType(SourceFile::Type type) const {
   return GetTool(Tool::GetToolTypeForSourceType(type));
 }
 
-const CTool* Toolchain::GetToolForSourceTypeAsC(SourceFile::Type type) const {
-  return GetToolAsC(Tool::GetToolTypeForSourceType(type));
-}
-
-const GeneralTool* Toolchain::GetToolForSourceTypeAsGeneral(
-    SourceFile::Type type) const {
-  return GetToolAsGeneral(Tool::GetToolTypeForSourceType(type));
-}
-
-const RustTool* Toolchain::GetToolForSourceTypeAsRust(
-    SourceFile::Type type) const {
-  return GetToolAsRust(Tool::GetToolTypeForSourceType(type));
-}
-
-const BuiltinTool* Toolchain::GetToolForSourceTypeAsBuiltin(
-    SourceFile::Type type) const {
-  return GetToolAsBuiltin(Tool::GetToolTypeForSourceType(type));
-}
-
 const Tool* Toolchain::GetToolForTargetFinalOutput(const Target* target) const {
   return GetTool(Tool::GetToolTypeForTargetFinalOutput(target));
 }
@@ -155,17 +94,7 @@ const CTool* Toolchain::GetToolForTargetFinalOutputAsC(
   return GetToolAsC(Tool::GetToolTypeForTargetFinalOutput(target));
 }
 
-const GeneralTool* Toolchain::GetToolForTargetFinalOutputAsGeneral(
-    const Target* target) const {
-  return GetToolAsGeneral(Tool::GetToolTypeForTargetFinalOutput(target));
-}
-
 const RustTool* Toolchain::GetToolForTargetFinalOutputAsRust(
     const Target* target) const {
   return GetToolAsRust(Tool::GetToolTypeForTargetFinalOutput(target));
-}
-
-const BuiltinTool* Toolchain::GetToolForTargetFinalOutputAsBuiltin(
-    const Target* target) const {
-  return GetToolAsBuiltin(Tool::GetToolTypeForTargetFinalOutput(target));
 }

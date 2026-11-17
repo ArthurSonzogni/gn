@@ -887,21 +887,6 @@ PBXNativeTarget* PBXProject::AddNativeTarget(
   return static_cast<PBXNativeTarget*>(targets_.back().get());
 }
 
-void PBXProject::SetProjectDirPath(const std::string& project_dir_path) {
-  DCHECK(!project_dir_path.empty());
-  project_dir_path_.assign(project_dir_path);
-}
-
-void PBXProject::SetProjectRoot(const std::string& project_root) {
-  DCHECK(!project_root.empty());
-  project_root_.assign(project_root);
-}
-
-void PBXProject::AddTarget(std::unique_ptr<PBXTarget> target) {
-  DCHECK(target);
-  targets_.push_back(std::move(target));
-}
-
 PBXObjectClass PBXProject::Class() const {
   return PBXProjectClass;
 }

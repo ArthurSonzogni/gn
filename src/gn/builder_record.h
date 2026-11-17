@@ -262,18 +262,6 @@ class BuilderRecord {
 
   // Used by unit-tests.
 
-  // Records that are waiting on this one to be defined. This is used for
-  // "validations" dependencies which don't require the target to be fully
-  // resolved, only defined.
-  BuilderRecordSet waiting_on_validation_definition() const {
-    BuilderRecordSet result;
-    for (const auto& pair : waiting_map_) {
-      if (pair.second.wait_validation_defined)
-        result.add(pair.first);
-    }
-    return result;
-  }
-
   // Records that are waiting on this one to be resolved. This is the other
   // end of the "unresolved deps" arrow for standard dependencies.
   BuilderRecordSet waiting_on_resolution() const {

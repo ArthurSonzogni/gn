@@ -69,7 +69,6 @@ class RustTool : public Tool {
   std::string rust_sysroot_;
   std::string dynamic_link_switch_;
 
-  bool SetOutputExtension(const Value* value, std::string* var, Err* err);
   bool ReadOutputsPatternList(Scope* scope,
                               const char* var,
                               SubstitutionList* field,

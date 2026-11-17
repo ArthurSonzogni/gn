@@ -16,8 +16,6 @@
 #include "gn/tool.h"
 #include "gn/value.h"
 
-class BuiltinTool;
-
 // Holds information on a specific toolchain. This data is filled in when we
 // encounter a toolchain definition.
 //
@@ -58,14 +56,8 @@ class Toolchain : public Item {
   const Tool* GetTool(const char* name) const;
 
   // Returns null if the tool hasn't been defined or is not the correct type.
-  GeneralTool* GetToolAsGeneral(const char* name);
-  const GeneralTool* GetToolAsGeneral(const char* name) const;
-  CTool* GetToolAsC(const char* name);
   const CTool* GetToolAsC(const char* name) const;
-  RustTool* GetToolAsRust(const char* name);
   const RustTool* GetToolAsRust(const char* name) const;
-  BuiltinTool* GetToolAsBuiltin(const char* name);
-  const BuiltinTool* GetToolAsBuiltin(const char* name) const;
 
   // Set a tool. When all tools are configured, you should call
   // ToolchainSetupComplete().
@@ -94,10 +86,6 @@ class Toolchain : public Item {
 
   // Returns the tool for compiling the given source file type.
   const Tool* GetToolForSourceType(SourceFile::Type type) const;
-  const CTool* GetToolForSourceTypeAsC(SourceFile::Type type) const;
-  const GeneralTool* GetToolForSourceTypeAsGeneral(SourceFile::Type type) const;
-  const RustTool* GetToolForSourceTypeAsRust(SourceFile::Type type) const;
-  const BuiltinTool* GetToolForSourceTypeAsBuiltin(SourceFile::Type type) const;
 
   // Returns the tool that produces the final output for the given target type.
   // This isn't necessarily the tool you would expect. For copy target, this
@@ -105,11 +93,7 @@ class Toolchain : public Item {
   // target is a phony alias to the set of copies done so there is one output.
   const Tool* GetToolForTargetFinalOutput(const Target* target) const;
   const CTool* GetToolForTargetFinalOutputAsC(const Target* target) const;
-  const GeneralTool* GetToolForTargetFinalOutputAsGeneral(
-      const Target* target) const;
   const RustTool* GetToolForTargetFinalOutputAsRust(const Target* target) const;
-  const BuiltinTool* GetToolForTargetFinalOutputAsBuiltin(
-      const Target* target) const;
 
   const SubstitutionBits& substitution_bits() const {
     DCHECK(setup_complete_);

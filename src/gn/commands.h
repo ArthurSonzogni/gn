@@ -267,39 +267,6 @@ class CommandSwitches {
   // Default constructor.
   CommandSwitches() = default;
 
-  // For --quiet, used by `refs`.
-  bool has_quiet() const { return has_quiet_; }
-
-  // For --force, used by `check`.
-  bool has_force() const { return has_force_; }
-
-  // For --all, used by `desc` and `refs`.
-  bool has_all() const { return has_all_; }
-
-  // For --blame used by `desc`.
-  bool has_blame() const { return has_blame_; }
-
-  // For --tree used by `desc` and `refs`.
-  bool has_tree() const { return has_tree_; }
-
-  // For --format=json used by `desc`.
-  bool has_format_json() const { return has_format_json_; }
-
-  // For --default-toolchain used by `desc`, `refs`.
-  bool has_default_toolchain() const { return has_default_toolchain_; }
-
-  // For --check-generated
-  bool has_check_generated() const { return has_check_generated_; }
-
-  // For --check-system
-  bool has_check_system() const { return has_check_system_; }
-
-  // For --public
-  bool has_public() const { return has_public_; }
-
-  // For --with-data
-  bool has_with_data() const { return has_with_data_; }
-
   // For --as=(buildtype|label|output).
   enum TargetPrintMode {
     TARGET_PRINT_BUILDFILE,
@@ -325,11 +292,6 @@ class CommandSwitches {
   };
   TestonlyMode testonly_mode() const { return testonly_mode_; }
 
-  // For --rebase, --walk and --data in `gn meta`
-  std::string meta_rebase_dir() const { return meta_rebase_dir_; }
-  std::string meta_data_keys() const { return meta_data_keys_; }
-  std::string meta_walk_keys() const { return meta_walk_keys_; }
-
   // Initialize the global set from a given command line.
   // Must be called early from main(). On success return true,
   // on failure return false after printing an error message.
@@ -350,26 +312,11 @@ class CommandSwitches {
   static CommandSwitches s_global_switches_;
 
   bool initialized_ = false;
-  bool has_quiet_ = false;
-  bool has_force_ = false;
-  bool has_all_ = false;
-  bool has_blame_ = false;
-  bool has_tree_ = false;
-  bool has_format_json_ = false;
-  bool has_default_toolchain_ = false;
-  bool has_check_generated_ = false;
-  bool has_check_system_ = false;
-  bool has_public_ = false;
-  bool has_with_data_ = false;
 
   TargetPrintMode target_print_mode_ = TARGET_PRINT_LABEL;
   std::vector<Target::OutputType> target_types_;
   std::vector<Target::OutputType> target_exclude_types_;
   TestonlyMode testonly_mode_ = TESTONLY_NONE;
-
-  std::string meta_rebase_dir_;
-  std::string meta_data_keys_;
-  std::string meta_walk_keys_;
 };
 
 // Helper functions for some commands ------------------------------------------

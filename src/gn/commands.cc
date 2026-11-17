@@ -451,19 +451,6 @@ CommandSwitches CommandSwitches::Set(CommandSwitches new_switches) {
 bool CommandSwitches::InitFrom(const base::CommandLine& cmdline) {
   CommandSwitches result;
   result.initialized_ = true;
-  result.has_quiet_ = cmdline.HasSwitch("a");
-  result.has_force_ = cmdline.HasSwitch("force");
-  result.has_all_ = cmdline.HasSwitch("all");
-  result.has_blame_ = cmdline.HasSwitch("blame");
-  result.has_tree_ = cmdline.HasSwitch("tree");
-  result.has_format_json_ = cmdline.GetSwitchValueString("format") == "json";
-  result.has_default_toolchain_ =
-      cmdline.HasSwitch(switches::kDefaultToolchain);
-
-  result.has_check_generated_ = cmdline.HasSwitch("check-generated");
-  result.has_check_system_ = cmdline.HasSwitch("check-system");
-  result.has_public_ = cmdline.HasSwitch("public");
-  result.has_with_data_ = cmdline.HasSwitch("with-data");
 
   std::string_view target_print_switch = "as";
   if (cmdline.HasSwitch(target_print_switch)) {
@@ -553,9 +540,6 @@ bool CommandSwitches::InitFrom(const base::CommandLine& cmdline) {
     }
   }
 
-  result.meta_rebase_dir_ = cmdline.GetSwitchValueString("rebase");
-  result.meta_data_keys_ = cmdline.GetSwitchValueString("data");
-  result.meta_walk_keys_ = cmdline.GetSwitchValueString("walk");
   *this = result;
   return true;
 }

@@ -175,18 +175,8 @@ class SubstitutionWriter {
   // Target substitutions ------------------------------------------------------
   //
   // Handles the target substitutions that apply to both compiler and linker
-  // tools.
-  static OutputFile ApplyPatternToTargetAsOutputFile(
-      const Target* target,
-      const Tool* tool,
-      const SubstitutionPattern& pattern);
-  static void ApplyListToTargetAsOutputFile(const Target* target,
-                                            const Tool* tool,
-                                            const SubstitutionList& list,
-                                            std::vector<OutputFile>* output);
-
-  // This function is slightly different than the other substitution getters
-  // since it can handle failure (since it is designed to be used by the
+  // tools. This function is slightly different than the other substitution
+  // getters since it can handle failure (since it is designed to be used by the
   // compiler and linker ones which will fall through if it's not a common tool
   // one).
   static bool GetTargetSubstitution(const Target* target,

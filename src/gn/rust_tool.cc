@@ -62,21 +62,6 @@ std::string_view RustTool::GetSysroot() const {
   return rust_sysroot_;
 }
 
-bool RustTool::SetOutputExtension(const Value* value,
-                                  std::string* var,
-                                  Err* err) {
-  DCHECK(!complete_);
-  if (!value)
-    return true;  // Not present is fine.
-  if (!value->VerifyTypeIs(Value::STRING, err))
-    return false;
-  if (value->string_value().empty())
-    return true;
-
-  *var = std::move(value->string_value());
-  return true;
-}
-
 bool RustTool::ReadOutputsPatternList(Scope* scope,
                                       const char* var,
                                       SubstitutionList* field,

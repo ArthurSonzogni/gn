@@ -156,16 +156,6 @@ const Toolchain* Builder::GetToolchain(const Label& label) const {
   return record->item()->AsToolchain();
 }
 
-std::vector<const BuilderRecord*> Builder::GetAllRecords() const {
-  std::vector<const BuilderRecord*> result;
-  result.reserve(records_.size());
-  for (const auto& record : records_)
-    result.push_back(&record);
-  // Ensure deterministic outputs.
-  std::sort(result.begin(), result.end(), BuilderRecord::LabelCompare);
-  return result;
-}
-
 std::vector<const Item*> Builder::GetAllResolvedItems() const {
   std::vector<const Item*> result;
   result.reserve(records_.size());
