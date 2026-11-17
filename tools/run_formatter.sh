@@ -1,16 +1,14 @@
 #!/bin/bash -eu
 
-# Reformat the C++ and Rust sources.
+# Reformat the C++ sources.
 
 # Assume this is under tools/.
 cd "$(dirname "$(dirname "$0")")"
 
 if [ "${1:-}" = "--diff" ]; then
   clang_format_opts=(--dry-run -Werror)
-  fmt_opts=(--check)
 else
   clang_format_opts=(-i)
-  fmt_opts=()
 fi
 
 if [ -z "${CLANG_FORMAT:-}" ]; then
