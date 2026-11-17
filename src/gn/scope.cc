@@ -178,18 +178,8 @@ void Scope::RemoveIdentifier(std::string_view ident) {
 }
 
 void Scope::RemovePrivateIdentifiers() {
-  // Do it in two phases to avoid mutating while iterating. Our hash map is
-  // currently backed by several different vendor-specific implementations and
-  // I'm not sure if all of them support mutating while iterating. Since this
-  // is not perf-critical, do the safe thing.
-  std::vector<std::string_view> to_remove;
-  for (const auto& cur : values_) {
-    if (IsPrivateVar(cur.first))
-      to_remove.push_back(cur.first);
-  }
-
-  for (const auto& cur : to_remove)
-    values_.erase(cur);
+  std::erase_if(values_,
+                [](const auto& pair) { return IsPrivateVar(pair.first); });
 }
 
 bool Scope::AddTemplate(const std::string& name, const Template* templ) {
@@ -245,10 +235,9 @@ void Scope::MarkAllUsed() {
     cur.second.used = true;
 }
 
-void Scope::MarkAllUsed(const std::set<std::string>& excluded_values) {
+void Scope::MarkAllUsed(const ExclusionSet& excluded_values) {
   for (auto& cur : values_) {
-    if (!excluded_values.empty() &&
-        excluded_values.find(std::string(cur.first)) != excluded_values.end()) {
+    if (!excluded_values.empty() && excluded_values.contains(cur.first)) {
       continue;  // Skip this excluded value.
     }
     cur.second.used = true;
@@ -339,8 +328,7 @@ bool Scope::NonRecursiveMergeTo(Scope* dest,
     if (options.skip_private_vars && IsPrivateVar(current_name))
       continue;  // Skip this private var.
     if (!options.excluded_values.empty() &&
-        options.excluded_values.find(std::string(current_name)) !=
-            options.excluded_values.end()) {
+        options.excluded_values.contains(current_name)) {
       continue;  // Skip this excluded value.
     }
 
@@ -374,8 +362,7 @@ bool Scope::NonRecursiveMergeTo(Scope* dest,
   for (const auto& pair : target_defaults_) {
     const std::string& current_name = pair.first;
     if (!options.excluded_values.empty() &&
-        options.excluded_values.find(current_name) !=
-            options.excluded_values.end()) {
+        options.excluded_values.contains(current_name)) {
       continue;  // Skip the excluded value.
     }
 
@@ -422,8 +409,7 @@ bool Scope::NonRecursiveMergeTo(Scope* dest,
     if (options.skip_private_vars && IsPrivateVar(current_name))
       continue;  // Skip this private template.
     if (!options.excluded_values.empty() &&
-        options.excluded_values.find(current_name) !=
-            options.excluded_values.end()) {
+        options.excluded_values.contains(current_name)) {
       continue;  // Skip the excluded value.
     }
 

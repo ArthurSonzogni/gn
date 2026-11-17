@@ -14,7 +14,7 @@ namespace {
 void ForwardAllValues(const FunctionCallNode* function,
                       Scope* source,
                       Scope* dest,
-                      const std::set<std::string>& exclusion_set,
+                      Scope::ExclusionSet exclusion_set,
                       Err* err) {
   Scope::MergeOptions options;
   // This function needs to clobber existing for it to be useful. It will be
@@ -24,7 +24,7 @@ void ForwardAllValues(const FunctionCallNode* function,
   options.clobber_existing = true;
   options.skip_private_vars = true;
   options.mark_dest_used = false;
-  options.excluded_values = exclusion_set;
+  options.excluded_values = std::move(exclusion_set);
   source->NonRecursiveMergeTo(dest, options, function, "source scope", err);
   source->MarkAllUsed();
 }
@@ -32,12 +32,12 @@ void ForwardAllValues(const FunctionCallNode* function,
 void ForwardValuesFromList(Scope* source,
                            Scope* dest,
                            const std::vector<Value>& list,
-                           const std::set<std::string>& exclusion_set,
+                           const Scope::ExclusionSet& exclusion_set,
                            Err* err) {
   for (const Value& cur : list) {
     if (!cur.VerifyTypeIs(Value::STRING, err))
       return;
-    if (exclusion_set.find(cur.string_value()) != exclusion_set.end())
+    if (exclusion_set.contains(cur.string_value()))
       continue;
     const Value* value = source->GetValue(cur.string_value(), true);
     if (value) {
@@ -200,7 +200,7 @@ Value RunForwardVariablesFrom(Scope* scope,
   Scope* source = value->scope_value();
 
   // Extract the exclusion list if defined.
-  std::set<std::string> exclusion_set;
+  Scope::ExclusionSet exclusion_set;
   if (args_vector.size() == 3) {
     Value exclusion_value = args_vector[2]->Execute(scope, err);
     if (err->has_error())
@@ -226,7 +226,7 @@ Value RunForwardVariablesFrom(Scope* scope,
     return Value();
   if (what_value.type() == Value::STRING) {
     if (what_value.string_value() == "*") {
-      ForwardAllValues(function, source, scope, exclusion_set, err);
+      ForwardAllValues(function, source, scope, std::move(exclusion_set), err);
       return Value();
     }
   } else {

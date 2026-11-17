@@ -783,7 +783,7 @@ Value RunNotNeeded(Scope* scope,
 
   // Extract the exclusion list if defined.
   Value exclusion_value;
-  std::set<std::string> exclusion_set;
+  Scope::ExclusionSet exclusion_set;
   if (args_cur != args_vector.end()) {
     exclusion_value = (*args_cur)->Execute(source, err);
     if (err->has_error())
