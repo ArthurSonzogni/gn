@@ -990,15 +990,16 @@ const char kGeneratedFile_Help[] =
   but setting `collect_validations_metadata = true` changes this behavior.
 
   The metadata collection walk can also start from targets that are not
-  dependencies of the generated_file() target by listing them in `walk_deps`.
-  See `gn help walk_deps`.
+  dependencies of the generated_file() target by listing them in `walk_deps`,
+  and the targets that produce the collected data can be made dependencies of
+  it with `dep_keys`. See `gn help walk_deps` and `gn help dep_keys`.
 
 Variables
 
 )" DEPENDENT_CONFIG_VARS DEPS_VARS GENERAL_TARGET_VARS
 
     R"(  Generated file: contents, data_keys, rebase, walk_keys, output_conversion,
-                  outputs, collect_validations_metadata, walk_deps
+                  outputs, collect_validations_metadata, walk_deps, dep_keys
 
 Example (metadata collection)
 

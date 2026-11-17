@@ -265,3 +265,39 @@ TEST_F(FunctionsTarget, GeneratedFileWalkDeps) {
   EXPECT_NE(std::string::npos, err.message().find("won't be used."))
       << err.message();
 }
+
+// Checks parsing of dep_keys on generated_file().
+TEST_F(FunctionsTarget, GeneratedFileDepKeys) {
+  TestWithScope setup;
+  Scope::ItemVector item_collector;
+  setup.scope()->set_item_collector(&item_collector);
+
+  TestParseInput input(
+      R"(generated_file("foo") {
+        outputs = [ "$root_out_dir/foo.json" ]
+        data_keys = [ "files" ]
+        dep_keys = [ "file_deps" ]
+      })");
+  ASSERT_FALSE(input.has_error());
+  Err err;
+  input.parsed()->Execute(setup.scope(), &err);
+  ASSERT_SUCCESS(err);
+
+  ASSERT_EQ(1u, item_collector.size());
+  const Target* target = item_collector[0]->AsTarget();
+  ASSERT_TRUE(target);
+  ASSERT_EQ(1u, target->dep_keys().size());
+  EXPECT_EQ("file_deps", target->dep_keys()[0]);
+
+  // dep_keys may not be used with contents.
+  TestParseInput bad_input(
+      R"(generated_file("bar") {
+        outputs = [ "$root_out_dir/bar.json" ]
+        contents = "bar"
+        dep_keys = [ "file_deps" ]
+      })");
+  ASSERT_FALSE(bad_input.has_error());
+  err = Err();
+  bad_input.parsed()->Execute(setup.scope(), &err);
+  EXPECT_FAILURE(err, "won't be used.");
+}

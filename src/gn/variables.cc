@@ -1175,6 +1175,54 @@ Example
   defines = [ "AWESOME_FEATURE", "LOG_LEVEL=3" ]
 )";
 
+const char kDepKeys[] = "dep_keys";
+const char kDepKeys_HelpShort[] =
+    "dep_keys: [string list] Metadata keys listing targets to depend on.";
+const char kDepKeys_Help[] =
+    R"(dep_keys: Metadata keys listing targets to depend on.
+
+  Valid on generated_file() targets that collect metadata.
+
+  During the metadata walk, values of these keys are resolved as labels
+  relative to each walked target and added as Ninja dependencies of the
+  generated_file() target. Any resulting dependency cycles are reported by
+  Ninja.
+
+  Each resolved label must refer to the walked target itself or one of its
+  direct deps, public_deps, or data_deps (or direct validations when
+  collect_validations_metadata is true); otherwise GN fails with an error.
+  All resolved labels are therefore part of the transitive dependencies of the
+  generated_file() target's deps, public_deps, data_deps, and walk_deps (plus
+  transitive validations when collect_validations_metadata is true).
+
+  No "visibility", "testonly", or "assert_no_deps" checks are done for
+  collected targets, since they are found through targets that already depend
+  on them. They are not reported as dependencies by commands such as "gn desc"
+  and "gn refs".
+
+  See "gn help generated_file" and "gn help walk_deps".
+
+Example
+
+  action("foo_pickle") {
+    ...
+    outputs = [ "$target_gen_dir/foo.pickle" ]
+    metadata = {
+      pickle_files = [ "$target_gen_dir/foo.pickle" ]
+      pickle_deps = [ ":foo_pickle" ]
+    }
+  }
+
+  # Lists the pickle files of an app, and depends only on the targets that
+  # create them.
+  generated_file("app_pickles") {
+    outputs = [ "$target_gen_dir/app_pickles.txt" ]
+    data_keys = [ "pickle_files" ]
+    dep_keys = [ "pickle_deps" ]
+    walk_deps = [ ":app" ]
+  }
+)";
+
 const char kDepfile[] = "depfile";
 const char kDepfile_HelpShort[] =
     "depfile: [string] File name for input dependencies for actions.";
@@ -2463,7 +2511,8 @@ const char kWalkDeps_Help[] =
   data_deps, without making them Ninja dependencies of the generated_file()
   target (allowing cycles with deps). Like "gen_deps", listed targets are
   generated when the generated_file() target is generated. Like "deps", they
-  are subject to "visibility" and "testonly" checks.
+  are subject to "visibility" and "testonly" checks. Often paired with
+  "dep_keys".
 
   They are used only when writing the generated_file() target itself, and not
   when the metadata walk of another target passes through it. The metadata of
@@ -2676,6 +2725,7 @@ const VariableInfoMap& GetTargetVariables() {
     INSERT_VARIABLE(DataDeps)
     INSERT_VARIABLE(DataKeys)
     INSERT_VARIABLE(Defines)
+    INSERT_VARIABLE(DepKeys)
     INSERT_VARIABLE(Depfile)
     INSERT_VARIABLE(Deps)
     INSERT_VARIABLE(Mnemonic)

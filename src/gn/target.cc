@@ -1319,16 +1319,20 @@ struct MetadataWalker {
 
   MetadataWalker(const KeyList& data_keys,
                  const KeyList& walk_keys,
+                 const KeyList& dep_keys,
                  const SourceDir& rebase_dir,
                  bool collect_validations_metadata,
                  std::vector<Value>* result,
+                 UniqueVector<const Target*>* deps_collected,
                  TargetSet& targets_walked,
                  Err& err)
       : data_keys_(data_keys),
         walk_keys_(walk_keys),
+        dep_keys_(dep_keys),
         rebase_dir_(rebase_dir),
         collect_validations_metadata_(collect_validations_metadata),
         result_(result),
+        deps_collected_(deps_collected),
         targets_walked_(targets_walked),
         err_(err) {}
 
@@ -1354,6 +1358,22 @@ struct MetadataWalker {
               target.settings()->build_settings(), data_keys_, walk_keys_,
               rebase_dir_, &next_walk_labels, &current_result, &err_)) {
         return false;
+      }
+      if (deps_collected_) {
+        for (const auto& key : dep_keys_) {
+          auto iter = target.metadata().contents().find(key);
+          if (iter == target.metadata().contents().end())
+            continue;
+          for (const Value& value : iter->second.list_value()) {
+            if (!value.VerifyTypeIs(Value::STRING, &err_))
+              return false;
+            const Target* dep =
+                ResolveDepLabel(target, value, /*allow_self=*/true);
+            if (!dep)
+              return false;
+            deps_collected_->push_back(dep);
+          }
+        }
       }
     }
 
@@ -1396,7 +1416,7 @@ struct MetadataWalker {
       }
 
       // Otherwise, go down into the specified dep if we haven't walked it yet.
-      const Target* dep = ResolveDepLabel(target, next);
+      const Target* dep = ResolveDepLabel(target, next, /*allow_self=*/false);
       if (!dep || (targets_walked_.add(dep) && !Walk(*dep, false)))
         return false;
     }
@@ -1408,9 +1428,11 @@ struct MetadataWalker {
 
  private:
   // Resolves |value| as a label relative to |target|, and returns the
-  // dependency of |target| that it refers to. If there is none, sets |err_| and
-  // returns nullptr.
-  const Target* ResolveDepLabel(const Target& target, const Value& value) {
+  // dependency of |target| that it refers to (or |target| itself when
+  // |allow_self| is true). If there is none, sets |err_| and returns nullptr.
+  const Target* ResolveDepLabel(const Target& target,
+                                const Value& value,
+                                bool allow_self) {
     const Settings* settings = target.settings();
     const Label& toolchain_label = settings->toolchain_label();
     Label label = Label::Resolve(target.label().dir(),
@@ -1422,6 +1444,8 @@ struct MetadataWalker {
       return nullptr;
     }
     // Match against the label with the toolchain.
+    if (allow_self && target.label().Matches(label, toolchain_label))
+      return &target;
     for (const auto& dep : target.GetDeps(Target::DEPS_ALL)) {
       if (dep.label.Matches(label, toolchain_label))
         return dep.ptr;
@@ -1445,9 +1469,11 @@ struct MetadataWalker {
 
   const KeyList& data_keys_;
   const KeyList& walk_keys_;
+  const KeyList& dep_keys_;
   const SourceDir& rebase_dir_;
   bool collect_validations_metadata_;
   std::vector<Value>* result_;
+  UniqueVector<const Target*>* deps_collected_;
   TargetSet& targets_walked_;
   Err& err_;
 };
@@ -1460,10 +1486,11 @@ bool Target::GetMetadata(const std::vector<std::string>& data_keys,
                          bool deps_only,
                          std::vector<Value>* result,
                          TargetSet* targets_walked,
-                         Err* err) const {
-  MetadataWalker walker(data_keys, walk_keys, rebase_dir,
-                        collect_validations_metadata_, result, *targets_walked,
-                        *err);
+                         Err* err,
+                         UniqueVector<const Target*>* deps_collected) const {
+  MetadataWalker walker(data_keys, walk_keys, dep_keys(), rebase_dir,
+                        collect_validations_metadata_, result, deps_collected,
+                        *targets_walked, *err);
   return walker.Walk(*this, deps_only);
 }
 

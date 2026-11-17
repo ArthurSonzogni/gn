@@ -59,6 +59,8 @@ void GeneratedFileTargetGenerator::DoRun() {
     return;
   if (!FillWalkDeps())
     return;
+  if (!FillKeys(variables::kDepKeys, &target_->dep_keys()))
+    return;
 
   if (!FillOutputConversion())
     return;

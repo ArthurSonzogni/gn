@@ -211,14 +211,17 @@ class Target : public Item {
   bool has_metadata() const { return metadata_.get(); }
 
   // Get metadata from this target and its dependencies. This is intended to
-  // be called after the target is resolved.
+  // be called after the target is resolved. If |deps_collected| is not null,
+  // the values of this target's dep_keys() found in the metadata of walked
+  // targets are resolved and added to |deps_collected|.
   bool GetMetadata(const std::vector<std::string>& data_keys,
                    const std::vector<std::string>& walk_keys,
                    const SourceDir& rebase_dir,
                    bool deps_only,
                    std::vector<Value>* result,
                    TargetSet* targets_walked,
-                   Err* err) const;
+                   Err* err,
+                   UniqueVector<const Target*>* deps_collected = nullptr) const;
 
   // GeneratedFile-related methods.
   bool GenerateFile(Err* err) const;
@@ -230,6 +233,7 @@ class Target : public Item {
     SourceDir rebase_;
     std::vector<std::string> data_keys_;
     std::vector<std::string> walk_keys_;
+    std::vector<std::string> dep_keys_;
     LabelTargetVector walk_deps_;
   };
   const GeneratedFile& generated_file() const;
@@ -255,6 +259,10 @@ class Target : public Item {
     return generated_file().walk_keys_;
   }
   std::vector<std::string>& walk_keys() { return generated_file().walk_keys_; }
+  const std::vector<std::string>& dep_keys() const {
+    return generated_file().dep_keys_;
+  }
+  std::vector<std::string>& dep_keys() { return generated_file().dep_keys_; }
   const LabelTargetVector& walk_deps() const {
     return generated_file().walk_deps_;
   }

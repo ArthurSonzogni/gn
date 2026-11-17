@@ -62,6 +62,7 @@
 //   "data_keys" : [ list of target data keys ]
 //   "walk_keys" : [ list of target walk keys ]
 //   "walk_deps" : [ list of metadata walk roots ]
+//   "dep_keys" : [ list of target dep keys ]
 //   "crate_root" : "root file of a Rust target"
 //   "crate_name" : "name of a Rust target"
 //   "rebase" : true or false
@@ -589,6 +590,10 @@ class TargetDescBuilder : public BaseDescBuilder {
       if (what(variables::kCollectValidationsMetadata)) {
         res->SetKey(variables::kCollectValidationsMetadata,
                     base::Value(target_->collect_validations_metadata()));
+      }
+      if (what(variables::kDepKeys) && !target_->dep_keys().empty()) {
+        res->SetWithoutPathExpansion(variables::kDepKeys,
+                                     RenderValue(target_->dep_keys()));
       }
       if (what(variables::kWalkDeps) && !target_->walk_deps().empty()) {
         res->SetWithoutPathExpansion(variables::kWalkDeps,

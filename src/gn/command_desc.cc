@@ -306,6 +306,7 @@ std::map<std::string, DescHandlerFunc> GetHandlers() {
           {variables::kRebase, DefaultHandler},
           {variables::kWalkKeys, DefaultHandler},
           {variables::kCollectValidationsMetadata, DefaultHandler},
+          {variables::kDepKeys, DefaultHandler},
           {variables::kWalkDeps, DefaultHandler},
           {variables::kWeakFrameworks, DefaultHandler},
           {variables::kWeakLibraries, DefaultHandler},
@@ -413,6 +414,7 @@ bool PrintTarget(const Target* target,
   HandleProperty(variables::kRustflags, handler_map, v, dict);
   HandleProperty(variables::kWalkKeys, handler_map, v, dict);
   HandleProperty(variables::kWalkDeps, handler_map, v, dict);
+  HandleProperty(variables::kDepKeys, handler_map, v, dict);
   HandleProperty(variables::kWeakFrameworks, handler_map, v, dict);
   HandleProperty(variables::kWeakLibraries, handler_map, v, dict);
   HandleProperty(variables::kWriteOutputConversion, handler_map, v, dict);
@@ -522,6 +524,7 @@ Possibilities for <what to show>
   configs [--tree] (see below)
   data_keys
   defines [--blame]
+  dep_keys
   depfile
   deps [--all] [--tree] (see below)
   framework_dirs

@@ -1552,6 +1552,84 @@ TEST(TargetTest, CollectMetadataWithWalkDeps) {
   EXPECT_EQ(result, std::vector<Value>{Value(nullptr, "foo.pickle")});
 }
 
+// Tests that targets listed under dep_keys are resolved relative to the walked
+// target, and must be the walked target itself or one of its direct deps (or
+// direct validations when collect_validations_metadata is true).
+TEST(TargetTest, CollectMetadataWithDepKeys) {
+  TestWithScope setup;
+  auto set_file_deps = [](Target& target, const std::string& label) {
+    Value deps(nullptr, Value::LIST);
+    deps.list_value().push_back(Value(nullptr, label));
+    target.metadata().contents()["file_deps"] = std::move(deps);
+  };
+
+  // Lists itself under dep_keys.
+  TestTarget pickle(setup, "//foo:pickle", Target::ACTION);
+  set_file_deps(pickle, ":pickle");
+
+  TestTarget other(setup, "//foo:other", Target::ACTION);
+
+  // Lists its direct dependency under dep_keys.
+  TestTarget lib(setup, "//foo:lib", Target::SOURCE_SET);
+  lib.private_deps().push_back(LabelTargetPair(&pickle));
+  lib.private_deps().push_back(LabelTargetPair(&other));
+  set_file_deps(lib, "//foo:other");
+
+  TestTarget gen(setup, "//foo:gen", Target::GENERATED_FILE);
+  gen.private_deps().push_back(LabelTargetPair(&lib));
+  gen.dep_keys().push_back("file_deps");
+
+  Err err;
+  UniqueVector<const Target*> deps_collected;
+  auto collect = [&]() {
+    std::vector<Value> result;
+    TargetSet targets;
+    deps_collected.clear();
+    err = Err();
+    return gen.GetMetadata({"files"}, {""}, SourceDir(), true, &result,
+                           &targets, &err, &deps_collected);
+  };
+
+  EXPECT_TRUE(collect());
+  EXPECT_SUCCESS(err);
+  EXPECT_EQ(deps_collected.vector(),
+            (std::vector<const Target*>{&other, &pickle}));
+
+  TestTarget val(setup, "//foo:val", Target::ACTION);
+  other.validations().push_back(LabelTargetPair(&val));
+
+  auto expect_bad_dep = [&](const std::string& bad_label) {
+    set_file_deps(other, bad_label);
+    EXPECT_FALSE(collect());
+    std::string full_label =
+        bad_label[0] == ':' ? "//foo" + bad_label : bad_label;
+    EXPECT_EQ("I was expecting " + full_label +
+                  "(//toolchain:default) to be a dependency of "
+                  "//foo:other(//toolchain:default). Make sure it's included "
+                  "in the deps or data_deps, and that you've specified the "
+                  "appropriate toolchain.",
+              err.message());
+  };
+
+  // Labels that are neither the walked target itself nor a direct dep fail,
+  // including targets outside the transitive closure, non-direct targets in
+  // the transitive closure, and validations when collect_validations_metadata
+  // is false.
+  for (const char* bad_label : {"//foo:missing", ":pickle", ":val"})
+    expect_bad_dep(bad_label);
+
+  // With collect_validations_metadata = true, validations are accepted, while
+  // non-deps still fail.
+  gen.set_collect_validations_metadata(true);
+  set_file_deps(other, ":val");
+  EXPECT_TRUE(collect());
+  EXPECT_SUCCESS(err);
+  EXPECT_EQ(deps_collected.vector(),
+            (std::vector<const Target*>{&other, &pickle, &val}));
+
+  expect_bad_dep("//foo:missing");
+}
+
 // walk_deps are subject to the same visibility and testonly checks as deps.
 TEST_F(TargetTest, WalkDepsVisibilityAndTestonly) {
   TestWithScope setup;

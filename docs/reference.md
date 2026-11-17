@@ -128,6 +128,7 @@
     *   [data_deps: [label list] Non-linked dependencies.](#var_data_deps)
     *   [data_keys: [string list] Keys from which to collect metadata.](#var_data_keys)
     *   [defines: [string list] C preprocessor defines.](#var_defines)
+    *   [dep_keys: [string list] Metadata keys listing targets to depend on.](#var_dep_keys)
     *   [depfile: [string] File name for input dependencies for actions.](#var_depfile)
     *   [deps: [label list] Private linked dependencies.](#var_deps)
     *   [externs: [scope] Set of Rust crate-dependency pairs.](#var_externs)
@@ -580,6 +581,7 @@
   configs [--tree] (see below)
   data_keys
   defines [--blame]
+  dep_keys
   depfile
   deps [--all] [--tree] (see below)
   framework_dirs
@@ -2190,8 +2192,9 @@
   but setting `collect_validations_metadata = true` changes this behavior.
 
   The metadata collection walk can also start from targets that are not
-  dependencies of the generated_file() target by listing them in `walk_deps`.
-  See `gn help walk_deps`.
+  dependencies of the generated_file() target by listing them in `walk_deps`,
+  and the targets that produce the collected data can be made dependencies of
+  it with `dep_keys`. See `gn help walk_deps` and `gn help dep_keys`.
 ```
 
 #### **Variables**
@@ -2204,7 +2207,7 @@
            output_extension, output_name, public, sources, testonly,
            visibility
   Generated file: contents, data_keys, rebase, walk_keys, output_conversion,
-                  outputs, collect_validations_metadata, walk_deps
+                  outputs, collect_validations_metadata, walk_deps, dep_keys
 ```
 
 #### **Example (metadata collection)**
@@ -6104,6 +6107,52 @@
 ```
   defines = [ "AWESOME_FEATURE", "LOG_LEVEL=3" ]
 ```
+### <a name="var_dep_keys"></a>**dep_keys**: Metadata keys listing targets to depend on.&nbsp;[Back to Top](#gn-reference)
+
+```
+  Valid on generated_file() targets that collect metadata.
+
+  During the metadata walk, values of these keys are resolved as labels
+  relative to each walked target and added as Ninja dependencies of the
+  generated_file() target. Any resulting dependency cycles are reported by
+  Ninja.
+
+  Each resolved label must refer to the walked target itself or one of its
+  direct deps, public_deps, or data_deps (or direct validations when
+  collect_validations_metadata is true); otherwise GN fails with an error.
+  All resolved labels are therefore part of the transitive dependencies of the
+  generated_file() target's deps, public_deps, data_deps, and walk_deps (plus
+  transitive validations when collect_validations_metadata is true).
+
+  No "visibility", "testonly", or "assert_no_deps" checks are done for
+  collected targets, since they are found through targets that already depend
+  on them. They are not reported as dependencies by commands such as "gn desc"
+  and "gn refs".
+
+  See "gn help generated_file" and "gn help walk_deps".
+```
+
+#### **Example**
+
+```
+  action("foo_pickle") {
+    ...
+    outputs = [ "$target_gen_dir/foo.pickle" ]
+    metadata = {
+      pickle_files = [ "$target_gen_dir/foo.pickle" ]
+      pickle_deps = [ ":foo_pickle" ]
+    }
+  }
+
+  # Lists the pickle files of an app, and depends only on the targets that
+  # create them.
+  generated_file("app_pickles") {
+    outputs = [ "$target_gen_dir/app_pickles.txt" ]
+    data_keys = [ "pickle_files" ]
+    dep_keys = [ "pickle_deps" ]
+    walk_deps = [ ":app" ]
+  }
+```
 ### <a name="var_depfile"></a>**depfile**: [string] File name for input dependencies for actions.&nbsp;[Back to Top](#gn-reference)
 
 ```
@@ -7458,7 +7507,8 @@
   data_deps, without making them Ninja dependencies of the generated_file()
   target (allowing cycles with deps). Like "gen_deps", listed targets are
   generated when the generated_file() target is generated. Like "deps", they
-  are subject to "visibility" and "testonly" checks.
+  are subject to "visibility" and "testonly" checks. Often paired with
+  "dep_keys".
 
   They are used only when writing the generated_file() target itself, and not
   when the metadata walk of another target passes through it. The metadata of
@@ -8592,7 +8642,8 @@
   known contents to a file or 'data_keys' to aggregate metadata and write the
   result to a file. It can also specify 'walk_keys' (to restrict the metadata
   collection), 'walk_deps' (to collect metadata from targets that are not
-  dependencies), 'output_conversion', and 'rebase'.
+  dependencies), 'dep_keys' (to depend on targets listed in metadata),
+  'output_conversion', and 'rebase'.
 ```
 
 #### **Collection and Aggregation**

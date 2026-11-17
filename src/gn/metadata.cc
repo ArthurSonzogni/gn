@@ -30,7 +30,8 @@ generated_file targets
   known contents to a file or 'data_keys' to aggregate metadata and write the
   result to a file. It can also specify 'walk_keys' (to restrict the metadata
   collection), 'walk_deps' (to collect metadata from targets that are not
-  dependencies), 'output_conversion', and 'rebase'.
+  dependencies), 'dep_keys' (to depend on targets listed in metadata),
+  'output_conversion', and 'rebase'.
 
 
 Collection and Aggregation
