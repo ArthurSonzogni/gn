@@ -367,6 +367,18 @@ bool MakeAbsolutePathRelativeIfPossible(std::string_view source_root,
 
   dest->clear();
 
+#if defined(OS_WIN)
+  // Handle "/C:/foo" like "C:/foo".
+  if (path.starts_with('/') && DoesBeginWindowsDriveLetter(path.substr(1)))
+    path.remove_prefix(1);
+
+  // Only paths with a drive letter can be inside the source root, which must
+  // have one too.
+  if (!DoesBeginWindowsDriveLetter(path))
+    return false;
+  DCHECK(DoesBeginWindowsDriveLetter(source_root));
+#endif
+
   // There is no specification of how many slashes may be at the end of
   // source_root or path. Trim them off for easier string manipulation.
   size_t path_len = AbsPathLenWithNoTrailingSlash(path);
@@ -374,88 +386,35 @@ bool MakeAbsolutePathRelativeIfPossible(std::string_view source_root,
 
   if (source_root_len > path_len)
     return false;  // The source root is longer: the path can never be inside.
+
 #if defined(OS_WIN)
-  // Source root should be canonical on Windows. Note that the initial slash
-  // must be forward slash, but that the other ones can be either forward or
-  // backward.
-  DCHECK(source_root.size() > 2 && source_root[0] != '/' &&
-         source_root[1] == ':' && IsSlash(source_root[2]));
-
-  size_t after_common_index = std::string::npos;
-  if (DoesBeginWindowsDriveLetter(path)) {
-    // Handle "C:\foo"
-    if (AreAbsoluteWindowsPathsEqual(source_root.substr(0, source_root_len),
-                                     path.substr(0, source_root_len))) {
-      after_common_index = source_root_len;
-      if (path_len == source_root_len) {
-        *dest = "//";
-        return true;
-      }
-    } else {
-      return false;
-    }
-  } else if (path[0] == '/' && source_root_len <= path_len - 1 &&
-             DoesBeginWindowsDriveLetter(path.substr(1))) {
-    // Handle "/C:/foo"
-    if (AreAbsoluteWindowsPathsEqual(source_root.substr(0, source_root_len),
-                                     path.substr(1, source_root_len))) {
-      after_common_index = source_root_len + 1;
-      if (path_len + 1 == source_root_len) {
-        *dest = "//";
-        return true;
-      }
-    } else {
-      return false;
-    }
-  } else {
+  if (!AreAbsoluteWindowsPathsEqual(source_root.substr(0, source_root_len),
+                                    path.substr(0, source_root_len)))
     return false;
+#else
+  if (!path.starts_with(source_root.substr(0, source_root_len)))
+    return false;
+#endif
+
+  if (path_len == source_root_len) {
+    // path is equivalent to source_root.
+    *dest = "//";
+    return true;
   }
-
-  // If we get here, there's a match and after_common_index identifies the
-  // part after it.
-
-  if (!IsSlash(path[after_common_index])) {
+  if (!IsSlash(path[source_root_len])) {
     // path is ${source-root}SUFFIX/...
     return false;
   }
-  // A source-root relative path, The input may have an unknown number of
+
+  // A source-root relative path. The input may have an unknown number of
   // slashes after the previous match. Skip over them.
-  size_t first_after_slash = after_common_index + 1;
+  size_t first_after_slash = source_root_len + 1;
   while (first_after_slash < path_len && IsSlash(path[first_after_slash]))
     first_after_slash++;
+
   dest->assign("//");  // Result is source root relative.
-  dest->append(&path.data()[first_after_slash],
-               path.size() - first_after_slash);
+  dest->append(path.substr(first_after_slash));
   return true;
-
-#else
-
-  // On non-Windows this is easy. Since we know both are absolute, just do a
-  // prefix check.
-
-  if (path.substr(0, source_root_len) ==
-      source_root.substr(0, source_root_len)) {
-    if (path_len == source_root_len) {
-      // path is equivalent to source_root.
-      *dest = "//";
-      return true;
-    } else if (!IsSlash(path[source_root_len])) {
-      // path is ${source-root}SUFFIX/...
-      return false;
-    }
-    // A source-root relative path, The input may have an unknown number of
-    // slashes after the previous match. Skip over them.
-    size_t first_after_slash = source_root_len + 1;
-    while (first_after_slash < path_len && IsSlash(path[first_after_slash]))
-      first_after_slash++;
-
-    dest->assign("//");  // Result is source root relative.
-    dest->append(&path.data()[first_after_slash],
-                 path.size() - first_after_slash);
-    return true;
-  }
-  return false;
-#endif
 }
 
 base::FilePath MakeAbsoluteFilePathRelativeIfPossible(
