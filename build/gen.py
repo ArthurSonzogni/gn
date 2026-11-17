@@ -700,7 +700,6 @@ def WriteGNNinja(path, platform, host, options, args_list):
               'src/base/logging.cc',
               'src/base/md5.cc',
               'src/base/memory/ref_counted.cc',
-              'src/base/memory/weak_ptr.cc',
               'src/base/sha1.cc',
               'src/base/sha2.cc',
               'src/base/strings/string_number_conversions.cc',

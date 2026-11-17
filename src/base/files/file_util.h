@@ -338,26 +338,6 @@ bool VerifyPathControlledByAdmin(const base::FilePath& path);
 // the directory |path|, in the number of FilePath::CharType, or -1 on failure.
 int GetMaximumPathComponentLength(const base::FilePath& path);
 
-#if defined(OS_LINUX) || defined(OS_AIX) || defined(OS_BSD)
-// Broad categories of file systems as returned by statfs() on Linux.
-enum FileSystemType {
-  FILE_SYSTEM_UNKNOWN,   // statfs failed.
-  FILE_SYSTEM_0,         // statfs.f_type == 0 means unknown, may indicate AFS.
-  FILE_SYSTEM_ORDINARY,  // on-disk filesystem like ext2
-  FILE_SYSTEM_NFS,
-  FILE_SYSTEM_SMB,
-  FILE_SYSTEM_CODA,
-  FILE_SYSTEM_MEMORY,  // in-memory file system
-  FILE_SYSTEM_CGROUP,  // cgroup control.
-  FILE_SYSTEM_OTHER,   // any other value.
-  FILE_SYSTEM_TYPE_COUNT
-};
-
-// Attempts determine the FileSystemType for |path|.
-// Returns false if |path| doesn't exist.
-bool GetFileSystemType(const FilePath& path, FileSystemType* type);
-#endif
-
 }  // namespace base
 
 #endif  // BASE_FILES_FILE_UTIL_H_
