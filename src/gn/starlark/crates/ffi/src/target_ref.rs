@@ -83,6 +83,17 @@ impl<'v> StarlarkValue<'v> for TargetRef {
             .evaluated()
             .by_ref(|evaluated| evaluated.providers.contains(self, index))
     }
+
+    fn dir_attr(&self) -> Vec<String> {
+        vec!["label".to_owned()]
+    }
+
+    fn get_attr(&self, attribute: &str, heap: Heap<'v>) -> Option<Value<'v>> {
+        match attribute {
+            "label" => Some(heap.alloc(self.label().to_owned())),
+            _ => None,
+        }
+    }
 }
 
 impl<'v> AllocValue<'v> for TargetRef {
