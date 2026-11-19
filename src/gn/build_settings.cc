@@ -56,7 +56,9 @@ void BuildSettings::SetPythonPath(base::FilePath p,
   if (python_path_.IsAbsolute() && root_path_.IsParent(python_path_)) {
     python_path_ = UTF8ToFilePath(
         RebasePath(FilePathToUTF8(python_path_), build_dir_, root_path_utf8_));
-    python_path_is_relative_to_build_dir_ = true;
+    // Rebasing across Windows drives leaves the path absolute. Do not prepend
+    // the build directory when invoking the interpreter in that case.
+    python_path_is_relative_to_build_dir_ = !python_path_.IsAbsolute();
   }
 }
 

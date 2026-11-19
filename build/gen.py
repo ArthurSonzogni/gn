@@ -910,6 +910,7 @@ def WriteGNNinja(path, platform, host, options, args_list):
         'src/gn/action_target_generator_unittest.cc',
         'src/gn/analyzer_unittest.cc',
         'src/gn/args_unittest.cc',
+        'src/gn/build_settings_unittest.cc',
         'src/gn/builder_record_map_unittest.cc',
         'src/gn/builder_unittest.cc',
         'src/gn/binary_target_generator_unittest.cc',
