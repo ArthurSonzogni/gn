@@ -63,19 +63,20 @@ impl<'v> CtxAttrSchema<'v> {
         builtin: Option<OutputType>,
         heap: &FrozenHeap<'v>,
     ) -> Self {
-        let (builtin_files, builtin_attrs) = builtin.map(|b| b.attrs()).unwrap_or_default();
-        let mut attrs_fields =
-            SmallMap::with_capacity(attrs.len() + builtin_files.len() + builtin_attrs.len());
+        let builtin_fields = builtin.map(OutputType::attrs).unwrap_or_default();
+        let mut attrs_fields = SmallMap::with_capacity(
+            attrs.len() + builtin_fields.file_and_attr.len() + builtin_fields.attr_only.len(),
+        );
         let mut file_fields = SmallMap::new();
         let mut files_fields = SmallMap::new();
 
         let any = || Field::new(starlark::values::typing::TypeCompiled::any(), None);
 
-        for name in builtin_files {
+        for name in builtin_fields.file_and_attr {
             attrs_fields.insert(name.to_string(), any());
             files_fields.insert(name.to_string(), any());
         }
-        for name in builtin_attrs {
+        for name in builtin_fields.attr_only {
             attrs_fields.insert(name.to_string(), any());
         }
 
@@ -129,11 +130,13 @@ impl<'v> CtxAttrSchema<'v> {
         mut ctx_attr: Vec<Value<'v>>,
         heap: &Heap<'v>,
     ) -> starlark::Result<CtxAttr<'v>> {
-        let (builtin_files, builtin_attrs) = output_type.map(|b| b.attrs()).unwrap_or_default();
-        debug_assert!(builtin_files.len() + builtin_attrs.len() == ctx_attr.len());
+        let builtin_fields = output_type.map(OutputType::attrs).unwrap_or_default();
+        debug_assert!(
+            builtin_fields.file_and_attr.len() + builtin_fields.attr_only.len() == ctx_attr.len()
+        );
         ctx_attr.reserve_exact(self.attr.len() - ctx_attr.len());
         let mut ctx_files = Vec::with_capacity(self.files.len());
-        for &attr_val in ctx_attr.iter().take(builtin_files.len()) {
+        for &attr_val in ctx_attr.iter().take(builtin_fields.file_and_attr.len()) {
             ctx_files.push(attr_val);
         }
         let mut ctx_file = Vec::with_capacity(self.file.len());

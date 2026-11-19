@@ -25,7 +25,7 @@ pub use eval_context::{CtxMethods, EvalContext, EvaluatorContextExt};
 pub use file::{File, intern_string};
 pub use label::Label;
 pub use label_ref::LabelRef;
-pub use output_type::OutputType;
+pub use output_type::{BuiltinFieldNames, OutputType};
 pub use package::Package;
 pub use package_ref::PackageRef;
 pub use path_resolver::PathResolver;

@@ -169,4 +169,45 @@ x = [rule(implementation = None)]
             "Attribute 'name' is reserved",
         );
     }
+
+    #[test]
+    fn test_reserved_attributes() {
+        let mut a = new_assert();
+
+        a.pass(
+            r#"
+my_rule = rule(
+    implementation = lambda ctx: [],
+    attrs = {
+        "deps": attr.label_list(),
+        "sources": attr.label_list(),
+    },
+)
+"#,
+        );
+
+        a.fail(
+            r#"
+load("//builtins:rules.scl", "static_library")
+rule(
+    implementation = lambda ctx: [],
+    parent = static_library,
+    attrs = {"deps": attr.label_list()},
+)
+"#,
+            "Attribute 'deps' is reserved",
+        );
+
+        a.fail(
+            r#"
+load("//builtins:rules.scl", "copy")
+rule(
+    implementation = lambda ctx: [],
+    parent = copy,
+    attrs = {"outputs": attr.string_list()},
+)
+"#,
+            "Attribute 'outputs' is reserved",
+        );
+    }
 }

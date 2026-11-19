@@ -167,8 +167,8 @@ impl TargetRef for FakeTargetRef {
         self.get()
             .output_type
             .map(|ot| {
-                let (file_fields, target_fields) = ot.attrs();
-                vec![Value::new_none(); file_fields.len() + target_fields.len()]
+                let fields = ot.attrs();
+                vec![Value::new_none(); fields.file_and_attr.len() + fields.attr_only.len()]
             })
             .unwrap_or_default()
     }
