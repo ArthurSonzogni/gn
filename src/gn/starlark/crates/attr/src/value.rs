@@ -220,12 +220,12 @@ impl Attr {
                 }
                 Ok(heap.alloc(target))
             },
-            crate::LabelOrFile::File(f) => {
+            crate::LabelOrFile::File(ft) => {
                 if let Some(matcher) = schema.file_matcher() {
-                    matcher.validate(f.as_str())?;
+                    matcher.validate(ft.file().as_str())?;
                 }
-                files.insert(*f);
-                Ok(heap.alloc(*f))
+                files.insert(ft.file());
+                Ok(heap.alloc(*ft))
             },
         }
     }
@@ -264,6 +264,7 @@ fn verify_providers(dep: &impl TargetRef, required: &[Vec<ProviderType>]) -> sta
 
 #[cfg(test)]
 mod tests {
+    use providers::FileTarget;
     use starlark::{
         environment::Module,
         values::{UnpackValue as _, list::UnpackList},
@@ -385,6 +386,8 @@ mod tests {
         let label_only_file = File::new("label_only.cc");
         let overlap = File::new("overlap.cc");
         let file_only_file = File::new("file_only.cc");
+        let file_only_target = FileTarget::new(file_only_file, 0..0);
+        let overlap_target = FileTarget::new(overlap, 0..0);
 
         // Target outputs out.cc and overlap.h
         let dep = session.insert_target(FakeTarget {
@@ -406,8 +409,8 @@ mod tests {
             let heap = module.heap();
             let AttrValue { attr, file, files } = Attr::LabelList(vec![
                 crate::LabelOrFile::Label(dep.label().to_owned()),
-                crate::LabelOrFile::File(file_only_file),
-                crate::LabelOrFile::File(overlap),
+                crate::LabelOrFile::File(file_only_target),
+                crate::LabelOrFile::File(overlap_target),
             ])
             .to_value(
                 &schema,
@@ -424,10 +427,13 @@ mod tests {
                 &dep
             );
             assert_eq!(
-                <&File>::unpack_value_err(attr_list[1]).unwrap(),
-                &file_only_file
+                <&FileTarget>::unpack_value_err(attr_list[1]).unwrap(),
+                &file_only_target
             );
-            assert_eq!(<&File>::unpack_value_err(attr_list[2]).unwrap(), &overlap);
+            assert_eq!(
+                <&FileTarget>::unpack_value_err(attr_list[2]).unwrap(),
+                &overlap_target
+            );
 
             assert!(file.is_none());
             // Verifying files resolved correctly: target outputs + the direct file (with
@@ -515,11 +521,12 @@ mod tests {
             assert_eq!(resolved_target.outputs(), vec![file1]);
 
             // Direct File -> succeeds
+            let file_target = FileTarget::new(file1, 0..0);
             let AttrValue {
                 file,
                 files,
-                attr: _,
-            } = Attr::Label(Some(crate::LabelOrFile::File(file1)))
+                attr: resolved_attr,
+            } = Attr::Label(Some(crate::LabelOrFile::File(file_target)))
                 .to_value(
                     &schema,
                     &session,
@@ -527,6 +534,11 @@ mod tests {
                     &heap,
                 )
                 .unwrap();
+
+            assert_eq!(
+                <&FileTarget>::unpack_value_err(resolved_attr).unwrap(),
+                &file_target
+            );
 
             let file_val = file.unwrap();
             let single_file = file_val.downcast_ref::<File>().unwrap();

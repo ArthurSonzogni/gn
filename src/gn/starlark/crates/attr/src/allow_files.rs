@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 use allocative::Allocative;
+use providers::FileTarget;
 use starlark::{
     typing::Ty,
     values::{Freeze, UnpackValue, Value, list::UnpackList, type_repr::StarlarkTypeRepr},
@@ -91,7 +92,8 @@ pub(crate) fn parse_label_like(
         } else {
             // It's a file.
             allow_files.validate(s)?;
-            LabelOrFile::File(path_resolver.existing_source_file(relative_to, s)?)
+            let (file, package) = path_resolver.existing_source_file(relative_to, s)?;
+            LabelOrFile::File(FileTarget::new(file, package))
         },
     )
 }

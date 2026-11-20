@@ -114,15 +114,27 @@ pub struct Depset<'v> {
 }
 
 impl<'v> Depset<'v> {
+    /// Creates a new `Depset` containing a single `File` element.
+    pub fn single_file(file: File, heap: &Heap<'v>) -> Self {
+        Self {
+            order: Order::Unspecified,
+            transitive: Vec::new(),
+            kind: Kind::File,
+            direct: vec![heap.alloc(file)],
+            phony: Some(file),
+        }
+    }
+
     /// Creates a new `Depset` containing `File` elements.
     pub fn new_file_depset<T: types::TargetRef>(
         direct: Vec<File>,
         heap: &Heap<'v>,
         state: &mut types::CtxState<T>,
     ) -> Self {
-        let phony = if direct.len() == 1 {
-            Some(direct[0])
-        } else if !direct.is_empty() {
+        if direct.len() == 1 {
+            return Self::single_file(direct[0], heap);
+        }
+        let phony = if !direct.is_empty() {
             Some(state.new_phony(direct.clone()))
         } else {
             None

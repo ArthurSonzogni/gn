@@ -5,25 +5,26 @@
 use std::fmt;
 
 use allocative::Allocative;
+use providers::FileTarget;
 use starlark::{
     collections::{SmallMap, SmallSet},
     values::{Freeze, Heap, UnpackValue as _, Value, list::UnpackList, none::NoneOr},
 };
-use types::{File, Label, LabelRef, PackageRef, PathResolver};
+use types::{Label, LabelRef, PackageRef, PathResolver};
 
 use crate::{
     allow_files::AllowFiles,
     schema::{AttrKind, AttrSchema},
 };
 
-/// A Starlark value that can be either a target `Label` or a source `File`.
+/// A Starlark value that can be either a target `Label` or a source `FileTarget`.
 ///
 /// We do this because at the time we resolve attributes, the dependency has
 /// not yet been resolved, and thus we don't know what files it expands to.
 #[derive(Allocative, Clone, Debug, Eq, Freeze, Hash, PartialEq)]
 pub enum LabelOrFile {
     Label(Label),
-    File(File),
+    File(FileTarget),
 }
 
 impl LabelOrFile {
@@ -385,11 +386,10 @@ mod tests {
 
         starlark::values::Heap::temp(|heap| {
             // Test a valid file "file.cc" (exists in testdata/foo/file.cc)
+            let (file, pkg_range) = path_resolver.existing_source_file(pkg, "file.cc").unwrap();
             assert_eq!(
                 Attr::create(&schema, Some(heap.alloc("file.cc")), pkg, &path_resolver,).unwrap(),
-                Attr::Label(Some(LabelOrFile::File(
-                    path_resolver.existing_source_file(pkg, "file.cc").unwrap()
-                )))
+                Attr::Label(Some(LabelOrFile::File(FileTarget::new(file, pkg_range))))
             );
 
             // Test an invalid file "file.h" (extension not in allowed list)

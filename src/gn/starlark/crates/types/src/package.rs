@@ -18,6 +18,15 @@ use crate::PackageRef;
 #[derive(Allocative, Clone, Debug, Eq, Freeze, Hash, PartialEq)]
 pub struct Package(pub(crate) String);
 
+impl Package {
+    /// Creates a `Package` from a source-relative directory path (e.g.
+    /// `"foo/bar"` -> `"//foo/bar"`, `""` -> `"//"`).
+    pub fn from_source_relative(s: &str) -> Self {
+        debug_assert!(!s.starts_with('/') && !s.ends_with('/'));
+        Self(format!("//{s}"))
+    }
+}
+
 impl std::ops::Deref for Package {
     type Target = PackageRef;
 

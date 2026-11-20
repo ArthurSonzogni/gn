@@ -19,6 +19,8 @@ pub(crate) enum Error {
     ProviderNotFrozen,
     #[error("Duplicate provider: {0}")]
     DuplicateProvider(String),
+    #[error("Unable to look up non-DefaultInfo providers in file {0} (requested {1})")]
+    MissingProvider(types::Label, String),
     #[error("DefaultInfo.files must be a depset of files, got {0}")]
     DefaultInfoFilesMustBeFileDepset(String),
     #[error("GnInputsInfo.files must be a dict, got {0}")]

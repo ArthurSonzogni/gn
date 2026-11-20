@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::{collections::HashMap, path::PathBuf, sync::RwLock};
+use std::{collections::HashMap, ops::Range, path::PathBuf, sync::RwLock};
 
 use normalize_path::NormalizePath as _;
 
@@ -91,10 +91,15 @@ impl PathResolver {
         File::intern(&rel_path)
     }
 
-    /// Creates a `File` object for a file path relative to a package.
+    /// Creates a `File` object for a file path relative to a package along with
+    /// the byte range of the source-relative package directory inside `File::as_str()`.
     /// Validates that the file is a normalized path within the package and
     /// exists on disk.
-    pub fn existing_source_file(&self, pkg: &PackageRef, s: &str) -> starlark::Result<File> {
+    pub fn existing_source_file(
+        &self,
+        pkg: &PackageRef,
+        s: &str,
+    ) -> starlark::Result<(File, Range<usize>)> {
         if !crate::util::is_normalized_relative_path(s) {
             return Err(crate::Error::InvalidSourcePath(pkg.to_owned(), s.to_owned()).into());
         }
@@ -122,7 +127,9 @@ impl PathResolver {
         // We explicitly disallow referencing generated files in starlark, so
         // we should validate that the files exist on disk for correctness.
         if self.absolute_path(pkg, s).is_file() {
-            Ok(self.source_file(pkg, s))
+            let pkg_start = self.source_root_rel.len();
+            let pkg_end = pkg_start + pkg.as_source_relative().len();
+            Ok((self.source_file(pkg, s), pkg_start..pkg_end))
         } else {
             Err(crate::Error::FileNotFound(pkg.to_owned(), s.to_owned()).into())
         }
@@ -162,85 +169,57 @@ mod tests {
         let pkg = PackageRef::new("//pkg").unwrap();
         let subpkg = PackageRef::new("//pkg/subpkg").unwrap();
 
+        let existing_source_file = |pkg, name| -> starlark::Result<(String, String)> {
+            let (file, pkg_range) = resolver.existing_source_file(pkg, name)?;
+            let s = file.as_str();
+            Ok((s.to_owned(), s[pkg_range].to_owned()))
+        };
+
         // Files in the package itself and non-subpackage directories are allowed.
         assert_eq!(
-            resolver
-                .existing_source_file(PackageRef::root(), "other/file.cc")
-                .unwrap()
-                .as_str(),
-            "../other/file.cc"
+            existing_source_file(PackageRef::root(), "other/file.cc").unwrap(),
+            ("../other/file.cc".to_owned(), "".to_owned())
         );
         assert_eq!(
-            resolver
-                .existing_source_file(pkg, "file.cc")
-                .unwrap()
-                .as_str(),
-            "../pkg/file.cc"
+            existing_source_file(pkg, "file.cc").unwrap(),
+            ("../pkg/file.cc".to_owned(), "pkg".to_owned())
         );
         assert_eq!(
-            resolver
-                .existing_source_file(pkg, "plain/file.cc")
-                .unwrap()
-                .as_str(),
-            "../pkg/plain/file.cc"
+            existing_source_file(pkg, "plain/file.cc").unwrap(),
+            ("../pkg/plain/file.cc".to_owned(), "pkg".to_owned())
         );
         assert_eq!(
-            resolver
-                .existing_source_file(pkg, "plain/nested/ok.txt")
-                .unwrap()
-                .as_str(),
-            "../pkg/plain/nested/ok.txt"
+            existing_source_file(pkg, "plain/nested/ok.txt").unwrap(),
+            ("../pkg/plain/nested/ok.txt".to_owned(), "pkg".to_owned())
         );
 
         // Files inside a subpackage are allowed only when resolved from that subpackage.
         assert_eq!(
-            resolver
-                .existing_source_file(subpkg, "direct.txt")
-                .unwrap()
-                .as_str(),
-            "../pkg/subpkg/direct.txt"
+            existing_source_file(subpkg, "direct.txt").unwrap(),
+            (
+                "../pkg/subpkg/direct.txt".to_owned(),
+                "pkg/subpkg".to_owned()
+            )
         );
-        resolver
-            .existing_source_file(PackageRef::root(), "root_subpkg/in_root_sub.txt")
-            .unwrap_err();
-        resolver
-            .existing_source_file(pkg, "subpkg/direct.txt")
-            .unwrap_err();
-        resolver
-            .existing_source_file(pkg, "subpkg/nested/deep.txt")
-            .unwrap_err();
+        existing_source_file(PackageRef::root(), "root_subpkg/in_root_sub.txt").unwrap_err();
+        existing_source_file(pkg, "subpkg/direct.txt").unwrap_err();
+        existing_source_file(pkg, "subpkg/nested/deep.txt").unwrap_err();
 
         // Reject unnormalized, absolute, directory, missing, and cross-subpackage paths.
-        resolver
-            .existing_source_file(pkg, "../other/file.cc")
-            .unwrap_err();
-        resolver
-            .existing_source_file(pkg, "plain/../file.cc")
-            .unwrap_err();
-        resolver.existing_source_file(pkg, "./file.cc").unwrap_err();
-        resolver
-            .existing_source_file(pkg, "plain/./file.cc")
-            .unwrap_err();
-        resolver.existing_source_file(pkg, "/file.cc").unwrap_err();
-        resolver
-            .existing_source_file(pkg, "//pkg/file.cc")
-            .unwrap_err();
-        resolver
-            .existing_source_file(pkg, "plain\\file.cc")
-            .unwrap_err();
-        resolver.existing_source_file(pkg, "file.cc/").unwrap_err();
-        resolver.existing_source_file(pkg, "plain/").unwrap_err();
-        resolver.existing_source_file(pkg, "plain").unwrap_err();
-        resolver.existing_source_file(pkg, "subpkg").unwrap_err();
-        resolver
-            .existing_source_file(PackageRef::root(), "root_subpkg")
-            .unwrap_err();
-        resolver
-            .existing_source_file(pkg, "plain//file.cc")
-            .unwrap_err();
-        resolver
-            .existing_source_file(pkg, "nonexistent.cc")
-            .unwrap_err();
-        resolver.existing_source_file(pkg, "").unwrap_err();
+        existing_source_file(pkg, "../other/file.cc").unwrap_err();
+        existing_source_file(pkg, "plain/../file.cc").unwrap_err();
+        existing_source_file(pkg, "./file.cc").unwrap_err();
+        existing_source_file(pkg, "plain/./file.cc").unwrap_err();
+        existing_source_file(pkg, "/file.cc").unwrap_err();
+        existing_source_file(pkg, "//pkg/file.cc").unwrap_err();
+        existing_source_file(pkg, "plain\\file.cc").unwrap_err();
+        existing_source_file(pkg, "file.cc/").unwrap_err();
+        existing_source_file(pkg, "plain/").unwrap_err();
+        existing_source_file(pkg, "plain").unwrap_err();
+        existing_source_file(pkg, "subpkg").unwrap_err();
+        existing_source_file(PackageRef::root(), "root_subpkg").unwrap_err();
+        existing_source_file(pkg, "plain//file.cc").unwrap_err();
+        existing_source_file(pkg, "nonexistent.cc").unwrap_err();
+        existing_source_file(pkg, "").unwrap_err();
     }
 }
