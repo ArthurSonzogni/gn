@@ -22,6 +22,24 @@ pub(crate) enum Error {
     /// The referenced file does not exist on disk.
     #[error("File {1} does not exist in {0}")]
     FileNotFound(Package, String),
+    /// The referenced source file path is invalid (e.g. contains `..`, `.`,
+    /// backslashes, or is absolute).
+    #[error(
+        "Invalid source file path {1:?} in {0}: source paths must be normalized relative paths \
+         within the package"
+    )]
+    InvalidSourcePath(Package, String),
+    /// The referenced source file is inside a subdirectory containing a
+    /// `BUILD.gn` file.
+    #[error(
+        "Source file {path:?} in {package} is inside subpackage {subpackage} (directory contains \
+         a BUILD.gn)"
+    )]
+    SourceInSubpackage {
+        package: Package,
+        path: String,
+        subpackage: String,
+    },
     #[error("Invalid package, must start with \"//\": \"{0}\"")]
     NotAPackage(String),
     /// The output file was not declared by this target.

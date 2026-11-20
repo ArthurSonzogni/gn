@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::path::{Component, Path};
-
 use allocative::Allocative;
 use starlark::collections::SmallSet;
 use starlark_derive::Freeze;
@@ -69,12 +67,7 @@ impl<T: TargetRef> CtxState<T> {
 
     /// Declares a new output file relative to the target's output directory.
     pub fn declare_file(&mut self, name: &str) -> starlark::Result<File> {
-        if name.is_empty()
-            // Even on windows, for declare_file, we require using / for a path separator.
-            || name.contains('\\')
-            // Validate that the path is both relative and normalized.
-            || !Path::new(name).components().all(|c| matches!(c, Component::Normal(_)))
-        {
+        if !crate::util::is_normalized_relative_path(name) {
             return Err(crate::errors::Error::UnsupportedFilename(name.to_owned()).into());
         }
         let mut path = String::new();

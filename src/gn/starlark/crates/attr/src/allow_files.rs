@@ -144,4 +144,33 @@ mod tests {
             assert!(!check_match("foo.cc", "bar.cc"));
         });
     }
+
+    #[test]
+    fn test_allow_files_rejects_up_references() {
+        let path_resolver = types::PathResolver::new_for_testing();
+        let pkg = PackageRef::new("//foo").unwrap();
+        let schema = AttrSchema {
+            kind: AttrKind::Label,
+            default: None,
+            disallow_empty: false,
+            allow_files: AllowFilesSchema::Many(AllowFiles::All),
+            cfg: AttrCfg::CurrentToolchain,
+            doc: String::new(),
+        };
+
+        starlark::values::Heap::temp(|heap| {
+            let err = Attr::create(
+                &schema,
+                Some(heap.alloc("../allow_files/file.cc")),
+                pkg,
+                &path_resolver,
+            )
+            .unwrap_err()
+            .to_string();
+            assert!(
+                err.contains("Invalid source file path"),
+                "unexpected error: {err}"
+            );
+        });
+    }
 }

@@ -14,6 +14,20 @@ pub unsafe fn extend_lifetime<'to, T: ?Sized>(val: &T) -> &'to T {
     unsafe { std::mem::transmute(val) }
 }
 
+/// Returns `true` if `path` is a non-empty relative path normalized without `.`
+/// or `..` components and using `/` as the path separator.
+pub(crate) fn is_normalized_relative_path(path: &str) -> bool {
+    !path.is_empty()
+        // Even on windows, we require using / for a path separator.
+        && !path.contains('\\')
+        // Don't support drive letters. This is also ambiguous WRT labels.
+        // If this is too broad, we can specifically choose to allow labels
+        // and reject drive letters later.
+        && !path.contains(':')
+        // Also reject trailing slashes, empty segments, and internal `.` components.
+        && path.split('/').all(|s| !matches!(s, "" | "." | ".."))
+}
+
 /// De-duplicates elements in a small vector in-place while preserving relative order.
 ///
 /// This performs an O(N^2) linear scan, which is faster than allocating a
