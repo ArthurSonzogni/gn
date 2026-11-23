@@ -996,6 +996,10 @@ bool Target::FillOutputFiles(Err* err) {
         dependency_output_file_ =
             GetOutputFile(*this, BuildDirType::OBJ, label().name(), ".stamp");
       }
+      if (output_type_ == SOURCE_SET && source_types_used().SwiftSourceUsed()) {
+        tool = toolchain_->GetTool(CTool::kCToolSwift);
+        check_tool_outputs = true;
+      }
       break;
     }
     case EXECUTABLE:
