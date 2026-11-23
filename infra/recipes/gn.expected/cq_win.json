@@ -33,7 +33,7 @@
       "fetch",
       "--tags",
       "https://gn.googlesource.com/gn",
-      ""
+      "refs/heads/main"
     ],
     "cwd": "[START_DIR]\\gn",
     "infra_step": true,

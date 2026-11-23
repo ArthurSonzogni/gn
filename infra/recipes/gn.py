@@ -98,9 +98,7 @@ def RunSteps(api, repository):
       gitiles_ref = build_input.gitiles_commit.ref if build_input.gitiles_commit else ''
       branch_name = gitiles_ref.removeprefix('refs/heads/') if gitiles_ref else None
 
-      ref = (
-          build_input.gitiles_commit.id
-          if build_input.gitiles_commit else 'refs/heads/master')
+      ref = build_input.gitiles_commit.id or 'refs/heads/main'
       # Fetch tags so `git describe` works.
       api.step('fetch', ['git', 'fetch', '--tags', repository, ref])
       api.step('checkout', ['git', 'checkout', 'FETCH_HEAD'])
