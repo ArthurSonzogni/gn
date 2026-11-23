@@ -122,7 +122,8 @@ bool IsValidSwiftCompilerSubstitution(const Substitution* type) {
          type == &CSubstitutionIncludeDirs ||
          type == &CSubstitutionSwiftBridgeHeader ||
          type == &CSubstitutionSwiftModuleDirs ||
-         type == &CSubstitutionSwiftFlags || type == &CSubstitutionDefines;
+         type == &CSubstitutionSwiftFlags ||
+         type == &CSubstitutionFrameworkDirs || type == &CSubstitutionDefines;
 }
 
 bool IsValidSwiftCompilerOutputsSubstitution(const Substitution* type) {
