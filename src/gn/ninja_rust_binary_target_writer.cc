@@ -99,6 +99,52 @@ void WriteCrateVars(const Target* target,
            opts, out);
 }
 
+// Returns true if |dep| is a Rust crate dependency (not a C/C++ target or a
+// Rust cdylib, which is treated as a non-Rust dependency for linking).
+bool IsRustCrateDep(const Target* dep) {
+  return dep->source_types_used().RustSourceUsed() &&
+         dep->rust_values().crate_type() != RustValues::CRATE_CDYLIB;
+}
+
+// Appends to |out| the order-only deps that compiling an rlib needs from |dep|.
+void AppendRlibOrderOnlyDeps(const ResolvedTargetData& resolved,
+                             const Target* dep,
+                             const TargetSet& data_deps,
+                             TargetSet* visited,
+                             UniqueVector<OutputFile>* out) {
+  if (!visited->add(dep))
+    return;
+
+  // |data_deps| are kept as they are, so that building the rlib still builds
+  // its runtime dependencies.
+  if (data_deps.contains(dep)) {
+    out->Append(resolved.GetOrderOnlyDeps(dep));
+    return;
+  }
+
+  // rustc doesn't use non-Rust source sets (object files) or native libraries
+  // when building an rlib. Ignore such |dep| to avoid unnecessarily waiting
+  // for it before starting to build an rlib. Generated files from its hard
+  // deps are still covered by the rlib's input deps (WriteCompilerInputDeps).
+  if ((dep->output_type() == Target::SOURCE_SET || dep->IsLinkable()) &&
+      !IsRustCrateDep(dep)) {
+    return;
+  }
+
+  // Apply the same filtering as above to GN groups.
+  if (dep->output_type() == Target::GROUP) {
+    const ResolvedTargetDeps& group_deps = resolved.GetTargetDeps(dep);
+    for (const Target* group_dep : group_deps.linked_deps())
+      AppendRlibOrderOnlyDeps(resolved, group_dep, data_deps, visited, out);
+    for (const Target* group_data_dep : group_deps.data_deps())
+      out->Append(resolved.GetOrderOnlyDeps(group_data_dep));
+    return;
+  }
+
+  // Wait for any other kind of |dep|.
+  out->Append(resolved.GetOrderOnlyDeps(dep));
+}
+
 }  // namespace
 
 NinjaRustBinaryTargetWriter::NinjaRustBinaryTargetWriter(
@@ -130,8 +176,9 @@ void NinjaRustBinaryTargetWriter::Run() {
   // dependencies (object files, static and shared libraries) are not used to
   // build it. Since RUST_LIBRARY is not final, those dependencies are instead
   // propagated to the final linked target as inherited libraries. Don't add
-  // them to the rlib's command line nor its implicit deps, so that compiling
-  // an rlib doesn't have to wait for C/C++ code to be compiled and linked.
+  // them to the rlib's command line, its implicit deps, nor its order-only
+  // deps, so that compiling an rlib doesn't have to wait for C/C++ code to be
+  // compiled and linked.
   const bool is_rlib =
       RustValues::InferredCrateType(target_) == RustValues::CRATE_RLIB;
 
@@ -180,13 +227,22 @@ void NinjaRustBinaryTargetWriter::Run() {
     }
   }
 
-  std::vector<OutputFile> group_order_only_deps =
-      GetOrderOnlyDepsFromNonLinkableDeps(classified_deps.non_linkable_deps);
-  order_only_deps.Append(std::move(group_order_only_deps));
+  if (is_rlib) {
+    // See the comment on `is_rlib` above and on AppendRlibOrderOnlyDeps().
+    TargetSet data_deps;
+    for (const Target* data_dep : resolved().GetDataDeps(target_))
+      data_deps.add(data_dep);
+    TargetSet visited;
+    for (const Target* dep : classified_deps.non_linkable_deps) {
+      AppendRlibOrderOnlyDeps(resolved(), dep, data_deps, &visited,
+                              &order_only_deps);
+    }
+  } else {
+    order_only_deps.Append(
+        GetOrderOnlyDepsFromNonLinkableDeps(classified_deps.non_linkable_deps));
+  }
   for (const auto* linkable_dep : classified_deps.linkable_deps) {
-    // Rust cdylibs are treated as non-Rust dependencies for linking purposes.
-    if (linkable_dep->source_types_used().RustSourceUsed() &&
-        linkable_dep->rust_values().crate_type() != RustValues::CRATE_CDYLIB) {
+    if (IsRustCrateDep(linkable_dep)) {
       rustdeps.push_back(linkable_dep->link_output_file());
     } else if (is_rlib) {
       // Not needed to build an rlib. See the comment on `is_rlib` above.
