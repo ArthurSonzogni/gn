@@ -156,6 +156,7 @@ mod tests {
             allow_files: AllowFilesSchema::Many(AllowFiles::All),
             cfg: AttrCfg::CurrentToolchain,
             doc: String::new(),
+            providers: Default::default(),
         };
 
         starlark::values::Heap::temp(|heap| {
