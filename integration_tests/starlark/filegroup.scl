@@ -26,11 +26,14 @@ filegroup = rule(
 
 def _filegroups_impl(ctx):
   filegroups = [fg[FilegroupInfo].files for fg in ctx.attr.filegroups]
+  if ctx.attr.filegroups[1] != ctx.attr.filegroups2[0]:
+    fail("Expected duplicate filegroups to work")
   return [DefaultInfo(files = depset(transitive = filegroups))]
 
 filegroups = rule(
     implementation = _filegroups_impl,
     attrs = {
         "filegroups": attr.label_list(allow_files = True),
+        "filegroups2": attr.label_list(allow_files = True),
     }
 )

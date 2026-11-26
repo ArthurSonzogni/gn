@@ -15,7 +15,10 @@ use starlark::{
     values::{Heap, OwnedFrozen, ProvidesStaticType, StarlarkValue, Value, ValueTyped},
 };
 use starlark_derive::{NoSerialize, starlark_value};
-use types::{File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, TargetRef};
+use types::{
+    File, IPromiseToImplementStarlarkEqAndHash, Label, LabelRef, OutputType, Session as _,
+    TargetRef,
+};
 
 use crate::FakeEvalContext;
 
@@ -195,5 +198,13 @@ impl types::TargetMut for FakeTarget {
 impl attr::TargetAttrExt for FakeTargetRef {
     fn attrs(&self) -> &[Attr] {
         &self.get().attrs
+    }
+
+    fn deps<'a>(&'a self, session: &'a Self::Session) -> impl Iterator<Item = Self> + 'a {
+        self.get()
+            .attrs
+            .iter()
+            .flat_map(|attr| attr.dependencies(self.toolchain()))
+            .map(|(label, toolchain)| session.get_target(label, toolchain))
     }
 }

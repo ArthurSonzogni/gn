@@ -22,6 +22,7 @@ filegroups("filegroups") {
     ":filegroup",
     ":multiple",
   ]
+  filegroups2 = [ ":multiple" ]
 }
 
 custom_shared_library("custom_shared") {

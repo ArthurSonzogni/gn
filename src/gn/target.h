@@ -313,9 +313,10 @@ class Target : public Item {
   LabelTargetVector& gen_deps() { return gen_deps_; }
 
   // Dependencies only known to starlark.
-  // The only purpose of this field is to ensure that all of a target's starlark
-  // dependencies are resolved before itself, ensuring that starlark rule
-  // implementations run in correct order.
+  // Ensures all of a target's starlark dependencies are resolved before itself,
+  // and must preserve both the exact traversal order of `Attr::dependencies()`
+  // and duplicate entries (never sorted or deduplicated), since
+  // `create_ctx_fields()` consumes it positionally.
   const LabelTargetVector& starlark_deps() const { return starlark_deps_; }
   LabelTargetVector& starlark_deps() { return starlark_deps_; }
 

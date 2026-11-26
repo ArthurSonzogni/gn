@@ -273,12 +273,10 @@ where
                 let mut child_scope = scope.as_mut().copy_with(std::iter::empty())?;
                 context.create_target(None, target_name, C::Scope::as_pin_mut(&mut child_scope))?
             };
-            let mut deps = starlark::collections::SmallSet::new();
             for attr in &attrs {
-                attr.add_dependencies(context.current_toolchain(), &mut deps);
-            }
-            for (label, toolchain) in deps {
-                types::TargetMut::register_dependency(cxx_target.as_mut(), label, toolchain);
+                for (label, toolchain) in attr.dependencies(context.current_toolchain()) {
+                    types::TargetMut::register_dependency(cxx_target.as_mut(), label, toolchain);
+                }
             }
             context.register_target(cxx_target.into_ref().get_ref(), me, attrs)?;
 

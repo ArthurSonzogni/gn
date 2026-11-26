@@ -1309,6 +1309,11 @@ void cxxbridge1$196$Target$public_deps(::Target const &self, ::std::vector<::Lab
   new (return$) ::std::vector<::LabelTargetPair> const *(&(self.*public_deps$)());
 }
 
+void cxxbridge1$196$Target$starlark_deps(::Target const &self, ::std::vector<::LabelTargetPair> const **return$) noexcept {
+  ::std::vector<::LabelTargetPair> const &(::Target::*starlark_deps$)() const = &::Target::starlark_deps;
+  new (return$) ::std::vector<::LabelTargetPair> const *(&(self.*starlark_deps$)());
+}
+
 bool cxxbridge1$196$Target$all_headers_public(::Target const &self) noexcept {
   bool (::Target::*all_headers_public$)() const = &::Target::all_headers_public;
   return (self.*all_headers_public$)();

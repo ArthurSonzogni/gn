@@ -212,6 +212,14 @@ impl attr::TargetAttrExt for TargetRef {
     fn attrs(&self) -> &[attr::Attr] {
         self.0.attrs.as_slice()
     }
+
+    fn deps<'a>(&'a self, session: &'a Self::Session) -> impl Iterator<Item = Self> + 'a {
+        self.0
+            .cxx
+            .starlark_deps()
+            .iter()
+            .map(|pair| pair.to_rust(session))
+    }
 }
 
 impl types::TargetMut for crate::bridge::CxxTarget {

@@ -10,6 +10,10 @@ pub use types::{EvalContext, OutputType, Session, TargetRef};
 pub trait TargetAttrExt: TargetRef {
     /// Returns the resolved custom attributes of the target.
     fn attrs(&self) -> &[crate::Attr];
+
+    /// Returns an iterator over the resolved dependencies of this target in
+    /// attribute traversal order.
+    fn deps<'a>(&'a self, session: &'a Self::Session) -> impl Iterator<Item = Self> + 'a;
 }
 
 /// Extension trait for EvalContext to support target creation.

@@ -14,7 +14,7 @@ use starlark::{
         typing::{TypeIdDomain, TypeInstanceId},
     },
 };
-use types::{LabelRef, OutputType};
+use types::OutputType;
 
 #[derive(Copy, Clone, Debug)]
 struct GnCtxDomain;
@@ -26,7 +26,7 @@ impl TypeIdDomain for GnCtxDomain {
 }
 
 use crate::{
-    Attr, Session,
+    Attr,
     schema::{AllowFilesSchema, AttrKind, AttrSchema},
     value::AttrValue,
 };
@@ -121,11 +121,10 @@ impl<'v> CtxAttrSchema<'v> {
 
     /// Constructs the record values for `ctx.attr`, `ctx.file`, and `ctx.files`
     /// from the resolved attribute values.
-    pub fn create_ctx_fields<S: Session>(
+    pub fn create_ctx_fields<T: types::TargetRef>(
         &self,
         fields: &[Attr],
-        session: &S,
-        current_toolchain: &LabelRef,
+        mut deps: impl Iterator<Item = T>,
         output_type: Option<OutputType>,
         mut ctx_attr: Vec<Value<'v>>,
         heap: &Heap<'v>,
@@ -144,7 +143,7 @@ impl<'v> CtxAttrSchema<'v> {
         debug_assert!(fields.len() == self.attrs.len());
         for ((name, schema), attr) in self.attrs.iter().zip(fields.iter()) {
             let AttrValue { attr, file, files } = attr
-                .to_value(schema, session, current_toolchain, heap)
+                .to_value_from(schema, &mut deps, heap)
                 .map_err(|e| e.with_context(format!("for attribute `{name}`")))?;
 
             ctx_attr.push(attr);
@@ -158,6 +157,7 @@ impl<'v> CtxAttrSchema<'v> {
             }
         }
 
+        debug_assert!(deps.next().is_none());
         debug_assert!(ctx_file.len() == self.file.len());
         debug_assert!(ctx_files.len() == self.files.len());
 
@@ -226,14 +226,14 @@ mod tests {
                 );
                 edge.rebrand(schema)
             });
-            let ctx = schema.create_ctx_fields(
-                &fields,
-                context.session.as_ref(),
-                &context.current_toolchain.as_ref(),
-                None,
-                Vec::new(),
-                &eval.heap(),
-            )?;
+            let deps = fields
+                .iter()
+                .flat_map(|field| field.dependencies(context.current_toolchain.as_ref()))
+                .map(|(lbl, tc)| {
+                    use types::Session as _;
+                    context.session.get_target(lbl, tc)
+                });
+            let ctx = schema.create_ctx_fields(&fields, deps, None, Vec::new(), &eval.heap())?;
 
             Ok(eval.heap().alloc((ctx.attr, ctx.files, ctx.file)))
         }

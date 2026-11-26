@@ -237,6 +237,7 @@ mod dummy {
         fn output_type_u8(target: &CxxTarget) -> u8;
         fn private_deps(self: &CxxTarget) -> &CxxVector<LabelTargetPair>;
         fn public_deps(self: &CxxTarget) -> &CxxVector<LabelTargetPair>;
+        fn starlark_deps(self: &CxxTarget) -> &CxxVector<LabelTargetPair>;
         fn all_headers_public(self: &CxxTarget) -> bool;
         fn sources(self: &CxxTarget) -> &CxxVector<SourceFile>;
         fn public_headers(self: &CxxTarget) -> &CxxVector<SourceFile>;

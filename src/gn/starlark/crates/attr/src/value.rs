@@ -8,9 +8,9 @@ use starlark::{
     collections::{SmallMap, SmallSet},
     values::{Heap, Value, dict::Dict},
 };
-use types::{File, LabelRef, TargetRef};
+use types::{File, TargetRef};
 
-use crate::{Attr, Session, schema::AttrSchema};
+use crate::{Attr, schema::AttrSchema};
 
 /// AttrValue is the value that will appear in ctx.(attr|file|files).foo
 #[derive(Clone, Debug, Allocative)]
@@ -27,18 +27,16 @@ pub struct AttrValue<'v> {
 }
 
 impl Attr {
-    /// Resolves the attribute value against the session to collect any provided
-    /// files and outputs an `AttrValue`.
-    pub fn to_value<'v, S: Session>(
+    /// Resolves the attribute value by consuming resolved dependencies from
+    /// `deps` in traversal order.
+    pub(crate) fn to_value_from<'v, T: TargetRef>(
         &self,
         schema: &AttrSchema,
-        session: &S,
-        current_toolchain: &LabelRef,
+        deps: &mut impl Iterator<Item = T>,
         heap: &Heap<'v>,
     ) -> starlark::Result<AttrValue<'v>> {
         let mut unique_files = SmallSet::new();
-        let attr =
-            self.resolve_and_collect(schema, session, current_toolchain, heap, &mut unique_files)?;
+        let attr = self.resolve_and_collect(schema, deps, heap, &mut unique_files)?;
 
         let files_list: Vec<Value<'v>> = unique_files.into_iter().map(|f| heap.alloc(f)).collect();
 
@@ -73,11 +71,10 @@ impl Attr {
         })
     }
 
-    fn resolve_and_collect<'v, S: Session>(
+    fn resolve_and_collect<'v, T: TargetRef>(
         &self,
         schema: &AttrSchema,
-        session: &S,
-        current_toolchain: &LabelRef,
+        deps: &mut impl Iterator<Item = T>,
         heap: &Heap<'v>,
         files: &mut SmallSet<File>,
     ) -> starlark::Result<Value<'v>> {
@@ -98,22 +95,11 @@ impl Attr {
                 Ok(heap.alloc(Dict::new(res)))
             },
             Self::Label(None) => Ok(Value::new_none()),
-            Self::Label(Some(lf)) => {
-                Self::resolve_label_or_file(lf, schema, session, current_toolchain, heap, files)
-            },
+            Self::Label(Some(lf)) => Self::resolve_label_or_file(lf, schema, deps, heap, files),
             Self::LabelList(l) => {
                 let resolved_list = l
                     .iter()
-                    .map(|lf| {
-                        Self::resolve_label_or_file(
-                            lf,
-                            schema,
-                            session,
-                            current_toolchain,
-                            heap,
-                            files,
-                        )
-                    })
+                    .map(|lf| Self::resolve_label_or_file(lf, schema, deps, heap, files))
                     .collect::<starlark::Result<Vec<_>>>()?;
                 Ok(heap.alloc(resolved_list))
             },
@@ -131,15 +117,7 @@ impl Attr {
                 let mut res = SmallMap::with_capacity(d.len());
                 for (k, v) in d {
                     res.insert_hashed(
-                        Self::resolve_label_or_file(
-                            k,
-                            schema,
-                            session,
-                            current_toolchain,
-                            heap,
-                            files,
-                        )?
-                        .get_hashed()?,
+                        Self::resolve_label_or_file(k, schema, deps, heap, files)?.get_hashed()?,
                         heap.alloc(v.as_str()),
                     );
                 }
@@ -150,14 +128,7 @@ impl Attr {
                 for (k, v) in d {
                     res.insert_hashed(
                         heap.alloc(k.as_str()).get_hashed().unwrap(),
-                        Self::resolve_label_or_file(
-                            v,
-                            schema,
-                            session,
-                            current_toolchain,
-                            heap,
-                            files,
-                        )?,
+                        Self::resolve_label_or_file(v, schema, deps, heap, files)?,
                     );
                 }
                 Ok(heap.alloc(Dict::new(res)))
@@ -167,16 +138,7 @@ impl Attr {
                 for (k, v) in d {
                     let resolved_list = v
                         .iter()
-                        .map(|lf| {
-                            Self::resolve_label_or_file(
-                                lf,
-                                schema,
-                                session,
-                                current_toolchain,
-                                heap,
-                                files,
-                            )
-                        })
+                        .map(|lf| Self::resolve_label_or_file(lf, schema, deps, heap, files))
                         .collect::<starlark::Result<Vec<_>>>()?;
                     res.insert_hashed(
                         heap.alloc(k.as_str()).get_hashed().unwrap(),
@@ -192,17 +154,17 @@ impl Attr {
     /// * If it's a label, resolves it to a target.
     ///   * For attr.label[_list], DefaultInfo.files is expanded into files.
     /// * If it's a file, returns itself and collects the file to files.
-    fn resolve_label_or_file<'v, S: Session>(
+    fn resolve_label_or_file<'v, T: TargetRef>(
         lf: &crate::LabelOrFile,
         schema: &AttrSchema,
-        session: &S,
-        current_toolchain: &LabelRef,
+        deps: &mut impl Iterator<Item = T>,
         heap: &Heap<'v>,
         files: &mut SmallSet<File>,
     ) -> starlark::Result<Value<'v>> {
         match lf {
             crate::LabelOrFile::Label(lbl) => {
-                let target = session.get_target(lbl.as_ref(), *current_toolchain);
+                let target = deps.next().expect("Missing resolved dependency");
+                debug_assert_eq!(target.label(), lbl.as_ref());
                 verify_providers(&target, &schema.providers)?;
                 if let Some(matcher) = schema.file_matcher()
                     && let crate::allow_files::AllowFiles::Some(exts) = matcher
@@ -279,9 +241,22 @@ mod tests {
         schema::{AllowFilesSchema, AttrKind},
     };
 
+    impl Attr {
+        fn to_value<'v, T: TargetRef>(
+            &self,
+            schema: &AttrSchema,
+            deps: impl IntoIterator<Item = T>,
+            heap: &Heap<'v>,
+        ) -> starlark::Result<AttrValue<'v>> {
+            let mut deps = deps.into_iter();
+            let val = self.to_value_from(schema, &mut deps, heap)?;
+            assert!(deps.next().is_none());
+            Ok(val)
+        }
+    }
+
     #[test]
     fn test_to_value_basic() {
-        let session = FakeSession::new();
         let schema = AttrSchema {
             kind: AttrKind::Bool,
             default: None,
@@ -295,12 +270,7 @@ mod tests {
         Module::with_temp_heap(|module| {
             let heap = module.heap();
             let AttrValue { attr, file, files } = Attr::Bool(true)
-                .to_value(
-                    &schema,
-                    &session,
-                    &session.default_toolchain.as_ref(),
-                    &heap,
-                )
+                .to_value::<FakeTargetRef>(&schema, [], &heap)
                 .unwrap();
 
             assert!(attr.unpack_bool().unwrap());
@@ -336,12 +306,7 @@ mod tests {
             let AttrValue { attr, file, files } = Attr::Label(Some(crate::LabelOrFile::Label(
                 target_empty.label().to_owned(),
             )))
-            .to_value(
-                &schema,
-                &session,
-                &session.default_toolchain.as_ref(),
-                &heap,
-            )
+            .to_value(&schema, [target_empty], &heap)
             .unwrap();
 
             // The resolved value should be the Target object
@@ -362,12 +327,7 @@ mod tests {
             let AttrValue { files, file, .. } = Attr::Label(Some(crate::LabelOrFile::Label(
                 target_outputs.label().to_owned(),
             )))
-            .to_value(
-                &schema,
-                &session,
-                &session.default_toolchain.as_ref(),
-                &heap,
-            )
+            .to_value(&schema, [target_outputs], &heap)
             .unwrap();
 
             assert_eq!(
@@ -412,12 +372,7 @@ mod tests {
                 crate::LabelOrFile::File(file_only_target),
                 crate::LabelOrFile::File(overlap_target),
             ])
-            .to_value(
-                &schema,
-                &session,
-                &session.default_toolchain.as_ref(),
-                &heap,
-            )
+            .to_value(&schema, [dep.clone()], &heap)
             .unwrap();
 
             let attr_list = UnpackList::<Value>::unpack_value_err(attr).unwrap().items;
@@ -486,25 +441,17 @@ mod tests {
             )
             .unwrap();
 
-            let mut deps = SmallSet::new();
-            attr.add_dependencies(session.default_toolchain.as_ref(), &mut deps);
             assert_eq!(
-                deps,
-                SmallSet::from_iter([(target_single.label(), session.default_toolchain.as_ref(),)])
+                attr.dependencies(session.default_toolchain.as_ref())
+                    .collect::<Vec<_>>(),
+                vec![(target_single.label(), session.default_toolchain.as_ref())]
             );
 
             let AttrValue {
                 file,
                 files,
                 attr: resolved_attr,
-            } = attr
-                .to_value(
-                    &schema,
-                    &session,
-                    &session.default_toolchain.as_ref(),
-                    &heap,
-                )
-                .unwrap();
+            } = attr.to_value(&schema, [target_single], &heap).unwrap();
 
             let file_val = file.unwrap();
             let single_file = file_val.downcast_ref::<File>().unwrap();
@@ -527,12 +474,7 @@ mod tests {
                 files,
                 attr: resolved_attr,
             } = Attr::Label(Some(crate::LabelOrFile::File(file_target)))
-                .to_value(
-                    &schema,
-                    &session,
-                    &session.default_toolchain.as_ref(),
-                    &heap,
-                )
+                .to_value::<FakeTargetRef>(&schema, [], &heap)
                 .unwrap();
 
             assert_eq!(
@@ -555,12 +497,7 @@ mod tests {
             let res = Attr::Label(Some(crate::LabelOrFile::Label(
                 target_two.label().to_owned(),
             )))
-            .to_value(
-                &schema,
-                &session,
-                &session.default_toolchain.as_ref(),
-                &heap,
-            );
+            .to_value(&schema, [target_two], &heap);
             assert_eq!(
                 res.unwrap_err().to_string(),
                 "target `//foo:two` must produce a single output file"
@@ -570,12 +507,7 @@ mod tests {
             let res_empty = Attr::Label(Some(crate::LabelOrFile::Label(
                 target_empty.label().to_owned(),
             )))
-            .to_value(
-                &schema,
-                &session,
-                &session.default_toolchain.as_ref(),
-                &heap,
-            );
+            .to_value(&schema, [target_empty], &heap);
             assert_eq!(
                 res_empty.unwrap_err().to_string(),
                 "target `//foo:empty` must produce a single output file"
@@ -608,12 +540,7 @@ mod tests {
             );
 
             let AttrValue { attr, file, files } = Attr::LabelKeyedStringDict(dict)
-                .to_value(
-                    &schema,
-                    &session,
-                    &session.default_toolchain.as_ref(),
-                    &heap,
-                )
+                .to_value(&schema, [target], &heap)
                 .unwrap();
 
             assert!(file.is_none());
@@ -660,12 +587,7 @@ mod tests {
             let AttrValue { files, .. } = Attr::Label(Some(crate::LabelOrFile::Label(
                 target_matching.label().to_owned(),
             )))
-            .to_value(
-                &schema,
-                &session,
-                &session.default_toolchain.as_ref(),
-                &heap,
-            )
+            .to_value(&schema, [target_matching], &heap)
             .unwrap();
 
             assert_eq!(
@@ -679,12 +601,7 @@ mod tests {
             let res = Attr::Label(Some(crate::LabelOrFile::Label(
                 target_no_matching.label().to_owned(),
             )))
-            .to_value(
-                &schema,
-                &session,
-                &session.default_toolchain.as_ref(),
-                &heap,
-            );
+            .to_value(&schema, [target_no_matching], &heap);
 
             assert_eq!(
                 res.unwrap_err().to_string(),
