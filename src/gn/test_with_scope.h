@@ -28,6 +28,9 @@
 class TestWithScope {
  public:
   TestWithScope();
+  explicit TestWithScope(const base::FilePath& root_path,
+                         SourceDir source_dir = SourceDir("//"),
+                         SourceDir build_dir = SourceDir("//out/Debug/"));
   ~TestWithScope();
 
   BuildSettings* build_settings() { return &build_settings_; }
@@ -69,6 +72,9 @@ class TestWithScope {
   static void SetCommandForTool(const std::string& cmd, Tool* tool);
 
  private:
+  TestWithScope(const base::FilePath* root_path,
+                SourceDir source_dir,
+                SourceDir build_dir);
   void AppendPrintOutput(const std::string& str);
 
   BuildSettings build_settings_;

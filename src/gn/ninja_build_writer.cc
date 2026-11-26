@@ -218,9 +218,7 @@ NinjaBuildWriter::~NinjaBuildWriter() = default;
 bool NinjaBuildWriter::Run(Err* err) {
   WriteNinjaRules();
   WriteAllPools();
-  if (build_settings_->has_starlark_session()) {
-    build_settings_->starlark_session().write_all_rules(out_);
-  }
+  build_settings_->starlark_session().write_all_rules(out_);
   return WriteSubninjas(err) && WritePhonyAndAllRules(err);
 }
 
@@ -367,9 +365,7 @@ void NinjaBuildWriter::WriteNinjaRules() {
                .NormalizePathSeparatorsTo('/');
   }
 
-  if (build_settings_->has_starlark_session()) {
-    add_all_loaded_files(build_settings_->starlark_session(), files);
-  }
+  add_all_loaded_files(build_settings_->starlark_session(), files);
 
   std::sort(files.begin(), files.end());
   files.erase(std::unique(files.begin(), files.end()), files.end());

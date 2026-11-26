@@ -572,6 +572,8 @@ bool Setup::DoSetupWithErr(const std::string& build_dir,
   if (!FillBuildDir(build_dir, !force_create, err))
     return false;
 
+  build_settings_.InitStarlarkSession();
+
   // Apply project-specific default (if specified).
   // Must happen before FillArguments().
   if (default_args_) {

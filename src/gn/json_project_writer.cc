@@ -374,21 +374,18 @@ StringOutputBuffer JSONProjectWriter::GenerateJSON(
       }
     }
 
-    if (build_settings->has_starlark_session()) {
-      std::vector<base::FilePath> loaded_files;
-      add_all_loaded_files(build_settings->starlark_session(), loaded_files);
-      for (const auto& loaded_file : loaded_files) {
-        Err err;
-        SourceFile source_file =
-            build_settings->build_dir().ResolveRelativeFile(
-                Value(nullptr, FilePathToUTF8(loaded_file)), &err,
-                build_settings->root_path_utf8());
-        // Starlark intentionally doesn't support loading files outside of the
-        // source root.
-        DCHECK(!err.has_error());
-        DCHECK(source_file.is_source_absolute());
-        files.push_back(std::move(source_file));
-      }
+    std::vector<base::FilePath> loaded_files;
+    add_all_loaded_files(build_settings->starlark_session(), loaded_files);
+    for (const auto& loaded_file : loaded_files) {
+      Err err;
+      SourceFile source_file = build_settings->build_dir().ResolveRelativeFile(
+          Value(nullptr, FilePathToUTF8(loaded_file)), &err,
+          build_settings->root_path_utf8());
+      // Starlark intentionally doesn't support loading files outside of the
+      // source root.
+      DCHECK(!err.has_error());
+      DCHECK(source_file.is_source_absolute());
+      files.push_back(std::move(source_file));
     }
 
     std::ranges::sort(files);

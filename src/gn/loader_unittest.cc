@@ -169,7 +169,9 @@ void MockInputFileManager::IssueAllPending() {
 
 class LoaderTest : public TestWithScheduler {
  public:
-  LoaderTest() { build_settings_.SetBuildDir(SourceDir("//out/Debug/")); }
+  LoaderTest() : build_settings_(SourceDir("//out/Debug/")) {
+    build_settings_.InitStarlarkSessionForTesting();
+  }
 
  protected:
   BuildSettings build_settings_;

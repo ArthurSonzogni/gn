@@ -719,9 +719,9 @@ TEST(Template, PrintStackTraceWithTemplateDefinedWithinATemplate) {
 TEST(Functions, Load) {
   MsgLoop run_loop;
   Scheduler scheduler;
-  TestWithScope setup;
-  setup.build_settings()->SetRootPath(UTF8ToFilePath("."));
-  setup.scope()->set_source_dir(SourceDir("//"));
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  TestWithScope setup(temp_dir.GetPath());
 
   // Verify that .bzl files return an error as they are not supported.
   {
@@ -745,11 +745,6 @@ TEST(Functions, Load) {
 
   // Verify that we can successfully load variables from a starlark file.
   {
-    base::ScopedTempDir temp_dir;
-    ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-    setup.build_settings()->SetRootPath(temp_dir.GetPath());
-    setup.scope()->set_source_dir(SourceDir("//"));
-
     base::WriteFile(temp_dir.GetPath().AppendASCII("foo.cc"), "", 0);
 
     std::string scl_content = R"scl(

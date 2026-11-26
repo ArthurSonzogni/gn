@@ -10,22 +10,29 @@
 #include "gn/parser.h"
 #include "gn/tokenizer.h"
 
-namespace {
-
-BuildSettings CreateBuildSettingsForTest() {
-  BuildSettings build_settings;
-  build_settings.SetBuildDir(SourceDir("//out/Debug/"));
-  return build_settings;
-}
-
-}  // namespace
-
 TestWithScope::TestWithScope()
-    : build_settings_(CreateBuildSettingsForTest()),
+    : TestWithScope(nullptr, SourceDir(), SourceDir("//out/Debug/")) {}
+
+TestWithScope::TestWithScope(const base::FilePath& root_path,
+                             SourceDir source_dir,
+                             SourceDir build_dir)
+    : TestWithScope(&root_path, std::move(source_dir), std::move(build_dir)) {}
+
+TestWithScope::TestWithScope(const base::FilePath* root_path,
+                             SourceDir source_dir,
+                             SourceDir build_dir)
+    : build_settings_(build_dir),
       settings_(&build_settings_, std::string()),
       toolchain_(&settings_, Label(SourceDir("//toolchain/"), "default")),
       scope_(&settings_),
       scope_progammatic_provider_(&scope_, true) {
+  if (root_path) {
+    build_settings_.SetRootPath(*root_path);
+    build_settings_.InitStarlarkSession();
+    scope_.set_source_dir(source_dir);
+  } else {
+    build_settings_.InitStarlarkSessionForTesting();
+  }
   build_settings_.set_print_callback(
       [this](const std::string& str) { AppendPrintOutput(str); });
 

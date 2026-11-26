@@ -8,12 +8,10 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <utility>
 
 #include "base/files/file_path.h"
-#include "cxx.h"
 #include "gn/args.h"
 #include "gn/check_includes_strict_exceptions.h"
 #include "gn/label.h"
@@ -34,7 +32,9 @@ class BuildSettings {
   using PrintCallback = std::function<void(const std::string&)>;
 
   BuildSettings();
-  BuildSettings(const BuildSettings& other);
+  explicit BuildSettings(SourceDir build_dir);
+  BuildSettings(const BuildSettings&) = delete;
+  ~BuildSettings();
 
   // Root target label.
   const Label& root_target_label() const { return root_target_label_; }
@@ -158,7 +158,10 @@ class BuildSettings {
   }
 
   const Session& starlark_session() const;
-  bool has_starlark_session() const { return starlark_session_.has_value(); }
+  // `InitStarlarkSession[ForTesting]` may only be called once.
+  // It depends upon having a correct build dir and root path set.
+  void InitStarlarkSession();
+  void InitStarlarkSessionForTesting();
 
   // A list of target label patterns that can use allow_circular_includes_from.
   // If the returned pointer is null, allow_circular_includes_from may be used
@@ -220,7 +223,7 @@ class BuildSettings {
   std::unique_ptr<std::vector<LabelPattern>>
       allow_circular_includes_from_allowlist_;
 
-  std::optional<rust::Box<Session>> starlark_session_;
+  Session* starlark_session_ = nullptr;
 
   BuildSettings& operator=(const BuildSettings&) = delete;
 };
