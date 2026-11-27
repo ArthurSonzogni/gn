@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -80,7 +79,7 @@ std::optional<Value> JSONParser::Parse(std::string_view input) {
 
   // ICU and ReadUnicodeCharacter() use int32_t for lengths, so ensure
   // that the index_ will not overflow when parsing.
-  if (!base::IsValueInRangeForNumericType<int32_t>(input.length())) {
+  if (!std::in_range<int32_t>(input.length())) {
     ReportError(JSONReader::JSON_TOO_LARGE, 0);
     return std::nullopt;
   }

@@ -9,11 +9,12 @@
 #include <stdlib.h>
 #include <wctype.h>
 
+#include <charconv>
 #include <limits>
+#include <system_error>
 #include <type_traits>
 
 #include "base/logging.h"
-#include "base/numerics/safe_math.h"
 #include "base/scoped_clear_errno.h"
 #include "base/strings/utf_string_conversions.h"
 
@@ -26,33 +27,13 @@ struct IntToStringT {
   static STR IntToString(INT value) {
     // log10(2) ~= 0.3 bytes needed per bit or per byte log10(2**8) ~= 2.4.
     // So round up to allocate 3 output characters per byte, plus 1 for '-'.
-    const size_t kOutputBufSize =
+    constexpr size_t kOutputBufSize =
         3 * sizeof(INT) + std::numeric_limits<INT>::is_signed;
 
-    // Create the string in a temporary buffer, write it back to front, and
-    // then return the substr of what we ended up using.
-    using CHR = typename STR::value_type;
-    CHR outbuf[kOutputBufSize];
-
-    // The ValueOrDie call below can never fail, because UnsignedAbs is valid
-    // for all valid inputs.
-    typename std::make_unsigned<INT>::type res =
-        CheckedNumeric<INT>(value).UnsignedAbs().ValueOrDie();
-
-    CHR* end = outbuf + kOutputBufSize;
-    CHR* i = end;
-    do {
-      --i;
-      DCHECK(i != outbuf);
-      *i = static_cast<CHR>((res % 10) + '0');
-      res /= 10;
-    } while (res != 0);
-    if (IsValueNegative(value)) {
-      --i;
-      DCHECK(i != outbuf);
-      *i = static_cast<CHR>('-');
-    }
-    return STR(i, end);
+    char outbuf[kOutputBufSize];
+    auto result = std::to_chars(outbuf, outbuf + kOutputBufSize, value);
+    DCHECK(result.ec == std::errc());
+    return STR(outbuf, result.ptr);
   }
 };
 
