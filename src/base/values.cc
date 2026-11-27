@@ -299,17 +299,17 @@ Value* Value::FindPath(std::initializer_list<std::string_view> path) {
   return const_cast<Value*>(const_cast<const Value*>(this)->FindPath(path));
 }
 
-Value* Value::FindPath(span<const std::string_view> path) {
+Value* Value::FindPath(std::span<const std::string_view> path) {
   return const_cast<Value*>(const_cast<const Value*>(this)->FindPath(path));
 }
 
 const Value* Value::FindPath(
     std::initializer_list<std::string_view> path) const {
   DCHECK_GE(path.size(), 2u) << "Use FindKey() for a path of length 1.";
-  return FindPath(make_span(path.begin(), path.size()));
+  return FindPath(std::span<const std::string_view>(path.begin(), path.size()));
 }
 
-const Value* Value::FindPath(span<const std::string_view> path) const {
+const Value* Value::FindPath(std::span<const std::string_view> path) const {
   const Value* cur = this;
   for (const std::string_view& component : path) {
     if (!cur->is_dict() || (cur = cur->FindKey(component)) == nullptr)
@@ -324,7 +324,8 @@ Value* Value::FindPathOfType(std::initializer_list<std::string_view> path,
       const_cast<const Value*>(this)->FindPathOfType(path, type));
 }
 
-Value* Value::FindPathOfType(span<const std::string_view> path, Type type) {
+Value* Value::FindPathOfType(std::span<const std::string_view> path,
+                             Type type) {
   return const_cast<Value*>(
       const_cast<const Value*>(this)->FindPathOfType(path, type));
 }
@@ -332,10 +333,11 @@ Value* Value::FindPathOfType(span<const std::string_view> path, Type type) {
 const Value* Value::FindPathOfType(std::initializer_list<std::string_view> path,
                                    Type type) const {
   DCHECK_GE(path.size(), 2u) << "Use FindKeyOfType() for a path of length 1.";
-  return FindPathOfType(make_span(path.begin(), path.size()), type);
+  return FindPathOfType(
+      std::span<const std::string_view>(path.begin(), path.size()), type);
 }
 
-const Value* Value::FindPathOfType(span<const std::string_view> path,
+const Value* Value::FindPathOfType(std::span<const std::string_view> path,
                                    Type type) const {
   const Value* result = FindPath(path);
   if (!result || result->type() != type)
@@ -346,16 +348,17 @@ const Value* Value::FindPathOfType(span<const std::string_view> path,
 Value* Value::SetPath(std::initializer_list<std::string_view> path,
                       Value value) {
   DCHECK_GE(path.size(), 2u) << "Use SetKey() for a path of length 1.";
-  return SetPath(make_span(path.begin(), path.size()), std::move(value));
+  return SetPath(std::span<const std::string_view>(path.begin(), path.size()),
+                 std::move(value));
 }
 
-Value* Value::SetPath(span<const std::string_view> path, Value value) {
-  DCHECK_NE(path.begin(), path.end());  // Can't be empty path.
+Value* Value::SetPath(std::span<const std::string_view> path, Value value) {
+  DCHECK(!path.empty());  // Can't be empty path.
 
   // Walk/construct intermediate dictionaries. The last element requires
   // special handling so skip it in this loop.
   Value* cur = this;
-  const std::string_view* cur_path = path.begin();
+  auto cur_path = path.begin();
   for (; (cur_path + 1) < path.end(); ++cur_path) {
     if (!cur->is_dict())
       return nullptr;
@@ -381,10 +384,11 @@ Value* Value::SetPath(span<const std::string_view> path, Value value) {
 
 bool Value::RemovePath(std::initializer_list<std::string_view> path) {
   DCHECK_GE(path.size(), 2u) << "Use RemoveKey() for a path of length 1.";
-  return RemovePath(make_span(path.begin(), path.size()));
+  return RemovePath(
+      std::span<const std::string_view>(path.begin(), path.size()));
 }
 
-bool Value::RemovePath(span<const std::string_view> path) {
+bool Value::RemovePath(std::span<const std::string_view> path) {
   if (!is_dict() || path.empty())
     return false;
 

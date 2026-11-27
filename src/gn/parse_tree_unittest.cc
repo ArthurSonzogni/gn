@@ -8,9 +8,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <span>
 #include <utility>
 
-#include "base/containers/span.h"
 #include "gn/input_file.h"
 #include "gn/scope.h"
 #include "gn/test_with_scope.h"
@@ -196,7 +196,7 @@ TEST(ParseTree, ShortenTargets) {
   ASSERT_EQ(7u, contents.size());
 
   auto all_elements_are_literal_nodes =
-      [](base::span<const std::unique_ptr<ParseNode>> container) -> bool {
+      [](std::span<const std::unique_ptr<ParseNode>> container) -> bool {
     return std::ranges::all_of(container,
                                [](const std::unique_ptr<ParseNode>& element) {
                                  return element->AsLiteral();

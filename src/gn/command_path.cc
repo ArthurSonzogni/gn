@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <list>
 
 #include "base/command_line.h"
 #include "base/strings/stringprintf.h"

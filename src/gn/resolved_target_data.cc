@@ -99,9 +99,9 @@ bool ResolvedTargetData::OnlyForwardsPublicHardDeps(const Target* target) {
 // Keep in sync with NinjaTargetWriter::WriteHardDepsStampOrPhony().
 void ResolvedTargetData::ComputeHardDeps(TargetInfo* info) const {
   TargetSet all_hard_deps;
-  base::span<const Target*> deps = OnlyForwardsPublicHardDeps(info->target)
-                                       ? info->deps.public_deps()
-                                       : info->deps.linked_deps();
+  std::span<const Target* const> deps = OnlyForwardsPublicHardDeps(info->target)
+                                            ? info->deps.public_deps()
+                                            : info->deps.linked_deps();
   for (const Target* dep : deps) {
     // Direct hard dependencies
     if (info->target->hard_dep() || dep->hard_dep()) {
@@ -131,7 +131,7 @@ void ResolvedTargetData::ComputeInheritedLibs(TargetInfo* info) const {
 }
 
 void ResolvedTargetData::ComputeInheritedLibsFor(
-    base::span<const Target*> deps,
+    std::span<const Target* const> deps,
     bool is_public,
     TargetPublicPairListBuilder* inherited_libraries) const {
   for (const Target* dep : deps) {
@@ -216,7 +216,7 @@ void ResolvedTargetData::ComputeModuleDepsInformation(TargetInfo* info) const {
 }
 
 void ResolvedTargetData::ComputeModuleDepsInformationFor(
-    base::span<const Target*> deps,
+    std::span<const Target* const> deps,
     bool is_public,
     TargetPublicPairListBuilder* module_deps_information) const {
   for (const Target* dep : deps) {
@@ -248,7 +248,7 @@ void ResolvedTargetData::ComputeRustLibs(TargetInfo* info) const {
   info->has_rust_libs = true;
 }
 
-void ResolvedTargetData::ComputeRustLibsFor(base::span<const Target*> deps,
+void ResolvedTargetData::ComputeRustLibsFor(std::span<const Target* const> deps,
                                             bool is_public,
                                             RustLibsBuilder* rust_libs) const {
   for (const Target* dep : deps) {
@@ -334,7 +334,7 @@ void ResolvedTargetData::ComputeOrderOnlyDeps(TargetInfo* info) const {
   const Target* target = info->target;
 
   if (target->output_type() == Target::GROUP) {
-    auto add_deps = [&](base::span<const Target*> deps) {
+    auto add_deps = [&](std::span<const Target* const> deps) {
       for (const Target* dep : deps) {
         const TargetInfo* dep_info = GetTargetOrderOnlyDeps(dep);
         all_order_only_deps.Append(dep_info->order_only_deps);

@@ -6,8 +6,8 @@
 #define TOOLS_GN_RESOLVED_TARGET_DEPS_H_
 
 #include <memory>
+#include <span>
 
-#include "base/containers/span.h"
 #include "gn/label_ptr.h"
 
 // A class used to record the dependencies of a given Target in
@@ -42,23 +42,23 @@ class ResolvedTargetDeps {
 
   size_t size() const { return private_count_ + public_count_ + data_count_; }
 
-  base::span<const Target*> public_deps() const {
+  std::span<const Target* const> public_deps() const {
     return {deps_.get(), public_count_};
   }
 
-  base::span<const Target*> private_deps() const {
+  std::span<const Target* const> private_deps() const {
     return {deps_.get() + public_count_, private_count_};
   }
 
-  base::span<const Target*> data_deps() const {
+  std::span<const Target* const> data_deps() const {
     return {deps_.get() + private_count_ + public_count_, data_count_};
   }
 
-  base::span<const Target*> linked_deps() const {
+  std::span<const Target* const> linked_deps() const {
     return {deps_.get(), private_count_ + public_count_};
   }
 
-  base::span<const Target*> all_deps() const {
+  std::span<const Target* const> all_deps() const {
     return {deps_.get(), private_count_ + public_count_ + data_count_};
   }
 

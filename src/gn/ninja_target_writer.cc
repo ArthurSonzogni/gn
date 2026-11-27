@@ -5,6 +5,7 @@
 #include "gn/ninja_target_writer.h"
 
 #include <algorithm>
+#include <span>
 
 #include "base/strings/string_util.h"
 #include "gn/builtin_tool.h"
@@ -294,7 +295,7 @@ namespace {
 // is added directly; otherwise, if it forwards hard deps, its aggregated hard
 // deps output (at most one file/phony per dep) is appended.
 void AppendHardDepsOutputsForDeps(const Target* target,
-                                  base::span<const Target*> deps,
+                                  std::span<const Target* const> deps,
                                   const ResolvedTargetData& resolved,
                                   std::vector<OutputFile>* outputs) {
   for (const Target* dep : deps) {

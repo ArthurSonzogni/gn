@@ -26,13 +26,13 @@
 #include <iosfwd>
 #include <map>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/containers/flat_map.h"
-#include "base/containers/span.h"
 #include "base/value_iterators.h"
 
 namespace base {
@@ -226,9 +226,9 @@ class Value {
   //
   // Note: If there is only one component in the path, use FindKey() instead.
   Value* FindPath(std::initializer_list<std::string_view> path);
-  Value* FindPath(span<const std::string_view> path);
+  Value* FindPath(std::span<const std::string_view> path);
   const Value* FindPath(std::initializer_list<std::string_view> path) const;
-  const Value* FindPath(span<const std::string_view> path) const;
+  const Value* FindPath(std::span<const std::string_view> path) const;
 
   // Like FindPath() but will only return the value if the leaf Value type
   // matches the given type. Will return nullptr otherwise.
@@ -237,10 +237,10 @@ class Value {
   // instead.
   Value* FindPathOfType(std::initializer_list<std::string_view> path,
                         Type type);
-  Value* FindPathOfType(span<const std::string_view> path, Type type);
+  Value* FindPathOfType(std::span<const std::string_view> path, Type type);
   const Value* FindPathOfType(std::initializer_list<std::string_view> path,
                               Type type) const;
-  const Value* FindPathOfType(span<const std::string_view> path,
+  const Value* FindPathOfType(std::span<const std::string_view> path,
                               Type type) const;
 
   // Sets the given path, expanding and creating dictionary keys as necessary.
@@ -260,7 +260,7 @@ class Value {
   //
   // Note: If there is only one component in the path, use SetKey() instead.
   Value* SetPath(std::initializer_list<std::string_view> path, Value value);
-  Value* SetPath(span<const std::string_view> path, Value value);
+  Value* SetPath(std::span<const std::string_view> path, Value value);
 
   // Tries to remove a Value at the given path.
   //
@@ -277,7 +277,7 @@ class Value {
   //
   // Note: If there is only one component in the path, use RemoveKey() instead.
   bool RemovePath(std::initializer_list<std::string_view> path);
-  bool RemovePath(span<const std::string_view> path);
+  bool RemovePath(std::span<const std::string_view> path);
 
   using dict_iterator_proxy = detail::dict_iterator_proxy;
   using const_dict_iterator_proxy = detail::const_dict_iterator_proxy;

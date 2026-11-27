@@ -6,11 +6,11 @@
 
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "gn/build_file_editor.h"
@@ -40,7 +40,7 @@ Result<Value> ParseValue(std::string_view val_string) {
 }
 
 // Parses multiple string arguments into a vector of GN Values.
-Result<std::vector<Value>> ParseValues(base::span<const std::string> values) {
+Result<std::vector<Value>> ParseValues(std::span<const std::string> values) {
   std::vector<Value> list_elements;
   list_elements.reserve(values.size());
   for (const std::string& val_str : values) {
@@ -64,7 +64,7 @@ using ParseNodeGenerator =
 
 Result<ParseNodeGenerator> CreateParseNodeGenerator(
     std::optional<std::string_view> kind,
-    base::span<const std::string> values) {
+    std::span<const std::string> values) {
   CHECK(!values.empty());
 
   if (kind == "expr") {
@@ -582,7 +582,7 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
                  "Usage: add <attribute> <value(s)>");
     }
     ASSIGN_OR_RETURN(std::vector<Value> values,
-                     ParseValues(base::make_span(args).subspan(2)));
+                     ParseValues(std::span(args).subspan(2)));
     return AddToAttributeCommand(args[1], std::move(values));
   } else if (args[0] == "delete") {
     if (args.size() != 1) {
@@ -595,7 +595,7 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
                  "Usage: move <from_attribute> <to_attribute> <value(s)>");
     }
     ASSIGN_OR_RETURN(std::vector<Value> values,
-                     ParseValues(base::make_span(args).subspan(3)));
+                     ParseValues(std::span(args).subspan(3)));
     return MoveCommand(args[1], args[2], std::move(values));
   } else if (args[0] == "new") {
     if (args.size() == 2) {
@@ -635,7 +635,7 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
       return RemoveAttributeCommand(args[1]);
     }
     ASSIGN_OR_RETURN(std::vector<Value> values,
-                     ParseValues(base::make_span(args).subspan(2)));
+                     ParseValues(std::span(args).subspan(2)));
     return RemoveFromAttributeCommand(args[1], std::move(values));
   } else if (args[0] == "rename") {
     if (args.size() != 3) {
@@ -651,9 +651,8 @@ Result<EditCommand> ParseCommand(std::vector<std::string> args) {
     }
 
     auto [attr, kind] = SplitAttrType(args[1]);
-    ASSIGN_OR_RETURN(
-        auto generator,
-        CreateParseNodeGenerator(kind, base::make_span(args).subspan(2)));
+    ASSIGN_OR_RETURN(auto generator, CreateParseNodeGenerator(
+                                         kind, std::span(args).subspan(2)));
     return SetCommand(std::string(attr), std::move(generator));
   } else if (args[0] == "shard") {
     if (args.size() == 1) {

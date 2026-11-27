@@ -8,9 +8,9 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <vector>
 
-#include "base/containers/span.h"
 #include "gn/lib_file.h"
 #include "gn/output_file.h"
 #include "gn/resolved_target_deps.h"
@@ -53,13 +53,13 @@ class ResolvedTargetData {
 
   // Return the data dependencies of a given target.
   // Convenience shortcut for GetTargetDeps(target).data_deps().
-  base::span<const Target*> GetDataDeps(const Target* target) const {
+  std::span<const Target* const> GetDataDeps(const Target* target) const {
     return GetTargetDeps(target).data_deps();
   }
 
   // Return the public and private dependencies of a given target.
   // Convenience shortcut for GetTargetDeps(target).linked_deps().
-  base::span<const Target*> GetLinkedDeps(const Target* target) const {
+  std::span<const Target* const> GetLinkedDeps(const Target* target) const {
     return GetTargetDeps(target).linked_deps();
   }
 
@@ -139,7 +139,7 @@ class ResolvedTargetData {
   // List of dependent target that generate a .swiftmodule. The current target
   // is assumed to depend on those modules, and will add them to the module
   // search path.
-  base::span<const Target*> GetSwiftModuleDependencies(
+  std::span<const Target* const> GetSwiftModuleDependencies(
       const Target* target) const {
     const TargetInfo* info = GetTargetSwiftValues(target);
     if (!info->swift_values.get())
@@ -297,13 +297,13 @@ class ResolvedTargetData {
 
   // Helper function used by ComputeInheritedLibs().
   void ComputeInheritedLibsFor(
-      base::span<const Target*> deps,
+      std::span<const Target* const> deps,
       bool is_public,
       TargetPublicPairListBuilder* inherited_libraries) const;
 
   // Helper function used by ComputeModuleDepsInformation().
   void ComputeModuleDepsInformationFor(
-      base::span<const Target*> deps,
+      std::span<const Target* const> deps,
       bool is_public,
       TargetPublicPairListBuilder* module_deps_information) const;
 
@@ -313,7 +313,7 @@ class ResolvedTargetData {
     TargetPublicPairListBuilder inheritable;
   };
 
-  void ComputeRustLibsFor(base::span<const Target*> deps,
+  void ComputeRustLibsFor(std::span<const Target* const> deps,
                           bool is_public,
                           RustLibsBuilder* rust_libs) const;
 };
