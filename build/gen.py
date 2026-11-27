@@ -572,7 +572,12 @@ def WriteGNNinja(path, platform, host, options, args_list):
       cflags.append('-Wno-restrict')
     # flags not supported by gcc/g++.
     else:
-      cflags.extend(['-Wrange-loop-analysis', '-Wextra-semi-stmt'])
+      cflags.extend([
+          '-Wextra-semi-stmt',
+          '-Wrange-loop-analysis',
+          '-Wunneeded-member-function',
+          '-Wunused-member-function',
+      ])
       # We use "extern C" to communicate with rust, not C. So it doesn't matter
       # if the return type is an invalid C type.
       cflags.append('-Wno-return-type-c-linkage')

@@ -160,11 +160,13 @@ class StringAtomSet {
       return result;
     }
 
+#ifdef ASAN_ENABLED
     void destroy(size_t max_index) {
       for (size_t i = 0; i < max_index; ++i) {
         items_[i].str.~basic_string();
       }
     }
+#endif
 
    private:
     StringStorage items_[kStringsPerSlab];

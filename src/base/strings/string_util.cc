@@ -20,6 +20,7 @@
 #include <iterator>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "base/logging.h"
@@ -65,24 +66,18 @@ inline T* AlignToMachineWord(T* pointer) {
                               ~kMachineWordAlignmentMask);
 }
 
-template <size_t size, typename CharacterType>
-struct NonASCIIMask;
-template <>
-struct NonASCIIMask<4, char16_t> {
-  static inline uint32_t value() { return 0xFF80FF80U; }
-};
-template <>
-struct NonASCIIMask<4, char> {
-  static inline uint32_t value() { return 0x80808080U; }
-};
-template <>
-struct NonASCIIMask<8, char16_t> {
-  static inline uint64_t value() { return 0xFF80FF80FF80FF80ULL; }
-};
-template <>
-struct NonASCIIMask<8, char> {
-  static inline uint64_t value() { return 0x8080808080808080ULL; }
-};
+template <typename CharacterType>
+constexpr MachineWord NonASCIIMask() {
+  static_assert(std::is_same_v<CharacterType, char> ||
+                std::is_same_v<CharacterType, char16_t>);
+  if constexpr (sizeof(MachineWord) == 4) {
+    return std::is_same_v<CharacterType, char16_t> ? 0xFF80FF80U : 0x80808080U;
+  } else {
+    static_assert(sizeof(MachineWord) == 8);
+    return std::is_same_v<CharacterType, char16_t> ? 0xFF80FF80FF80FF80ULL
+                                                   : 0x8080808080808080ULL;
+  }
+}
 
 }  // namespace
 
@@ -433,8 +428,7 @@ inline bool DoIsStringASCII(const Char* characters, size_t length) {
     ++characters;
   }
 
-  MachineWord non_ascii_bit_mask =
-      NonASCIIMask<sizeof(MachineWord), Char>::value();
+  MachineWord non_ascii_bit_mask = NonASCIIMask<Char>();
   return !(all_char_bits & non_ascii_bit_mask);
 }
 

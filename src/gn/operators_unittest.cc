@@ -82,12 +82,6 @@ class TestBinaryOpNode : public BinaryOpNode {
     list.list_value().push_back(value);
     set_right(std::make_unique<TestParseNode>(list));
   }
-  void SetRightToListOfValue(const Value& value1, const Value& value2) {
-    Value list(nullptr, Value::LIST);
-    list.list_value().push_back(value1);
-    list.list_value().push_back(value2);
-    set_right(std::make_unique<TestParseNode>(list));
-  }
 
  private:
   // The base class takes the Token by reference, this manages the lifetime.

@@ -105,7 +105,9 @@ struct TargetWriteInfo {
   std::unique_ptr<ResolvedTargetData> resolved =
       std::make_unique<ResolvedTargetData>();
 
+#ifndef ASAN_ENABLED
   void LeakOnPurpose() { (void)resolved.release(); }
+#endif
 };
 
 // Called on worker thread to write the ninja file.

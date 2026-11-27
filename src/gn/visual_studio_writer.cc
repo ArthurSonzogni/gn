@@ -46,7 +46,6 @@ struct SemicolonSeparatedWriter {
 struct IncludeDirWriter {
   explicit IncludeDirWriter(PathOutput& path_output)
       : path_output_(path_output) {}
-  ~IncludeDirWriter() = default;
 
   void operator()(const SourceDir& dir, StringOutputBuffer& out) const {
     path_output_.WriteDir(out, dir, PathOutput::DIR_NO_LAST_SLASH);
@@ -59,7 +58,6 @@ struct IncludeDirWriter {
 struct SourceFileWriter {
   SourceFileWriter(PathOutput& path_output, const SourceFile& source_file)
       : path_output_(path_output), source_file_(source_file) {}
-  ~SourceFileWriter() = default;
 
   void operator()(StringOutputBuffer& out) const {
     path_output_.WriteFile(out, source_file_);

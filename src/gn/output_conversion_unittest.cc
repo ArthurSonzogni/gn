@@ -22,7 +22,6 @@ class OutputConversionTest : public TestWithScheduler {
   OutputConversionTest() = default;
 
   const Settings* settings() { return setup_.settings(); }
-  Scope* scope() { return setup_.scope(); }
 
  private:
   TestWithScope setup_;

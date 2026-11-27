@@ -151,13 +151,6 @@ class Printer {
     kSequenceStyleBracedBlockAlreadyOpen,
   };
 
-  struct Metrics {
-    Metrics() : first_length(-1), longest_length(-1), multiline(false) {}
-    int first_length;
-    int longest_length;
-    bool multiline;
-  };
-
   // Add to output.
   void Print(std::string_view str);
 
