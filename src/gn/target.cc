@@ -538,8 +538,6 @@ Target::GeneratedFile& Target::generated_file() {
 // static
 const char* Target::GetStringForOutputType(OutputType type) {
   switch (type) {
-    case UNKNOWN:
-      return "unknown";
     case GROUP:
       return functions::kGroup;
     case EXECUTABLE:
@@ -586,7 +584,6 @@ bool Target::OnResolved(Err* err) {
 }
 
 bool Target::OnResolvedWithoutChecks(Err* err) {
-  DCHECK(output_type_ != UNKNOWN);
   DCHECK(toolchain_) << "Toolchain should have been set before resolving.";
 
   ScopedTrace trace(TraceItem::TRACE_ON_RESOLVED, label());
@@ -724,7 +721,6 @@ std::string Target::GetComputedOutputName() const {
 
 bool Target::SetToolchain(const Toolchain* toolchain, Err* err) {
   DCHECK(!toolchain_);
-  DCHECK_NE(UNKNOWN, output_type_);
   toolchain_ = toolchain;
 
   const Tool* tool = toolchain->GetToolForTargetFinalOutput(this);
@@ -1081,7 +1077,6 @@ bool Target::FillOutputFiles(Err* err) {
       }
       break;
     }
-    case UNKNOWN:
     default:
       NOTREACHED();
   }

@@ -45,8 +45,7 @@ using TargetSet = PointerSet<const Target>;
 class Target : public Item {
  public:
   enum OutputType {
-    UNKNOWN,
-    GROUP,
+    GROUP = 1,
     EXECUTABLE,
     SHARED_LIBRARY,
     LOADABLE_MODULE,
@@ -83,7 +82,7 @@ class Target : public Item {
   // to Scope for how this is determined.
   Target(const Settings* settings,
          const Label& label,
-         OutputType output_type = UNKNOWN,
+         OutputType output_type,
          const SourceFileSet& build_dependency_files = {});
   ~Target() override;
 
@@ -111,7 +110,6 @@ class Target : public Item {
   bool RunChecksAfterResolution(Err* err);
 
   OutputType output_type() const { return output_type_; }
-  void set_output_type(OutputType t) { output_type_ = t; }
 
   // True for targets that compile source code (all types of libraries and
   // executables).
@@ -567,7 +565,7 @@ class Target : public Item {
   void CheckSourcesGenerated() const;
   bool CheckSourceSetLanguages(Err* err) const;
 
-  OutputType output_type_ = UNKNOWN;
+  const OutputType output_type_;
   std::string output_name_;
   bool output_prefix_override_ = false;
   SourceDir output_dir_;
