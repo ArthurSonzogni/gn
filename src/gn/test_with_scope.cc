@@ -21,7 +21,7 @@ TestWithScope::TestWithScope(const base::FilePath& root_path,
 TestWithScope::TestWithScope(const base::FilePath* root_path,
                              SourceDir source_dir,
                              SourceDir build_dir)
-    : build_settings_(build_dir),
+    : build_settings_(std::move(build_dir)),
       settings_(&build_settings_, std::string()),
       toolchain_(&settings_, Label(SourceDir("//toolchain/"), "default")),
       scope_(&settings_),
