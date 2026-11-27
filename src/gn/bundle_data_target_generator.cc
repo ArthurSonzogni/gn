@@ -21,8 +21,6 @@ BundleDataTargetGenerator::BundleDataTargetGenerator(
 BundleDataTargetGenerator::~BundleDataTargetGenerator() = default;
 
 void BundleDataTargetGenerator::DoRun() {
-  target_->set_output_type(Target::BUNDLE_DATA);
-
   if (!FillSources())
     return;
   if (!FillOutputs())

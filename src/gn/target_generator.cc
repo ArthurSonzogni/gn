@@ -109,65 +109,70 @@ void TargetGenerator::GenerateTarget(Scope* scope,
   if (g_scheduler->verbose_logging())
     g_scheduler->Log("Defining target", label.GetUserVisibleName(true));
 
-  std::unique_ptr<Target> target =
-      std::make_unique<Target>(scope->settings(), label, Target::UNKNOWN,
-                               scope->CollectBuildDependencyFiles());
-  target->set_defined_from(function_call);
+  std::unique_ptr<Target> target;
+  auto make_target = [&](Target::OutputType type) {
+    target = std::make_unique<Target>(scope->settings(), label, type,
+                                      scope->CollectBuildDependencyFiles());
+    target->set_defined_from(function_call);
+    return target.get();
+  };
 
   // Create and call out to the proper generator.
   if (output_type == functions::kBundleData) {
-    BundleDataTargetGenerator generator(target.get(), scope, function_call,
-                                        err);
+    BundleDataTargetGenerator generator(make_target(Target::BUNDLE_DATA), scope,
+                                        function_call, err);
     generator.Run();
   } else if (output_type == functions::kCreateBundle) {
-    CreateBundleTargetGenerator generator(target.get(), scope, function_call,
-                                          err);
+    CreateBundleTargetGenerator generator(make_target(Target::CREATE_BUNDLE),
+                                          scope, function_call, err);
     generator.Run();
   } else if (output_type == functions::kCopy) {
-    CopyTargetGenerator generator(target.get(), scope, function_call, err);
+    CopyTargetGenerator generator(make_target(Target::COPY_FILES), scope,
+                                  function_call, err);
     generator.Run();
   } else if (output_type == functions::kAction) {
-    ActionTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::ACTION, err);
+    ActionTargetGenerator generator(make_target(Target::ACTION), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kActionForEach) {
-    ActionTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::ACTION_FOREACH, err);
+    ActionTargetGenerator generator(make_target(Target::ACTION_FOREACH), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kExecutable) {
-    BinaryTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::EXECUTABLE, err);
+    BinaryTargetGenerator generator(make_target(Target::EXECUTABLE), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kGroup) {
-    GroupTargetGenerator generator(target.get(), scope, function_call, err);
+    GroupTargetGenerator generator(make_target(Target::GROUP), scope,
+                                   function_call, err);
     generator.Run();
   } else if (output_type == functions::kLoadableModule) {
-    BinaryTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::LOADABLE_MODULE, err);
+    BinaryTargetGenerator generator(make_target(Target::LOADABLE_MODULE), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kSharedLibrary) {
-    BinaryTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::SHARED_LIBRARY, err);
+    BinaryTargetGenerator generator(make_target(Target::SHARED_LIBRARY), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kSourceSet) {
-    BinaryTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::SOURCE_SET, err);
+    BinaryTargetGenerator generator(make_target(Target::SOURCE_SET), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kStaticLibrary) {
-    BinaryTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::STATIC_LIBRARY, err);
+    BinaryTargetGenerator generator(make_target(Target::STATIC_LIBRARY), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kGeneratedFile) {
-    GeneratedFileTargetGenerator generator(target.get(), scope, function_call,
-                                           Target::GENERATED_FILE, err);
+    GeneratedFileTargetGenerator generator(make_target(Target::GENERATED_FILE),
+                                           scope, function_call, err);
     generator.Run();
   } else if (output_type == functions::kRustLibrary) {
-    BinaryTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::RUST_LIBRARY, err);
+    BinaryTargetGenerator generator(make_target(Target::RUST_LIBRARY), scope,
+                                    function_call, err);
     generator.Run();
   } else if (output_type == functions::kRustProcMacro) {
-    BinaryTargetGenerator generator(target.get(), scope, function_call,
-                                    Target::RUST_PROC_MACRO, err);
+    BinaryTargetGenerator generator(make_target(Target::RUST_PROC_MACRO), scope,
+                                    function_call, err);
     generator.Run();
   } else {
     *err = Err(function_call, "Not a known target type",

@@ -25,15 +25,12 @@ BinaryTargetGenerator::BinaryTargetGenerator(
     Target* target,
     Scope* scope,
     const FunctionCallNode* function_call,
-    Target::OutputType type,
     Err* err)
-    : TargetGenerator(target, scope, function_call, err), output_type_(type) {}
+    : TargetGenerator(target, scope, function_call, err) {}
 
 BinaryTargetGenerator::~BinaryTargetGenerator() = default;
 
 void BinaryTargetGenerator::DoRun() {
-  target_->set_output_type(output_type_);
-
   if (!FillOutputName())
     return;
 

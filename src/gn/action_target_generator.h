@@ -14,7 +14,6 @@ class ActionTargetGenerator : public TargetGenerator {
   ActionTargetGenerator(Target* target,
                         Scope* scope,
                         const FunctionCallNode* function_call,
-                        Target::OutputType type,
                         Err* err);
   ~ActionTargetGenerator() override;
 
@@ -32,8 +31,6 @@ class ActionTargetGenerator : public TargetGenerator {
 
   // Checks for errors in the outputs variable.
   bool CheckOutputs();
-
-  Target::OutputType output_type_;
 
   ActionTargetGenerator(const ActionTargetGenerator&) = delete;
   ActionTargetGenerator& operator=(const ActionTargetGenerator&) = delete;

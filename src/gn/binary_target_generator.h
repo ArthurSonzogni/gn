@@ -15,7 +15,6 @@ class BinaryTargetGenerator : public TargetGenerator {
   BinaryTargetGenerator(Target* target,
                         Scope* scope,
                         const FunctionCallNode* function_call,
-                        Target::OutputType type,
                         Err* err);
   ~BinaryTargetGenerator() override;
 
@@ -34,8 +33,6 @@ class BinaryTargetGenerator : public TargetGenerator {
   bool ValidateSources();
   bool FillModuleName();
   bool FillModuleType();
-
-  Target::OutputType output_type_;
 
   BinaryTargetGenerator(const BinaryTargetGenerator&) = delete;
   BinaryTargetGenerator& operator=(const BinaryTargetGenerator&) = delete;

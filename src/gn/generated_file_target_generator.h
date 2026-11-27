@@ -16,7 +16,6 @@ class GeneratedFileTargetGenerator : public TargetGenerator {
   GeneratedFileTargetGenerator(Target* target,
                                Scope* scope,
                                const FunctionCallNode* function_call,
-                               Target::OutputType type,
                                Err* err);
   ~GeneratedFileTargetGenerator() override;
 
@@ -45,8 +44,6 @@ class GeneratedFileTargetGenerator : public TargetGenerator {
 
   bool contents_defined_ = false;
   bool data_keys_defined_ = false;
-
-  Target::OutputType output_type_;
 
   GeneratedFileTargetGenerator(const GeneratedFileTargetGenerator&) = delete;
   GeneratedFileTargetGenerator& operator=(const GeneratedFileTargetGenerator&) =

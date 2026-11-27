@@ -15,15 +15,12 @@ GeneratedFileTargetGenerator::GeneratedFileTargetGenerator(
     Target* target,
     Scope* scope,
     const FunctionCallNode* function_call,
-    Target::OutputType type,
     Err* err)
-    : TargetGenerator(target, scope, function_call, err), output_type_(type) {}
+    : TargetGenerator(target, scope, function_call, err) {}
 
 GeneratedFileTargetGenerator::~GeneratedFileTargetGenerator() = default;
 
 void GeneratedFileTargetGenerator::DoRun() {
-  target_->set_output_type(output_type_);
-
   if (!FillOutputs(false))
     return;
   if (target_->action_values().outputs().list().size() != 1) {
