@@ -30,8 +30,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::SOURCE_SET);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//foo/input1.cc"));
   target.sources().push_back(SourceFile("//foo/input2.cc"));
@@ -74,8 +74,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
   }
 
   // A shared library that depends on the source set.
-  Target shlib_target(setup.settings(), Label(SourceDir("//foo/"), "shlib"));
-  shlib_target.set_output_type(Target::SHARED_LIBRARY);
+  Target shlib_target(setup.settings(), Label(SourceDir("//foo/"), "shlib"),
+                      Target::SHARED_LIBRARY);
   shlib_target.public_deps().push_back(LabelTargetPair(&target));
   shlib_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(shlib_target.OnResolved(&err));
@@ -110,8 +110,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSet) {
   }
 
   // A static library that depends on the source set (should not link it).
-  Target stlib_target(setup.settings(), Label(SourceDir("//foo/"), "stlib"));
-  stlib_target.set_output_type(Target::STATIC_LIBRARY);
+  Target stlib_target(setup.settings(), Label(SourceDir("//foo/"), "stlib"),
+                      Target::STATIC_LIBRARY);
   stlib_target.public_deps().push_back(LabelTargetPair(&target));
   stlib_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(stlib_target.OnResolved(&err));
@@ -188,8 +188,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputs) {
   config.own_values().c_additional_outputs() = std::move(patterns);
   ASSERT_TRUE(config.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::SOURCE_SET);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//foo/input1.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -242,8 +242,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, AdditionalOutputsSourceSet) {
   config.own_values().c_additional_outputs() = std::move(patterns);
   ASSERT_TRUE(config.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::SOURCE_SET);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//foo/input1.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -298,8 +298,8 @@ TEST_F(NinjaCBinaryTargetWriterTest,
   ASSERT_TRUE(config.OnResolved(&err));
 
   // Source set B (dependee)
-  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  target_b.set_output_type(Target::SOURCE_SET);
+  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"),
+                  Target::SOURCE_SET);
   target_b.sources().push_back(SourceFile("//foo/b.cc"));
   target_b.sources().push_back(SourceFile("//foo/b2.cc"));
   target_b.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -309,8 +309,8 @@ TEST_F(NinjaCBinaryTargetWriterTest,
   ASSERT_TRUE(target_b.OnResolved(&err)) << err.message();
 
   // Static library A (depender)
-  Target target_a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  target_a.set_output_type(Target::STATIC_LIBRARY);
+  Target target_a(setup.settings(), Label(SourceDir("//foo/"), "a"),
+                  Target::STATIC_LIBRARY);
   target_a.sources().push_back(SourceFile("//foo/a.cc"));
   target_a.source_types_used().Set(SourceFile::SOURCE_CPP);
   target_a.private_deps().push_back(LabelTargetPair(&target_b));
@@ -400,8 +400,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, GroupOrderOnlyDeps) {
   ASSERT_TRUE(config.OnResolved(&err));
 
   // Source set B (dependee)
-  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  target_b.set_output_type(Target::SOURCE_SET);
+  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"),
+                  Target::SOURCE_SET);
   target_b.sources().push_back(SourceFile("//foo/b.cc"));
   target_b.sources().push_back(SourceFile("//foo/b2.cc"));
   target_b.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -411,8 +411,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, GroupOrderOnlyDeps) {
   ASSERT_TRUE(target_b.OnResolved(&err)) << err.message();
 
   // Group E (depender)
-  Target target_e(setup.settings(), Label(SourceDir("//foo/"), "e"));
-  target_e.set_output_type(Target::GROUP);
+  Target target_e(setup.settings(), Label(SourceDir("//foo/"), "e"),
+                  Target::GROUP);
   target_e.visibility().SetPublic();
   target_e.private_deps().push_back(LabelTargetPair(&target_b));
   target_e.SetToolchain(setup.toolchain());
@@ -430,8 +430,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, GroupOrderOnlyDeps) {
   }
 
   // Static library F (depender on group E)
-  Target target_f(setup.settings(), Label(SourceDir("//foo/"), "f"));
-  target_f.set_output_type(Target::STATIC_LIBRARY);
+  Target target_f(setup.settings(), Label(SourceDir("//foo/"), "f"),
+                  Target::STATIC_LIBRARY);
   target_f.sources().push_back(SourceFile("//foo/f.cc"));
   target_f.source_types_used().Set(SourceFile::SOURCE_CPP);
   target_f.private_deps().push_back(LabelTargetPair(&target_e));
@@ -612,8 +612,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, CompleteStaticLibraryWithRustDep) {
   TestWithScope setup;
   Err err;
 
-  Target rust_lib(setup.settings(), setup.ParseLabel("//foo:rust_lib"));
-  rust_lib.set_output_type(Target::RUST_LIBRARY);
+  Target rust_lib(setup.settings(), setup.ParseLabel("//foo:rust_lib"),
+                  Target::RUST_LIBRARY);
   rust_lib.visibility().SetPublic();
   rust_lib.sources().push_back(SourceFile("//foo/lib.rs"));
   rust_lib.source_types_used().Set(SourceFile::SOURCE_RS);
@@ -663,8 +663,8 @@ TEST_F(NinjaCBinaryTargetWriterTest,
   TestWithScope setup;
   Err err;
 
-  Target rust_lib(setup.settings(), setup.ParseLabel("//foo:rust_lib"));
-  rust_lib.set_output_type(Target::RUST_LIBRARY);
+  Target rust_lib(setup.settings(), setup.ParseLabel("//foo:rust_lib"),
+                  Target::RUST_LIBRARY);
   rust_lib.visibility().SetPublic();
   rust_lib.sources().push_back(SourceFile("//foo/lib.rs"));
   rust_lib.source_types_used().Set(SourceFile::SOURCE_RS);
@@ -674,8 +674,8 @@ TEST_F(NinjaCBinaryTargetWriterTest,
   rust_lib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rust_lib.OnResolved(&err));
 
-  Target c_lib(setup.settings(), setup.ParseLabel("//foo:c_lib"));
-  c_lib.set_output_type(Target::STATIC_LIBRARY);
+  Target c_lib(setup.settings(), setup.ParseLabel("//foo:c_lib"),
+               Target::STATIC_LIBRARY);
   c_lib.visibility().SetPublic();
   c_lib.sources().push_back(SourceFile("//foo/lib.cc"));
   c_lib.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -728,15 +728,15 @@ TEST_F(NinjaCBinaryTargetWriterTest, OutputExtensionAndInputDeps) {
   TestWithScope setup;
 
   // An action for our library to depend on.
-  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"));
-  action.set_output_type(Target::ACTION_FOREACH);
+  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"),
+                Target::ACTION_FOREACH);
   action.visibility().SetPublic();
   action.SetToolchain(setup.toolchain());
   ASSERT_TRUE(action.OnResolved(&err));
 
   // A shared library w/ the output_extension set to a custom value.
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"));
-  target.set_output_type(Target::SHARED_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"),
+                Target::SHARED_LIBRARY);
   target.set_output_extension(std::string("so.6"));
   target.set_output_dir(SourceDir("//out/Debug/foo/"));
   target.sources().push_back(SourceFile("//foo/input1.cc"));
@@ -791,8 +791,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
   SourceFile generated_file("//out/Debug/generated.cc");
 
   // An action does code generation.
-  Target action(setup.settings(), Label(SourceDir("//foo/"), "generate"));
-  action.set_output_type(Target::ACTION);
+  Target action(setup.settings(), Label(SourceDir("//foo/"), "generate"),
+                Target::ACTION);
   action.visibility().SetPublic();
   action.SetToolchain(setup.toolchain());
   action.set_output_dir(SourceDir("//out/Debug/foo/"));
@@ -802,8 +802,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
 
   // A source set compiling generated code, this target does not publicize any
   // headers.
-  Target gen_obj(setup.settings(), Label(SourceDir("//foo/"), "gen_obj"));
-  gen_obj.set_output_type(Target::SOURCE_SET);
+  Target gen_obj(setup.settings(), Label(SourceDir("//foo/"), "gen_obj"),
+                 Target::SOURCE_SET);
   gen_obj.set_output_dir(SourceDir("//out/Debug/foo/"));
   gen_obj.sources().push_back(generated_file);
   gen_obj.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -844,8 +844,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
 
   // A shared library depends on gen_obj, having corresponding header for
   // generated obj.
-  Target gen_lib(setup.settings(), Label(SourceDir("//foo/"), "gen_lib"));
-  gen_lib.set_output_type(Target::SHARED_LIBRARY);
+  Target gen_lib(setup.settings(), Label(SourceDir("//foo/"), "gen_lib"),
+                 Target::SHARED_LIBRARY);
   gen_lib.set_output_dir(SourceDir("//out/Debug/foo/"));
   gen_lib.sources().push_back(SourceFile("//foor/generated.h"));
   gen_lib.source_types_used().Set(SourceFile::SOURCE_H);
@@ -884,8 +884,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, NoHardDepsToNoPublicHeaderTarget) {
 
   // An executable depends on gen_lib.
   Target executable(setup.settings(),
-                    Label(SourceDir("//foo/"), "final_target"));
-  executable.set_output_type(Target::EXECUTABLE);
+                    Label(SourceDir("//foo/"), "final_target"),
+                    Target::EXECUTABLE);
   executable.set_output_dir(SourceDir("//out/Debug/foo/"));
   executable.sources().push_back(SourceFile("//foo/main.cc"));
   executable.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -931,8 +931,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LibsAndLibDirs) {
   TestWithScope setup;
 
   // A shared library w/ libs and lib_dirs.
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"));
-  target.set_output_type(Target::SHARED_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"),
+                Target::SHARED_LIBRARY);
   target.config_values().libs().push_back(LibFile(SourceFile("//foo/lib1.a")));
   target.config_values().libs().push_back(
       LibFile(SourceFile("//sysroot/DIA SDK/diaguids.lib")));
@@ -977,8 +977,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   TestWithScope setup;
 
   // An action for our library to depend on.
-  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"));
-  action.set_output_type(Target::ACTION_FOREACH);
+  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"),
+                Target::ACTION_FOREACH);
   action.visibility().SetPublic();
   action.SetToolchain(setup.toolchain());
   ASSERT_TRUE(action.OnResolved(&err));
@@ -993,8 +993,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   ASSERT_TRUE(framework_config.OnResolved(&err));
 
   // A target creating a framework bundle.
-  Target framework(setup.settings(), Label(SourceDir("//bar"), "framework"));
-  framework.set_output_type(Target::CREATE_BUNDLE);
+  Target framework(setup.settings(), Label(SourceDir("//bar"), "framework"),
+                   Target::CREATE_BUNDLE);
   framework.bundle_data().product_type() = "com.apple.product-type.framework";
   framework.public_configs().push_back(LabelConfigPair(&framework_config));
   framework.private_deps().push_back(LabelTargetPair(&action));
@@ -1003,8 +1003,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   ASSERT_TRUE(framework.OnResolved(&err));
 
   // A shared library w/ libs and lib_dirs.
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"));
-  target.set_output_type(Target::SHARED_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"),
+                Target::SHARED_LIBRARY);
   target.config_values().frameworks().push_back("System.framework");
   target.config_values().weak_frameworks().push_back("Whizbang.framework");
   target.private_deps().push_back(LabelTargetPair(&framework));
@@ -1043,8 +1043,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, EmptyOutputExtension) {
   // This test is the same as OutputExtensionAndInputDeps, except that we call
   // set_output_extension("") and ensure that we get an empty one and override
   // the output prefix so that the name matches the target exactly.
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"));
-  target.set_output_type(Target::SHARED_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "shlib"),
+                Target::SHARED_LIBRARY);
   target.set_output_prefix_override(true);
   target.set_output_extension(std::string());
   target.sources().push_back(SourceFile("//foo/input1.cc"));
@@ -1092,15 +1092,15 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSetDataDeps) {
   TestWithScope setup;
 
   // This target is a data (runtime) dependency of the intermediate target.
-  Target data(setup.settings(), Label(SourceDir("//foo/"), "data_target"));
-  data.set_output_type(Target::EXECUTABLE);
+  Target data(setup.settings(), Label(SourceDir("//foo/"), "data_target"),
+              Target::EXECUTABLE);
   data.visibility().SetPublic();
   data.SetToolchain(setup.toolchain());
   ASSERT_TRUE(data.OnResolved(&err));
 
   // Intermediate source set target.
-  Target inter(setup.settings(), Label(SourceDir("//foo/"), "inter"));
-  inter.set_output_type(Target::SOURCE_SET);
+  Target inter(setup.settings(), Label(SourceDir("//foo/"), "inter"),
+               Target::SOURCE_SET);
   inter.visibility().SetPublic();
   inter.data_deps().push_back(LabelTargetPair(&data));
   inter.SetToolchain(setup.toolchain());
@@ -1136,8 +1136,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SourceSetDataDeps) {
   EXPECT_EQ(inter_expected, inter_out);
 
   // Final target.
-  Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"));
-  exe.set_output_type(Target::EXECUTABLE);
+  Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"),
+             Target::EXECUTABLE);
   exe.public_deps().push_back(LabelTargetPair(&inter));
   exe.SetToolchain(setup.toolchain());
   exe.sources().push_back(SourceFile("//foo/final.cc"));
@@ -1182,8 +1182,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SharedLibraryModuleDefinitionFile) {
   Err err;
   TestWithScope setup;
 
-  Target shared_lib(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  shared_lib.set_output_type(Target::SHARED_LIBRARY);
+  Target shared_lib(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                    Target::SHARED_LIBRARY);
   shared_lib.SetToolchain(setup.toolchain());
   shared_lib.sources().push_back(SourceFile("//foo/sources.cc"));
   shared_lib.sources().push_back(SourceFile("//foo/bar.def"));
@@ -1223,8 +1223,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LoadableModule) {
   Err err;
   TestWithScope setup;
 
-  Target loadable_module(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  loadable_module.set_output_type(Target::LOADABLE_MODULE);
+  Target loadable_module(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                         Target::LOADABLE_MODULE);
   loadable_module.visibility().SetPublic();
   loadable_module.SetToolchain(setup.toolchain());
   loadable_module.sources().push_back(SourceFile("//foo/sources.cc"));
@@ -1259,8 +1259,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LoadableModule) {
   EXPECT_EQ(loadable_expected, out);
 
   // Final target.
-  Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"));
-  exe.set_output_type(Target::EXECUTABLE);
+  Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"),
+             Target::EXECUTABLE);
   exe.public_deps().push_back(LabelTargetPair(&loadable_module));
   exe.SetToolchain(setup.toolchain());
   exe.sources().push_back(SourceFile("//foo/final.cc"));
@@ -1338,8 +1338,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, WinPrecompiledHeaders) {
   // This target doesn't specify precompiled headers.
   {
     Target no_pch_target(&pch_settings,
-                         Label(SourceDir("//foo/"), "no_pch_target"));
-    no_pch_target.set_output_type(Target::SOURCE_SET);
+                         Label(SourceDir("//foo/"), "no_pch_target"),
+                         Target::SOURCE_SET);
     no_pch_target.visibility().SetPublic();
     no_pch_target.sources().push_back(SourceFile("//foo/input1.cc"));
     no_pch_target.sources().push_back(SourceFile("//foo/input2.c"));
@@ -1380,11 +1380,11 @@ TEST_F(NinjaCBinaryTargetWriterTest, WinPrecompiledHeaders) {
 
   // This target specifies PCH.
   {
-    Target pch_target(&pch_settings, Label(SourceDir("//foo/"), "pch_target"));
+    Target pch_target(&pch_settings, Label(SourceDir("//foo/"), "pch_target"),
+                      Target::SOURCE_SET);
     pch_target.config_values().set_precompiled_header("build/precompile.h");
     pch_target.config_values().set_precompiled_source(
         SourceFile("//build/precompile.cc"));
-    pch_target.set_output_type(Target::SOURCE_SET);
     pch_target.visibility().SetPublic();
     pch_target.sources().push_back(SourceFile("//foo/input1.cc"));
     pch_target.sources().push_back(SourceFile("//foo/input2.c"));
@@ -1488,8 +1488,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, GCCPrecompiledHeaders) {
   // This target doesn't specify precompiled headers.
   {
     Target no_pch_target(&pch_settings,
-                         Label(SourceDir("//foo/"), "no_pch_target"));
-    no_pch_target.set_output_type(Target::SOURCE_SET);
+                         Label(SourceDir("//foo/"), "no_pch_target"),
+                         Target::SOURCE_SET);
     no_pch_target.visibility().SetPublic();
     no_pch_target.sources().push_back(SourceFile("//foo/input1.cc"));
     no_pch_target.sources().push_back(SourceFile("//foo/input2.c"));
@@ -1530,11 +1530,11 @@ TEST_F(NinjaCBinaryTargetWriterTest, GCCPrecompiledHeaders) {
 
   // This target specifies PCH.
   {
-    Target pch_target(&pch_settings, Label(SourceDir("//foo/"), "pch_target"));
+    Target pch_target(&pch_settings, Label(SourceDir("//foo/"), "pch_target"),
+                      Target::SOURCE_SET);
     pch_target.config_values().set_precompiled_source(
         SourceFile("//build/precompile.h"));
     pch_target.config_values().cflags_c().push_back("-std=c99");
-    pch_target.set_output_type(Target::SOURCE_SET);
     pch_target.visibility().SetPublic();
     pch_target.sources().push_back(SourceFile("//foo/input1.cc"));
     pch_target.sources().push_back(SourceFile("//foo/input2.c"));
@@ -1624,8 +1624,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
 
   // This target has one input.
   {
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::SOURCE_SET);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::SOURCE_SET);
     target.visibility().SetPublic();
     target.sources().push_back(SourceFile("//foo/input1.cc"));
     target.sources().push_back(SourceFile("//foo/input2.cc"));
@@ -1666,8 +1666,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
 
   // This target has one input but no source files.
   {
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::SHARED_LIBRARY);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::SHARED_LIBRARY);
     target.visibility().SetPublic();
     target.config_values().inputs().push_back(SourceFile("//foo/input.data"));
     target.SetToolchain(setup.toolchain());
@@ -1699,8 +1699,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
 
   // This target has multiple inputs.
   {
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::SOURCE_SET);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::SOURCE_SET);
     target.visibility().SetPublic();
     target.sources().push_back(SourceFile("//foo/input1.cc"));
     target.sources().push_back(SourceFile("//foo/input2.cc"));
@@ -1757,8 +1757,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, InputFiles) {
     config.configs().push_back(LabelConfigPair(&far_config));
     ASSERT_TRUE(config.OnResolved(&err));
 
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::SOURCE_SET);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::SOURCE_SET);
     target.visibility().SetPublic();
     target.sources().push_back(SourceFile("//foo/input1.cc"));
     target.sources().push_back(SourceFile("//foo/input2.cc"));
@@ -1806,8 +1806,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustStaticLib) {
   Err err;
   TestWithScope setup;
 
-  Target library_target(setup.settings(), Label(SourceDir("//foo/"), "foo"));
-  library_target.set_output_type(Target::STATIC_LIBRARY);
+  Target library_target(setup.settings(), Label(SourceDir("//foo/"), "foo"),
+                        Target::STATIC_LIBRARY);
   library_target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   library_target.sources().push_back(lib);
@@ -1817,8 +1817,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustStaticLib) {
   library_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(library_target.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//bar/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//bar/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//bar/bar.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -1864,8 +1864,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   // static lib.
   Target priv_sset_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//priv_sset_in_staticlib/"), "priv_sset_in_staticlib"));
-  priv_sset_in_staticlib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//priv_sset_in_staticlib/"), "priv_sset_in_staticlib"),
+      Target::SOURCE_SET);
   priv_sset_in_staticlib.visibility().SetPublic();
   priv_sset_in_staticlib.sources().push_back(
       SourceFile("//priv_sset_in_staticlib/lib.cc"));
@@ -1877,8 +1877,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   // static lib.
   Target pub_sset_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//pub_sset_in_staticlib/"), "pub_sset_in_staticlib"));
-  pub_sset_in_staticlib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//pub_sset_in_staticlib/"), "pub_sset_in_staticlib"),
+      Target::SOURCE_SET);
   pub_sset_in_staticlib.visibility().SetPublic();
   pub_sset_in_staticlib.sources().push_back(
       SourceFile("//pub_sset_in_staticlib/lib.cc"));
@@ -1890,8 +1890,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   // shared lib.
   Target priv_sset_in_dylib(
       setup.settings(),
-      Label(SourceDir("//priv_sset_in_dylib/"), "priv_sset_in_dylib"));
-  priv_sset_in_dylib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//priv_sset_in_dylib/"), "priv_sset_in_dylib"),
+      Target::SOURCE_SET);
   priv_sset_in_dylib.visibility().SetPublic();
   priv_sset_in_dylib.sources().push_back(
       SourceFile("//priv_sset_in_dylib/lib.cc"));
@@ -1903,8 +1903,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   // shared lib.
   Target pub_sset_in_dylib(
       setup.settings(),
-      Label(SourceDir("//pub_sset_in_dylib"), "pub_sset_in_dylib"));
-  pub_sset_in_dylib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//pub_sset_in_dylib"), "pub_sset_in_dylib"),
+      Target::SOURCE_SET);
   pub_sset_in_dylib.visibility().SetPublic();
   pub_sset_in_dylib.sources().push_back(
       SourceFile("//pub_sset_in_dylib/lib.cc"));
@@ -1914,8 +1914,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
 
   Target priv_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//priv_in_staticlib/"), "priv_in_staticlib"));
-  priv_in_staticlib.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//priv_in_staticlib/"), "priv_in_staticlib"),
+      Target::RUST_LIBRARY);
   priv_in_staticlib.visibility().SetPublic();
   SourceFile priv_in_staticlib_root("//priv_in_staticlib/lib.rs");
   priv_in_staticlib.sources().push_back(priv_in_staticlib_root);
@@ -1929,8 +1929,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
 
   Target pub_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//pub_in_staticlib/"), "pub_in_staticlib"));
-  pub_in_staticlib.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//pub_in_staticlib/"), "pub_in_staticlib"),
+      Target::RUST_LIBRARY);
   pub_in_staticlib.visibility().SetPublic();
   SourceFile pub_in_staticlib_root("//pub_in_staticlib/lib.rs");
   pub_in_staticlib.sources().push_back(pub_in_staticlib_root);
@@ -1943,8 +1943,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   ASSERT_TRUE(pub_in_staticlib.OnResolved(&err));
 
   Target priv_in_dylib(setup.settings(),
-                       Label(SourceDir("//priv_in_dylib/"), "priv_in_dylib"));
-  priv_in_dylib.set_output_type(Target::RUST_LIBRARY);
+                       Label(SourceDir("//priv_in_dylib/"), "priv_in_dylib"),
+                       Target::RUST_LIBRARY);
   priv_in_dylib.visibility().SetPublic();
   SourceFile priv_in_dylib_root("//priv_in_dylib/lib.rs");
   priv_in_dylib.sources().push_back(priv_in_dylib_root);
@@ -1956,8 +1956,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   ASSERT_TRUE(priv_in_dylib.OnResolved(&err));
 
   Target pub_in_dylib(setup.settings(),
-                      Label(SourceDir("//pub_in_dylib/"), "pub_in_dylib"));
-  pub_in_dylib.set_output_type(Target::RUST_LIBRARY);
+                      Label(SourceDir("//pub_in_dylib/"), "pub_in_dylib"),
+                      Target::RUST_LIBRARY);
   pub_in_dylib.visibility().SetPublic();
   SourceFile pub_in_dylib_root("//pub_in_dylib/lib.rs");
   pub_in_dylib.sources().push_back(pub_in_dylib_root);
@@ -1969,8 +1969,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   ASSERT_TRUE(pub_in_dylib.OnResolved(&err));
 
   Target staticlib(setup.settings(),
-                   Label(SourceDir("//staticlib/"), "staticlib"));
-  staticlib.set_output_type(Target::STATIC_LIBRARY);
+                   Label(SourceDir("//staticlib/"), "staticlib"),
+                   Target::STATIC_LIBRARY);
   staticlib.visibility().SetPublic();
   staticlib.sources().push_back(SourceFile("//staticlib/lib.cc"));
   staticlib.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -1979,8 +1979,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   staticlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(staticlib.OnResolved(&err));
 
-  Target dylib(setup.settings(), Label(SourceDir("//dylib/"), "dylib"));
-  dylib.set_output_type(Target::SHARED_LIBRARY);
+  Target dylib(setup.settings(), Label(SourceDir("//dylib/"), "dylib"),
+               Target::SHARED_LIBRARY);
   dylib.visibility().SetPublic();
   SourceFile dylib_root("//dylib/lib.rs");
   dylib.sources().push_back(dylib_root);
@@ -1992,8 +1992,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibInLibrary) {
   dylib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dylib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//exe/"), "exe"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//exe/"), "exe"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//exe/main.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2048,8 +2048,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
 
   Target pub_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//pub_in_staticlib/"), "pub_in_staticlib"));
-  pub_in_staticlib.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//pub_in_staticlib/"), "pub_in_staticlib"),
+      Target::RUST_LIBRARY);
   pub_in_staticlib.visibility().SetPublic();
   SourceFile pub_in_staticlib_root("//pub_in_staticlib/lib.rs");
   pub_in_staticlib.sources().push_back(pub_in_staticlib_root);
@@ -2061,8 +2061,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
 
   Target priv_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//priv_in_staticlib/"), "priv_in_staticlib"));
-  priv_in_staticlib.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//priv_in_staticlib/"), "priv_in_staticlib"),
+      Target::RUST_LIBRARY);
   priv_in_staticlib.visibility().SetPublic();
   SourceFile priv_in_staticlib_root("//priv_in_staticlib/lib.rs");
   priv_in_staticlib.sources().push_back(priv_in_staticlib_root);
@@ -2073,8 +2073,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
   ASSERT_TRUE(priv_in_staticlib.OnResolved(&err));
 
   Target staticlib(setup.settings(),
-                   Label(SourceDir("//staticlib/"), "staticlib"));
-  staticlib.set_output_type(Target::STATIC_LIBRARY);
+                   Label(SourceDir("//staticlib/"), "staticlib"),
+                   Target::STATIC_LIBRARY);
   staticlib.visibility().SetPublic();
   staticlib.sources().push_back(SourceFile("//staticlib/lib.cc"));
   staticlib.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2085,8 +2085,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
 
   Target priv_in_procmacro(
       setup.settings(),
-      Label(SourceDir("//priv_in_procmacro/"), "priv_in_procmacro"));
-  priv_in_procmacro.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//priv_in_procmacro/"), "priv_in_procmacro"),
+      Target::RUST_LIBRARY);
   priv_in_procmacro.visibility().SetPublic();
   SourceFile priv_in_procmacro_root("//priv_in_procmacro/lib.rs");
   priv_in_procmacro.sources().push_back(priv_in_procmacro_root);
@@ -2100,8 +2100,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
   // compiled into targets that depend on it.
   Target pub_in_procmacro(
       setup.settings(),
-      Label(SourceDir("//pub_in_procmacro/"), "pub_in_procmacro"));
-  pub_in_procmacro.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//pub_in_procmacro/"), "pub_in_procmacro"),
+      Target::RUST_LIBRARY);
   pub_in_procmacro.visibility().SetPublic();
   SourceFile pub_in_procmacro_root("//pub_in_procmacro/lib.rs");
   pub_in_procmacro.sources().push_back(pub_in_procmacro_root);
@@ -2112,9 +2112,10 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
   ASSERT_TRUE(pub_in_procmacro.OnResolved(&err));
 
   Target pub_in_procmacro_and_rlib(
-      setup.settings(), Label(SourceDir("//pub_in_procmacro_and_rlib/"),
-                              "pub_in_procmacro_and_rlib"));
-  pub_in_procmacro_and_rlib.set_output_type(Target::RUST_LIBRARY);
+      setup.settings(),
+      Label(SourceDir("//pub_in_procmacro_and_rlib/"),
+            "pub_in_procmacro_and_rlib"),
+      Target::RUST_LIBRARY);
   pub_in_procmacro_and_rlib.visibility().SetPublic();
   SourceFile pub_in_procmacro_and_rlib_root(
       "//pub_in_procmacro_and_rlib/lib.rs");
@@ -2127,8 +2128,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
   ASSERT_TRUE(pub_in_procmacro_and_rlib.OnResolved(&err));
 
   Target procmacro(setup.settings(),
-                   Label(SourceDir("//procmacro/"), "procmacro"));
-  procmacro.set_output_type(Target::RUST_PROC_MACRO);
+                   Label(SourceDir("//procmacro/"), "procmacro"),
+                   Target::RUST_PROC_MACRO);
   procmacro.visibility().SetPublic();
   SourceFile procmacrolib("//procmacro/lib.rs");
   procmacro.sources().push_back(procmacrolib);
@@ -2142,8 +2143,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
   procmacro.SetToolchain(setup.toolchain());
   ASSERT_TRUE(procmacro.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//rlib/"), "rlib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//rlib/"), "rlib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile rlib_root("//rlib/lib.rs");
   rlib.sources().push_back(rlib_root);
@@ -2157,8 +2158,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RlibsWithProcMacros) {
   rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//exe/"), "exe"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//exe/"), "exe"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//exe/main.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2210,8 +2211,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, ProcMacroInRustStaticLib) {
   Err err;
   TestWithScope setup;
 
-  Target procmacro(setup.settings(), Label(SourceDir("//baz/"), "macro"));
-  procmacro.set_output_type(Target::LOADABLE_MODULE);
+  Target procmacro(setup.settings(), Label(SourceDir("//baz/"), "macro"),
+                   Target::LOADABLE_MODULE);
   procmacro.visibility().SetPublic();
   SourceFile bazlib("//baz/lib.rs");
   procmacro.sources().push_back(bazlib);
@@ -2222,8 +2223,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, ProcMacroInRustStaticLib) {
   procmacro.SetToolchain(setup.toolchain());
   ASSERT_TRUE(procmacro.OnResolved(&err));
 
-  Target library_target(setup.settings(), Label(SourceDir("//foo/"), "foo"));
-  library_target.set_output_type(Target::STATIC_LIBRARY);
+  Target library_target(setup.settings(), Label(SourceDir("//foo/"), "foo"),
+                        Target::STATIC_LIBRARY);
   library_target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   library_target.sources().push_back(lib);
@@ -2234,8 +2235,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, ProcMacroInRustStaticLib) {
   library_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(library_target.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//bar/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//bar/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//bar/bar.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2276,8 +2277,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
   Err err;
   TestWithScope setup;
 
-  Target rlib3(setup.settings(), Label(SourceDir("//baz/"), "baz"));
-  rlib3.set_output_type(Target::RUST_LIBRARY);
+  Target rlib3(setup.settings(), Label(SourceDir("//baz/"), "baz"),
+               Target::RUST_LIBRARY);
   rlib3.visibility().SetPublic();
   SourceFile lib3("//baz/lib.rs");
   rlib3.sources().push_back(lib3);
@@ -2287,8 +2288,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
   rlib3.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib3.OnResolved(&err));
 
-  Target rlib2(setup.settings(), Label(SourceDir("//bar/"), "bar"));
-  rlib2.set_output_type(Target::RUST_LIBRARY);
+  Target rlib2(setup.settings(), Label(SourceDir("//bar/"), "bar"),
+               Target::RUST_LIBRARY);
   rlib2.visibility().SetPublic();
   SourceFile lib2("//bar/lib.rs");
   rlib2.sources().push_back(lib2);
@@ -2298,8 +2299,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
   rlib2.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib2.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "foo"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "foo"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   rlib.sources().push_back(lib);
@@ -2310,8 +2311,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
   rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target cdylib(setup.settings(), Label(SourceDir("//sh/"), "mylib"));
-  cdylib.set_output_type(Target::SHARED_LIBRARY);
+  Target cdylib(setup.settings(), Label(SourceDir("//sh/"), "mylib"),
+                Target::SHARED_LIBRARY);
   cdylib.visibility().SetPublic();
   SourceFile barlib("//sh/lib.rs");
   cdylib.sources().push_back(barlib);
@@ -2324,8 +2325,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
   cdylib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(cdylib.OnResolved(&err));
 
-  Target nearrlib(setup.settings(), Label(SourceDir("//near/"), "near"));
-  nearrlib.set_output_type(Target::RUST_LIBRARY);
+  Target nearrlib(setup.settings(), Label(SourceDir("//near/"), "near"),
+                  Target::RUST_LIBRARY);
   nearrlib.visibility().SetPublic();
   SourceFile nearlib("//near/lib.rs");
   nearrlib.sources().push_back(nearlib);
@@ -2336,8 +2337,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustDepsOverDynamicLinking) {
   nearrlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(nearrlib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//exe/main.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2381,8 +2382,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
   TestWithScope setup;
 
   // A non-rust shared library.
-  Target cc_shlib(setup.settings(), Label(SourceDir("//cc_shlib"), "cc_shlib"));
-  cc_shlib.set_output_type(Target::SHARED_LIBRARY);
+  Target cc_shlib(setup.settings(), Label(SourceDir("//cc_shlib"), "cc_shlib"),
+                  Target::SHARED_LIBRARY);
   cc_shlib.set_output_name("cc_shlib");
   cc_shlib.SetToolchain(setup.toolchain());
   cc_shlib.visibility().SetPublic();
@@ -2390,8 +2391,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
 
   // A Rust CDYLIB shared library that will be in deps.
   Target rust_shlib(setup.settings(),
-                    Label(SourceDir("//rust_shlib/"), "rust_shlib"));
-  rust_shlib.set_output_type(Target::SHARED_LIBRARY);
+                    Label(SourceDir("//rust_shlib/"), "rust_shlib"),
+                    Target::SHARED_LIBRARY);
   rust_shlib.visibility().SetPublic();
   SourceFile rust_shlib_rs("//rust_shlib/lib.rs");
   rust_shlib.sources().push_back(rust_shlib_rs);
@@ -2403,9 +2404,9 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
   ASSERT_TRUE(rust_shlib.OnResolved(&err));
 
   // A Rust DYLIB shared library that will be in public_deps.
-  Target pub_rust_shlib(setup.settings(), Label(SourceDir("//pub_rust_shlib/"),
-                                                "pub_rust_shlib"));
-  pub_rust_shlib.set_output_type(Target::SHARED_LIBRARY);
+  Target pub_rust_shlib(setup.settings(),
+                        Label(SourceDir("//pub_rust_shlib/"), "pub_rust_shlib"),
+                        Target::SHARED_LIBRARY);
   pub_rust_shlib.visibility().SetPublic();
   SourceFile pub_rust_shlib_rs("//pub_rust_shlib/lib.rs");
   pub_rust_shlib.sources().push_back(pub_rust_shlib_rs);
@@ -2417,8 +2418,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
   ASSERT_TRUE(pub_rust_shlib.OnResolved(&err));
 
   // An rlib that depends on both shared libraries.
-  Target rlib(setup.settings(), Label(SourceDir("//rlib/"), "rlib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//rlib/"), "rlib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile rlib_rs("//rlib/lib.rs");
   rlib.sources().push_back(rlib_rs);
@@ -2431,8 +2432,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnCdylib) {
   rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//exe/main.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2478,8 +2479,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
   TestWithScope setup;
 
   // A non-rust shared library.
-  Target cc_shlib(setup.settings(), Label(SourceDir("//cc_shlib"), "cc_shlib"));
-  cc_shlib.set_output_type(Target::SHARED_LIBRARY);
+  Target cc_shlib(setup.settings(), Label(SourceDir("//cc_shlib"), "cc_shlib"),
+                  Target::SHARED_LIBRARY);
   cc_shlib.set_output_name("cc_shlib");
   cc_shlib.SetToolchain(setup.toolchain());
   cc_shlib.visibility().SetPublic();
@@ -2487,8 +2488,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
 
   // A Rust DYLIB shared library that will be in deps.
   Target rust_shlib(setup.settings(),
-                    Label(SourceDir("//rust_shlib/"), "rust_shlib"));
-  rust_shlib.set_output_type(Target::SHARED_LIBRARY);
+                    Label(SourceDir("//rust_shlib/"), "rust_shlib"),
+                    Target::SHARED_LIBRARY);
   rust_shlib.visibility().SetPublic();
   SourceFile rust_shlib_rs("//rust_shlib/lib.rs");
   rust_shlib.sources().push_back(rust_shlib_rs);
@@ -2500,9 +2501,9 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
   ASSERT_TRUE(rust_shlib.OnResolved(&err));
 
   // A Rust DYLIB shared library that will be in public_deps.
-  Target pub_rust_shlib(setup.settings(), Label(SourceDir("//pub_rust_shlib/"),
-                                                "pub_rust_shlib"));
-  pub_rust_shlib.set_output_type(Target::SHARED_LIBRARY);
+  Target pub_rust_shlib(setup.settings(),
+                        Label(SourceDir("//pub_rust_shlib/"), "pub_rust_shlib"),
+                        Target::SHARED_LIBRARY);
   pub_rust_shlib.visibility().SetPublic();
   SourceFile pub_rust_shlib_rs("//pub_rust_shlib/lib.rs");
   pub_rust_shlib.sources().push_back(pub_rust_shlib_rs);
@@ -2514,8 +2515,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
   ASSERT_TRUE(pub_rust_shlib.OnResolved(&err));
 
   // An rlib that depends on both shared libraries.
-  Target rlib(setup.settings(), Label(SourceDir("//rlib/"), "rlib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//rlib/"), "rlib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile rlib_rs("//rlib/lib.rs");
   rlib.sources().push_back(rlib_rs);
@@ -2528,8 +2529,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, LinkingWithRustLibraryDepsOnDylib) {
   rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//exe/main.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2576,27 +2577,24 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustLibAfterSharedLib) {
   Err err;
   TestWithScope setup;
 
-  Target static1(setup.settings(),
-                 Label(SourceDir("//static1/"), "staticlib1"));
-  static1.set_output_type(Target::STATIC_LIBRARY);
+  Target static1(setup.settings(), Label(SourceDir("//static1/"), "staticlib1"),
+                 Target::STATIC_LIBRARY);
   static1.visibility().SetPublic();
   static1.sources().push_back(SourceFile("//static1/c.cc"));
   static1.source_types_used().Set(SourceFile::SOURCE_CPP);
   static1.SetToolchain(setup.toolchain());
   ASSERT_TRUE(static1.OnResolved(&err));
 
-  Target static2(setup.settings(),
-                 Label(SourceDir("//static2/"), "staticlib2"));
-  static2.set_output_type(Target::STATIC_LIBRARY);
+  Target static2(setup.settings(), Label(SourceDir("//static2/"), "staticlib2"),
+                 Target::STATIC_LIBRARY);
   static2.visibility().SetPublic();
   static2.sources().push_back(SourceFile("//static2/c.cc"));
   static2.source_types_used().Set(SourceFile::SOURCE_CPP);
   static2.SetToolchain(setup.toolchain());
   ASSERT_TRUE(static2.OnResolved(&err));
 
-  Target static3(setup.settings(),
-                 Label(SourceDir("//static3/"), "staticlib3"));
-  static3.set_output_type(Target::STATIC_LIBRARY);
+  Target static3(setup.settings(), Label(SourceDir("//static3/"), "staticlib3"),
+                 Target::STATIC_LIBRARY);
   static3.visibility().SetPublic();
   static3.sources().push_back(SourceFile("//static3/c.cc"));
   static3.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2604,8 +2602,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustLibAfterSharedLib) {
   ASSERT_TRUE(static3.OnResolved(&err));
 
   Target shared1(setup.settings(),
-                 Label(SourceDir("//shared1"), "mysharedlib1"));
-  shared1.set_output_type(Target::SHARED_LIBRARY);
+                 Label(SourceDir("//shared1"), "mysharedlib1"),
+                 Target::SHARED_LIBRARY);
   shared1.set_output_name("mysharedlib1");
   shared1.set_output_prefix_override("");
   shared1.SetToolchain(setup.toolchain());
@@ -2613,8 +2611,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustLibAfterSharedLib) {
   shared1.private_deps().push_back(LabelTargetPair(&static1));
   ASSERT_TRUE(shared1.OnResolved(&err));
 
-  Target rlib2(setup.settings(), Label(SourceDir("//rlib2/"), "myrlib2"));
-  rlib2.set_output_type(Target::RUST_LIBRARY);
+  Target rlib2(setup.settings(), Label(SourceDir("//rlib2/"), "myrlib2"),
+               Target::RUST_LIBRARY);
   rlib2.visibility().SetPublic();
   SourceFile lib2("//rlib2/lib.rs");
   rlib2.sources().push_back(lib2);
@@ -2626,8 +2624,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustLibAfterSharedLib) {
   ASSERT_TRUE(rlib2.OnResolved(&err));
 
   Target shared3(setup.settings(),
-                 Label(SourceDir("//shared3"), "mysharedlib3"));
-  shared3.set_output_type(Target::SHARED_LIBRARY);
+                 Label(SourceDir("//shared3"), "mysharedlib3"),
+                 Target::SHARED_LIBRARY);
   shared3.set_output_name("mysharedlib3");
   shared3.set_output_prefix_override("");
   shared3.SetToolchain(setup.toolchain());
@@ -2635,8 +2633,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, RustLibAfterSharedLib) {
   shared3.private_deps().push_back(LabelTargetPair(&static3));
   ASSERT_TRUE(shared3.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//exe/"), "binary"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//exe/main.cc"));
   target.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2770,8 +2768,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
   TestWithScope setup;
 
   // A single Swift module.
-  Target foo_target(setup.settings(), Label(SourceDir("//foo/"), "foo"));
-  foo_target.set_output_type(Target::SOURCE_SET);
+  Target foo_target(setup.settings(), Label(SourceDir("//foo/"), "foo"),
+                    Target::SOURCE_SET);
   foo_target.visibility().SetPublic();
   foo_target.sources().push_back(SourceFile("//foo/file1.swift"));
   foo_target.sources().push_back(SourceFile("//foo/file2.swift"));
@@ -2808,8 +2806,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
 
   // Swift module_dirs correctly set if dependency between Swift modules.
   {
-    Target bar_target(setup.settings(), Label(SourceDir("//bar/"), "bar"));
-    bar_target.set_output_type(Target::SOURCE_SET);
+    Target bar_target(setup.settings(), Label(SourceDir("//bar/"), "bar"),
+                      Target::SOURCE_SET);
     bar_target.visibility().SetPublic();
     bar_target.sources().push_back(SourceFile("//bar/bar.swift"));
     bar_target.source_types_used().Set(SourceFile::SOURCE_SWIFT);
@@ -2847,15 +2845,15 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
   // Swift module_dirs correctly set if dependency between Swift modules,
   // even if the dependency is indirect (via public_deps).
   {
-    Target group(setup.settings(), Label(SourceDir("//bar/"), "group"));
-    group.set_output_type(Target::GROUP);
+    Target group(setup.settings(), Label(SourceDir("//bar/"), "group"),
+                 Target::GROUP);
     group.visibility().SetPublic();
     group.public_deps().push_back(LabelTargetPair(&foo_target));
     group.SetToolchain(setup.toolchain());
     ASSERT_TRUE(group.OnResolved(&err));
 
-    Target bar_target(setup.settings(), Label(SourceDir("//bar/"), "bar"));
-    bar_target.set_output_type(Target::SOURCE_SET);
+    Target bar_target(setup.settings(), Label(SourceDir("//bar/"), "bar"),
+                      Target::SOURCE_SET);
     bar_target.visibility().SetPublic();
     bar_target.sources().push_back(SourceFile("//bar/bar.swift"));
     bar_target.source_types_used().Set(SourceFile::SOURCE_SWIFT);
@@ -2892,8 +2890,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SwiftModule) {
 
   // C target links with module.
   {
-    Target bar_target(setup.settings(), Label(SourceDir("//bar/"), "bar"));
-    bar_target.set_output_type(Target::EXECUTABLE);
+    Target bar_target(setup.settings(), Label(SourceDir("//bar/"), "bar"),
+                      Target::EXECUTABLE);
     bar_target.visibility().SetPublic();
     bar_target.private_deps().push_back(LabelTargetPair(&foo_target));
     bar_target.SetToolchain(setup.toolchain());
@@ -2984,8 +2982,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, DependOnModule) {
 
   module_toolchain.ToolchainSetupComplete();
 
-  Target target(&module_settings, Label(SourceDir("//blah/"), "a"));
-  target.set_output_type(Target::STATIC_LIBRARY);
+  Target target(&module_settings, Label(SourceDir("//blah/"), "a"),
+                Target::STATIC_LIBRARY);
   target.set_module_name("blah_a");
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//blah/a.modulemap"));
@@ -3030,10 +3028,11 @@ build obj/blah/liba.a: alink obj/blah/liba.a.o
     EXPECT_EQ(expected, out);
   }
 
-  Target target2(&module_settings, Label(SourceDir("//stuff/"), "b",
-                                         setup.toolchain()->label().dir(),
-                                         setup.toolchain()->label().name()));
-  target2.set_output_type(Target::STATIC_LIBRARY);
+  Target target2(
+      &module_settings,
+      Label(SourceDir("//stuff/"), "b", setup.toolchain()->label().dir(),
+            setup.toolchain()->label().name()),
+      Target::STATIC_LIBRARY);
   target2.visibility().SetPublic();
   target2.sources().push_back(SourceFile("//stuff/b.modulemap"));
   target2.sources().push_back(SourceFile("//stuff/b.cc"));
@@ -3078,10 +3077,11 @@ build obj/stuff/libb.a: alink obj/stuff/libb.b.o || obj/blah/liba.a
     EXPECT_EQ(expected, out);
   }
 
-  Target target3(&module_settings, Label(SourceDir("//things/"), "c",
-                                         module_toolchain.label().dir(),
-                                         module_toolchain.label().name()));
-  target3.set_output_type(Target::STATIC_LIBRARY);
+  Target target3(
+      &module_settings,
+      Label(SourceDir("//things/"), "c", module_toolchain.label().dir(),
+            module_toolchain.label().name()),
+      Target::STATIC_LIBRARY);
   target3.visibility().SetPublic();
   target3.sources().push_back(SourceFile("//stuff/c.modulemap"));
   target3.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
@@ -3121,10 +3121,11 @@ build obj/things/libc.a: alink || obj/stuff/libb.a
     EXPECT_EQ(expected, out);
   }
 
-  Target depender(&module_settings, Label(SourceDir("//zap/"), "c",
-                                          setup.toolchain()->label().dir(),
-                                          setup.toolchain()->label().name()));
-  depender.set_output_type(Target::EXECUTABLE);
+  Target depender(
+      &module_settings,
+      Label(SourceDir("//zap/"), "c", setup.toolchain()->label().dir(),
+            setup.toolchain()->label().name()),
+      Target::EXECUTABLE);
   depender.sources().push_back(SourceFile("//zap/x.cc"));
   depender.sources().push_back(SourceFile("//zap/y.cc"));
   depender.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -3179,8 +3180,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, SolibsEscaping) {
 
   // Create a shared library with a space in the output name.
   Target shared_lib(setup.settings(),
-                    Label(SourceDir("//rocket"), "space_cadet"));
-  shared_lib.set_output_type(Target::SHARED_LIBRARY);
+                    Label(SourceDir("//rocket"), "space_cadet"),
+                    Target::SHARED_LIBRARY);
   shared_lib.set_output_name("Space Cadet");
   shared_lib.set_output_prefix_override("");
   shared_lib.SetToolchain(&toolchain_with_toc);
@@ -3188,9 +3189,9 @@ TEST_F(NinjaCBinaryTargetWriterTest, SolibsEscaping) {
   ASSERT_TRUE(shared_lib.OnResolved(&err));
 
   // Set up an executable to depend on it.
-  Target target(setup.settings(), Label(SourceDir("//launchpad"), "main"));
+  Target target(setup.settings(), Label(SourceDir("//launchpad"), "main"),
+                Target::EXECUTABLE);
   target.sources().push_back(SourceFile("//launchpad/main.cc"));
-  target.set_output_type(Target::EXECUTABLE);
   target.private_deps().push_back(LabelTargetPair(&shared_lib));
   target.SetToolchain(&toolchain_with_toc);
   ASSERT_TRUE(target.OnResolved(&err));
@@ -3236,9 +3237,9 @@ TEST_F(NinjaCBinaryTargetWriterTest, Pool) {
                   setup.toolchain()->label().name()));
   pool.set_depth(42);
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.sources().push_back(SourceFile("//foo/source.cc"));
-  target.set_output_type(Target::EXECUTABLE);
   target.set_pool(LabelPtrPair<Pool>(&pool));
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
@@ -3302,9 +3303,9 @@ TEST_F(NinjaCBinaryTargetWriterTest, ToolInputs) {
 
   toolchain_with_inputs.ToolchainSetupComplete();
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.sources().push_back(SourceFile("//foo/source.cc"));
-  target.set_output_type(Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.SetToolchain(&toolchain_with_inputs);
   ASSERT_TRUE(target.OnResolved(&err));
@@ -3368,10 +3369,11 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   module_toolchain.ToolchainSetupComplete();
 
   // Let's create a target and give it public headers.
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar",
-                                        setup.toolchain()->label().dir(),
-                                        setup.toolchain()->label().name()));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(
+      setup.settings(),
+      Label(SourceDir("//foo/"), "bar", setup.toolchain()->label().dir(),
+            setup.toolchain()->label().name()),
+      Target::SOURCE_SET);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//foo/source1.cc"));
   target.sources().push_back(SourceFile("//foo/private_header.h"));
@@ -3425,8 +3427,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   Target target_no_public(
       setup.settings(),
       Label(SourceDir("//foo/"), "no_public", setup.toolchain()->label().dir(),
-            setup.toolchain()->label().name()));
-  target_no_public.set_output_type(Target::SOURCE_SET);
+            setup.toolchain()->label().name()),
+      Target::SOURCE_SET);
   target_no_public.visibility().SetPublic();
   target_no_public.sources().push_back(SourceFile("//foo/source1.cc"));
   target_no_public.sources().push_back(SourceFile("//foo/header1.h"));
@@ -3453,13 +3455,14 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   std::string modulemap_str_no_public = modulemap_out_no_public.str();
   EXPECT_EQ(expected_modulemap_no_public, modulemap_str_no_public);
 
-  Target transitive(&module_settings, Label(SourceDir("//foo/"), "transitive",
-                                            module_toolchain.label().dir(),
-                                            module_toolchain.label().name()));
+  Target transitive(
+      &module_settings,
+      Label(SourceDir("//foo/"), "transitive", module_toolchain.label().dir(),
+            module_toolchain.label().name()),
+      Target::SOURCE_SET);
   transitive.visibility().SetPublic();
   transitive.sources().push_back(SourceFile("//foo/invisible.h"));
   transitive.source_types_used().Set(SourceFile::SOURCE_H);
-  transitive.set_output_type(Target::SOURCE_SET);
   transitive.set_module_type(kGeneratedTextualModulemap);
   transitive.SetToolchain(&module_toolchain);
   ASSERT_TRUE(transitive.OnResolved(&err));
@@ -3467,9 +3470,9 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   Target private_dep(
       &module_settings,
       Label(SourceDir("//private/"), "private_dep",
-            module_toolchain.label().dir(), module_toolchain.label().name()));
+            module_toolchain.label().dir(), module_toolchain.label().name()),
+      Target::SOURCE_SET);
   private_dep.visibility().SetPublic();
-  private_dep.set_output_type(Target::SOURCE_SET);
   private_dep.sources().push_back(SourceFile("//foo/private_dep.h"));
   private_dep.source_types_used().Set(SourceFile::SOURCE_H);
   private_dep.public_deps().push_back(LabelTargetPair(&transitive));
@@ -3477,11 +3480,12 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   private_dep.SetToolchain(&module_toolchain);
   ASSERT_TRUE(private_dep.OnResolved(&err));
 
-  Target public_dep(&module_settings, Label(SourceDir("//foo/"), "public_dep",
-                                            module_toolchain.label().dir(),
-                                            module_toolchain.label().name()));
+  Target public_dep(
+      &module_settings,
+      Label(SourceDir("//foo/"), "public_dep", module_toolchain.label().dir(),
+            module_toolchain.label().name()),
+      Target::SOURCE_SET);
   public_dep.visibility().SetPublic();
-  public_dep.set_output_type(Target::SOURCE_SET);
   public_dep.sources().push_back(SourceFile("//foo/public_dep.h"));
   public_dep.private_deps().push_back(LabelTargetPair(&transitive));
   public_dep.public_deps().push_back(LabelTargetPair(&transitive));
@@ -3489,10 +3493,11 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
   public_dep.SetToolchain(&module_toolchain);
   ASSERT_TRUE(public_dep.OnResolved(&err));
 
-  Target group_dep(&module_settings, Label(SourceDir("//foo/"), "group_dep",
-                                           module_toolchain.label().dir(),
-                                           module_toolchain.label().name()));
-  group_dep.set_output_type(Target::GROUP);
+  Target group_dep(
+      &module_settings,
+      Label(SourceDir("//foo/"), "group_dep", module_toolchain.label().dir(),
+            module_toolchain.label().name()),
+      Target::GROUP);
   group_dep.visibility().SetPublic();
   group_dep.private_deps().push_back(LabelTargetPair(&public_dep));
   group_dep.SetToolchain(&module_toolchain);
@@ -3500,8 +3505,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, ModuleMapGeneration) {
 
   Target root(&module_settings,
               Label(SourceDir("//foo/"), "root", module_toolchain.label().dir(),
-                    module_toolchain.label().name()));
-  root.set_output_type(Target::SOURCE_SET);
+                    module_toolchain.label().name()),
+              Target::SOURCE_SET);
   root.visibility().SetPublic();
   root.sources().push_back(SourceFile("//foo/root.cc"));
   root.sources().push_back(SourceFile("//foo/private_header.h"));
@@ -3590,8 +3595,8 @@ TEST_F(NinjaCBinaryTargetWriterTest,
   ASSERT_TRUE(config.OnResolved(&err));
 
   // Source set B (dependee)
-  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  target_b.set_output_type(Target::SOURCE_SET);
+  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"),
+                  Target::SOURCE_SET);
   target_b.sources().push_back(SourceFile("//foo/b.cc"));
   target_b.source_types_used().Set(SourceFile::SOURCE_CPP);
   target_b.visibility().SetPublic();
@@ -3600,16 +3605,16 @@ TEST_F(NinjaCBinaryTargetWriterTest,
   ASSERT_TRUE(target_b.OnResolved(&err)) << err.message();
 
   // Group G (middle)
-  Target target_g(setup.settings(), Label(SourceDir("//foo/"), "g"));
-  target_g.set_output_type(Target::GROUP);
+  Target target_g(setup.settings(), Label(SourceDir("//foo/"), "g"),
+                  Target::GROUP);
   target_g.visibility().SetPublic();
   target_g.private_deps().push_back(LabelTargetPair(&target_b));
   target_g.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target_g.OnResolved(&err)) << err.message();
 
   // Source set A (depender on G)
-  Target target_a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  target_a.set_output_type(Target::SOURCE_SET);
+  Target target_a(setup.settings(), Label(SourceDir("//foo/"), "a"),
+                  Target::SOURCE_SET);
   target_a.sources().push_back(SourceFile("//foo/a.cc"));
   target_a.source_types_used().Set(SourceFile::SOURCE_CPP);
   target_a.private_deps().push_back(LabelTargetPair(&target_g));
@@ -3650,80 +3655,73 @@ TEST_F(NinjaCBinaryTargetWriterTest, OrderOnlyDepsOmitTransitiveDeps) {
   Err err;
   TestWithScope setup;
 
-  auto make_source_set = [&](Target* target) {
-    target->set_output_type(Target::SOURCE_SET);
+  auto make_source_set = [&](const std::string& name) {
+    auto target = std::make_unique<Target>(
+        setup.settings(), Label(SourceDir("//foo/"), name), Target::SOURCE_SET);
     target->visibility().SetPublic();
-    target->sources().push_back(
-        SourceFile("//foo/" + target->label().name() + ".cc"));
+    target->sources().push_back(SourceFile("//foo/" + name + ".cc"));
     target->source_types_used().Set(SourceFile::SOURCE_CPP);
     target->SetToolchain(setup.toolchain());
+    return target;
   };
 
   // a -> b -> c: a doesn't need to list c because b's .linkdeps already does.
-  Target c(setup.settings(), Label(SourceDir("//foo/"), "c"));
-  make_source_set(&c);
-  ASSERT_TRUE(c.OnResolved(&err));
-  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  make_source_set(&b);
-  b.public_deps().push_back(LabelTargetPair(&c));
-  ASSERT_TRUE(b.OnResolved(&err));
+  auto c = make_source_set("c");
+  ASSERT_TRUE(c->OnResolved(&err));
+  auto b = make_source_set("b");
+  b->public_deps().push_back(LabelTargetPair(c.get()));
+  ASSERT_TRUE(b->OnResolved(&err));
 
   // a -> group -> d -> e: a needs to list d (groups are looked through and
   // have no build statement that could list d), but not e.
-  Target e(setup.settings(), Label(SourceDir("//foo/"), "e"));
-  make_source_set(&e);
-  ASSERT_TRUE(e.OnResolved(&err));
-  Target d(setup.settings(), Label(SourceDir("//foo/"), "d"));
-  make_source_set(&d);
-  d.private_deps().push_back(LabelTargetPair(&e));
-  ASSERT_TRUE(d.OnResolved(&err));
-  Target group(setup.settings(), Label(SourceDir("//foo/"), "group"));
-  group.set_output_type(Target::GROUP);
+  auto e = make_source_set("e");
+  ASSERT_TRUE(e->OnResolved(&err));
+  auto d = make_source_set("d");
+  d->private_deps().push_back(LabelTargetPair(e.get()));
+  ASSERT_TRUE(d->OnResolved(&err));
+  Target group(setup.settings(), Label(SourceDir("//foo/"), "group"),
+               Target::GROUP);
   group.visibility().SetPublic();
-  group.public_deps().push_back(LabelTargetPair(&d));
+  group.public_deps().push_back(LabelTargetPair(d.get()));
   group.SetToolchain(setup.toolchain());
   ASSERT_TRUE(group.OnResolved(&err));
 
   // a -> rlib -> f: Rust libraries forward inherited libraries but their
   // build statements aren't known to list them, so a needs to list f.
-  Target f(setup.settings(), Label(SourceDir("//foo/"), "f"));
-  make_source_set(&f);
-  ASSERT_TRUE(f.OnResolved(&err));
-  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "rlib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  auto f = make_source_set("f");
+  ASSERT_TRUE(f->OnResolved(&err));
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "rlib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile rlib_root("//foo/lib.rs");
   rlib.sources().push_back(rlib_root);
   rlib.source_types_used().Set(SourceFile::SOURCE_RS);
   rlib.rust_values().set_crate_root(rlib_root);
   rlib.rust_values().crate_name() = "rlib";
-  rlib.private_deps().push_back(LabelTargetPair(&f));
+  rlib.private_deps().push_back(LabelTargetPair(f.get()));
   rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib.OnResolved(&err));
 
   // a -> b2 -> c (again), and a -> e2 directly while also a -> d2 -> e2:
   // direct deps are always listed.
-  Target e2(setup.settings(), Label(SourceDir("//foo/"), "e2"));
-  make_source_set(&e2);
-  ASSERT_TRUE(e2.OnResolved(&err));
-  Target d2(setup.settings(), Label(SourceDir("//foo/"), "d2"));
-  make_source_set(&d2);
-  d2.private_deps().push_back(LabelTargetPair(&e2));
-  ASSERT_TRUE(d2.OnResolved(&err));
+  auto e2 = make_source_set("e2");
+  ASSERT_TRUE(e2->OnResolved(&err));
+  auto d2 = make_source_set("d2");
+  d2->private_deps().push_back(LabelTargetPair(e2.get()));
+  ASSERT_TRUE(d2->OnResolved(&err));
 
-  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  make_source_set(&a);
-  a.private_deps().push_back(LabelTargetPair(&b));
-  a.private_deps().push_back(LabelTargetPair(&group));
-  a.private_deps().push_back(LabelTargetPair(&rlib));
-  a.private_deps().push_back(LabelTargetPair(&d2));
-  a.private_deps().push_back(LabelTargetPair(&e2));
-  ASSERT_TRUE(a.OnResolved(&err));
+  auto a = make_source_set("a");
+  a->private_deps().push_back(LabelTargetPair(b.get()));
+  a->private_deps().push_back(LabelTargetPair(&group));
+  a->private_deps().push_back(LabelTargetPair(&rlib));
+  a->private_deps().push_back(LabelTargetPair(d2.get()));
+  a->private_deps().push_back(LabelTargetPair(e2.get()));
+  ASSERT_TRUE(a->OnResolved(&err));
 
   // Source set: deps are on the .linkdeps phony.
   {
     StringOutputBuffer out;
-    NinjaCBinaryTargetWriter writer(&a, out);
+    NinjaCBinaryTargetWriter writer(a.get(), out);
     writer.Run();
     const char expected[] =
         "build phony/foo/a.linkdeps: phony obj/foo/a.a.o || "
@@ -3734,12 +3732,12 @@ TEST_F(NinjaCBinaryTargetWriterTest, OrderOnlyDepsOmitTransitiveDeps) {
 
   // Static library: deps are on the alink step.
   {
-    Target lib(setup.settings(), Label(SourceDir("//foo/"), "lib"));
-    lib.set_output_type(Target::STATIC_LIBRARY);
+    Target lib(setup.settings(), Label(SourceDir("//foo/"), "lib"),
+               Target::STATIC_LIBRARY);
     lib.visibility().SetPublic();
     lib.sources().push_back(SourceFile("//foo/lib.cc"));
     lib.source_types_used().Set(SourceFile::SOURCE_CPP);
-    lib.private_deps().push_back(LabelTargetPair(&a));
+    lib.private_deps().push_back(LabelTargetPair(a.get()));
     lib.SetToolchain(setup.toolchain());
     ASSERT_TRUE(lib.OnResolved(&err));
 
@@ -3753,8 +3751,8 @@ TEST_F(NinjaCBinaryTargetWriterTest, OrderOnlyDepsOmitTransitiveDeps) {
 
     // An executable depending on the static library links all the source
     // sets' object files, but gets their order-only deps through the library.
-    Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"));
-    exe.set_output_type(Target::EXECUTABLE);
+    Target exe(setup.settings(), Label(SourceDir("//foo/"), "exe"),
+               Target::EXECUTABLE);
     exe.visibility().SetPublic();
     exe.sources().push_back(SourceFile("//foo/exe.cc"));
     exe.source_types_used().Set(SourceFile::SOURCE_CPP);

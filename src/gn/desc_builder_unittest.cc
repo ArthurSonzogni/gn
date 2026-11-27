@@ -11,8 +11,8 @@ TEST(DescBuilder, TargetWithValidations) {
   TestWithScope setup;
   Err err;
 
-  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"));
-  validation_target.set_output_type(Target::ACTION);
+  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"),
+                           Target::ACTION);
   validation_target.visibility().SetPublic();
   validation_target.SetToolchain(setup.toolchain());
   validation_target.action_values().set_script(SourceFile("//foo/script.py"));
@@ -20,8 +20,8 @@ TEST(DescBuilder, TargetWithValidations) {
       SubstitutionList::MakeForTest("//out/Debug/val.out");
   ASSERT_TRUE(validation_target.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"));
-  target.set_output_type(Target::GROUP);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"),
+                Target::GROUP);
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
   target.validations().push_back(LabelTargetPair(&validation_target));
@@ -41,8 +41,8 @@ TEST(DescBuilder, TargetWithPublicInputs) {
   TestWithScope setup;
   Err err;
 
-  Target group_target(setup.settings(), Label(SourceDir("//foo/"), "group"));
-  group_target.set_output_type(Target::GROUP);
+  Target group_target(setup.settings(), Label(SourceDir("//foo/"), "group"),
+                      Target::GROUP);
   group_target.visibility().SetPublic();
   group_target.SetToolchain(setup.toolchain());
   group_target.public_inputs().push_back(SourceFile("//foo/bar.d.ts"));
@@ -74,8 +74,8 @@ TEST(DescBuilder, TargetWithPublicInputs) {
   }
 
   // 3. Target without public_inputs does not have public_inputs in description.
-  Target empty_group(setup.settings(), Label(SourceDir("//foo/"), "empty"));
-  empty_group.set_output_type(Target::GROUP);
+  Target empty_group(setup.settings(), Label(SourceDir("//foo/"), "empty"),
+                     Target::GROUP);
   empty_group.visibility().SetPublic();
   empty_group.SetToolchain(setup.toolchain());
   ASSERT_TRUE(empty_group.OnResolved(&err));

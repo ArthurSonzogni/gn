@@ -143,9 +143,8 @@ TEST_F(BinaryTargetGeneratorTest, AllowCircularIncludesAllowlist) {
   setup.scope()->set_source_dir(SourceDir("//test/"));
 
   // Create a dep for foo to reference.
-  Target* dep =
-      new Target(setup.settings(), Label(SourceDir("//test/"), "dep"));
-  dep->set_output_type(Target::SOURCE_SET);
+  Target* dep = new Target(setup.settings(), Label(SourceDir("//test/"), "dep"),
+                           Target::SOURCE_SET);
   dep->visibility().SetPublic();
   Err err_setup;
   dep->SetToolchain(setup.toolchain(), &err_setup);

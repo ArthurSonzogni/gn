@@ -183,8 +183,8 @@ TEST_F(VisualStudioWriterTest, NoDotSlash) {
   Toolchain toolchain(setup_.settings(), Label(SourceDir("//tc/"), "tc"));
   toolchain.SetTool(std::move(tool));
 
-  Target target(setup_.settings(), Label(SourceDir("//baz/"), "baz"));
-  target.set_output_type(Target::STATIC_LIBRARY);
+  Target target(setup_.settings(), Label(SourceDir("//baz/"), "baz"),
+                Target::STATIC_LIBRARY);
   target.SetToolchain(&toolchain);
 
   Err err;
@@ -218,8 +218,8 @@ TEST_F(VisualStudioWriterTest, NinjaExecutable) {
   Toolchain toolchain(setup_.settings(), Label(SourceDir("//tc/"), "tc"));
   toolchain.SetTool(std::move(tool));
 
-  Target target(setup_.settings(), Label(SourceDir("//baz/"), "baz"));
-  target.set_output_type(Target::STATIC_LIBRARY);
+  Target target(setup_.settings(), Label(SourceDir("//baz/"), "baz"),
+                Target::STATIC_LIBRARY);
   target.SetToolchain(&toolchain);
 
   Err err;

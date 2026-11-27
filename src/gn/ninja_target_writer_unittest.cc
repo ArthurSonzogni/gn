@@ -44,8 +44,8 @@ TEST(NinjaTargetWriter, ResolvedCreatedOnDemand) {
   Err err;
 
   // Make a base target that's a hard dep (action).
-  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"));
-  base_target.set_output_type(Target::ACTION);
+  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"),
+                     Target::ACTION);
   base_target.visibility().SetPublic();
   base_target.SetToolchain(setup.toolchain());
   base_target.action_values().set_script(SourceFile("//foo/script.py"));
@@ -66,8 +66,8 @@ TEST(NinjaTargetWriter, ResolvedSetExplicitly) {
   Err err;
 
   // Make a base target that's a hard dep (action).
-  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"));
-  base_target.set_output_type(Target::ACTION);
+  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"),
+                     Target::ACTION);
   base_target.visibility().SetPublic();
   base_target.SetToolchain(setup.toolchain());
   base_target.action_values().set_script(SourceFile("//foo/script.py"));
@@ -86,16 +86,16 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
   Err err;
 
   // Make a base target that's a hard dep (action).
-  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"));
-  base_target.set_output_type(Target::ACTION);
+  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"),
+                     Target::ACTION);
   base_target.visibility().SetPublic();
   base_target.SetToolchain(setup.toolchain());
   base_target.action_values().set_script(SourceFile("//foo/script.py"));
 
   // Dependent target that also includes a source prerequisite (should get
   // included) and a source (should not be included).
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
   target.config_values().inputs().push_back(SourceFile("//foo/input.txt"));
@@ -104,8 +104,8 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDep) {
 
   // Dependent action to test that action sources will be treated the same as
   // inputs.
-  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"));
-  action.set_output_type(Target::ACTION);
+  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"),
+                Target::ACTION);
   action.visibility().SetPublic();
   action.SetToolchain(setup.toolchain());
   action.action_values().set_script(SourceFile("//foo/script.py"));
@@ -186,16 +186,16 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
   setup.build_settings()->set_no_stamp_files(false);
 
   // Make a base target that's a hard dep (action).
-  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"));
-  base_target.set_output_type(Target::ACTION);
+  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"),
+                     Target::ACTION);
   base_target.visibility().SetPublic();
   base_target.SetToolchain(setup.toolchain());
   base_target.action_values().set_script(SourceFile("//foo/script.py"));
 
   // Dependent target that also includes a source prerequisite (should get
   // included) and a source (should not be included).
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
   target.config_values().inputs().push_back(SourceFile("//foo/input.txt"));
@@ -204,8 +204,8 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepUseStampFiles) {
 
   // Dependent action to test that action sources will be treated the same as
   // inputs.
-  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"));
-  action.set_output_type(Target::ACTION);
+  Target action(setup.settings(), Label(SourceDir("//foo/"), "action"),
+                Target::ACTION);
   action.visibility().SetPublic();
   action.SetToolchain(setup.toolchain());
   action.action_values().set_script(SourceFile("//foo/script.py"));
@@ -289,16 +289,15 @@ TEST(NinjaTargetWriter, WriteInputDepsStampOrPhonyAndGetDepWithToolchainDeps) {
   // simplicity, but in real life (using the Builder) this would be rejected
   // because it would be a circular dependency (the target depends on its
   // toolchain, and the toolchain depends on this target).
-  Target toolchain_dep_target(setup.settings(),
-                              Label(SourceDir("//foo/"), "setup"));
-  toolchain_dep_target.set_output_type(Target::ACTION);
+  Target toolchain_dep_target(
+      setup.settings(), Label(SourceDir("//foo/"), "setup"), Target::ACTION);
   toolchain_dep_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(toolchain_dep_target.OnResolved(&err));
   setup.toolchain()->deps().push_back(LabelTargetPair(&toolchain_dep_target));
 
   // Make a binary target
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"),
+                Target::EXECUTABLE);
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -322,22 +321,21 @@ TEST(NinjaTargetWriter,
   TestWithScope setup;
   Err err;
 
-  Target toolchain_dep_target(setup.settings(),
-                              Label(SourceDir("//foo/"), "setup"));
-  toolchain_dep_target.set_output_type(Target::ACTION);
+  Target toolchain_dep_target(
+      setup.settings(), Label(SourceDir("//foo/"), "setup"), Target::ACTION);
   toolchain_dep_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(toolchain_dep_target.OnResolved(&err));
   setup.toolchain()->deps().push_back(LabelTargetPair(&toolchain_dep_target));
 
-  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"));
-  base_target.set_output_type(Target::ACTION);
+  Target base_target(setup.settings(), Label(SourceDir("//foo/"), "base"),
+                     Target::ACTION);
   base_target.visibility().SetPublic();
   base_target.SetToolchain(setup.toolchain());
   base_target.action_values().set_script(SourceFile("//foo/script.py"));
   ASSERT_TRUE(base_target.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"),
+                Target::EXECUTABLE);
   target.SetToolchain(setup.toolchain());
   target.public_deps().push_back(LabelTargetPair(&base_target));
   ASSERT_TRUE(target.OnResolved(&err));
@@ -365,15 +363,15 @@ TEST(NinjaTargetWriter, WriteValidations) {
   setup.build_settings()->set_no_stamp_files(false);
   Err err;
 
-  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"));
-  validation_target.set_output_type(Target::ACTION);
+  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"),
+                           Target::ACTION);
   validation_target.visibility().SetPublic();
   validation_target.SetToolchain(setup.toolchain());
   validation_target.action_values().set_script(SourceFile("//foo/script.py"));
   ASSERT_TRUE(validation_target.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"));
-  target.set_output_type(Target::GROUP);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"),
+                Target::GROUP);
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
   target.validations().push_back(LabelTargetPair(&validation_target));
@@ -403,23 +401,23 @@ TEST(NinjaTargetWriter, ValidationsWithNoOutput) {
   Err err;
 
   // Validation target with no output (empty group, no stamp files).
-  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"));
-  validation_target.set_output_type(Target::GROUP);
+  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"),
+                           Target::GROUP);
   validation_target.visibility().SetPublic();
   validation_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(validation_target.OnResolved(&err));
   ASSERT_FALSE(validation_target.has_dependency_output());
 
   // A dependency that HAS an output, so 'target' will have an output alias.
-  Target real_dep(setup.settings(), Label(SourceDir("//foo/"), "dep"));
-  real_dep.set_output_type(Target::ACTION);
+  Target real_dep(setup.settings(), Label(SourceDir("//foo/"), "dep"),
+                  Target::ACTION);
   real_dep.visibility().SetPublic();
   real_dep.SetToolchain(setup.toolchain());
   real_dep.action_values().set_script(SourceFile("//foo/script.py"));
   ASSERT_TRUE(real_dep.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"));
-  target.set_output_type(Target::GROUP);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "target"),
+                Target::GROUP);
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
   target.public_deps().push_back(LabelTargetPair(&real_dep));
@@ -447,8 +445,7 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
   Err err;
 
   // Set up common target A (action)
-  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  a.set_output_type(Target::ACTION);
+  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"), Target::ACTION);
   a.visibility().SetPublic();
   a.SetToolchain(setup.toolchain());
   a.action_values().set_script(SourceFile("//foo/script.py"));
@@ -456,8 +453,8 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
       SubstitutionList::MakeForTest("//out/Debug/a.out");
 
   // Set up B_pub (action, public_dep A)
-  Target b_pub(setup.settings(), Label(SourceDir("//foo/"), "b_pub"));
-  b_pub.set_output_type(Target::ACTION);
+  Target b_pub(setup.settings(), Label(SourceDir("//foo/"), "b_pub"),
+               Target::ACTION);
   b_pub.visibility().SetPublic();
   b_pub.SetToolchain(setup.toolchain());
   b_pub.action_values().set_script(SourceFile("//foo/script.py"));
@@ -466,8 +463,8 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
   b_pub.public_deps().push_back(LabelTargetPair(&a));
 
   // Set up B_priv (action, private_dep A)
-  Target b_priv(setup.settings(), Label(SourceDir("//foo/"), "b_priv"));
-  b_priv.set_output_type(Target::ACTION);
+  Target b_priv(setup.settings(), Label(SourceDir("//foo/"), "b_priv"),
+                Target::ACTION);
   b_priv.visibility().SetPublic();
   b_priv.SetToolchain(setup.toolchain());
   b_priv.action_values().set_script(SourceFile("//foo/script.py"));
@@ -476,24 +473,24 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
   b_priv.private_deps().push_back(LabelTargetPair(&a));
 
   // Set up C_pub (action, private_dep B_pub)
-  Target c_pub(setup.settings(), Label(SourceDir("//foo/"), "c_pub"));
-  c_pub.set_output_type(Target::ACTION);
+  Target c_pub(setup.settings(), Label(SourceDir("//foo/"), "c_pub"),
+               Target::ACTION);
   c_pub.visibility().SetPublic();
   c_pub.SetToolchain(setup.toolchain());
   c_pub.action_values().set_script(SourceFile("//foo/script.py"));
   c_pub.private_deps().push_back(LabelTargetPair(&b_pub));
 
   // Set up C_priv (action, private_dep B_priv)
-  Target c_priv(setup.settings(), Label(SourceDir("//foo/"), "c_priv"));
-  c_priv.set_output_type(Target::ACTION);
+  Target c_priv(setup.settings(), Label(SourceDir("//foo/"), "c_priv"),
+                Target::ACTION);
   c_priv.visibility().SetPublic();
   c_priv.SetToolchain(setup.toolchain());
   c_priv.action_values().set_script(SourceFile("//foo/script.py"));
   c_priv.private_deps().push_back(LabelTargetPair(&b_priv));
 
   // Set up B_data (action, data_dep A)
-  Target b_data(setup.settings(), Label(SourceDir("//foo/"), "b_data"));
-  b_data.set_output_type(Target::ACTION);
+  Target b_data(setup.settings(), Label(SourceDir("//foo/"), "b_data"),
+                Target::ACTION);
   b_data.visibility().SetPublic();
   b_data.SetToolchain(setup.toolchain());
   b_data.action_values().set_script(SourceFile("//foo/script.py"));
@@ -502,8 +499,8 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
   b_data.data_deps().push_back(LabelTargetPair(&a));
 
   // Set up C_data (action, public_dep B_data)
-  Target c_data(setup.settings(), Label(SourceDir("//foo/"), "c_data"));
-  c_data.set_output_type(Target::ACTION);
+  Target c_data(setup.settings(), Label(SourceDir("//foo/"), "c_data"),
+                Target::ACTION);
   c_data.visibility().SetPublic();
   c_data.SetToolchain(setup.toolchain());
   c_data.action_values().set_script(SourceFile("//foo/script.py"));
@@ -512,8 +509,8 @@ TEST(NinjaTargetWriter, PhonyPropagation) {
   c_data.public_deps().push_back(LabelTargetPair(&b_data));
 
   // Set up D_data (action, private_dep C_data)
-  Target d_data(setup.settings(), Label(SourceDir("//foo/"), "d_data"));
-  d_data.set_output_type(Target::ACTION);
+  Target d_data(setup.settings(), Label(SourceDir("//foo/"), "d_data"),
+                Target::ACTION);
   d_data.visibility().SetPublic();
   d_data.SetToolchain(setup.toolchain());
   d_data.action_values().set_script(SourceFile("//foo/script.py"));
@@ -653,16 +650,14 @@ TEST(NinjaTargetWriter, PublicInputs) {
   Err err;
 
   // Action A has public_inputs.
-  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  a.set_output_type(Target::ACTION);
+  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"), Target::ACTION);
   a.visibility().SetPublic();
   a.SetToolchain(setup.toolchain());
   a.action_values().set_script(SourceFile("//foo/script.py"));
   a.public_inputs().push_back(SourceFile("//foo/a.in"));
 
   // Action B depends on A.
-  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  b.set_output_type(Target::ACTION);
+  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"), Target::ACTION);
   b.visibility().SetPublic();
   b.SetToolchain(setup.toolchain());
   b.action_values().set_script(SourceFile("//foo/script.py"));
@@ -718,15 +713,13 @@ TEST(NinjaTargetWriter, GroupPublicInputs) {
   Err err;
 
   // Group G has public_inputs.
-  Target g(setup.settings(), Label(SourceDir("//foo/"), "g"));
-  g.set_output_type(Target::GROUP);
+  Target g(setup.settings(), Label(SourceDir("//foo/"), "g"), Target::GROUP);
   g.visibility().SetPublic();
   g.SetToolchain(setup.toolchain());
   g.public_inputs().push_back(SourceFile("//foo/g.in"));
 
   // Action B depends on G.
-  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  b.set_output_type(Target::ACTION);
+  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"), Target::ACTION);
   b.visibility().SetPublic();
   b.SetToolchain(setup.toolchain());
   b.action_values().set_script(SourceFile("//foo/script.py"));
@@ -765,21 +758,25 @@ TEST(NinjaTargetWriter, HardDeps) {
   TestWithScope setup;
   Err err;
 
-  auto make_action = [&](Target* target) {
-    target->set_output_type(Target::ACTION);
+  auto make_action = [&](const std::string& name) {
+    auto target = std::make_unique<Target>(
+        setup.settings(), Label(SourceDir("//foo/"), name), Target::ACTION);
     target->visibility().SetPublic();
     target->SetToolchain(setup.toolchain());
     target->action_values().set_script(SourceFile("//foo/script.py"));
-    std::string output = "//out/Debug/" + target->label().name() + ".out";
+    std::string output = "//out/Debug/" + name + ".out";
     target->action_values().outputs() =
         SubstitutionList::MakeForTest(output.c_str());
+    return target;
   };
-  auto make_source_set = [&](Target* target) {
-    target->set_output_type(Target::SOURCE_SET);
+  auto make_source_set = [&](const std::string& name) {
+    auto target = std::make_unique<Target>(
+        setup.settings(), Label(SourceDir("//foo/"), name), Target::SOURCE_SET);
     target->visibility().SetPublic();
     target->sources().push_back(SourceFile("//foo/source.cc"));
     target->source_types_used().Set(SourceFile::SOURCE_CPP);
     target->SetToolchain(setup.toolchain());
+    return target;
   };
   auto hard_deps_rule = [](const Target* target) {
     StringOutputBuffer out;
@@ -796,66 +793,60 @@ TEST(NinjaTargetWriter, HardDeps) {
     return result;
   };
 
-  Target action1(setup.settings(), Label(SourceDir("//foo/"), "action1"));
-  make_action(&action1);
-  ASSERT_TRUE(action1.OnResolved(&err));
-  Target action2(setup.settings(), Label(SourceDir("//foo/"), "action2"));
-  make_action(&action2);
-  ASSERT_TRUE(action2.OnResolved(&err));
-  Target action3(setup.settings(), Label(SourceDir("//foo/"), "action3"));
-  make_action(&action3);
-  ASSERT_TRUE(action3.OnResolved(&err));
-  Target bundle_data(setup.settings(), Label(SourceDir("//foo/"), "data"));
-  bundle_data.set_output_type(Target::BUNDLE_DATA);
+  auto action1 = make_action("action1");
+  ASSERT_TRUE(action1->OnResolved(&err));
+  auto action2 = make_action("action2");
+  ASSERT_TRUE(action2->OnResolved(&err));
+  auto action3 = make_action("action3");
+  ASSERT_TRUE(action3->OnResolved(&err));
+  Target bundle_data(setup.settings(), Label(SourceDir("//foo/"), "data"),
+                     Target::BUNDLE_DATA);
   bundle_data.visibility().SetPublic();
   bundle_data.SetToolchain(setup.toolchain());
   ASSERT_TRUE(bundle_data.OnResolved(&err));
 
   // No hard deps: No rule, nothing to depend on.
-  EXPECT_EQ("", hard_deps_rule(&action1));
-  EXPECT_EQ("", hard_deps_outputs(&action1));
+  EXPECT_EQ("", hard_deps_rule(action1.get()));
+  EXPECT_EQ("", hard_deps_outputs(action1.get()));
 
   // A single hard dep: No rule, dependents depend on the hard dep itself.
   // BUNDLE_DATA targets don't count.
-  Target single(setup.settings(), Label(SourceDir("//foo/"), "single"));
-  make_source_set(&single);
-  single.private_deps().push_back(LabelTargetPair(&action1));
-  single.private_deps().push_back(LabelTargetPair(&bundle_data));
-  ASSERT_TRUE(single.OnResolved(&err));
-  EXPECT_EQ("", hard_deps_rule(&single));
-  EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&single));
+  auto single = make_source_set("single");
+  single->private_deps().push_back(LabelTargetPair(action1.get()));
+  single->private_deps().push_back(LabelTargetPair(&bundle_data));
+  ASSERT_TRUE(single->OnResolved(&err));
+  EXPECT_EQ("", hard_deps_rule(single.get()));
+  EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(single.get()));
 
   // Several hard deps: The rule lists them.
-  Target mid(setup.settings(), Label(SourceDir("//foo/"), "mid"));
-  make_source_set(&mid);
-  mid.private_deps().push_back(LabelTargetPair(&action2));
-  mid.private_deps().push_back(LabelTargetPair(&action1));
-  mid.private_deps().push_back(LabelTargetPair(&bundle_data));
-  ASSERT_TRUE(mid.OnResolved(&err));
+  auto mid = make_source_set("mid");
+  mid->private_deps().push_back(LabelTargetPair(action2.get()));
+  mid->private_deps().push_back(LabelTargetPair(action1.get()));
+  mid->private_deps().push_back(LabelTargetPair(&bundle_data));
+  ASSERT_TRUE(mid->OnResolved(&err));
   EXPECT_EQ(
       "build phony/foo/mid.harddeps: phony phony/foo/action1 "
       "phony/foo/action2\n",
-      hard_deps_rule(&mid));
-  EXPECT_EQ("phony/foo/mid.harddeps ", hard_deps_outputs(&mid));
+      hard_deps_rule(mid.get()));
+  EXPECT_EQ("phony/foo/mid.harddeps ", hard_deps_outputs(mid.get()));
 
   // Hard deps of deps are referenced through the rule of the dep if there
   // is one, and directly else. Duplicates are omitted.
-  Target top(setup.settings(), Label(SourceDir("//foo/"), "top"));
-  make_source_set(&top);
-  top.private_deps().push_back(LabelTargetPair(&mid));
-  top.private_deps().push_back(LabelTargetPair(&single));
-  top.private_deps().push_back(LabelTargetPair(&action3));
-  top.private_deps().push_back(LabelTargetPair(&action1));
-  ASSERT_TRUE(top.OnResolved(&err));
+  auto top = make_source_set("top");
+  top->private_deps().push_back(LabelTargetPair(mid.get()));
+  top->private_deps().push_back(LabelTargetPair(single.get()));
+  top->private_deps().push_back(LabelTargetPair(action3.get()));
+  top->private_deps().push_back(LabelTargetPair(action1.get()));
+  ASSERT_TRUE(top->OnResolved(&err));
   EXPECT_EQ(
       "build phony/foo/top.harddeps: phony phony/foo/action1 "
       "phony/foo/action3 phony/foo/mid.harddeps\n",
-      hard_deps_rule(&top));
+      hard_deps_rule(top.get()));
 
   // The input deps of a target just refer to its hard deps rule.
   {
     StringOutputBuffer stream;
-    TestingNinjaTargetWriter writer(&top, setup.toolchain(), stream);
+    TestingNinjaTargetWriter writer(top.get(), setup.toolchain(), stream);
     auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 10u);
     EXPECT_EQ("", stream.str());
     EXPECT_TRUE(deps.implicit.empty());
@@ -864,52 +855,47 @@ TEST(NinjaTargetWriter, HardDeps) {
   }
 
   // Binary targets without public headers don't forward their hard deps.
-  Target no_public_headers(setup.settings(),
-                           Label(SourceDir("//foo/"), "no_public_headers"));
-  make_source_set(&no_public_headers);
-  no_public_headers.set_all_headers_public(false);
-  no_public_headers.private_deps().push_back(LabelTargetPair(&action1));
-  no_public_headers.private_deps().push_back(LabelTargetPair(&action2));
-  ASSERT_TRUE(no_public_headers.OnResolved(&err));
+  auto no_public_headers = make_source_set("no_public_headers");
+  no_public_headers->set_all_headers_public(false);
+  no_public_headers->private_deps().push_back(LabelTargetPair(action1.get()));
+  no_public_headers->private_deps().push_back(LabelTargetPair(action2.get()));
+  ASSERT_TRUE(no_public_headers->OnResolved(&err));
   EXPECT_EQ("phony/foo/no_public_headers.harddeps ",
-            hard_deps_outputs(&no_public_headers));
-  Target top2(setup.settings(), Label(SourceDir("//foo/"), "top2"));
-  make_source_set(&top2);
-  top2.private_deps().push_back(LabelTargetPair(&no_public_headers));
-  top2.private_deps().push_back(LabelTargetPair(&action3));
-  ASSERT_TRUE(top2.OnResolved(&err));
-  EXPECT_EQ("", hard_deps_rule(&top2));
-  EXPECT_EQ("phony/foo/action3 ", hard_deps_outputs(&top2));
+            hard_deps_outputs(no_public_headers.get()));
+  auto top2 = make_source_set("top2");
+  top2->private_deps().push_back(LabelTargetPair(no_public_headers.get()));
+  top2->private_deps().push_back(LabelTargetPair(action3.get()));
+  ASSERT_TRUE(top2->OnResolved(&err));
+  EXPECT_EQ("", hard_deps_rule(top2.get()));
+  EXPECT_EQ("phony/foo/action3 ", hard_deps_outputs(top2.get()));
 
   // Targets that are hard deps themselves (here, an action) depend on all
   // their deps, but don't inherit hard deps from them. Their input deps are
   // implicit deps so that they re-run if a hard dep changes; that works
   // through the hard deps rule since its deps aren't order-only.
-  Target action4(setup.settings(), Label(SourceDir("//foo/"), "action4"));
-  make_action(&action4);
-  action4.private_deps().push_back(LabelTargetPair(&mid));
-  action4.private_deps().push_back(LabelTargetPair(&action3));
-  ASSERT_TRUE(action4.OnResolved(&err));
+  auto action4 = make_action("action4");
+  action4->private_deps().push_back(LabelTargetPair(mid.get()));
+  action4->private_deps().push_back(LabelTargetPair(action3.get()));
+  ASSERT_TRUE(action4->OnResolved(&err));
   EXPECT_EQ(
       "build phony/foo/action4.harddeps: phony phony/foo/action3 "
       "phony/foo/mid\n",
-      hard_deps_rule(&action4));
+      hard_deps_rule(action4.get()));
 
   // Targets with check_includes_strict = true only include public_deps in
   // their hard deps, while still including private deps in their own input
   // deps.
-  Target strict(setup.settings(), Label(SourceDir("//foo/"), "strict"));
-  make_source_set(&strict);
-  strict.set_check_includes_strict(true);
-  strict.public_deps().push_back(LabelTargetPair(&single));
-  strict.private_deps().push_back(LabelTargetPair(&mid));
-  strict.private_deps().push_back(LabelTargetPair(&action3));
-  ASSERT_TRUE(strict.OnResolved(&err));
-  EXPECT_EQ("", hard_deps_rule(&strict));
-  EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&strict));
+  auto strict = make_source_set("strict");
+  strict->set_check_includes_strict(true);
+  strict->public_deps().push_back(LabelTargetPair(single.get()));
+  strict->private_deps().push_back(LabelTargetPair(mid.get()));
+  strict->private_deps().push_back(LabelTargetPair(action3.get()));
+  ASSERT_TRUE(strict->OnResolved(&err));
+  EXPECT_EQ("", hard_deps_rule(strict.get()));
+  EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(strict.get()));
   {
     StringOutputBuffer stream;
-    TestingNinjaTargetWriter writer(&strict, setup.toolchain(), stream);
+    TestingNinjaTargetWriter writer(strict.get(), setup.toolchain(), stream);
     auto deps = writer.WriteInputDepsStampOrPhonyAndGetDep({}, 1u);
     EXPECT_EQ("", stream.str());
     EXPECT_TRUE(deps.implicit.empty());
@@ -921,8 +907,8 @@ TEST(NinjaTargetWriter, HardDeps) {
 
   // Rust targets also only include public_deps in their hard deps, while still
   // including private deps in their own input deps.
-  Target rust_lib(setup.settings(), Label(SourceDir("//foo/"), "rust_lib"));
-  rust_lib.set_output_type(Target::RUST_LIBRARY);
+  Target rust_lib(setup.settings(), Label(SourceDir("//foo/"), "rust_lib"),
+                  Target::RUST_LIBRARY);
   rust_lib.visibility().SetPublic();
   SourceFile lib_rs("//foo/lib.rs");
   rust_lib.sources().push_back(lib_rs);
@@ -930,9 +916,9 @@ TEST(NinjaTargetWriter, HardDeps) {
   rust_lib.rust_values().set_crate_root(lib_rs);
   rust_lib.rust_values().crate_name() = "rust_lib";
   rust_lib.SetToolchain(setup.toolchain());
-  rust_lib.public_deps().push_back(LabelTargetPair(&single));
-  rust_lib.private_deps().push_back(LabelTargetPair(&mid));
-  rust_lib.private_deps().push_back(LabelTargetPair(&action3));
+  rust_lib.public_deps().push_back(LabelTargetPair(single.get()));
+  rust_lib.private_deps().push_back(LabelTargetPair(mid.get()));
+  rust_lib.private_deps().push_back(LabelTargetPair(action3.get()));
   ASSERT_TRUE(rust_lib.OnResolved(&err));
   EXPECT_EQ("", hard_deps_rule(&rust_lib));
   EXPECT_EQ("phony/foo/action1 ", hard_deps_outputs(&rust_lib));

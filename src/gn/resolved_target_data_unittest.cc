@@ -586,8 +586,8 @@ TEST(ResolvedTargetDataTest, HardDepsRustLibrary) {
   TestTarget pub_action(setup, "//foo:pub_action", Target::ACTION);
   TestTarget priv_action(setup, "//foo:priv_action", Target::ACTION);
 
-  Target rust_lib(setup.settings(), Label(SourceDir("//foo/"), "rust_lib"));
-  rust_lib.set_output_type(Target::RUST_LIBRARY);
+  Target rust_lib(setup.settings(), Label(SourceDir("//foo/"), "rust_lib"),
+                  Target::RUST_LIBRARY);
   rust_lib.visibility().SetPublic();
   SourceFile lib_rs("//foo/lib.rs");
   rust_lib.sources().push_back(lib_rs);

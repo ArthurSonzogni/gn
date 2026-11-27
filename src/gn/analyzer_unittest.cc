@@ -65,16 +65,20 @@ class AnalyzerTest : public TestWithScheduler {
     tc_other_name_ = other_settings_.toolchain_label().name();
   }
 
-  std::unique_ptr<Target> MakeTarget(const std::string& dir,
-                                     const std::string& name) {
+  std::unique_ptr<Target> MakeTarget(
+      const std::string& dir,
+      const std::string& name,
+      Target::OutputType output_type = Target::EXECUTABLE) {
     Label label(SourceDir(dir), name, tc_dir_, tc_name_);
-    return std::make_unique<Target>(&settings_, label);
+    return std::make_unique<Target>(&settings_, label, output_type);
   }
 
-  std::unique_ptr<Target> MakeTargetOtherToolchain(const std::string& dir,
-                                                   const std::string& name) {
+  std::unique_ptr<Target> MakeTargetOtherToolchain(
+      const std::string& dir,
+      const std::string& name,
+      Target::OutputType output_type = Target::EXECUTABLE) {
     Label label(SourceDir(dir), name, tc_other_dir_, tc_other_name_);
-    return std::make_unique<Target>(&other_settings_, label);
+    return std::make_unique<Target>(&other_settings_, label, output_type);
   }
 
   std::unique_ptr<Config> MakeConfig(const std::string& dir,
@@ -297,9 +301,9 @@ TEST_F(AnalyzerTest, TargetRefersToData) {
 // Tests that a target is marked as affected if the target is an action and its
 // action script is modified.
 TEST_F(AnalyzerTest, TargetRefersToActionScript) {
-  std::unique_ptr<Target> t = MakeTarget("//dir", "target_name");
+  std::unique_ptr<Target> t =
+      MakeTarget("//dir", "target_name", Target::ACTION);
   Target* t_raw = t.get();
-  t->set_output_type(Target::ACTION);
   builder_.ItemDefined(std::move(t));
   RunAnalyzerTest(
       R"({
@@ -437,8 +441,8 @@ TEST_F(AnalyzerTest, AffectedConfigpropagatesToDependentTargets) {
 // Tests that if toolchain is marked as affected, then it propagates to
 // dependent test_targets.
 TEST_F(AnalyzerTest, AffectedToolchainpropagatesToDependentTargets) {
-  std::unique_ptr<Target> target = MakeTarget("//dir", "target_name");
-  target->set_output_type(Target::EXECUTABLE);
+  std::unique_ptr<Target> target =
+      MakeTarget("//dir", "target_name", Target::EXECUTABLE);
   Toolchain* toolchain = new Toolchain(&settings_, settings_.toolchain_label());
 
   // The tool is not used anywhere, but is required to construct the dependency
@@ -479,8 +483,8 @@ TEST_F(AnalyzerTest, AffectedToolchainpropagatesToDependentTargets) {
 // Tests that if a pool is marked as affected, then it propagates to dependent
 // targets.
 TEST_F(AnalyzerTest, AffectedPoolpropagatesToDependentTargets) {
-  std::unique_ptr<Target> t = MakeTarget("//dir", "target_name");
-  t->set_output_type(Target::ACTION);
+  std::unique_ptr<Target> t =
+      MakeTarget("//dir", "target_name", Target::ACTION);
   std::unique_ptr<Pool> p = MakePool("//dir", "pool_name");
   Pool* p_raw = p.get();
   t->set_pool(LabelPtrPair<Pool>(p.get()));
@@ -758,9 +762,9 @@ TEST_F(AnalyzerTest, TargetAlternateToolchainRefersToSources) {
 TEST_F(AnalyzerTest, TargetRefersToValidations) {
   std::unique_ptr<Target> t = MakeTarget("//dir", "target_name");
   Target* t_raw = t.get();
-  std::unique_ptr<Target> v = MakeTarget("//dir", "validation_name");
+  std::unique_ptr<Target> v =
+      MakeTarget("//dir", "validation_name", Target::ACTION);
   Target* v_raw = v.get();
-  v_raw->set_output_type(Target::ACTION);
   v_raw->action_values().set_script(SourceFile("//dir/other.py"));
 
   t_raw->validations().push_back(LabelTargetPair(v.get()));
@@ -804,8 +808,8 @@ TEST_F(AnalyzerTest, WalkDeps) {
   std::unique_ptr<Target> app = MakeTarget("//dir", "app");
   app->sources().push_back(SourceFile("//dir/app.cc"));
   std::unique_ptr<Target> final = MakeTarget("//dir", "final");
-  std::unique_ptr<Target> pickles = MakeTarget("//dir", "pickles");
-  pickles->set_output_type(Target::GENERATED_FILE);
+  std::unique_ptr<Target> pickles =
+      MakeTarget("//dir", "pickles", Target::GENERATED_FILE);
   pickles->walk_deps().push_back(LabelTargetPair(app.get()));
   final->private_deps().push_back(LabelTargetPair(pickles.get()));
   app->private_deps().push_back(LabelTargetPair(final.get()));

@@ -21,8 +21,10 @@ TEST(Commands, FilterOutMatch) {
   TestWithScope setup;
   SourceDir current_dir("//");
 
-  Target target_afoo(setup.settings(), Label(SourceDir("//a/"), "foo"));
-  Target target_cbar(setup.settings(), Label(SourceDir("//c/"), "bar"));
+  Target target_afoo(setup.settings(), Label(SourceDir("//a/"), "foo"),
+                     Target::GROUP);
+  Target target_cbar(setup.settings(), Label(SourceDir("//c/"), "bar"),
+                     Target::GROUP);
   std::vector<const Target*> targets{&target_afoo, &target_cbar};
 
   Err err;
@@ -64,8 +66,8 @@ TEST(Commands, ApplyTypeFilter) {
   std::vector<const Target*> all_targets;
   for (const auto& test_case : cases) {
     auto target = std::make_unique<Target>(
-        setup.settings(), Label(SourceDir("//a/"), test_case.first));
-    target->set_output_type(test_case.second);
+        setup.settings(), Label(SourceDir("//a/"), test_case.first),
+        test_case.second);
     all_targets.push_back(target.get());
     created_targets.push_back(std::move(target));
   }
@@ -193,8 +195,8 @@ TEST(Commands, ApplyTypeFilter) {
   // Test Target::ACTION_FOREACH aliasing with --exclude-type=action.
   {
     auto action_foreach_target = std::make_unique<Target>(
-        setup.settings(), Label(SourceDir("//a/"), "action_foreach_target"));
-    action_foreach_target->set_output_type(Target::ACTION_FOREACH);
+        setup.settings(), Label(SourceDir("//a/"), "action_foreach_target"),
+        Target::ACTION_FOREACH);
     std::vector<const Target*> targets_to_filter = all_targets;
     targets_to_filter.push_back(action_foreach_target.get());
 
@@ -270,11 +272,12 @@ TEST_F(CommandsGenTest, InvalidGeneratedInputErrors) {
       SubstitutionList::MakeForTest("//out/Debug/priv.cc");
   ASSERT_TRUE(gen_gamma.OnResolved(&err));
 
-  Target alt_gen(&alt_settings, Label(SourceDir("//gen/"), "alt_gen",
-                                      alt_toolchain.label().dir(),
-                                      alt_toolchain.label().name()));
+  Target alt_gen(
+      &alt_settings,
+      Label(SourceDir("//gen/"), "alt_gen", alt_toolchain.label().dir(),
+            alt_toolchain.label().name()),
+      Target::ACTION);
   alt_gen.visibility().SetPublic();
-  alt_gen.set_output_type(Target::ACTION);
   ASSERT_TRUE(alt_gen.SetToolchain(&alt_toolchain, &err));
   alt_gen.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/alt/alt.h");
@@ -303,11 +306,12 @@ TEST_F(CommandsGenTest, InvalidGeneratedInputErrors) {
   combined.sources().emplace_back("//out/Debug/z.cc");
   ASSERT_TRUE(combined.OnResolved(&err));
 
-  Target multi_tc_alt(&alt_settings, Label(SourceDir("//e/"), "multi_tc",
-                                           alt_toolchain.label().dir(),
-                                           alt_toolchain.label().name()));
+  Target multi_tc_alt(
+      &alt_settings,
+      Label(SourceDir("//e/"), "multi_tc", alt_toolchain.label().dir(),
+            alt_toolchain.label().name()),
+      Target::SOURCE_SET);
   multi_tc_alt.visibility().SetPublic();
-  multi_tc_alt.set_output_type(Target::SOURCE_SET);
   ASSERT_TRUE(multi_tc_alt.SetToolchain(&alt_toolchain, &err));
   multi_tc_alt.sources().emplace_back("//out/Debug/alt/missing.cc");
   ASSERT_TRUE(multi_tc_alt.OnResolved(&err));
@@ -317,11 +321,12 @@ TEST_F(CommandsGenTest, InvalidGeneratedInputErrors) {
   multi_tc_default.sources().emplace_back("//out/Debug/alt/alt.h");
   ASSERT_TRUE(multi_tc_default.OnResolved(&err));
 
-  Target alt_only(&alt_settings, Label(SourceDir("//f/"), "alt_only",
-                                       alt_toolchain.label().dir(),
-                                       alt_toolchain.label().name()));
+  Target alt_only(
+      &alt_settings,
+      Label(SourceDir("//f/"), "alt_only", alt_toolchain.label().dir(),
+            alt_toolchain.label().name()),
+      Target::SOURCE_SET);
   alt_only.visibility().SetPublic();
-  alt_only.set_output_type(Target::SOURCE_SET);
   ASSERT_TRUE(alt_only.SetToolchain(&alt_toolchain, &err));
   alt_only.sources().emplace_back("//out/Debug/alt/missing.cc");
   ASSERT_TRUE(alt_only.OnResolved(&err));

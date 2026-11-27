@@ -110,8 +110,8 @@ TEST(SubstitutionWriter, SourceSubstitutions) {
   TestWithScope setup;
   Err err;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"));
-  target.set_output_type(Target::STATIC_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"),
+                Target::STATIC_LIBRARY);
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -191,8 +191,8 @@ TEST(SubstitutionWriter, TargetSubstitutions) {
   TestWithScope setup;
   Err err;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"));
-  target.set_output_type(Target::STATIC_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"),
+                Target::STATIC_LIBRARY);
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -234,8 +234,8 @@ TEST(SubstitutionWriter, CompilerSubstitutions) {
   TestWithScope setup;
   Err err;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"));
-  target.set_output_type(Target::STATIC_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"),
+                Target::STATIC_LIBRARY);
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -253,8 +253,8 @@ TEST(SubstitutionWriter, LinkerSubstitutions) {
   TestWithScope setup;
   Err err;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"));
-  target.set_output_type(Target::SHARED_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/bar/"), "baz"),
+                Target::SHARED_LIBRARY);
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -302,8 +302,8 @@ TEST(SubstitutionWriter, OutputDir) {
   tool->SetComplete();
 
   // Default target with no output dir overrides.
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "baz"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "baz"),
+                Target::EXECUTABLE);
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
 

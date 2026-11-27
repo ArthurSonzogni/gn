@@ -360,9 +360,8 @@ TestParseInput::~TestParseInput() = default;
 TestTarget::TestTarget(const TestWithScope& setup,
                        const std::string& label_string,
                        Target::OutputType type)
-    : Target(setup.settings(), setup.ParseLabel(label_string)) {
+    : Target(setup.settings(), setup.ParseLabel(label_string), type) {
   visibility().SetPublic();
-  set_output_type(type);
   SetToolchain(setup.toolchain());
 }
 

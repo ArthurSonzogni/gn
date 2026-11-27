@@ -17,8 +17,8 @@ TEST(NinjaCopyTargetWriter, Run) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::COPY_FILES);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::COPY_FILES);
 
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.sources().push_back(SourceFile("//foo/input2.txt"));
@@ -46,8 +46,8 @@ TEST(NinjaCopyTargetWriter, ToolchainDeps) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::COPY_FILES);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::COPY_FILES);
 
   target.sources().push_back(SourceFile("//foo/input1.txt"));
 
@@ -72,8 +72,8 @@ TEST(NinjaCopyTargetWriter, OrderOnlyDeps) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::COPY_FILES);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::COPY_FILES);
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.out");
@@ -96,14 +96,14 @@ TEST(NinjaCopyTargetWriter, DataDeps) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::COPY_FILES);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::COPY_FILES);
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.out");
 
-  Target data_dep(setup.settings(), Label(SourceDir("//foo/"), "datadep"));
-  data_dep.set_output_type(Target::ACTION);
+  Target data_dep(setup.settings(), Label(SourceDir("//foo/"), "datadep"),
+                  Target::ACTION);
   data_dep.visibility().SetPublic();
   data_dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(data_dep.OnResolved(&err));
@@ -130,16 +130,16 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
 
   // First with a single action / output / copy
   {
-    Target action1(setup.settings(), Label(SourceDir("//foo/"), "action1"));
-    action1.set_output_type(Target::ACTION);
+    Target action1(setup.settings(), Label(SourceDir("//foo/"), "action1"),
+                   Target::ACTION);
     action1.visibility().SetPublic();
     action1.SetToolchain(setup.toolchain());
     action1.action_values().outputs() =
         SubstitutionList::MakeForTest("//out/Debug/action1.out");
     ASSERT_TRUE(action1.OnResolved(&err));
 
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::COPY_FILES);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::COPY_FILES);
     target.sources().push_back(
         action1.computed_outputs()[0].AsSourceFile(setup.build_settings()));
     target.SetToolchain(setup.toolchain());
@@ -168,24 +168,24 @@ TEST(NinjaCopyTargetWriter, NoSourcesInOutputs) {
   // Second, with two actions / outputs / copies, which is what trigerred
   // the bug in https://gn.issues.chromium.org/448860851
   {
-    Target action1(setup.settings(), Label(SourceDir("//foo/"), "action1"));
-    action1.set_output_type(Target::ACTION);
+    Target action1(setup.settings(), Label(SourceDir("//foo/"), "action1"),
+                   Target::ACTION);
     action1.visibility().SetPublic();
     action1.SetToolchain(setup.toolchain());
     action1.action_values().outputs() =
         SubstitutionList::MakeForTest("//out/Debug/action1.out");
     ASSERT_TRUE(action1.OnResolved(&err));
 
-    Target action2(setup.settings(), Label(SourceDir("//foo/"), "action2"));
-    action2.set_output_type(Target::ACTION);
+    Target action2(setup.settings(), Label(SourceDir("//foo/"), "action2"),
+                   Target::ACTION);
     action2.visibility().SetPublic();
     action2.SetToolchain(setup.toolchain());
     action2.action_values().outputs() =
         SubstitutionList::MakeForTest("//out/Debug/action2.out");
     ASSERT_TRUE(action2.OnResolved(&err));
 
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::COPY_FILES);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::COPY_FILES);
     target.sources().push_back(
         action1.computed_outputs()[0].AsSourceFile(setup.build_settings()));
     target.sources().push_back(
@@ -222,8 +222,8 @@ TEST(NinjaCopyTargetWriter, CopyWithValidations) {
   Err err;
   TestWithScope setup;
 
-  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"));
-  validation_target.set_output_type(Target::ACTION);
+  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"),
+                           Target::ACTION);
   validation_target.visibility().SetPublic();
   validation_target.action_values().set_script(SourceFile("//foo/script.py"));
   validation_target.action_values().outputs() =
@@ -231,8 +231,8 @@ TEST(NinjaCopyTargetWriter, CopyWithValidations) {
   validation_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(validation_target.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::COPY_FILES);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::COPY_FILES);
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/{{source_name_part}}.out");

@@ -22,8 +22,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustSourceSet) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::SOURCE_SET);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//foo/input1.rs"));
   target.sources().push_back(SourceFile("//foo/main.rs"));
@@ -36,8 +36,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustExecutable) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/input3.rs"));
@@ -91,8 +91,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
   TestWithScope setup;
 
   Target private_rlib(setup.settings(),
-                      Label(SourceDir("//baz/"), "privatelib"));
-  private_rlib.set_output_type(Target::RUST_LIBRARY);
+                      Label(SourceDir("//baz/"), "privatelib"),
+                      Target::RUST_LIBRARY);
   private_rlib.visibility().SetPublic();
   SourceFile bazlib("//baz/lib.rs");
   private_rlib.sources().push_back(SourceFile("//baz/privatelib.rs"));
@@ -131,9 +131,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target far_public_rlib(setup.settings(),
-                         Label(SourceDir("//far/"), "farlib"));
-  far_public_rlib.set_output_type(Target::RUST_LIBRARY);
+  Target far_public_rlib(setup.settings(), Label(SourceDir("//far/"), "farlib"),
+                         Target::RUST_LIBRARY);
   far_public_rlib.visibility().SetPublic();
   SourceFile farlib("//far/lib.rs");
   far_public_rlib.sources().push_back(SourceFile("//far/farlib.rs"));
@@ -172,8 +171,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target public_rlib(setup.settings(), Label(SourceDir("//bar/"), "publiclib"));
-  public_rlib.set_output_type(Target::RUST_LIBRARY);
+  Target public_rlib(setup.settings(), Label(SourceDir("//bar/"), "publiclib"),
+                     Target::RUST_LIBRARY);
   public_rlib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   public_rlib.sources().push_back(SourceFile("//bar/publiclib.rs"));
@@ -213,8 +212,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "direct"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "direct"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile lib("//foo/main.rs");
   rlib.sources().push_back(SourceFile("//foo/direct.rs"));
@@ -227,8 +226,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDeps) {
   rlib.private_deps().push_back(LabelTargetPair(&private_rlib));
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//main/"), "main"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//main/"), "main"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//main/main.rs");
   target.sources().push_back(SourceFile("//main/source.rs"));
@@ -279,8 +278,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   TestWithScope setup;
 
   Target private_inside_dylib(setup.settings(),
-                              Label(SourceDir("//faz/"), "private_inside"));
-  private_inside_dylib.set_output_type(Target::RUST_LIBRARY);
+                              Label(SourceDir("//faz/"), "private_inside"),
+                              Target::RUST_LIBRARY);
   private_inside_dylib.visibility().SetPublic();
   SourceFile fazlib("//faz/lib.rs");
   private_inside_dylib.sources().push_back(
@@ -320,8 +319,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target inside_dylib(setup.settings(), Label(SourceDir("//baz/"), "inside"));
-  inside_dylib.set_output_type(Target::RUST_LIBRARY);
+  Target inside_dylib(setup.settings(), Label(SourceDir("//baz/"), "inside"),
+                      Target::RUST_LIBRARY);
   inside_dylib.visibility().SetPublic();
   SourceFile bazlib("//baz/lib.rs");
   inside_dylib.sources().push_back(SourceFile("//baz/inside.rs"));
@@ -360,8 +359,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target dylib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
-  dylib.set_output_type(Target::SHARED_LIBRARY);
+  Target dylib(setup.settings(), Label(SourceDir("//bar/"), "mylib"),
+               Target::SHARED_LIBRARY);
   dylib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   dylib.sources().push_back(SourceFile("//bar/mylib.rs"));
@@ -406,8 +405,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   }
 
   Target private_dylib(setup.settings(),
-                       Label(SourceDir("//private_dylib/"), "private_dylib"));
-  private_dylib.set_output_type(Target::SHARED_LIBRARY);
+                       Label(SourceDir("//private_dylib/"), "private_dylib"),
+                       Target::SHARED_LIBRARY);
   private_dylib.visibility().SetPublic();
   SourceFile private_dyliblib("//private_dylib/lib.rs");
   private_dylib.sources().push_back(SourceFile("//private_dylib/mylib.rs"));
@@ -419,8 +418,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   private_dylib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(private_dylib.OnResolved(&err));
 
-  Target another_dylib(setup.settings(), Label(SourceDir("//foo/"), "direct"));
-  another_dylib.set_output_type(Target::SHARED_LIBRARY);
+  Target another_dylib(setup.settings(), Label(SourceDir("//foo/"), "direct"),
+                       Target::SHARED_LIBRARY);
   another_dylib.visibility().SetPublic();
   SourceFile lib("//foo/main.rs");
   another_dylib.sources().push_back(SourceFile("//foo/direct.rs"));
@@ -434,8 +433,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, DylibDeps) {
   another_dylib.private_deps().push_back(LabelTargetPair(&private_dylib));
   ASSERT_TRUE(another_dylib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -485,8 +484,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
   Err err;
   TestWithScope setup;
 
-  Target procmacro(setup.settings(), Label(SourceDir("//bar/"), "mymacro"));
-  procmacro.set_output_type(Target::RUST_PROC_MACRO);
+  Target procmacro(setup.settings(), Label(SourceDir("//bar/"), "mymacro"),
+                   Target::RUST_PROC_MACRO);
   procmacro.visibility().SetPublic();
   SourceFile barproc("//bar/lib.rs");
   procmacro.sources().push_back(SourceFile("//bar/mylib.rs"));
@@ -533,15 +532,15 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
   // group, the crate C needs to be rebuilt when D is changed. The group
   // dependency does not guarantee that it would, so we test that C has an
   // indirect dependency on D through this group.
-  Target group(setup.settings(), Label(SourceDir("//baz/"), "group"));
-  group.set_output_type(Target::GROUP);
+  Target group(setup.settings(), Label(SourceDir("//baz/"), "group"),
+               Target::GROUP);
   group.visibility().SetPublic();
   group.public_deps().push_back(LabelTargetPair(&procmacro));
   group.SetToolchain(setup.toolchain());
   ASSERT_TRUE(group.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   rlib.sources().push_back(SourceFile("//bar/mylib.rs"));
@@ -586,8 +585,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDepsAcrossGroups) {
     EXPECT_EQ(expected, out);
   }
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -653,8 +652,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupOrderOnlyDeps) {
   ASSERT_TRUE(config.OnResolved(&err));
 
   // Source set B (dependee, C++)
-  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  target_b.set_output_type(Target::SOURCE_SET);
+  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"),
+                  Target::SOURCE_SET);
   target_b.sources().push_back(SourceFile("//foo/b.cc"));
   target_b.source_types_used().Set(SourceFile::SOURCE_CPP);
   target_b.visibility().SetPublic();
@@ -663,16 +662,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupOrderOnlyDeps) {
   ASSERT_TRUE(target_b.OnResolved(&err)) << err.message();
 
   // Group E (depender)
-  Target target_e(setup.settings(), Label(SourceDir("//foo/"), "e"));
-  target_e.set_output_type(Target::GROUP);
+  Target target_e(setup.settings(), Label(SourceDir("//foo/"), "e"),
+                  Target::GROUP);
   target_e.visibility().SetPublic();
   target_e.private_deps().push_back(LabelTargetPair(&target_b));
   target_e.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target_e.OnResolved(&err)) << err.message();
 
   // Rust Executable F (depender on group E)
-  Target target_f(setup.settings(), Label(SourceDir("//foo/"), "f"));
-  target_f.set_output_type(Target::EXECUTABLE);
+  Target target_f(setup.settings(), Label(SourceDir("//foo/"), "f"),
+                  Target::EXECUTABLE);
   SourceFile main("//foo/main.rs");
   target_f.sources().push_back(main);
   target_f.source_types_used().Set(SourceFile::SOURCE_RS);
@@ -715,8 +714,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupOrderOnlyDeps) {
   // Rust library G (depender on group E). An rlib doesn't wait for non-Rust
   // source sets, even if they are reached through a group (see also the
   // NonRustDeps test).
-  Target target_g(setup.settings(), Label(SourceDir("//foo/"), "g"));
-  target_g.set_output_type(Target::RUST_LIBRARY);
+  Target target_g(setup.settings(), Label(SourceDir("//foo/"), "g"),
+                  Target::RUST_LIBRARY);
   SourceFile lib("//foo/lib.rs");
   target_g.sources().push_back(lib);
   target_g.source_types_used().Set(SourceFile::SOURCE_RS);
@@ -764,8 +763,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RenamedDeps) {
   Err err;
   TestWithScope setup;
 
-  Target transitive(setup.settings(), Label(SourceDir("//faz/"), "transitive"));
-  transitive.set_output_type(Target::RUST_LIBRARY);
+  Target transitive(setup.settings(), Label(SourceDir("//faz/"), "transitive"),
+                    Target::RUST_LIBRARY);
   transitive.visibility().SetPublic();
   SourceFile transitive_lib("//faz/transitive/lib.rs");
   transitive.sources().push_back(SourceFile("//faz/transitive/transitive.rs"));
@@ -776,8 +775,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RenamedDeps) {
   transitive.SetToolchain(setup.toolchain());
   ASSERT_TRUE(transitive.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//baz/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//baz/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile barlib("//baz/bar/lib.rs");
   rlib.sources().push_back(SourceFile("//baz/bar/mylib.rs"));
@@ -789,8 +788,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RenamedDeps) {
   rlib.public_deps().push_back(LabelTargetPair(&transitive));
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target direct(setup.settings(), Label(SourceDir("//bar/"), "direct"));
-  direct.set_output_type(Target::RUST_LIBRARY);
+  Target direct(setup.settings(), Label(SourceDir("//bar/"), "direct"),
+                Target::RUST_LIBRARY);
   direct.visibility().SetPublic();
   SourceFile direct_lib("//bar/direct/lib.rs");
   direct.sources().push_back(SourceFile("//bar/direct/direct.rs"));
@@ -801,8 +800,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RenamedDeps) {
   direct.SetToolchain(setup.toolchain());
   ASSERT_TRUE(direct.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -857,16 +856,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   Err err;
   TestWithScope setup;
 
-  Target staticlib(setup.settings(), Label(SourceDir("//foo/"), "static"));
-  staticlib.set_output_type(Target::STATIC_LIBRARY);
+  Target staticlib(setup.settings(), Label(SourceDir("//foo/"), "static"),
+                   Target::STATIC_LIBRARY);
   staticlib.visibility().SetPublic();
   staticlib.sources().push_back(SourceFile("//foo/static.cpp"));
   staticlib.source_types_used().Set(SourceFile::SOURCE_CPP);
   staticlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(staticlib.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   rlib.sources().push_back(SourceFile("//bar/mylib.rs"));
@@ -877,16 +876,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target sharedlib(setup.settings(), Label(SourceDir("//foo/"), "shared"));
-  sharedlib.set_output_type(Target::SHARED_LIBRARY);
+  Target sharedlib(setup.settings(), Label(SourceDir("//foo/"), "shared"),
+                   Target::SHARED_LIBRARY);
   sharedlib.visibility().SetPublic();
   sharedlib.sources().push_back(SourceFile("//foo/static.cpp"));
   sharedlib.source_types_used().Set(SourceFile::SOURCE_CPP);
   sharedlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(sharedlib.OnResolved(&err));
 
-  Target csourceset(setup.settings(), Label(SourceDir("//baz/"), "sourceset"));
-  csourceset.set_output_type(Target::SOURCE_SET);
+  Target csourceset(setup.settings(), Label(SourceDir("//baz/"), "sourceset"),
+                    Target::SOURCE_SET);
   csourceset.visibility().SetPublic();
   csourceset.sources().push_back(SourceFile("//baz/csourceset.cpp"));
   csourceset.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -897,16 +896,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
       setup.settings(), Label(SourceDir("//toolchain_with_toc/"), "with_toc"));
   TestWithScope::SetupToolchain(&toolchain_with_toc, true);
   Target sharedlib_with_toc(setup.settings(),
-                            Label(SourceDir("//foo/"), "shared_with_toc"));
-  sharedlib_with_toc.set_output_type(Target::SHARED_LIBRARY);
+                            Label(SourceDir("//foo/"), "shared_with_toc"),
+                            Target::SHARED_LIBRARY);
   sharedlib_with_toc.visibility().SetPublic();
   sharedlib_with_toc.sources().push_back(SourceFile("//foo/static.cpp"));
   sharedlib_with_toc.source_types_used().Set(SourceFile::SOURCE_CPP);
   sharedlib_with_toc.SetToolchain(&toolchain_with_toc);
   ASSERT_TRUE(sharedlib_with_toc.OnResolved(&err));
 
-  Target nonrust(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  nonrust.set_output_type(Target::EXECUTABLE);
+  Target nonrust(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                 Target::EXECUTABLE);
   nonrust.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   nonrust.sources().push_back(SourceFile("//foo/source.rs"));
@@ -956,8 +955,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target nonrust_only(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  nonrust_only.set_output_type(Target::EXECUTABLE);
+  Target nonrust_only(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                      Target::EXECUTABLE);
   nonrust_only.visibility().SetPublic();
   nonrust_only.sources().push_back(SourceFile("//foo/source.rs"));
   nonrust_only.sources().push_back(main);
@@ -996,8 +995,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target rstaticlib(setup.settings(), Label(SourceDir("//baz/"), "baz"));
-  rstaticlib.set_output_type(Target::STATIC_LIBRARY);
+  Target rstaticlib(setup.settings(), Label(SourceDir("//baz/"), "baz"),
+                    Target::STATIC_LIBRARY);
   rstaticlib.visibility().SetPublic();
   SourceFile bazlib("//baz/lib.rs");
   rstaticlib.sources().push_back(bazlib);
@@ -1042,8 +1041,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   // passed to rustc nor dependencies of the rlib (not even order-only
   // dependencies on the `.linkdeps` of source sets). This avoids compiling the
   // rlib having to wait for C/C++ code to be compiled/linked.
-  Target rlib_with_nonrust(setup.settings(), Label(SourceDir("//qux/"), "qux"));
-  rlib_with_nonrust.set_output_type(Target::RUST_LIBRARY);
+  Target rlib_with_nonrust(setup.settings(), Label(SourceDir("//qux/"), "qux"),
+                           Target::RUST_LIBRARY);
   rlib_with_nonrust.visibility().SetPublic();
   SourceFile quxlib("//qux/lib.rs");
   rlib_with_nonrust.sources().push_back(quxlib);
@@ -1093,8 +1092,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
 
   // The non-Rust dependencies of the rlib are instead linked into the final
   // target which depends on the rlib.
-  Target bin_with_rlib(setup.settings(), Label(SourceDir("//qux/"), "bin"));
-  bin_with_rlib.set_output_type(Target::EXECUTABLE);
+  Target bin_with_rlib(setup.settings(), Label(SourceDir("//qux/"), "bin"),
+                       Target::EXECUTABLE);
   bin_with_rlib.visibility().SetPublic();
   SourceFile quxmain("//qux/main.rs");
   bin_with_rlib.sources().push_back(quxmain);
@@ -1140,8 +1139,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
 
   // Non-Rust native dependencies (and Rust cdylibs) reached through a group
   // are also omitted from an rlib's dependencies.
-  Target cdylib(setup.settings(), Label(SourceDir("//foo/"), "cdylib"));
-  cdylib.set_output_type(Target::SHARED_LIBRARY);
+  Target cdylib(setup.settings(), Label(SourceDir("//foo/"), "cdylib"),
+                Target::SHARED_LIBRARY);
   cdylib.visibility().SetPublic();
   SourceFile cdylib_root("//foo/cdylib.rs");
   cdylib.sources().push_back(cdylib_root);
@@ -1153,8 +1152,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   ASSERT_TRUE(cdylib.OnResolved(&err));
 
   Target nonrust_group(setup.settings(),
-                       Label(SourceDir("//qux/"), "nonrust_group"));
-  nonrust_group.set_output_type(Target::GROUP);
+                       Label(SourceDir("//qux/"), "nonrust_group"),
+                       Target::GROUP);
   nonrust_group.visibility().SetPublic();
   nonrust_group.private_deps().push_back(LabelTargetPair(&staticlib));
   nonrust_group.private_deps().push_back(LabelTargetPair(&sharedlib));
@@ -1165,8 +1164,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, NonRustDeps) {
   ASSERT_TRUE(nonrust_group.OnResolved(&err));
 
   Target rlib_with_nonrust_group(setup.settings(),
-                                 Label(SourceDir("//qux/"), "qux_group"));
-  rlib_with_nonrust_group.set_output_type(Target::RUST_LIBRARY);
+                                 Label(SourceDir("//qux/"), "qux_group"),
+                                 Target::RUST_LIBRARY);
   rlib_with_nonrust_group.visibility().SetPublic();
   rlib_with_nonrust_group.sources().push_back(quxlib);
   rlib_with_nonrust_group.source_types_used().Set(SourceFile::SOURCE_RS);
@@ -1220,8 +1219,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibHardDepsThroughNonRustSourceSet) {
   Err err;
   TestWithScope setup;
 
-  Target action(setup.settings(), Label(SourceDir("//foo/"), "gen"));
-  action.set_output_type(Target::ACTION);
+  Target action(setup.settings(), Label(SourceDir("//foo/"), "gen"),
+                Target::ACTION);
   action.visibility().SetPublic();
   action.action_values().set_script(SourceFile("//foo/gen.py"));
   action.action_values().outputs() =
@@ -1229,8 +1228,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibHardDepsThroughNonRustSourceSet) {
   action.SetToolchain(setup.toolchain());
   ASSERT_TRUE(action.OnResolved(&err));
 
-  Target csourceset(setup.settings(), Label(SourceDir("//foo/"), "cpp"));
-  csourceset.set_output_type(Target::SOURCE_SET);
+  Target csourceset(setup.settings(), Label(SourceDir("//foo/"), "cpp"),
+                    Target::SOURCE_SET);
   csourceset.visibility().SetPublic();
   csourceset.sources().push_back(SourceFile("//foo/cpp.cc"));
   csourceset.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -1238,8 +1237,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibHardDepsThroughNonRustSourceSet) {
   csourceset.SetToolchain(setup.toolchain());
   ASSERT_TRUE(csourceset.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   rlib.sources().push_back(lib);
@@ -1284,8 +1283,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDataDepsOnNonRustSourceSet) {
   Err err;
   TestWithScope setup;
 
-  Target csourceset(setup.settings(), Label(SourceDir("//foo/"), "cpp"));
-  csourceset.set_output_type(Target::SOURCE_SET);
+  Target csourceset(setup.settings(), Label(SourceDir("//foo/"), "cpp"),
+                    Target::SOURCE_SET);
   csourceset.visibility().SetPublic();
   csourceset.sources().push_back(SourceFile("//foo/cpp.cc"));
   csourceset.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -1293,24 +1292,24 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDataDepsOnNonRustSourceSet) {
   ASSERT_TRUE(csourceset.OnResolved(&err));
 
   Target csourceset_in_group(setup.settings(),
-                             Label(SourceDir("//foo/"), "cpp_in_group"));
-  csourceset_in_group.set_output_type(Target::SOURCE_SET);
+                             Label(SourceDir("//foo/"), "cpp_in_group"),
+                             Target::SOURCE_SET);
   csourceset_in_group.visibility().SetPublic();
   csourceset_in_group.sources().push_back(SourceFile("//foo/cpp2.cc"));
   csourceset_in_group.source_types_used().Set(SourceFile::SOURCE_CPP);
   csourceset_in_group.SetToolchain(setup.toolchain());
   ASSERT_TRUE(csourceset_in_group.OnResolved(&err));
 
-  Target data_group(setup.settings(), Label(SourceDir("//foo/"), "data_group"));
-  data_group.set_output_type(Target::GROUP);
+  Target data_group(setup.settings(), Label(SourceDir("//foo/"), "data_group"),
+                    Target::GROUP);
   data_group.visibility().SetPublic();
   data_group.data_deps().push_back(LabelTargetPair(&csourceset_in_group));
   data_group.SetToolchain(setup.toolchain());
   ASSERT_TRUE(data_group.OnResolved(&err));
 
   Target csourceset_in_data_dep_group(
-      setup.settings(), Label(SourceDir("//foo/"), "cpp_in_data_dep_group"));
-  csourceset_in_data_dep_group.set_output_type(Target::SOURCE_SET);
+      setup.settings(), Label(SourceDir("//foo/"), "cpp_in_data_dep_group"),
+      Target::SOURCE_SET);
   csourceset_in_data_dep_group.visibility().SetPublic();
   csourceset_in_data_dep_group.sources().push_back(SourceFile("//foo/cpp3.cc"));
   csourceset_in_data_dep_group.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -1318,16 +1317,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibDataDepsOnNonRustSourceSet) {
   ASSERT_TRUE(csourceset_in_data_dep_group.OnResolved(&err));
 
   Target data_dep_group(setup.settings(),
-                        Label(SourceDir("//foo/"), "data_dep_group"));
-  data_dep_group.set_output_type(Target::GROUP);
+                        Label(SourceDir("//foo/"), "data_dep_group"),
+                        Target::GROUP);
   data_dep_group.visibility().SetPublic();
   data_dep_group.private_deps().push_back(
       LabelTargetPair(&csourceset_in_data_dep_group));
   data_dep_group.SetToolchain(setup.toolchain());
   ASSERT_TRUE(data_dep_group.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   rlib.sources().push_back(lib);
@@ -1374,8 +1373,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
 
   Target priv_sset_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//priv_sset_in_staticlib/"), "priv_sset_in_staticlib"));
-  priv_sset_in_staticlib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//priv_sset_in_staticlib/"), "priv_sset_in_staticlib"),
+      Target::SOURCE_SET);
   priv_sset_in_staticlib.visibility().SetPublic();
   priv_sset_in_staticlib.sources().push_back(
       SourceFile("//priv_sset_in_staticlib/lib.cc"));
@@ -1385,8 +1384,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
 
   Target pub_sset_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//pub_sset_in_staticlib/"), "pub_sset_in_staticlib"));
-  pub_sset_in_staticlib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//pub_sset_in_staticlib/"), "pub_sset_in_staticlib"),
+      Target::SOURCE_SET);
   pub_sset_in_staticlib.visibility().SetPublic();
   pub_sset_in_staticlib.sources().push_back(
       SourceFile("//pub_sset_in_staticlib/lib.cc"));
@@ -1396,8 +1395,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
 
   Target priv_sset_in_dylib(
       setup.settings(),
-      Label(SourceDir("//priv_sset_in_dylib/"), "priv_sset_in_dylib"));
-  priv_sset_in_dylib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//priv_sset_in_dylib/"), "priv_sset_in_dylib"),
+      Target::SOURCE_SET);
   priv_sset_in_dylib.visibility().SetPublic();
   priv_sset_in_dylib.sources().push_back(
       SourceFile("//priv_sset_in_dylib/lib.cc"));
@@ -1407,8 +1406,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
 
   Target pub_sset_in_dylib(
       setup.settings(),
-      Label(SourceDir("//pub_sset_in_dylib"), "pub_sset_in_dylib"));
-  pub_sset_in_dylib.set_output_type(Target::SOURCE_SET);
+      Label(SourceDir("//pub_sset_in_dylib"), "pub_sset_in_dylib"),
+      Target::SOURCE_SET);
   pub_sset_in_dylib.visibility().SetPublic();
   pub_sset_in_dylib.sources().push_back(
       SourceFile("//pub_sset_in_dylib/lib.cc"));
@@ -1418,8 +1417,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
 
   Target priv_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//priv_in_staticlib/"), "priv_in_staticlib"));
-  priv_in_staticlib.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//priv_in_staticlib/"), "priv_in_staticlib"),
+      Target::RUST_LIBRARY);
   priv_in_staticlib.visibility().SetPublic();
   SourceFile priv_in_staticlib_root("//priv_in_staticlib/lib.rs");
   priv_in_staticlib.sources().push_back(priv_in_staticlib_root);
@@ -1433,8 +1432,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
 
   Target pub_in_staticlib(
       setup.settings(),
-      Label(SourceDir("//pub_in_staticlib/"), "pub_in_staticlib"));
-  pub_in_staticlib.set_output_type(Target::RUST_LIBRARY);
+      Label(SourceDir("//pub_in_staticlib/"), "pub_in_staticlib"),
+      Target::RUST_LIBRARY);
   pub_in_staticlib.visibility().SetPublic();
   SourceFile pub_in_staticlib_root("//pub_in_staticlib/lib.rs");
   pub_in_staticlib.sources().push_back(pub_in_staticlib_root);
@@ -1447,8 +1446,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
   ASSERT_TRUE(pub_in_staticlib.OnResolved(&err));
 
   Target priv_in_dylib(setup.settings(),
-                       Label(SourceDir("//priv_in_dylib/"), "priv_in_dylib"));
-  priv_in_dylib.set_output_type(Target::RUST_LIBRARY);
+                       Label(SourceDir("//priv_in_dylib/"), "priv_in_dylib"),
+                       Target::RUST_LIBRARY);
   priv_in_dylib.visibility().SetPublic();
   SourceFile priv_in_dylib_root("//priv_in_dylib/lib.rs");
   priv_in_dylib.sources().push_back(priv_in_dylib_root);
@@ -1460,8 +1459,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
   ASSERT_TRUE(priv_in_dylib.OnResolved(&err));
 
   Target pub_in_dylib(setup.settings(),
-                      Label(SourceDir("//pub_in_dylib/"), "pub_in_dylib"));
-  pub_in_dylib.set_output_type(Target::RUST_LIBRARY);
+                      Label(SourceDir("//pub_in_dylib/"), "pub_in_dylib"),
+                      Target::RUST_LIBRARY);
   pub_in_dylib.visibility().SetPublic();
   SourceFile pub_in_dylib_root("//pub_in_dylib/lib.rs");
   pub_in_dylib.sources().push_back(pub_in_dylib_root);
@@ -1473,8 +1472,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
   ASSERT_TRUE(pub_in_dylib.OnResolved(&err));
 
   Target staticlib(setup.settings(),
-                   Label(SourceDir("//staticlib/"), "staticlib"));
-  staticlib.set_output_type(Target::STATIC_LIBRARY);
+                   Label(SourceDir("//staticlib/"), "staticlib"),
+                   Target::STATIC_LIBRARY);
   staticlib.visibility().SetPublic();
   staticlib.sources().push_back(SourceFile("//staticlib/lib.cc"));
   staticlib.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -1483,8 +1482,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
   staticlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(staticlib.OnResolved(&err));
 
-  Target dylib(setup.settings(), Label(SourceDir("//dylib/"), "dylib"));
-  dylib.set_output_type(Target::SHARED_LIBRARY);
+  Target dylib(setup.settings(), Label(SourceDir("//dylib/"), "dylib"),
+               Target::SHARED_LIBRARY);
   dylib.visibility().SetPublic();
   SourceFile dylib_root("//dylib/lib.rs");
   dylib.sources().push_back(dylib_root);
@@ -1496,8 +1495,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibInLibrary) {
   dylib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dylib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//exe/"), "exe"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//exe/"), "exe"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//exe/main.rs");
   target.sources().push_back(main);
@@ -1560,8 +1559,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustOutputExtensionAndDir) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/input3.rs"));
@@ -1607,8 +1606,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, LibsAndLibDirs) {
   Err err;
   TestWithScope setup;
 
-  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "rlib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "rlib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   rlib.sources().push_back(SourceFile("//bar/rlib.rs"));
@@ -1622,8 +1621,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, LibsAndLibDirs) {
   rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/input.rs"));
@@ -1676,8 +1675,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibWithLibDeps) {
   Err err;
   TestWithScope setup;
 
-  Target public_rlib(setup.settings(), Label(SourceDir("//bar/"), "publiclib"));
-  public_rlib.set_output_type(Target::RUST_LIBRARY);
+  Target public_rlib(setup.settings(), Label(SourceDir("//bar/"), "publiclib"),
+                     Target::RUST_LIBRARY);
   public_rlib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   public_rlib.sources().push_back(SourceFile("//bar/publiclib.rs"));
@@ -1688,16 +1687,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RlibWithLibDeps) {
   public_rlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(public_rlib.OnResolved(&err));
 
-  Target staticlib(setup.settings(), Label(SourceDir("//clib/"), "static"));
-  staticlib.set_output_type(Target::STATIC_LIBRARY);
+  Target staticlib(setup.settings(), Label(SourceDir("//clib/"), "static"),
+                   Target::STATIC_LIBRARY);
   staticlib.visibility().SetPublic();
   staticlib.sources().push_back(SourceFile("//foo/clib.cpp"));
   staticlib.source_types_used().Set(SourceFile::SOURCE_CPP);
   staticlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(staticlib.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "rlibcrate"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "rlibcrate"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile lib("//foo/input.rs");
   rlib.sources().push_back(lib);
@@ -1778,8 +1777,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
   TestWithScope setup;
 
   Target procmacropublicdep(
-      setup.settings(), Label(SourceDir("//baz/public/"), "mymacropublicdep"));
-  procmacropublicdep.set_output_type(Target::RUST_LIBRARY);
+      setup.settings(), Label(SourceDir("//baz/public/"), "mymacropublicdep"),
+      Target::RUST_LIBRARY);
   procmacropublicdep.visibility().SetPublic();
   SourceFile publicbazlib("//baz/public/lib.rs");
   procmacropublicdep.sources().push_back(SourceFile("//baz/public/mylib.rs"));
@@ -1791,9 +1790,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
   ASSERT_TRUE(procmacropublicdep.OnResolved(&err));
 
   Target procmacroprivatedep(
-      setup.settings(),
-      Label(SourceDir("//baz/private/"), "mymacroprivatedep"));
-  procmacroprivatedep.set_output_type(Target::RUST_LIBRARY);
+      setup.settings(), Label(SourceDir("//baz/private/"), "mymacroprivatedep"),
+      Target::RUST_LIBRARY);
   procmacroprivatedep.visibility().SetPublic();
   SourceFile privatebazlib("//baz/private/lib.rs");
   procmacroprivatedep.sources().push_back(SourceFile("//baz/private/mylib.rs"));
@@ -1804,8 +1802,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
   procmacroprivatedep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(procmacroprivatedep.OnResolved(&err));
 
-  Target procmacro(setup.settings(), Label(SourceDir("//bar/"), "mymacro"));
-  procmacro.set_output_type(Target::RUST_PROC_MACRO);
+  Target procmacro(setup.settings(), Label(SourceDir("//bar/"), "mymacro"),
+                   Target::RUST_PROC_MACRO);
   procmacro.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   procmacro.sources().push_back(SourceFile("//bar/mylib.rs"));
@@ -1854,8 +1852,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, RustProcMacro) {
     EXPECT_EQ(expected, out);
   }
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -1900,8 +1898,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
   Err err;
   TestWithScope setup;
 
-  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   rlib.sources().push_back(SourceFile("//bar/mylib.rs"));
@@ -1940,15 +1938,15 @@ TEST_F(NinjaRustBinaryTargetWriterTest, GroupDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target group(setup.settings(), Label(SourceDir("//baz/"), "group"));
-  group.set_output_type(Target::GROUP);
+  Target group(setup.settings(), Label(SourceDir("//baz/"), "group"),
+               Target::GROUP);
   group.visibility().SetPublic();
   group.public_deps().push_back(LabelTargetPair(&rlib));
   group.SetToolchain(setup.toolchain());
   ASSERT_TRUE(group.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -1994,8 +1992,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Externs) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -2048,8 +2046,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Inputs) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -2126,8 +2124,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
   // Upstream action target: its output should be an order-only dependency
   // ("||"), while its public_configs / all_dependent_configs `inputs` and its
   // `public_inputs` must be implicit rebuild dependencies ("|").
-  Target gen_action(setup.settings(), Label(SourceDir("//cfg/"), "gen_target"));
-  gen_action.set_output_type(Target::ACTION);
+  Target gen_action(setup.settings(), Label(SourceDir("//cfg/"), "gen_target"),
+                    Target::ACTION);
   gen_action.visibility().SetPublic();
   gen_action.action_values().set_script(SourceFile("//cfg/gen.py"));
   gen_action.action_values().outputs() =
@@ -2141,8 +2139,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
 
   // 1. Test RUST_LIBRARY (rlib) with target inputs, config inputs,
   // public_inputs, and an order-only action dependency.
-  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//foo/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile lib_rs("//foo/lib.rs");
   rlib.sources().push_back(SourceFile("//foo/extra.rs"));
@@ -2199,8 +2197,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
     TestWithScope stamp_setup;
     stamp_setup.build_settings()->set_no_stamp_files(false);
 
-    Target tc_dep(stamp_setup.settings(), Label(SourceDir("//tc/"), "setup"));
-    tc_dep.set_output_type(Target::ACTION);
+    Target tc_dep(stamp_setup.settings(), Label(SourceDir("//tc/"), "setup"),
+                  Target::ACTION);
     tc_dep.visibility().SetPublic();
     tc_dep.action_values().set_script(SourceFile("//tc/setup.py"));
     tc_dep.SetToolchain(stamp_setup.toolchain());
@@ -2221,9 +2219,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
         SourceFile("//cfg/spec2.json"));
     ASSERT_TRUE(all_dep_spec_cfg.OnResolved(&err));
 
-    Target action_dep(stamp_setup.settings(),
-                      Label(SourceDir("//cfg/"), "act"));
-    action_dep.set_output_type(Target::ACTION);
+    Target action_dep(stamp_setup.settings(), Label(SourceDir("//cfg/"), "act"),
+                      Target::ACTION);
     action_dep.visibility().SetPublic();
     action_dep.action_values().set_script(SourceFile("//cfg/gen.py"));
     action_dep.action_values().outputs() =
@@ -2235,8 +2232,7 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
     ASSERT_TRUE(action_dep.OnResolved(&err));
 
     Target action_dep2(stamp_setup.settings(),
-                       Label(SourceDir("//cfg/"), "act2"));
-    action_dep2.set_output_type(Target::ACTION);
+                       Label(SourceDir("//cfg/"), "act2"), Target::ACTION);
     action_dep2.visibility().SetPublic();
     action_dep2.action_values().set_script(SourceFile("//cfg/gen2.py"));
     action_dep2.action_values().outputs() =
@@ -2244,17 +2240,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
     action_dep2.SetToolchain(stamp_setup.toolchain());
     ASSERT_TRUE(action_dep2.OnResolved(&err));
 
-    Target cfg_group(stamp_setup.settings(), Label(SourceDir("//cfg/"), "grp"));
-    cfg_group.set_output_type(Target::GROUP);
+    Target cfg_group(stamp_setup.settings(), Label(SourceDir("//cfg/"), "grp"),
+                     Target::GROUP);
     cfg_group.visibility().SetPublic();
     cfg_group.public_deps().push_back(LabelTargetPair(&action_dep));
     cfg_group.public_deps().push_back(LabelTargetPair(&action_dep2));
     cfg_group.SetToolchain(stamp_setup.toolchain());
     ASSERT_TRUE(cfg_group.OnResolved(&err));
 
-    Target procmacro(stamp_setup.settings(),
-                     Label(SourceDir("//macro/"), "pm"));
-    procmacro.set_output_type(Target::RUST_PROC_MACRO);
+    Target procmacro(stamp_setup.settings(), Label(SourceDir("//macro/"), "pm"),
+                     Target::RUST_PROC_MACRO);
     procmacro.visibility().SetPublic();
     SourceFile pm_root("//macro/lib.rs");
     procmacro.sources().push_back(SourceFile("//macro/helper.rs"));
@@ -2295,8 +2290,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
         "../../cfg/spec2.json ../../cfg/spec1.json\n";
     EXPECT_EQ(pm_expected, pm_out);
 
-    Target dylib(stamp_setup.settings(), Label(SourceDir("//dylib/"), "dy"));
-    dylib.set_output_type(Target::SHARED_LIBRARY);
+    Target dylib(stamp_setup.settings(), Label(SourceDir("//dylib/"), "dy"),
+                 Target::SHARED_LIBRARY);
     dylib.visibility().SetPublic();
     SourceFile dy_root("//dylib/lib.rs");
     dylib.sources().push_back(dy_root);
@@ -2337,8 +2332,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
         "../../cfg/spec1.json\n";
     EXPECT_EQ(dy_expected, dy_out);
 
-    Target cdylib(stamp_setup.settings(), Label(SourceDir("//cdylib/"), "cd"));
-    cdylib.set_output_type(Target::LOADABLE_MODULE);
+    Target cdylib(stamp_setup.settings(), Label(SourceDir("//cdylib/"), "cd"),
+                  Target::LOADABLE_MODULE);
     cdylib.visibility().SetPublic();
     SourceFile cd_root("//cdylib/lib.rs");
     cdylib.sources().push_back(cd_root);
@@ -2380,8 +2375,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ConfigInputsAndOrderOnlyDeps) {
     EXPECT_EQ(cd_expected, cd_out);
 
     Target staticlib(stamp_setup.settings(),
-                     Label(SourceDir("//static/"), "st"));
-    staticlib.set_output_type(Target::STATIC_LIBRARY);
+                     Label(SourceDir("//static/"), "st"),
+                     Target::STATIC_LIBRARY);
     staticlib.visibility().SetPublic();
     SourceFile st_root("//static/lib.rs");
     staticlib.sources().push_back(st_root);
@@ -2442,8 +2437,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ToolInputs) {
   toolchain_with_inputs.SetTool(std::move(rust_bin));
   toolchain_with_inputs.ToolchainSetupComplete();
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(main);
@@ -2480,8 +2475,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, ToolInputs) {
 TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
   Err err;
   TestWithScope setup;
-  Target cdylib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
-  cdylib.set_output_type(Target::SHARED_LIBRARY);
+  Target cdylib(setup.settings(), Label(SourceDir("//bar/"), "mylib"),
+                Target::SHARED_LIBRARY);
   cdylib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   cdylib.sources().push_back(barlib);
@@ -2518,8 +2513,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, CdylibDeps) {
     EXPECT_EQ(expected, out);
   }
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(SourceFile("//foo/source.rs"));
@@ -2564,16 +2559,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitivePublicNonRustDeps) {
   TestWithScope setup;
 
   // This test verifies that the Rust binary "target" links against this lib.
-  Target implicitlib(setup.settings(), Label(SourceDir("//foo/"), "implicit"));
-  implicitlib.set_output_type(Target::SHARED_LIBRARY);
+  Target implicitlib(setup.settings(), Label(SourceDir("//foo/"), "implicit"),
+                     Target::SHARED_LIBRARY);
   implicitlib.visibility().SetPublic();
   implicitlib.sources().push_back(SourceFile("//foo/implicit.cpp"));
   implicitlib.source_types_used().Set(SourceFile::SOURCE_CPP);
   implicitlib.SetToolchain(setup.toolchain());
   ASSERT_TRUE(implicitlib.OnResolved(&err));
 
-  Target sharedlib(setup.settings(), Label(SourceDir("//foo/"), "shared"));
-  sharedlib.set_output_type(Target::SHARED_LIBRARY);
+  Target sharedlib(setup.settings(), Label(SourceDir("//foo/"), "shared"),
+                   Target::SHARED_LIBRARY);
   sharedlib.visibility().SetPublic();
   sharedlib.sources().push_back(SourceFile("//foo/shared.cpp"));
   sharedlib.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2581,8 +2576,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitivePublicNonRustDeps) {
   sharedlib.public_deps().push_back(LabelTargetPair(&implicitlib));
   ASSERT_TRUE(sharedlib.OnResolved(&err));
 
-  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"));
-  rlib.set_output_type(Target::RUST_LIBRARY);
+  Target rlib(setup.settings(), Label(SourceDir("//bar/"), "mylib"),
+              Target::RUST_LIBRARY);
   rlib.visibility().SetPublic();
   SourceFile barlib("//bar/lib.rs");
   rlib.sources().push_back(SourceFile("//bar/mylib.rs"));
@@ -2594,8 +2589,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitivePublicNonRustDeps) {
   rlib.private_deps().push_back(LabelTargetPair(&sharedlib));
   ASSERT_TRUE(rlib.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//foo/main.rs");
   target.sources().push_back(main);
@@ -2641,8 +2636,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
   TestWithScope setup;
 
   Target rlib_pub(setup.settings(),
-                  Label(SourceDir("//public/"), "behind_sourceset_public"));
-  rlib_pub.set_output_type(Target::RUST_LIBRARY);
+                  Label(SourceDir("//public/"), "behind_sourceset_public"),
+                  Target::RUST_LIBRARY);
   rlib_pub.visibility().SetPublic();
   SourceFile rlib_pub_root("//public/lib.rs");
   rlib_pub.sources().push_back(
@@ -2655,8 +2650,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
   ASSERT_TRUE(rlib_pub.OnResolved(&err));
 
   Target rlib_priv(setup.settings(),
-                   Label(SourceDir("//private/"), "behind_sourceset_private"));
-  rlib_priv.set_output_type(Target::RUST_LIBRARY);
+                   Label(SourceDir("//private/"), "behind_sourceset_private"),
+                   Target::RUST_LIBRARY);
   rlib_priv.visibility().SetPublic();
   SourceFile rlib_priv_root("//private/lib.rs");
   rlib_priv.sources().push_back(
@@ -2668,8 +2663,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
   rlib_priv.SetToolchain(setup.toolchain());
   ASSERT_TRUE(rlib_priv.OnResolved(&err));
 
-  Target sset(setup.settings(), Label(SourceDir("//sset/"), "bar"));
-  sset.set_output_type(Target::SOURCE_SET);
+  Target sset(setup.settings(), Label(SourceDir("//sset/"), "bar"),
+              Target::SOURCE_SET);
   sset.visibility().SetPublic();
   sset.sources().push_back(SourceFile("//sset/input1.cc"));
   sset.source_types_used().Set(SourceFile::SOURCE_CPP);
@@ -2678,16 +2673,16 @@ TEST_F(NinjaRustBinaryTargetWriterTest, TransitiveRustDepsThroughSourceSet) {
   sset.private_deps().push_back(LabelTargetPair(&rlib_priv));
   ASSERT_TRUE(sset.OnResolved(&err));
 
-  Target modules(setup.settings(), Label(SourceDir("//sset/"), "module"));
-  modules.set_output_type(Target::SOURCE_SET);
+  Target modules(setup.settings(), Label(SourceDir("//sset/"), "module"),
+                 Target::SOURCE_SET);
   modules.visibility().SetPublic();
   modules.sources().push_back(SourceFile("//sset/module.modulemap"));
   modules.source_types_used().Set(SourceFile::SOURCE_MODULEMAP);
   modules.SetToolchain(setup.toolchain());
   ASSERT_TRUE(modules.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//linked/"), "exe"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//linked/"), "exe"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//linked/exe.rs");
   target.sources().push_back(main);
@@ -2744,13 +2739,13 @@ TEST_F(NinjaRustBinaryTargetWriterTest, Pool) {
                   setup.toolchain()->label().name()));
   pool.set_depth(42);
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::EXECUTABLE);
   SourceFile main("//foo/source.rs");
   target.sources().push_back(main);
   target.source_types_used().Set(SourceFile::SOURCE_RS);
   target.rust_values().set_crate_root(main);
   target.rust_values().crate_name() = "bar";
-  target.set_output_type(Target::EXECUTABLE);
   target.set_pool(LabelPtrPair<Pool>(&pool));
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
@@ -2789,8 +2784,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   TestWithScope setup;
 
   // An action for our library to depend on.
-  Target action(setup.settings(), Label(SourceDir("//bar"), "action"));
-  action.set_output_type(Target::ACTION_FOREACH);
+  Target action(setup.settings(), Label(SourceDir("//bar"), "action"),
+                Target::ACTION_FOREACH);
   action.visibility().SetPublic();
   action.SetToolchain(setup.toolchain());
   ASSERT_TRUE(action.OnResolved(&err));
@@ -2805,8 +2800,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   ASSERT_TRUE(framework_config.OnResolved(&err));
 
   // A target creating a framework bundle.
-  Target framework(setup.settings(), Label(SourceDir("//bar"), "framework"));
-  framework.set_output_type(Target::CREATE_BUNDLE);
+  Target framework(setup.settings(), Label(SourceDir("//bar"), "framework"),
+                   Target::CREATE_BUNDLE);
   framework.bundle_data().product_type() = "com.apple.product-type.framework";
   framework.public_configs().push_back(LabelConfigPair(&framework_config));
   framework.private_deps().push_back(LabelTargetPair(&action));
@@ -2814,8 +2809,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, FrameworksAndFrameworkDirs) {
   framework.visibility().SetPublic();
   ASSERT_TRUE(framework.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//linked/"), "exe"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//linked/"), "exe"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//linked/exe.rs");
   target.sources().push_back(main);
@@ -2862,8 +2857,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, SwiftModule) {
   TestWithScope setup;
 
   // A single Swift module.
-  Target foo_target(setup.settings(), Label(SourceDir("//foo/"), "foo"));
-  foo_target.set_output_type(Target::SOURCE_SET);
+  Target foo_target(setup.settings(), Label(SourceDir("//foo/"), "foo"),
+                    Target::SOURCE_SET);
   foo_target.visibility().SetPublic();
   foo_target.sources().push_back(SourceFile("//foo/file1.swift"));
   foo_target.sources().push_back(SourceFile("//foo/file2.swift"));
@@ -2873,8 +2868,8 @@ TEST_F(NinjaRustBinaryTargetWriterTest, SwiftModule) {
   ASSERT_TRUE(foo_target.OnResolved(&err));
 
   // Rust target links with module.
-  Target target(setup.settings(), Label(SourceDir("//linked/"), "exe"));
-  target.set_output_type(Target::EXECUTABLE);
+  Target target(setup.settings(), Label(SourceDir("//linked/"), "exe"),
+                Target::EXECUTABLE);
   target.visibility().SetPublic();
   SourceFile main("//linked/exe.rs");
   target.sources().push_back(main);

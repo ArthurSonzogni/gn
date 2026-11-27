@@ -101,7 +101,8 @@ TEST_F(SuggestTest, ResolveModuleName) {
   Label default_toolchain(SourceDir("//toolchain/"), "default");
   Err err;
 
-  Target target(setup_scope.settings(), Label(SourceDir("//foo/"), "bar"));
+  Target target(setup_scope.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::SOURCE_SET);
   target.set_module_name("my_module");
 
   std::vector<const Target*> all_targets = {&target};
@@ -138,10 +139,12 @@ TEST_F(SuggestTest, ResolveTargetName) {
   Target target(
       setup_scope.settings(),
       Label(SourceDir("//"), "hello", setup_scope.toolchain()->label().dir(),
-            setup_scope.toolchain()->label().name()));
+            setup_scope.toolchain()->label().name()),
+      Target::GROUP);
   Target target_gcc(
       setup_scope.settings(),
-      Label(SourceDir("//"), "hello", SourceDir("//build/toolchain/"), "gcc"));
+      Label(SourceDir("//"), "hello", SourceDir("//build/toolchain/"), "gcc"),
+      Target::GROUP);
   std::vector<const Target*> all_targets = {&target, &target_gcc};
   commands::TargetResolutionCache cache;
 
@@ -195,7 +198,8 @@ TEST_F(SuggestTest, ResolveFileName) {
   Target explicit_target(
       setup_scope.settings(),
       Label(SourceDir("//"), "explicit", current_toolchain.dir(),
-            current_toolchain.name()));
+            current_toolchain.name()),
+      Target::SOURCE_SET);
   explicit_target.set_all_headers_public(false);
   explicit_target.sources().push_back(SourceFile("//private.h"));
   explicit_target.public_headers().push_back(SourceFile("//public.h"));
@@ -205,7 +209,8 @@ TEST_F(SuggestTest, ResolveFileName) {
   Target implicit_target(
       setup_scope.settings(),
       Label(SourceDir("//"), "implicit", default_toolchain.dir(),
-            default_toolchain.name()));
+            default_toolchain.name()),
+      Target::SOURCE_SET);
   implicit_target.set_all_headers_public(true);
   implicit_target.sources().push_back(SourceFile("//implicit_public.h"));
   implicit_target.sources().push_back(SourceFile("//private.cc"));
@@ -213,7 +218,8 @@ TEST_F(SuggestTest, ResolveFileName) {
   Target simple_default(
       setup_scope.settings(),
       Label(SourceDir("//"), "simple", default_toolchain.dir(),
-            default_toolchain.name()));
+            default_toolchain.name()),
+      Target::SOURCE_SET);
   simple_default.public_headers().push_back(SourceFile("//public.h"));
   simple_default.public_headers().push_back(
       SourceFile("//default_toolchain.h"));
@@ -221,7 +227,8 @@ TEST_F(SuggestTest, ResolveFileName) {
   Target simple_secondary(
       setup_scope.settings(),
       Label(SourceDir("//"), "simple", secondary_toolchain.dir(),
-            secondary_toolchain.name()));
+            secondary_toolchain.name()),
+      Target::SOURCE_SET);
   simple_secondary.public_headers().push_back(SourceFile("//public.h"));
   simple_secondary.public_headers().push_back(
       SourceFile("//default_toolchain.h"));
@@ -230,8 +237,8 @@ TEST_F(SuggestTest, ResolveFileName) {
 
   Target generated(setup_scope.settings(),
                    Label(SourceDir("//"), "generated", current_toolchain.dir(),
-                         current_toolchain.name()));
-  generated.set_output_type(Target::ACTION);
+                         current_toolchain.name()),
+                   Target::ACTION);
   generated.SetToolchain(setup_scope.toolchain());
   generated.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/generated_file.h");
@@ -241,8 +248,8 @@ TEST_F(SuggestTest, ResolveFileName) {
   Target included_target(
       setup_scope.settings(),
       Label(SourceDir("//"), "included_target", current_toolchain.dir(),
-            current_toolchain.name()));
-  included_target.set_output_type(Target::SOURCE_SET);
+            current_toolchain.name()),
+      Target::SOURCE_SET);
   included_target.SetToolchain(setup_scope.toolchain());
   included_target.set_all_headers_public(true);
   included_target.sources().push_back(SourceFile("//include_dir/my_header.h"));
@@ -250,8 +257,8 @@ TEST_F(SuggestTest, ResolveFileName) {
 
   Target consumer(setup_scope.settings(),
                   Label(SourceDir("//"), "consumer", current_toolchain.dir(),
-                        current_toolchain.name()));
-  consumer.set_output_type(Target::SOURCE_SET);
+                        current_toolchain.name()),
+                  Target::SOURCE_SET);
   consumer.SetToolchain(setup_scope.toolchain());
   consumer.set_all_headers_public(true);
   consumer.public_headers().push_back(
@@ -387,8 +394,8 @@ TEST_F(SuggestTest, OutputSuggestions) {
                            auto fn, SourceDir dir = SourceDir("//")) {
     auto target = std::make_unique<Target>(
         setup_scope.settings(),
-        Label(dir, name, default_toolchain.dir(), default_toolchain.name()));
-    target->set_output_type(type);
+        Label(dir, name, default_toolchain.dir(), default_toolchain.name()),
+        type);
     target->SetToolchain(setup_scope.toolchain());
     target->set_user_friendly_location(dummy_loc);
     if (type == Target::SOURCE_SET) {

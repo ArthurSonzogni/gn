@@ -51,8 +51,8 @@ TEST(ConfigValuesExtractors, IncludeOrdering) {
       SourceDir("//dep2/direct/"));
   ASSERT_TRUE(dep2_direct.OnResolved(&err));
 
-  Target dep2(setup.settings(), Label(SourceDir("//dep2/"), "dep2"));
-  dep2.set_output_type(Target::SOURCE_SET);
+  Target dep2(setup.settings(), Label(SourceDir("//dep2/"), "dep2"),
+              Target::SOURCE_SET);
   dep2.visibility().SetPublic();
   dep2.SetToolchain(setup.toolchain());
   dep2.all_dependent_configs().push_back(LabelConfigPair(&dep2_all));
@@ -79,8 +79,8 @@ TEST(ConfigValuesExtractors, IncludeOrdering) {
       SourceDir("//dep1/direct/"));
   ASSERT_TRUE(dep1_direct.OnResolved(&err));
 
-  Target dep1(setup.settings(), Label(SourceDir("//dep1/"), "dep1"));
-  dep1.set_output_type(Target::SOURCE_SET);
+  Target dep1(setup.settings(), Label(SourceDir("//dep1/"), "dep1"),
+              Target::SOURCE_SET);
   dep1.visibility().SetPublic();
   dep1.SetToolchain(setup.toolchain());
   dep1.all_dependent_configs().push_back(LabelConfigPair(&dep1_all));
@@ -111,8 +111,8 @@ TEST(ConfigValuesExtractors, IncludeOrdering) {
       SourceDir("//target/config/"));
   ASSERT_TRUE(target_config.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//target/"), "target"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//target/"), "target"),
+                Target::SOURCE_SET);
   target.SetToolchain(setup.toolchain());
   target.all_dependent_configs().push_back(LabelConfigPair(&target_all));
   target.public_configs().push_back(LabelConfigPair(&target_direct));

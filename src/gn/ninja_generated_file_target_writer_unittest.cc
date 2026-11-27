@@ -17,36 +17,36 @@ TEST_F(NinjaGeneratedFileTargetWriterTest, Run) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::GENERATED_FILE);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::GENERATED_FILE);
   target.visibility().SetPublic();
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/foo.json");
   target.set_contents(Value(nullptr, true));
   target.set_output_conversion(Value(nullptr, "json"));
 
-  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"));
-  dep.set_output_type(Target::ACTION);
+  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"),
+             Target::ACTION);
   dep.visibility().SetPublic();
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
-  Target dep2(setup.settings(), Label(SourceDir("//foo/"), "dep2"));
-  dep2.set_output_type(Target::ACTION);
+  Target dep2(setup.settings(), Label(SourceDir("//foo/"), "dep2"),
+              Target::ACTION);
   dep2.visibility().SetPublic();
   dep2.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep2.OnResolved(&err));
 
   Target bundle_data_dep(setup.settings(),
-                         Label(SourceDir("//foo/"), "bundle_data_dep"));
+                         Label(SourceDir("//foo/"), "bundle_data_dep"),
+                         Target::BUNDLE_DATA);
   bundle_data_dep.sources().push_back(SourceFile("//foo/some_data.txt"));
-  bundle_data_dep.set_output_type(Target::BUNDLE_DATA);
   bundle_data_dep.visibility().SetPublic();
   bundle_data_dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(bundle_data_dep.OnResolved(&err));
 
-  Target datadep(setup.settings(), Label(SourceDir("//foo/"), "datadep"));
-  datadep.set_output_type(Target::ACTION);
+  Target datadep(setup.settings(), Label(SourceDir("//foo/"), "datadep"),
+                 Target::ACTION);
   datadep.visibility().SetPublic();
   datadep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(datadep.OnResolved(&err));

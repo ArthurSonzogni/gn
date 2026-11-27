@@ -31,8 +31,8 @@ TEST_F(RustProjectJSONWriter, OneRustTarget) {
   TestWithScope setup;
   setup.build_settings()->SetRootPath(UTF8ToFilePath("path"));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -89,8 +89,8 @@ TEST_F(RustProjectJSONWriter, RustTargetDep) {
   Err err;
   TestWithScope setup;
 
-  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"));
-  dep.set_output_type(Target::RUST_LIBRARY);
+  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"),
+             Target::RUST_LIBRARY);
   dep.visibility().SetPublic();
   SourceFile tlib("//tortoise/lib.rs");
   dep.sources().push_back(tlib);
@@ -100,8 +100,8 @@ TEST_F(RustProjectJSONWriter, RustTargetDep) {
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile harelib("//hare/lib.rs");
   target.sources().push_back(harelib);
@@ -173,8 +173,8 @@ TEST_F(RustProjectJSONWriter, RustTargetDepTwo) {
   Err err;
   TestWithScope setup;
 
-  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"));
-  dep.set_output_type(Target::RUST_LIBRARY);
+  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"),
+             Target::RUST_LIBRARY);
   dep.visibility().SetPublic();
   SourceFile tlib("//tortoise/lib.rs");
   dep.sources().push_back(tlib);
@@ -184,8 +184,8 @@ TEST_F(RustProjectJSONWriter, RustTargetDepTwo) {
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
-  Target dep2(setup.settings(), Label(SourceDir("//achilles/"), "bar"));
-  dep2.set_output_type(Target::RUST_LIBRARY);
+  Target dep2(setup.settings(), Label(SourceDir("//achilles/"), "bar"),
+              Target::RUST_LIBRARY);
   dep2.visibility().SetPublic();
   SourceFile alib("//achilles/lib.rs");
   dep2.sources().push_back(alib);
@@ -195,8 +195,8 @@ TEST_F(RustProjectJSONWriter, RustTargetDepTwo) {
   dep2.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep2.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile harelib("//hare/lib.rs");
   target.sources().push_back(harelib);
@@ -292,8 +292,8 @@ TEST_F(RustProjectJSONWriter, RustTargetGetDepRustOnly) {
   Err err;
   TestWithScope setup;
 
-  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"));
-  dep.set_output_type(Target::RUST_LIBRARY);
+  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"),
+             Target::RUST_LIBRARY);
   dep.visibility().SetPublic();
   SourceFile tlib("//tortoise/lib.rs");
   dep.sources().push_back(tlib);
@@ -303,22 +303,22 @@ TEST_F(RustProjectJSONWriter, RustTargetGetDepRustOnly) {
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
-  Target dep2(setup.settings(), Label(SourceDir("//achilles/"), "bar"));
-  dep2.set_output_type(Target::STATIC_LIBRARY);
+  Target dep2(setup.settings(), Label(SourceDir("//achilles/"), "bar"),
+              Target::STATIC_LIBRARY);
   dep2.visibility().SetPublic();
   SourceFile alib("//achilles/lib.o");
   dep2.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep2.OnResolved(&err));
 
-  Target dep3(setup.settings(), Label(SourceDir("//achilles/"), "group"));
-  dep3.set_output_type(Target::GROUP);
+  Target dep3(setup.settings(), Label(SourceDir("//achilles/"), "group"),
+              Target::GROUP);
   dep3.visibility().SetPublic();
   dep3.public_deps().push_back(LabelTargetPair(&dep));
   dep3.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep3.OnResolved(&err));
 
-  Target dep4(setup.settings(), Label(SourceDir("//tortoise/"), "macro"));
-  dep4.set_output_type(Target::RUST_PROC_MACRO);
+  Target dep4(setup.settings(), Label(SourceDir("//tortoise/"), "macro"),
+              Target::RUST_PROC_MACRO);
   dep4.visibility().SetPublic();
   SourceFile tmlib("//tortoise/macro/lib.rs");
   dep4.sources().push_back(tmlib);
@@ -328,8 +328,8 @@ TEST_F(RustProjectJSONWriter, RustTargetGetDepRustOnly) {
   dep4.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep4.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile harelib("//hare/lib.rs");
   target.sources().push_back(harelib);
@@ -429,8 +429,8 @@ TEST_F(RustProjectJSONWriter, OneRustTargetWithRustcTargetSet) {
   TestWithScope setup;
   setup.build_settings()->SetRootPath(UTF8ToFilePath("path"));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -483,8 +483,8 @@ TEST_F(RustProjectJSONWriter, OneRustTargetWithRustcTargetSetAlternate) {
   TestWithScope setup;
   setup.build_settings()->SetRootPath(UTF8ToFilePath("path"));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -538,8 +538,8 @@ TEST_F(RustProjectJSONWriter, OneRustTargetWithEditionSet) {
   TestWithScope setup;
   setup.build_settings()->SetRootPath(UTF8ToFilePath("path"));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -591,8 +591,8 @@ TEST_F(RustProjectJSONWriter, OneRustTargetWithEditionSetAlternate) {
   TestWithScope setup;
   setup.build_settings()->SetRootPath(UTF8ToFilePath("path"));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -645,8 +645,8 @@ TEST_F(RustProjectJSONWriter, OneRustProcMacroTarget) {
   TestWithScope setup;
   setup.build_settings()->SetRootPath(UTF8ToFilePath("path"));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_PROC_MACRO);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_PROC_MACRO);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -706,8 +706,8 @@ TEST_F(RustProjectJSONWriter, RustTargetAliasedDep) {
   Err err;
   TestWithScope setup;
 
-  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"));
-  dep.set_output_type(Target::RUST_LIBRARY);
+  Target dep(setup.settings(), Label(SourceDir("//tortoise/"), "bar"),
+             Target::RUST_LIBRARY);
   dep.visibility().SetPublic();
   SourceFile tlib("//tortoise/lib.rs");
   dep.sources().push_back(tlib);
@@ -717,8 +717,8 @@ TEST_F(RustProjectJSONWriter, RustTargetAliasedDep) {
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//hare/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile harelib("//hare/lib.rs");
   target.sources().push_back(harelib);

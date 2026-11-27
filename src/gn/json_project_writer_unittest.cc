@@ -18,8 +18,8 @@ TEST_F(JSONWriter, ActionWithResponseFile) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION);
 
   target.sources().push_back(SourceFile("//foo/source1.txt"));
   target.config_values().inputs().push_back(SourceFile("//foo/input1.txt"));
@@ -283,8 +283,8 @@ TEST_F(JSONWriter, RustTarget) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -524,8 +524,8 @@ TEST_F(JSONWriter, ForEachWithResponseFile) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION_FOREACH);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION_FOREACH);
 
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.action_values().set_script(SourceFile("//foo/script.py"));
@@ -790,16 +790,16 @@ TEST_F(JSONWriter, FilterTargetsWithDataDeps) {
   TestWithScope setup;
 
   // Create targets :a, :b, :c
-  Target target_a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  target_a.set_output_type(Target::STATIC_LIBRARY);
+  Target target_a(setup.settings(), Label(SourceDir("//foo/"), "a"),
+                  Target::STATIC_LIBRARY);
   target_a.visibility().SetPublic();
 
-  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  target_b.set_output_type(Target::STATIC_LIBRARY);
+  Target target_b(setup.settings(), Label(SourceDir("//foo/"), "b"),
+                  Target::STATIC_LIBRARY);
   target_b.visibility().SetPublic();
 
-  Target target_c(setup.settings(), Label(SourceDir("//foo/"), "c"));
-  target_c.set_output_type(Target::STATIC_LIBRARY);
+  Target target_c(setup.settings(), Label(SourceDir("//foo/"), "c"),
+                  Target::STATIC_LIBRARY);
   target_c.visibility().SetPublic();
 
   // :a depends on :b, and data_depends on :c
@@ -844,8 +844,8 @@ TEST_F(JSONWriter, GroupWithData) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "docs"));
-  target.set_output_type(Target::GROUP);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "docs"),
+                Target::GROUP);
   target.data().push_back("README.md");
   target.data().push_back("docs/help.txt");
   target.SetToolchain(setup.toolchain());

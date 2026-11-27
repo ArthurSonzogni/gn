@@ -15,8 +15,8 @@ TEST_F(NinjaBinaryTargetWriterTest, CSources) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::SOURCE_SET);
   target.visibility().SetPublic();
   target.sources().push_back(SourceFile("//foo/input1.cc"));
   target.sources().push_back(SourceFile("//foo/input2.cc"));
@@ -60,8 +60,8 @@ TEST_F(NinjaBinaryTargetWriterTest, NoSourcesSourceSet) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::SOURCE_SET);
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
@@ -86,8 +86,8 @@ TEST_F(NinjaBinaryTargetWriterTest, NoSourcesStaticLib) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::STATIC_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::STATIC_LIBRARY);
   target.visibility().SetPublic();
   target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(target.OnResolved(&err));
@@ -117,8 +117,8 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
   TestWithScope setup;
 
   {
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::SOURCE_SET);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::SOURCE_SET);
     target.visibility().SetPublic();
     target.sources().push_back(SourceFile("//foo/source1.cc"));
     target.config_values().inputs().push_back(SourceFile("//foo/input1"));
@@ -152,8 +152,8 @@ TEST_F(NinjaBinaryTargetWriterTest, Inputs) {
   }
 
   {
-    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-    target.set_output_type(Target::SOURCE_SET);
+    Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                  Target::SOURCE_SET);
     target.visibility().SetPublic();
     target.sources().push_back(SourceFile("//foo/source1.cc"));
     target.sources().push_back(SourceFile("//foo/source2.cc"));
@@ -200,16 +200,15 @@ TEST_F(NinjaBinaryTargetWriterTest, PublicInputs) {
   TestWithScope setup;
 
   // Action A has public_inputs.
-  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"));
-  a.set_output_type(Target::ACTION);
+  Target a(setup.settings(), Label(SourceDir("//foo/"), "a"), Target::ACTION);
   a.visibility().SetPublic();
   a.SetToolchain(setup.toolchain());
   a.action_values().set_script(SourceFile("//foo/script.py"));
   a.public_inputs().push_back(SourceFile("//foo/a.in"));
 
   // Source set B depends on A.
-  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"));
-  b.set_output_type(Target::SOURCE_SET);
+  Target b(setup.settings(), Label(SourceDir("//foo/"), "b"),
+           Target::SOURCE_SET);
   b.visibility().SetPublic();
   b.sources().push_back(SourceFile("//foo/source1.cc"));
   b.source_types_used().Set(SourceFile::SOURCE_CPP);

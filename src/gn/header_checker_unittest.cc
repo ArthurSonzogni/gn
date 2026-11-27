@@ -24,15 +24,18 @@ namespace {
 class HeaderCheckerTest : public TestWithScheduler {
  public:
   HeaderCheckerTest()
-      : a_(setup_.settings(), Label(SourceDir("//a/"), "a")),
-        b_(setup_.settings(), Label(SourceDir("//b/"), "b")),
-        c_(setup_.settings(), Label(SourceDir("//c/"), "c")),
-        d_(setup_.settings(), Label(SourceDir("//d/"), "d")) {
-    a_.set_output_type(Target::SOURCE_SET);
-    b_.set_output_type(Target::SOURCE_SET);
-    c_.set_output_type(Target::SOURCE_SET);
-    d_.set_output_type(Target::SOURCE_SET);
-
+      : a_(setup_.settings(),
+           Label(SourceDir("//a/"), "a"),
+           Target::SOURCE_SET),
+        b_(setup_.settings(),
+           Label(SourceDir("//b/"), "b"),
+           Target::SOURCE_SET),
+        c_(setup_.settings(),
+           Label(SourceDir("//c/"), "c"),
+           Target::SOURCE_SET),
+        d_(setup_.settings(),
+           Label(SourceDir("//d/"), "d"),
+           Target::SOURCE_SET) {
     Err err;
     a_.SetToolchain(setup_.toolchain(), &err);
     b_.SetToolchain(setup_.toolchain(), &err);
@@ -90,8 +93,8 @@ TEST_F(HeaderCheckerTest, IsDependencyOf) {
   // Add a target P ("private") that privately depends on C, and hook up the
   // chain so that A -> P -> C. A will depend on C via two different paths.
   Err err;
-  Target p(setup_.settings(), Label(SourceDir("//p/"), "p"));
-  p.set_output_type(Target::SOURCE_SET);
+  Target p(setup_.settings(), Label(SourceDir("//p/"), "p"),
+           Target::SOURCE_SET);
   p.SetToolchain(setup_.toolchain(), &err);
   EXPECT_SUCCESS(err);
   p.private_deps().push_back(LabelTargetPair(&c_));
@@ -194,8 +197,8 @@ TEST_F(HeaderCheckerTest, CheckInclude) {
   // connected to any targets in the main toolchain.
   Target otc(&other_settings,
              Label(SourceDir("//p/"), "otc", other_toolchain.label().dir(),
-                   other_toolchain.label().name()));
-  otc.set_output_type(Target::SOURCE_SET);
+                   other_toolchain.label().name()),
+             Target::SOURCE_SET);
   Err err;
   EXPECT_TRUE(otc.SetToolchain(&other_toolchain, &err));
   otc.visibility().SetPublic();
@@ -245,8 +248,8 @@ TEST_F(HeaderCheckerTest, CheckInclude) {
 TEST_F(HeaderCheckerTest, PublicFirst) {
   // Now make a A -> Z -> D private dependency chain (one shorter than the
   // public one to get to D).
-  Target z(setup_.settings(), Label(SourceDir("//a/"), "a"));
-  z.set_output_type(Target::SOURCE_SET);
+  Target z(setup_.settings(), Label(SourceDir("//a/"), "a"),
+           Target::SOURCE_SET);
   Err err;
   EXPECT_TRUE(z.SetToolchain(setup_.toolchain(), &err));
   z.private_deps().push_back(LabelTargetPair(&d_));
@@ -318,8 +321,7 @@ TEST_F(HeaderCheckerTest, CheckIncludeAllowCircular) {
 // Check that CheckInclude() support swift targets.
 TEST_F(HeaderCheckerTest, CheckIncludeSwiftModule) {
   // A target S that build a swift module.
-  Target s(setup_.settings(), Label(SourceDir("//s"), "s"));
-  s.set_output_type(Target::SOURCE_SET);
+  Target s(setup_.settings(), Label(SourceDir("//s"), "s"), Target::SOURCE_SET);
 
   Err err;
   s.SetToolchain(setup_.toolchain(), &err);
@@ -612,8 +614,7 @@ TEST_F(HeaderCheckerTest, NoCheckGenerated) {
   // a handwritten one. This mirrors generated bindings (e.g. mojom) compiled
   // by a source_set.
   Err err;
-  Target g(setup_.settings(), Label(SourceDir("//g/"), "g"));
-  g.set_output_type(Target::ACTION);
+  Target g(setup_.settings(), Label(SourceDir("//g/"), "g"), Target::ACTION);
   g.SetToolchain(setup_.toolchain(), &err);
   ASSERT_SUCCESS(err);
   g.action_values().outputs() =

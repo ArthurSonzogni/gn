@@ -19,8 +19,8 @@ TEST(NinjaActionTargetWriter, WriteOutputFilesForBuildLine) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION_FOREACH);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION_FOREACH);
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/gen/a b{{source_name_part}}.h",
                                     "//out/Debug/gen/{{source_name_part}}.cc");
@@ -43,8 +43,8 @@ TEST(NinjaActionTargetWriter, ActionNoSources) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo++/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo++/"), "bar"),
+                Target::ACTION);
 
   target.action_values().set_script(SourceFile("//foo++/script.py"));
   target.config_values().inputs().push_back(SourceFile("//foo++/included.txt"));
@@ -79,8 +79,8 @@ TEST(NinjaActionTargetWriter, ActionNoSourcesConsole) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION);
 
   target.action_values().set_script(SourceFile("//foo/script.py"));
   target.config_values().inputs().push_back(SourceFile("//foo/included.txt"));
@@ -125,8 +125,8 @@ TEST(NinjaActionTargetWriter, ActionWithSources) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION);
 
   target.action_values().set_script(SourceFile("//foo/script.py"));
 
@@ -167,20 +167,20 @@ TEST(NinjaActionTargetWriter, ActionWithOrderOnlyDeps) {
   // so they have a nice platform-independent stamp file that can appear in the
   // output (rather than having to worry about how the current platform names
   // binaries).
-  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"));
-  dep.set_output_type(Target::ACTION);
+  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"),
+             Target::ACTION);
   dep.visibility().SetPublic();
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
-  Target datadep(setup.settings(), Label(SourceDir("//foo/"), "datadep"));
-  datadep.set_output_type(Target::ACTION);
+  Target datadep(setup.settings(), Label(SourceDir("//foo/"), "datadep"),
+                 Target::ACTION);
   datadep.visibility().SetPublic();
   datadep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(datadep.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION);
 
   target.action_values().set_script(SourceFile("//foo/script.py"));
 
@@ -226,28 +226,28 @@ TEST(NinjaActionTargetWriter, ForEach) {
   // so they have a nice platform-independent stamp file that can appear in the
   // output (rather than having to worry about how the current platform names
   // binaries).
-  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"));
-  dep.set_output_type(Target::ACTION);
+  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"),
+             Target::ACTION);
   dep.visibility().SetPublic();
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
   Target bundle_data_dep(setup.settings(),
-                         Label(SourceDir("//foo/"), "bundle_data_dep"));
+                         Label(SourceDir("//foo/"), "bundle_data_dep"),
+                         Target::BUNDLE_DATA);
   bundle_data_dep.sources().push_back(SourceFile("//foo/some_data.txt"));
-  bundle_data_dep.set_output_type(Target::BUNDLE_DATA);
   bundle_data_dep.visibility().SetPublic();
   bundle_data_dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(bundle_data_dep.OnResolved(&err));
 
-  Target datadep(setup.settings(), Label(SourceDir("//foo/"), "datadep"));
-  datadep.set_output_type(Target::ACTION);
+  Target datadep(setup.settings(), Label(SourceDir("//foo/"), "datadep"),
+                 Target::ACTION);
   datadep.visibility().SetPublic();
   datadep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(datadep.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION_FOREACH);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION_FOREACH);
   target.private_deps().push_back(LabelTargetPair(&dep));
   target.private_deps().push_back(LabelTargetPair(&bundle_data_dep));
   target.data_deps().push_back(LabelTargetPair(&datadep));
@@ -311,8 +311,8 @@ TEST(NinjaActionTargetWriter, ForEachWithDepfile) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION_FOREACH);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION_FOREACH);
 
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.sources().push_back(SourceFile("//foo/input2.txt"));
@@ -374,8 +374,8 @@ TEST(NinjaActionTargetWriter, ForEachWithResponseFile) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION_FOREACH);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION_FOREACH);
 
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.action_values().set_script(SourceFile("//foo/script.py"));
@@ -428,8 +428,8 @@ TEST(NinjaActionTargetWriter, ForEachWithPool) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION_FOREACH);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION_FOREACH);
 
   target.sources().push_back(SourceFile("//foo/input1.txt"));
   target.action_values().set_script(SourceFile("//foo/script.py"));
@@ -482,14 +482,14 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
   setup.build_settings()->SetPythonPath(
       base::FilePath(FILE_PATH_LITERAL("/usr/bin/python")));
 
-  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"));
-  dep.set_output_type(Target::ACTION);
+  Target dep(setup.settings(), Label(SourceDir("//foo/"), "dep"),
+             Target::ACTION);
   dep.visibility().SetPublic();
   dep.SetToolchain(setup.toolchain());
   ASSERT_TRUE(dep.OnResolved(&err));
 
-  Target foo(setup.settings(), Label(SourceDir("//foo/"), "foo"));
-  foo.set_output_type(Target::ACTION);
+  Target foo(setup.settings(), Label(SourceDir("//foo/"), "foo"),
+             Target::ACTION);
   foo.visibility().SetPublic();
   foo.sources().push_back(SourceFile("//foo/input1.txt"));
   foo.action_values().set_script(SourceFile("//foo/script.py"));
@@ -518,8 +518,8 @@ TEST(NinjaActionTargetWriter, NoTransitiveHardDeps) {
     EXPECT_EQ(expected_linux, out);
   }
 
-  Target bar(setup.settings(), Label(SourceDir("//bar/"), "bar"));
-  bar.set_output_type(Target::ACTION);
+  Target bar(setup.settings(), Label(SourceDir("//bar/"), "bar"),
+             Target::ACTION);
   bar.sources().push_back(SourceFile("//bar/input1.txt"));
   bar.action_values().set_script(SourceFile("//bar/script.py"));
   bar.private_deps().push_back(LabelTargetPair(&foo));
@@ -570,8 +570,8 @@ TEST(NinjaActionTargetWriter, SeesConfig) {
   cfgdep.configs().push_back(LabelConfigPair(&farcfg));
   ASSERT_TRUE(cfgdep.OnResolved(&err));
 
-  Target foo(setup.settings(), Label(SourceDir("//foo/"), "foo"));
-  foo.set_output_type(Target::ACTION);
+  Target foo(setup.settings(), Label(SourceDir("//foo/"), "foo"),
+             Target::ACTION);
   foo.visibility().SetPublic();
   foo.sources().push_back(SourceFile("//foo/input1.txt"));
   foo.action_values().set_script(SourceFile("//foo/script.py"));
@@ -613,8 +613,8 @@ TEST(NinjaActionTargetWriter, ActionWithSpaces) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION);
 
   target.action_values().set_script(SourceFile("//foo/my script.py"));
   target.action_values().args() = SubstitutionList::MakeForTest("my argument");
@@ -660,8 +660,8 @@ TEST(NinjaActionTargetWriter, ActionWithValidations) {
   Err err;
   TestWithScope setup;
 
-  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"));
-  validation_target.set_output_type(Target::ACTION);
+  Target validation_target(setup.settings(), Label(SourceDir("//foo/"), "val"),
+                           Target::ACTION);
   validation_target.visibility().SetPublic();
   validation_target.action_values().set_script(SourceFile("//foo/script.py"));
   validation_target.action_values().outputs() =
@@ -669,8 +669,8 @@ TEST(NinjaActionTargetWriter, ActionWithValidations) {
   validation_target.SetToolchain(setup.toolchain());
   ASSERT_TRUE(validation_target.OnResolved(&err));
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION);
   target.action_values().set_script(SourceFile("//foo/script.py"));
   target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/foo.out");
@@ -702,8 +702,8 @@ TEST(NinjaActionTargetWriter, ActionWithPythonArgs) {
   Err err;
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::ACTION);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::ACTION);
   target.action_values().set_script(SourceFile("//foo/script.py"));
   target.action_values().args() = SubstitutionList::MakeForTest("--flag");
   target.action_values().outputs() =

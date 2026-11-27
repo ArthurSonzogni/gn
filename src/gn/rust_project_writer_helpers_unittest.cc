@@ -124,8 +124,8 @@ TEST_F(RustProjectWriterHelper, SysrootDepsAreCorrect) {
 TEST_F(RustProjectWriterHelper, ExtractCompilerTargetTupleSimple) {
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -146,8 +146,8 @@ TEST_F(RustProjectWriterHelper, ExtractCompilerTargetTupleSimple) {
 TEST_F(RustProjectWriterHelper, ExtractCompilerTargetTupleMissing) {
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -168,8 +168,8 @@ TEST_F(RustProjectWriterHelper, ExtractCompilerTargetTupleMissing) {
 TEST_F(RustProjectWriterHelper, ExtractCompilerTargetTupleDontFallOffEnd) {
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -189,8 +189,8 @@ TEST_F(RustProjectWriterHelper, ExtractCompilerTargetTupleDontFallOffEnd) {
 TEST_F(RustProjectWriterHelper, ExtractFirstArgValueWithPrefixMissing) {
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -211,8 +211,8 @@ TEST_F(RustProjectWriterHelper, ExtractFirstArgValueWithPrefixMissing) {
 TEST_F(RustProjectWriterHelper, ExtractFirstArgValueWithPrefix) {
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -233,8 +233,8 @@ TEST_F(RustProjectWriterHelper, ExtractFirstArgValueWithPrefix) {
 TEST_F(RustProjectWriterHelper, ExtractAllArgValueWithPrefix) {
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);
@@ -256,8 +256,8 @@ TEST_F(RustProjectWriterHelper, ExtractAllArgValueWithPrefix) {
 TEST_F(RustProjectWriterHelper, FindAllArgValues) {
   TestWithScope setup;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"));
-  target.set_output_type(Target::RUST_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar"),
+                Target::RUST_LIBRARY);
   target.visibility().SetPublic();
   SourceFile lib("//foo/lib.rs");
   target.sources().push_back(lib);

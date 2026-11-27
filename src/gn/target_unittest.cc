@@ -118,8 +118,8 @@ TEST_F(TargetTest, NoDependentConfigsBetweenToolchains) {
   // toolchain.
   Target a(setup.settings(),
            Label(SourceDir("//foo/"), "a", other_toolchain.label().dir(),
-                 other_toolchain.label().name()));
-  a.set_output_type(Target::EXECUTABLE);
+                 other_toolchain.label().name()),
+           Target::EXECUTABLE);
   EXPECT_TRUE(a.SetToolchain(&other_toolchain, &err));
   TestTarget b(setup, "//foo:b", Target::EXECUTABLE);
   TestTarget c(setup, "//foo:c", Target::SOURCE_SET);
@@ -179,9 +179,9 @@ TEST_F(TargetTest, DependentConfigsBetweenToolchainsWhenSet) {
   TestTarget a(setup, "//foo:a", Target::EXECUTABLE);
   Target b(setup.settings(),
            Label(SourceDir("//foo/"), "b", other_toolchain.label().dir(),
-                 other_toolchain.label().name()));
+                 other_toolchain.label().name()),
+           Target::SHARED_LIBRARY);
   b.visibility().SetPublic();
-  b.set_output_type(Target::SHARED_LIBRARY);
   EXPECT_TRUE(b.SetToolchain(&other_toolchain, &err));
   a.private_deps().push_back(LabelTargetPair(&b));
 
@@ -552,8 +552,8 @@ TEST_F(TargetTest, LinkAndDepOutputs) {
 
   toolchain.SetTool(std::move(solink));
 
-  Target target(setup.settings(), Label(SourceDir("//a/"), "a"));
-  target.set_output_type(Target::SHARED_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//a/"), "a"),
+                Target::SHARED_LIBRARY);
   target.SetToolchain(&toolchain);
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -593,10 +593,10 @@ TEST_F(TargetTest, RustLinkAndDepOutputs) {
 
   toolchain.SetTool(std::move(tool));
 
-  Target target(setup.settings(), Label(SourceDir("//a/"), "a"));
+  Target target(setup.settings(), Label(SourceDir("//a/"), "a"),
+                Target::SHARED_LIBRARY);
   target.source_types_used().Set(SourceFile::SOURCE_RS);
   target.rust_values().set_crate_type(RustValues::CRATE_DYLIB);
-  target.set_output_type(Target::SHARED_LIBRARY);
   target.SetToolchain(&toolchain);
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -641,8 +641,8 @@ TEST_F(TargetTest, RuntimeOutputs) {
 
   toolchain.SetTool(std::move(solink));
 
-  Target target(setup.settings(), Label(SourceDir("//a/"), "a"));
-  target.set_output_type(Target::SHARED_LIBRARY);
+  Target target(setup.settings(), Label(SourceDir("//a/"), "a"),
+                Target::SHARED_LIBRARY);
   target.SetToolchain(&toolchain);
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -694,10 +694,10 @@ TEST_F(TargetTest, RustRuntimeOutputs) {
 
   toolchain.SetTool(std::move(tool));
 
-  Target target(setup.settings(), Label(SourceDir("//a/"), "a"));
+  Target target(setup.settings(), Label(SourceDir("//a/"), "a"),
+                Target::SHARED_LIBRARY);
   target.source_types_used().Set(SourceFile::SOURCE_RS);
   target.rust_values().set_crate_type(RustValues::CRATE_CDYLIB);
-  target.set_output_type(Target::SHARED_LIBRARY);
   target.SetToolchain(&toolchain);
   ASSERT_TRUE(target.OnResolved(&err));
 
@@ -729,8 +729,8 @@ TEST_F(TargetTest, GetOutputFilesForSource_Binary) {
   cxx->set_outputs(SubstitutionList::MakeForTest("{{source_file_part}}.o"));
   toolchain.SetTool(std::move(tool));
 
-  Target target(setup.settings(), Label(SourceDir("//a/"), "a"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//a/"), "a"),
+                Target::SOURCE_SET);
   target.sources().push_back(SourceFile("//a/source_file1.cc"));
   target.SetToolchain(&toolchain);
   Err err;
@@ -766,8 +766,8 @@ TEST_F(TargetTest, CheckStampFileName) {
   cxx->set_outputs(SubstitutionList::MakeForTest("{{source_file_part}}.o"));
   toolchain.SetTool(std::move(tool));
 
-  Target target(setup.settings(), Label(SourceDir("//a/"), "a"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//a/"), "a"),
+                Target::SOURCE_SET);
   target.SetToolchain(&toolchain);
 
   // Change the output artifact name on purpose.
@@ -856,20 +856,22 @@ TEST_F(TargetTest, GetOutputFilesForSource_Action) {
 
   // Test that the copy target type behaves the same. This target requires only
   // one output.
-  target.action_values().outputs() =
+  TestTarget copy_target(setup, "//a:copy", Target::COPY_FILES);
+  copy_target.sources().push_back(SourceFile("//a/source_file1.txt"));
+  copy_target.action_values().outputs() =
       SubstitutionList::MakeForTest("//out/Debug/one");
-  target.set_output_type(Target::COPY_FILES);
+  ASSERT_TRUE(copy_target.OnResolved(&err));
 
   // Outputs are relative to the build directory "//out/Debug/".
-  result = target.GetOutputFilesForSource(SourceFile("//source/input.txt"),
-                                          &computed_tool_type, &output);
+  result = copy_target.GetOutputFilesForSource(SourceFile("//source/input.txt"),
+                                               &computed_tool_type, &output);
   ASSERT_TRUE(result);
   ASSERT_EQ(1u, output.size());
   EXPECT_EQ("one", output[0].value());
 
   // Test GetOutputsAsSourceFiles() for the copy case.
-  EXPECT_TRUE(target.GetOutputsAsSourceFiles(LocationRange(), true,
-                                             &computed_outputs, &err));
+  EXPECT_TRUE(copy_target.GetOutputsAsSourceFiles(LocationRange(), true,
+                                                  &computed_outputs, &err));
   ASSERT_EQ(1u, computed_outputs.size()) << computed_outputs.size();
   EXPECT_EQ("//out/Debug/one", computed_outputs[0].value());
 }
@@ -1123,8 +1125,10 @@ TEST_F(TargetTest, ResolvePrecompiledHeaders) {
   TestWithScope setup;
   Err err;
 
-  Target target(setup.settings(), Label(SourceDir("//foo/"), "bar",
-                                        SourceDir("//toolchain/"), "default"));
+  Target target(
+      setup.settings(),
+      Label(SourceDir("//foo/"), "bar", SourceDir("//toolchain/"), "default"),
+      Target::EXECUTABLE);
 
   // Target with no settings, no configs, should be a no-op.
   EXPECT_TRUE(target.ResolvePrecompiledHeaders(&err));
@@ -1722,8 +1726,8 @@ TEST_F(TargetTest, ModuleMap) {
       SubstitutionList::MakeForTest("{{source_file_part}}.pcm"));
   toolchain.SetTool(std::move(tool));
 
-  Target target(setup.settings(), Label(SourceDir("//a/"), "a"));
-  target.set_output_type(Target::SOURCE_SET);
+  Target target(setup.settings(), Label(SourceDir("//a/"), "a"),
+                Target::SOURCE_SET);
   target.SetToolchain(&toolchain);
   Err err;
   ASSERT_TRUE(target.OnResolved(&err));
