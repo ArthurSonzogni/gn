@@ -408,8 +408,10 @@ Dependencies
 
 Target::Target(const Settings* settings,
                const Label& label,
+               OutputType output_type,
                const SourceFileSet& build_dependency_files)
     : Item(settings, label, build_dependency_files),
+      output_type_(output_type),
       module_name_(
           label.GetUserVisibleName(settings->default_toolchain_label())) {}
 

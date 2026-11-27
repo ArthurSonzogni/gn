@@ -83,6 +83,7 @@ class Target : public Item {
   // to Scope for how this is determined.
   Target(const Settings* settings,
          const Label& label,
+         OutputType output_type = UNKNOWN,
          const SourceFileSet& build_dependency_files = {});
   ~Target() override;
 
