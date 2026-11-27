@@ -29,6 +29,11 @@ class Item {
        const SourceFileSet& build_dependency_files = {});
   virtual ~Item();
 
+  Item(const Item&) = delete;
+  Item(Item&&) = delete;
+  Item& operator=(const Item&) = delete;
+  Item& operator=(Item&&) = delete;
+
   const Settings* settings() const { return settings_; }
 
   // This is guaranteed to never change after construction so this can be
