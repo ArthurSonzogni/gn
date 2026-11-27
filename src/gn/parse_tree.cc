@@ -1437,7 +1437,6 @@ Err BlockCommentNode::MakeErrorDescribing(const std::string& msg,
 }
 
 base::Value BlockCommentNode::GetJSONNode() const {
-  std::string escaped;
   return CreateJSONNode(kDumpNodeName, comment_.value(), GetRange());
 }
 

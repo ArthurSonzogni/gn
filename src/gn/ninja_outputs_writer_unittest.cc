@@ -35,8 +35,7 @@ struct TargetWriteInfo {
 void BackgroundDoWrite(TargetWriteInfo* write_info, const Target* target) {
   std::vector<OutputFile> target_ninja_outputs;
   ResolvedTargetData resolved;
-  std::string rule = NinjaTargetWriter::RunAndWriteFile(target, &resolved,
-                                                        &target_ninja_outputs);
+  NinjaTargetWriter::RunAndWriteFile(target, &resolved, &target_ninja_outputs);
 
   std::lock_guard<std::mutex> lock(write_info->lock);
   write_info->ninja_outputs_map.emplace(target,

@@ -243,8 +243,8 @@ TEST(Tokenizer, WhitespaceTransformMaintain) {
   input.SetContents("a\t2\v\"st\tuff\"\f{");
 
   Err err;
-  std::vector<Token> results = Tokenizer::Tokenize(
-      &input, &err, WhitespaceTransform::kMaintainOriginalInput);
+  Tokenizer::Tokenize(&input, &err,
+                      WhitespaceTransform::kMaintainOriginalInput);
   EXPECT_TRUE(err.has_error());
   EXPECT_EQ(err.location().column_number(), 2);
 }

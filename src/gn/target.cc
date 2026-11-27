@@ -758,7 +758,6 @@ bool Target::GetOutputsAsSourceFiles(const LocationRange& loc_for_error,
 
   outputs->clear();
 
-  std::vector<SourceFile> files;
   if (output_type() == Target::ACTION || output_type() == Target::COPY_FILES ||
       output_type() == Target::ACTION_FOREACH ||
       output_type() == Target::GENERATED_FILE) {
@@ -816,7 +815,6 @@ bool Target::GetOutputFilesForSource(const SourceFile& source,
   if (output_type() == Target::COPY_FILES ||
       output_type() == Target::ACTION_FOREACH) {
     // These target types apply the output pattern to the input.
-    std::vector<SourceFile> output_files;
     SubstitutionWriter::ApplyListToSourceAsOutputFile(
         this, settings(), action_values().outputs(), source, outputs);
   } else if (!IsBinary()) {

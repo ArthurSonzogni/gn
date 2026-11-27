@@ -588,7 +588,6 @@ def WriteGNNinja(path, platform, host, options, args_list):
         '-Wno-deprecated-copy',
         '-Wno-implicit-fallthrough',
         '-Wno-redundant-move',
-        '-Wno-unused-variable',
         '-Wno-format',             # Use of %llx, which is supported by _UCRT, false positive
         '-Wno-strict-aliasing',    # Dereferencing punned pointer
         '-Wno-cast-function-type', # Casting FARPROC to RegDeleteKeyExPtr

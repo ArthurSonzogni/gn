@@ -74,7 +74,6 @@ TEST(Label, Resolve) {
   Label default_toolchain(SourceDir("//t/"), "d");
 
   for (const auto& test_case : test_cases) {
-    std::string location, name;
     Err err;
     Value v(nullptr, Value::STRING);
     v.string_value() = test_case.str;
@@ -99,7 +98,6 @@ TEST(Label, Resolve) {
 TEST(Label, ResolveAboveRootBuildDir) {
   Label default_toolchain(SourceDir("//t/"), "d");
 
-  std::string location, name;
   Err err;
 
   SourceDir cur_dir("//cur/");

@@ -205,16 +205,7 @@ FilePath MakeAbsoluteFilePath(const FilePath& input) {
 }
 
 bool DeleteFile(const FilePath& path, bool recursive) {
-  static constexpr char kRecursive[] = "DeleteFile.Recursive";
-  static constexpr char kNonRecursive[] = "DeleteFile.NonRecursive";
-  const std::string_view operation(recursive ? kRecursive : kNonRecursive);
-
-  // Metrics for delete failures tracked in https://crbug.com/599084. Delete may
-  // fail for a number of reasons. Log some metrics relating to failures in the
-  // current code so that any improvements or regressions resulting from
-  // subsequent code changes can be detected.
-  const DWORD error = DoDeleteFile(path, recursive);
-  return error == ERROR_SUCCESS;
+  return DoDeleteFile(path, recursive) == ERROR_SUCCESS;
 }
 
 bool DeleteFileAfterReboot(const FilePath& path) {
