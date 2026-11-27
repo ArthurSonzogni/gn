@@ -16,7 +16,6 @@
 #include "base/files/file_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "base/timer/elapsed_timer.h"
 #include "gn/build_settings.h"
 #include "gn/commands.h"
 #include "gn/compile_commands_writer.h"
@@ -40,6 +39,7 @@
 #include "gn/target.h"
 #include "gn/visual_studio_writer.h"
 #include "gn/xcode_writer.h"
+#include "util/ticks.h"
 
 namespace commands {
 
@@ -361,7 +361,7 @@ bool RunIdeWriter(const std::string& ide,
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
   bool quiet = command_line->HasSwitch(switches::kQuiet);
-  base::ElapsedTimer timer;
+  ElapsedTimer timer;
 
   if (ide == kSwitchIdeValueEclipse) {
     bool res = EclipseWriter::RunAndWriteFile(build_settings, builder, err);
@@ -498,7 +498,7 @@ bool RunRustProjectWriter(const BuildSettings* build_settings,
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
   bool quiet = command_line->HasSwitch(switches::kQuiet);
-  base::ElapsedTimer timer;
+  ElapsedTimer timer;
 
   std::string file_name = "rust-project.json";
   bool res = RustProjectWriter::RunAndWriteFiles(build_settings, builder,
@@ -524,7 +524,7 @@ bool RunCompileCommandsWriter(Setup& setup, Err* err) {
     return true;  // No compilation database needs to be written.
 
   bool quiet = command_line->HasSwitch(switches::kQuiet);
-  base::ElapsedTimer timer;
+  ElapsedTimer timer;
 
   // The compilation database file goes in the build directory.
   SourceFile output_file =
@@ -880,7 +880,7 @@ Compilation Database
 )";
 
 int RunGen(const std::vector<std::string>& args) {
-  base::ElapsedTimer timer;
+  ElapsedTimer timer;
 
   if (args.size() != 1) {
     Err(Location(), "Need exactly one build directory to generate.",

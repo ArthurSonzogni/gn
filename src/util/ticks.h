@@ -36,7 +36,7 @@ TickDelta TicksDelta(Ticks new_ticks, Ticks old_ticks);
 class ElapsedTimer {
  public:
   ElapsedTimer() : start_(TicksNow()) {}
-  TickDelta Elapsed() { return TicksDelta(TicksNow(), start_); }
+  TickDelta Elapsed() const { return TicksDelta(TicksNow(), start_); }
 
  private:
   Ticks start_;
