@@ -678,7 +678,7 @@ Result<std::unique_ptr<ParseNode>> BuildFile::parse_expression(
   auto parsed = Parser::ParseExpression(tokens, &err);
   RETURN_IF_ERROR(err);
   extra_files_.push_back(std::move(file));
-  return std::move(parsed);
+  return parsed;
 }
 
 std::unique_ptr<ParseNode> BuildFile::to_node(const Value& value) {
